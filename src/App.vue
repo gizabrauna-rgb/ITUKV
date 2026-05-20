@@ -1,11 +1,37 @@
 <template>
-  <div class="min-h-screen bg-gray-50 flex items-center justify-center">
-    <div class="text-center">
-      <h1 class="text-3xl font-bold text-gray-800">ITUKV Dashboard</h1>
-      <p class="text-gray-500 mt-2">M&A Prozess – Mike Bergmann Akademie</p>
-    </div>
-  </div>
+  <component
+    :is="currentView"
+    :user-name="userName"
+    @logged-in="onLoggedIn"
+    @logout="onLogout"
+  />
 </template>
 
 <script setup>
+import { ref, computed, onMounted } from 'vue'
+import Login from './views/Login.vue'
+import AdminDashboard from './views/AdminDashboard.vue'
+import TargetDashboard from './views/TargetDashboard.vue'
+import InvestorDashboard from './views/InvestorDashboard.vue'
+
+const role = ref(sessionStorage.getItem('userRole') || '')
+const userName = ref(sessionStorage.getItem('userName') || '')
+
+const currentView = computed(() => {
+  if (!role.value) return Login
+  if (role.value === 'admin') return AdminDashboard
+  if (role.value === 'target') return TargetDashboard
+  if (role.value === 'investor') return InvestorDashboard
+  return Login
+})
+
+function onLoggedIn(user) {
+  role.value = user.role
+  userName.value = user.name
+}
+
+function onLogout() {
+  role.value = ''
+  userName.value = ''
+}
 </script>
