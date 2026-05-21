@@ -12,6 +12,35 @@
         </div>
       </div>
       <div class="flex items-center gap-4">
+        <!-- Ansicht-Switcher -->
+        <div class="relative">
+          <button @click="showSwitcher = !showSwitcher"
+            class="flex items-center gap-2 px-3 py-1.5 bg-[#097e92]/20 hover:bg-[#097e92]/30 rounded-lg text-xs font-medium text-white transition-colors">
+            <Eye class="w-3.5 h-3.5" />
+            Ansicht testen
+            <ChevronDown class="w-3.5 h-3.5" />
+          </button>
+          <div v-if="showSwitcher" class="absolute right-0 top-full mt-1 bg-white text-gray-800 rounded-xl shadow-xl border border-gray-100 w-64 z-50 overflow-hidden">
+            <div class="p-3 border-b border-gray-100">
+              <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Wechsle die Sicht</div>
+            </div>
+            <button @click="switchTo('target')" class="w-full px-3 py-2.5 text-left hover:bg-gray-50 flex items-start gap-3 border-b border-gray-50">
+              <Briefcase class="w-4 h-4 text-[#097e92] mt-0.5" />
+              <div>
+                <div class="text-sm font-medium">Target-Sicht (Verkäufer)</div>
+                <div class="text-xs text-gray-400">So sieht ein Verkäufer sein Portal</div>
+              </div>
+            </button>
+            <button @click="switchTo('investor')" class="w-full px-3 py-2.5 text-left hover:bg-gray-50 flex items-start gap-3">
+              <Users class="w-4 h-4 text-[#097e92] mt-0.5" />
+              <div>
+                <div class="text-sm font-medium">Investor-Sicht (Käufer)</div>
+                <div class="text-xs text-gray-400">So sieht ein Investor sein Portal</div>
+              </div>
+            </button>
+          </div>
+        </div>
+
         <span class="text-sm text-gray-300">{{ userName }}</span>
         <button @click="$emit('logout')" class="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors">
           <LogOut class="w-4 h-4" /> Abmelden
@@ -149,7 +178,7 @@
 import { ref, computed, onMounted } from 'vue'
 import {
   Building2, LogOut, LayoutDashboard, Briefcase, GitBranch,
-  Users, Megaphone, FolderOpen, X, Check
+  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown
 } from '@lucide/vue'
 import { authFetch } from '../api.js'
 import TargetsTab from '../components/admin/TargetsTab.vue'
@@ -159,9 +188,15 @@ import AusschreibungenTab from '../components/admin/AusschreibungenTab.vue'
 import DokumenteTab from '../components/admin/DokumenteTab.vue'
 
 const props = defineProps({ userName: String })
-const emit = defineEmits(['logout'])
+const emit = defineEmits(['logout', 'switch-view'])
 
 const tab = ref('uebersicht')
+const showSwitcher = ref(false)
+
+function switchTo(view) {
+  showSwitcher.value = false
+  emit('switch-view', view)
+}
 const statsLoading = ref(true)
 const statsRaw = ref({ aktiveTargets: 0, offeneNdas: 0, investorenGesamt: 0, dealsAbgeschlossen: 0 })
 const detailTarget = ref(null)

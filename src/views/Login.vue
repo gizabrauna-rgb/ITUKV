@@ -84,7 +84,7 @@
 import { ref, defineComponent, h } from 'vue'
 import { Building2, LogIn, AlertCircle, Loader2 } from '@lucide/vue'
 import { msalInstance, loginRequest } from '../authConfig.js'
-import { loginCustomer, resolveMsLogin } from '../api.js'
+import { loginCustomer } from '../api.js'
 
 const emit = defineEmits(['logged-in'])
 
@@ -111,29 +111,10 @@ async function loginMicrosoft() {
   loginType.value = 'microsoft'
   error.value = ''
   try {
-    await msalInstance.initialize()
-    const result = await msalInstance.loginPopup({
-      ...loginRequest,
-      prompt: 'select_account',
-    })
-    const userEmail = (result.account.username || '').toLowerCase()
-    const userName = result.account.name || userEmail
-
-    // Rolle vom Backend ermitteln
-    const resolved = await resolveMsLogin({ email: userEmail, name: userName })
-
-    sessionStorage.setItem('msalToken', result.idToken)
-    sessionStorage.setItem('customerJwt', resolved.token)
-    sessionStorage.setItem('userRole', resolved.role)
-    sessionStorage.setItem('userName', resolved.name)
-    sessionStorage.setItem('customerId', resolved.id)
-    if (resolved.targetId) sessionStorage.setItem('targetId', resolved.targetId)
-    emit('logged-in', { role: resolved.role, name: resolved.name })
+    // Redirect-Login (kein Popup) – wie KIwerk
+    await msalInstance.loginRedirect(loginRequest)
   } catch (e) {
-    if (e.errorCode !== 'user_cancelled') {
-      error.value = 'Microsoft-Anmeldung fehlgeschlagen. Bitte erneut versuchen.'
-    }
-  } finally {
+    error.value = 'Microsoft-Anmeldung fehlgeschlagen: ' + (e.message || e)
     loading.value = false
     loginType.value = ''
   }
