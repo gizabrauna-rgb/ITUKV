@@ -1,5 +1,3 @@
 azure-functions
 azure-data-tables
 azure-storage-blob
-PyJWT
-bcrypt

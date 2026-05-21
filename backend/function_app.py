@@ -5,11 +5,94 @@ import os
 import uuid
 import csv
 import io
-import jwt
-import bcrypt
+import hmac
+import hashlib
+import base64
+import secrets
 from datetime import datetime, timedelta
+
+
+# ── Minimale Passwort-Hash (PBKDF2-SHA256) ohne externe Dependencies ─────────
+class _Bcrypt:
+    @staticmethod
+    def hashpw(password: bytes, salt=None):
+        if isinstance(password, str):
+            password = password.encode()
+        salt = secrets.token_bytes(16)
+        hashed = hashlib.pbkdf2_hmac('sha256', password, salt, 100000)
+        return (b"pbkdf2$" + base64.b64encode(salt) + b"$" + base64.b64encode(hashed))
+
+    @staticmethod
+    def checkpw(password: bytes, hashed):
+        if isinstance(password, str):
+            password = password.encode()
+        if isinstance(hashed, str):
+            hashed = hashed.encode()
+        try:
+            prefix, salt_b64, hash_b64 = hashed.split(b"$")
+            if prefix != b"pbkdf2":
+                return False
+            salt = base64.b64decode(salt_b64)
+            expected = base64.b64decode(hash_b64)
+            actual = hashlib.pbkdf2_hmac('sha256', password, salt, 100000)
+            return hmac.compare_digest(expected, actual)
+        except Exception:
+            return False
+
+    @staticmethod
+    def gensalt():
+        return b""  # not used in our PBKDF2 impl
+
+bcrypt = _Bcrypt()
 from azure.data.tables import TableServiceClient
 from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
+
+
+# ── Minimale JWT-Implementierung (HS256) ohne externe Dependencies ───────────
+def _b64u_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b'=').decode('ascii')
+
+def _b64u_decode(s: str) -> bytes:
+    pad = '=' * (-len(s) % 4)
+    return base64.urlsafe_b64decode(s + pad)
+
+class _Jwt:
+    @staticmethod
+    def encode(payload, key, algorithm='HS256'):
+        header = {"alg": algorithm, "typ": "JWT"}
+        # datetime → unix timestamp
+        clean = {}
+        for k, v in payload.items():
+            if isinstance(v, datetime):
+                clean[k] = int(v.timestamp())
+            else:
+                clean[k] = v
+        h_b = _b64u_encode(json.dumps(header, separators=(',', ':')).encode())
+        p_b = _b64u_encode(json.dumps(clean, separators=(',', ':'), default=str).encode())
+        signing_input = f"{h_b}.{p_b}".encode()
+        sig = hmac.new(key.encode() if isinstance(key, str) else key,
+                       signing_input, hashlib.sha256).digest()
+        return f"{h_b}.{p_b}.{_b64u_encode(sig)}"
+
+    @staticmethod
+    def decode(token, key, algorithms=None):
+        try:
+            h_b, p_b, s_b = token.split('.')
+        except ValueError:
+            raise Exception("Invalid token")
+        signing_input = f"{h_b}.{p_b}".encode()
+        expected_sig = hmac.new(key.encode() if isinstance(key, str) else key,
+                                signing_input, hashlib.sha256).digest()
+        if not hmac.compare_digest(_b64u_decode(s_b), expected_sig):
+            raise Exception("Invalid signature")
+        payload = json.loads(_b64u_decode(p_b))
+        # Exp prüfen
+        if 'exp' in payload:
+            if datetime.utcnow().timestamp() > payload['exp']:
+                raise Exception("Token expired")
+        return payload
+
+jwt = _Jwt()
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
@@ -1264,7 +1347,7 @@ def pr_generate(req: func.HttpRequest, pid: str) -> func.HttpResponse:
         lang_lines.append(f"• Verkäufer: {verkaeufer}")
     lang_lines.extend([
         f"",
-        f"Mike Bergmann, Geschäftsführer der mibeca GmbH: „Wir freuen uns sehr, dass wir den Verkäufer auf diesem wichtigen Schritt begleiten durften. Der gefundene Käufer passt sowohl strategisch als auch kulturell hervorragend, sodass die Mitarbeitenden und Kunden auch in Zukunft optimal betreut werden."",
+        'Mike Bergmann, Geschäftsführer der mibeca GmbH: „Wir freuen uns sehr, dass wir den Verkäufer auf diesem wichtigen Schritt begleiten durften. Der gefundene Käufer passt sowohl strategisch als auch kulturell hervorragend, sodass die Mitarbeitenden und Kunden auch in Zukunft optimal betreut werden."',
         f"",
         f"Über mibeca GmbH:",
         f"Die mibeca GmbH ist auf M&A-Beratung für IT-Unternehmen im DACH-Raum spezialisiert. Mit langjähriger Branchenerfahrung begleitet das Team von Mike Bergmann Verkäufer und Käufer durch alle Phasen des Transaktionsprozesses – von der Erstbewertung bis zum erfolgreichen Closing.",
