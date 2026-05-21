@@ -166,14 +166,16 @@ def kontakte_locations_route(req: func.HttpRequest) -> func.HttpResponse:
     if not p:
         return err_("Nicht autorisiert", 401)
     coords = get_plz_coords()
-    items = [dict(i) for i in table_("kontakte").list_entities()]
-    out = []
-    without = 0
-    for k in items:
+
+    # Kontakte
+    kontakte_items = [dict(i) for i in table_("kontakte").list_entities()]
+    kontakte_out = []
+    without_k = 0
+    for k in kontakte_items:
         plz = str(k.get("plz","")).strip()
         c = coords.get(plz)
         if c:
-            out.append({
+            kontakte_out.append({
                 "id": k.get("RowKey"),
                 "firma": k.get("firma","") or k.get("name",""),
                 "name": k.get("name",""),
@@ -182,8 +184,34 @@ def kontakte_locations_route(req: func.HttpRequest) -> func.HttpResponse:
                 "plz": k.get("plz",""),
                 "ort": k.get("ort",""),
                 "typ": k.get("typ","") or k.get("kundenstatus",""),
+                "kundenstatus": k.get("kundenstatus",""),
                 "lat": c[0], "lon": c[1],
             })
         else:
-            without += 1
-    return ok_({"kontakte": out, "total": len(items), "withoutCoords": without})
+            without_k += 1
+
+    # Targets (Verkäufer)
+    targets_items = [dict(i) for i in table_("targets").list_entities()]
+    targets_out = []
+    for t in targets_items:
+        plz = str(t.get("plz","")).strip()
+        c = coords.get(plz)
+        if c:
+            targets_out.append({
+                "id": t.get("RowKey"),
+                "mbNr": t.get("mbNr",""),
+                "verkaueferName": t.get("verkaueferName",""),
+                "firma": t.get("firma",""),
+                "region": t.get("region",""),
+                "ort": t.get("region","") or t.get("ort",""),
+                "plz": t.get("plz",""),
+                "lat": c[0], "lon": c[1],
+                "typ": "TARGET",
+            })
+
+    return ok_({
+        "kontakte": kontakte_out,
+        "targets": targets_out,
+        "total": len(kontakte_items),
+        "withoutCoords": without_k,
+    })

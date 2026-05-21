@@ -5,28 +5,47 @@ import 'leaflet/dist/leaflet.css'
 
 const props = defineProps({
   kontakte: { type: Array, default: () => [] },
+  targets: { type: Array, default: () => [] },
+  centerPlz: { type: String, default: '' },
+  radiusKm: { type: Number, default: 0 },
 })
 
 const mapEl = ref(null)
 let mapInstance = null
 let markersLayer = null
+let circleLayer = null
 
+// Farb-Konvention:
+// - Target (Verkäufer): orange
+// - Investor / strategischer Käufer: grün
+// - Sonstiger Kunde: teal
 const TYP_COLORS = {
-  'PE': '#a855f7',
-  'Systemhausgruppe': '#3498db',
-  'Strategisch': '#097e92',
+  'TARGET': '#f97316',         // orange
+  'INVESTOR': '#22c55e',       // grün
+  'PE': '#22c55e',
+  'Systemhausgruppe': '#22c55e',
+  'Strategisch': '#22c55e',
   'Verkäufer-Interesse': '#c8b274',
+  'Kunde': '#097e92',          // teal (Bestandskunde)
+  'Ex-Kunde': '#64748b',
   'Sonstige': '#64748b',
 }
 
-function makeIcon(typ) {
-  const color = TYP_COLORS[typ] || '#097e92'
+function colorForKontakt(k) {
+  // Investor-Status
+  if (['PE','Systemhausgruppe','Strategisch','INVESTOR'].includes(k.typ)) return TYP_COLORS.INVESTOR
+  if (k.typ === 'Verkäufer-Interesse') return TYP_COLORS['Verkäufer-Interesse']
+  if (k.kundenstatus === 'Ex-Kunde') return TYP_COLORS['Ex-Kunde']
+  return TYP_COLORS.Kunde
+}
+
+function makeIcon(color, size = 10) {
   return L.divIcon({
     className: 'itukv-pin',
-    html: `<div style="width:10px;height:10px;border-radius:50%;background:${color};border:1.5px solid white;box-shadow:0 1px 2px rgba(0,0,0,0.3)"></div>`,
-    iconSize: [10, 10],
-    iconAnchor: [5, 5],
-    popupAnchor: [0, -8],
+    html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:1.5px solid white;box-shadow:0 1px 2px rgba(0,0,0,0.3)"></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2],
+    popupAnchor: [0, -size/2 - 2],
   })
 }
 
@@ -39,22 +58,58 @@ function escapeHtml(s) {
 function renderMarkers() {
   if (!mapInstance || !markersLayer) return
   markersLayer.clearLayers()
+
+  // Kontakte (Bestand, Investoren)
   for (const k of props.kontakte) {
     if (k.lat == null || k.lon == null) continue
-    const mailLink = k.email ? `<a href="mailto:${escapeHtml(k.email)}" style="color:#097e92;text-decoration:none;font-size:11px">${escapeHtml(k.email)}</a>` : ''
+    const color = colorForKontakt(k)
+    const mailLink = k.email ? `<a href="mailto:${escapeHtml(k.email)}" style="color:${color};text-decoration:none;font-size:11px">${escapeHtml(k.email)}</a>` : ''
     const popupHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; min-width: 180px;">
         <p style="font-weight: 600; color: #161e2a; margin: 0 0 4px 0; font-size: 14px;">${escapeHtml(k.firma)}</p>
         ${k.name ? `<p style="margin: 0 0 4px 0; color: #475569; font-size: 12px;">${escapeHtml(k.name)}</p>` : ''}
-        <p style="margin: 0 0 4px 0; color: #64748b; font-size: 12px;">
-          ${k.plz ? escapeHtml(k.plz) + ' ' : ''}${escapeHtml(k.ort || '')}
-        </p>
+        <p style="margin: 0 0 4px 0; color: #64748b; font-size: 12px;">${k.plz ? escapeHtml(k.plz) + ' ' : ''}${escapeHtml(k.ort || '')}</p>
         ${mailLink ? `<p style="margin: 4px 0 0 0;">${mailLink}</p>` : ''}
-        <p style="margin: 6px 0 0 0; color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;">${escapeHtml(k.typ || 'Kontakt')}</p>
+        <p style="margin: 6px 0 0 0; color: ${color}; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">${escapeHtml(k.typ || k.kundenstatus || 'Kontakt')}</p>
       </div>`
-    L.marker([k.lat, k.lon], { icon: makeIcon(k.typ) })
+    L.marker([k.lat, k.lon], { icon: makeIcon(color, 10) })
       .bindPopup(popupHtml)
       .addTo(markersLayer)
+  }
+
+  // Targets (Verkäufer) – größer und orange
+  for (const t of props.targets) {
+    if (t.lat == null || t.lon == null) continue
+    const popupHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; min-width: 200px;">
+        <span style="display:inline-block;font-family:monospace;background:#f9731620;color:#f97316;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:600">${escapeHtml(t.mbNr)}</span>
+        <p style="font-weight: 600; color: #161e2a; margin: 6px 0 4px 0; font-size: 14px;">${escapeHtml(t.verkaueferName || t.firma)}</p>
+        <p style="margin: 0; color: #64748b; font-size: 12px;">${t.plz ? escapeHtml(t.plz) + ' ' : ''}${escapeHtml(t.region || t.ort || '')}</p>
+        <p style="margin: 6px 0 0 0; color: #f97316; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">TARGET (Verkäufer)</p>
+      </div>`
+    L.marker([t.lat, t.lon], { icon: makeIcon('#f97316', 14) })
+      .bindPopup(popupHtml)
+      .addTo(markersLayer)
+  }
+
+  // Radius-Kreis
+  if (circleLayer) {
+    mapInstance.removeLayer(circleLayer)
+    circleLayer = null
+  }
+  if (props.centerPlz && props.radiusKm > 0) {
+    const target = props.targets.find(t => t.plz === props.centerPlz)
+    const kont = props.kontakte.find(k => k.plz === props.centerPlz)
+    const center = target || kont
+    if (center && center.lat && center.lon) {
+      circleLayer = L.circle([center.lat, center.lon], {
+        radius: props.radiusKm * 1000,
+        color: '#f97316',
+        fillColor: '#f97316',
+        fillOpacity: 0.08,
+        weight: 2,
+      }).addTo(mapInstance)
+    }
   }
 }
 
@@ -82,7 +137,8 @@ onMounted(() => {
   )
 })
 
-watch(() => props.kontakte, () => renderMarkers(), { deep: true })
+watch(() => [props.kontakte, props.targets, props.centerPlz, props.radiusKm],
+  () => renderMarkers(), { deep: true })
 
 onBeforeUnmount(() => {
   if (mapInstance) {
@@ -98,10 +154,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style>
-.leaflet-container {
-  background-color: #f1f3f5;
-}
-.leaflet-popup-content-wrapper {
-  border-radius: 8px;
-}
+.leaflet-container { background-color: #f1f3f5; }
+.leaflet-popup-content-wrapper { border-radius: 8px; }
 </style>
