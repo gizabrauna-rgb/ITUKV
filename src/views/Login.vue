@@ -1,77 +1,79 @@
 <template>
-  <div class="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+  <div class="min-h-screen bg-[#161e2a] flex items-center justify-center px-4">
     <div class="w-full max-w-md">
       <!-- Logo / Header -->
       <div class="text-center mb-8">
-        <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-900 rounded-2xl mb-4">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-[#097e92] rounded-2xl mb-4 shadow-lg">
           <Building2 class="w-8 h-8 text-white" />
         </div>
-        <h1 class="text-2xl font-bold text-gray-900">ITUKV Dashboard</h1>
-        <p class="text-gray-500 text-sm mt-1">IT-Unternehmen kaufen & verkaufen</p>
+        <h1 class="text-2xl font-bold text-white">ITUKV Dashboard</h1>
+        <p class="text-gray-400 text-sm mt-1">IT-Unternehmen kaufen &amp; verkaufen · mibeca GmbH</p>
       </div>
 
       <!-- Login Card -->
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+      <div class="bg-white rounded-2xl shadow-xl p-8">
 
         <!-- Fehler -->
-        <div v-if="error" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+        <div v-if="error" class="mb-5 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2">
+          <AlertCircle class="w-4 h-4 flex-shrink-0" />
           {{ error }}
         </div>
 
-        <!-- mibeca Login (Microsoft) -->
-        <div class="mb-6">
-          <button
-            @click="loginMibeca"
-            :disabled="loading"
-            class="w-full flex items-center justify-center gap-3 px-4 py-3 bg-blue-900 text-white rounded-xl font-medium hover:bg-blue-800 transition-colors disabled:opacity-50"
-          >
-            <Shield class="w-5 h-5" />
-            Anmelden als mibeca-Team
-          </button>
-          <p class="text-xs text-gray-400 text-center mt-2">Über Microsoft-Konto</p>
-        </div>
+        <!-- Microsoft Login (mibeca-Team) -->
+        <button
+          @click="loginMibeca"
+          :disabled="loading"
+          class="w-full flex items-center justify-center gap-3 px-4 py-3.5 bg-[#097e92] text-white rounded-xl font-semibold hover:bg-[#0a9aaf] transition-colors disabled:opacity-50 mb-2"
+        >
+          <component :is="loading && loginType === 'microsoft' ? Loader2 : MicrosoftIcon" class="w-5 h-5" :class="loading && loginType === 'microsoft' ? 'animate-spin' : ''" />
+          Anmelden als mibeca-Team
+        </button>
+        <p class="text-xs text-gray-400 text-center mb-6">Über Microsoft-Konto (ab@mike-bergmann.de)</p>
 
-        <div class="relative my-6">
+        <div class="relative my-5">
           <div class="absolute inset-0 flex items-center">
-            <div class="w-full border-t border-gray-200"></div>
+            <div class="w-full border-t border-gray-100"></div>
           </div>
-          <div class="relative flex justify-center text-xs text-gray-400 bg-white px-3">oder als Kunde anmelden</div>
+          <div class="relative flex justify-center">
+            <span class="text-xs text-gray-400 bg-white px-3">oder als Kunde anmelden</span>
+          </div>
         </div>
 
         <!-- Kunden-Login (E-Mail + Passwort) -->
-        <form @submit.prevent="loginKunde">
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-1">E-Mail-Adresse</label>
+        <form @submit.prevent="loginKunde" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">E-Mail-Adresse</label>
             <input
               v-model="email"
               type="email"
               required
               placeholder="ihre@email.de"
-              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]"
             />
           </div>
-          <div class="mb-6">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Passwort</label>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Passwort</label>
             <input
               v-model="password"
               type="password"
               required
               placeholder="••••••••"
-              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]"
             />
           </div>
           <button
             type="submit"
             :disabled="loading"
-            class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 transition-colors disabled:opacity-50"
+            class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#161e2a] text-white rounded-xl font-medium hover:bg-gray-800 transition-colors disabled:opacity-50"
           >
-            <LogIn class="w-4 h-4" />
-            {{ loading ? 'Anmelden...' : 'Anmelden' }}
+            <Loader2 v-if="loading && loginType === 'customer'" class="w-4 h-4 animate-spin" />
+            <LogIn v-else class="w-4 h-4" />
+            {{ loading && loginType === 'customer' ? 'Anmelden…' : 'Als Kunde anmelden' }}
           </button>
         </form>
       </div>
 
-      <p class="text-center text-xs text-gray-400 mt-6">
+      <p class="text-center text-xs text-gray-500 mt-6">
         mibeca GmbH · M&A Beratung für IT-Unternehmen
       </p>
     </div>
@@ -79,37 +81,61 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { Building2, Shield, LogIn } from '@lucide/vue'
+import { ref, defineComponent, h } from 'vue'
+import { Building2, LogIn, AlertCircle, Loader2 } from '@lucide/vue'
 import { msalInstance, loginRequest } from '../authConfig.js'
 import { loginCustomer } from '../api.js'
 
 const emit = defineEmits(['logged-in'])
 
+// Microsoft-Icon als einfache SVG-Komponente
+const MicrosoftIcon = defineComponent({
+  render() {
+    return h('svg', { viewBox: '0 0 21 21', width: 20, height: 20, fill: 'currentColor' }, [
+      h('rect', { x: 1, y: 1, width: 9, height: 9, fill: '#f25022' }),
+      h('rect', { x: 11, y: 1, width: 9, height: 9, fill: '#7fba00' }),
+      h('rect', { x: 1, y: 11, width: 9, height: 9, fill: '#00a4ef' }),
+      h('rect', { x: 11, y: 11, width: 9, height: 9, fill: '#ffb900' }),
+    ])
+  }
+})
+
+// Alle Microsoft-Konten die über die App Registration eingeloggt sind = Admin
+// Zugang wird über die Entra ID App Registration gesteuert
+
 const email = ref('')
 const password = ref('')
 const loading = ref(false)
+const loginType = ref('')
 const error = ref('')
 
 async function loginMibeca() {
   loading.value = true
+  loginType.value = 'microsoft'
   error.value = ''
   try {
     await msalInstance.initialize()
-    const result = await msalInstance.loginPopup(loginRequest)
+    const result = await msalInstance.loginPopup({
+      ...loginRequest,
+      prompt: 'select_account',
+    })
     sessionStorage.setItem('msalToken', result.idToken)
     sessionStorage.setItem('userRole', 'admin')
-    sessionStorage.setItem('userName', result.account.name)
-    emit('logged-in', { role: 'admin', name: result.account.name })
+    sessionStorage.setItem('userName', result.account.name || userEmail)
+    emit('logged-in', { role: 'admin', name: result.account.name || userEmail })
   } catch (e) {
-    error.value = 'Microsoft-Login fehlgeschlagen. Bitte erneut versuchen.'
+    if (e.errorCode !== 'user_cancelled') {
+      error.value = 'Microsoft-Anmeldung fehlgeschlagen. Bitte erneut versuchen.'
+    }
   } finally {
     loading.value = false
+    loginType.value = ''
   }
 }
 
 async function loginKunde() {
   loading.value = true
+  loginType.value = 'customer'
   error.value = ''
   try {
     const result = await loginCustomer({ email: email.value, password: password.value })
@@ -117,11 +143,13 @@ async function loginKunde() {
     sessionStorage.setItem('userRole', result.role)
     sessionStorage.setItem('userName', result.name)
     sessionStorage.setItem('customerId', result.id)
+    if (result.targetId) sessionStorage.setItem('targetId', result.targetId)
     emit('logged-in', { role: result.role, name: result.name })
-  } catch (e) {
-    error.value = 'E-Mail oder Passwort falsch.'
+  } catch {
+    error.value = 'E-Mail oder Passwort nicht korrekt.'
   } finally {
     loading.value = false
+    loginType.value = ''
   }
 }
 </script>
