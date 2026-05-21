@@ -84,6 +84,45 @@ def now():
 
 # ── Auth ─────────────────────────────────────────────────────────────────────
 
+@app.route(route="auth/resolve", methods=["POST", "OPTIONS"])
+def auth_resolve(req: func.HttpRequest) -> func.HttpResponse:
+    """Nach Microsoft-Login: User in DB suchen und Rolle zurückgeben.
+    Wenn nicht vorhanden → admin (mibeca-Team)."""
+    if req.method == "OPTIONS":
+        return opt()
+    try:
+        body = req.get_json()
+        email = body.get("email", "").lower().strip()
+        name = body.get("name", "")
+        if not email:
+            return err("E-Mail erforderlich", 400)
+        tc = table("users")
+        users = list(tc.query_entities(f"email eq '{email}'"))
+        if users:
+            u = users[0]
+            extra = {}
+            if u.get("targetId"): extra["targetId"] = u["targetId"]
+            if u.get("customerId"): extra["customerId"] = u["customerId"]
+            token = make_jwt(u["RowKey"], u["role"], u.get("name", name), email, extra)
+            return ok({"token": token, "role": u["role"],
+                       "name": u.get("name", name), "id": u["RowKey"], **extra})
+        # Nicht in DB → automatisch Admin (mibeca-Team)
+        uid = new_id()
+        entity = {
+            "PartitionKey": "user", "RowKey": uid,
+            "email": email, "passwordHash": "",
+            "role": "admin", "name": name,
+            "targetId": "", "customerId": "",
+            "createdAt": now(), "loginVia": "microsoft",
+        }
+        tc.create_entity(entity)
+        token = make_jwt(uid, "admin", name, email)
+        return ok({"token": token, "role": "admin", "name": name, "id": uid})
+    except Exception as e:
+        logging.error(str(e))
+        return err("Interner Fehler", 500)
+
+
 @app.route(route="login", methods=["POST", "OPTIONS"])
 def login(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS": return opt()

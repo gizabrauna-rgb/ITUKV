@@ -19,27 +19,27 @@
           {{ error }}
         </div>
 
-        <!-- Microsoft Login (mibeca-Team) -->
+        <!-- Microsoft Login -->
         <button
-          @click="loginMibeca"
+          @click="loginMicrosoft"
           :disabled="loading"
           class="w-full flex items-center justify-center gap-3 px-4 py-3.5 bg-[#097e92] text-white rounded-xl font-semibold hover:bg-[#0a9aaf] transition-colors disabled:opacity-50 mb-2"
         >
           <component :is="loading && loginType === 'microsoft' ? Loader2 : MicrosoftIcon" class="w-5 h-5" :class="loading && loginType === 'microsoft' ? 'animate-spin' : ''" />
-          Anmelden als mibeca-Team
+          Mit Microsoft anmelden
         </button>
-        <p class="text-xs text-gray-400 text-center mb-6">Über Microsoft-Konto (ab@mike-bergmann.de)</p>
+        <p class="text-xs text-gray-400 text-center mb-6">Für mibeca-Team und Kunden mit Microsoft-Konto</p>
 
         <div class="relative my-5">
           <div class="absolute inset-0 flex items-center">
             <div class="w-full border-t border-gray-100"></div>
           </div>
           <div class="relative flex justify-center">
-            <span class="text-xs text-gray-400 bg-white px-3">oder als Kunde anmelden</span>
+            <span class="text-xs text-gray-400 bg-white px-3">oder mit E-Mail &amp; Passwort</span>
           </div>
         </div>
 
-        <!-- Kunden-Login (E-Mail + Passwort) -->
+        <!-- E-Mail / Passwort -->
         <form @submit.prevent="loginKunde" class="space-y-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1.5">E-Mail-Adresse</label>
@@ -68,7 +68,7 @@
           >
             <Loader2 v-if="loading && loginType === 'customer'" class="w-4 h-4 animate-spin" />
             <LogIn v-else class="w-4 h-4" />
-            {{ loading && loginType === 'customer' ? 'Anmelden…' : 'Als Kunde anmelden' }}
+            {{ loading && loginType === 'customer' ? 'Anmelden…' : 'Anmelden' }}
           </button>
         </form>
       </div>
@@ -84,7 +84,7 @@
 import { ref, defineComponent, h } from 'vue'
 import { Building2, LogIn, AlertCircle, Loader2 } from '@lucide/vue'
 import { msalInstance, loginRequest } from '../authConfig.js'
-import { loginCustomer } from '../api.js'
+import { loginCustomer, resolveMsLogin } from '../api.js'
 
 const emit = defineEmits(['logged-in'])
 
@@ -100,16 +100,13 @@ const MicrosoftIcon = defineComponent({
   }
 })
 
-// Alle Microsoft-Konten die über die App Registration eingeloggt sind = Admin
-// Zugang wird über die Entra ID App Registration gesteuert
-
 const email = ref('')
 const password = ref('')
 const loading = ref(false)
 const loginType = ref('')
 const error = ref('')
 
-async function loginMibeca() {
+async function loginMicrosoft() {
   loading.value = true
   loginType.value = 'microsoft'
   error.value = ''
@@ -119,10 +116,19 @@ async function loginMibeca() {
       ...loginRequest,
       prompt: 'select_account',
     })
+    const userEmail = (result.account.username || '').toLowerCase()
+    const userName = result.account.name || userEmail
+
+    // Rolle vom Backend ermitteln
+    const resolved = await resolveMsLogin({ email: userEmail, name: userName })
+
     sessionStorage.setItem('msalToken', result.idToken)
-    sessionStorage.setItem('userRole', 'admin')
-    sessionStorage.setItem('userName', result.account.name || userEmail)
-    emit('logged-in', { role: 'admin', name: result.account.name || userEmail })
+    sessionStorage.setItem('customerJwt', resolved.token)
+    sessionStorage.setItem('userRole', resolved.role)
+    sessionStorage.setItem('userName', resolved.name)
+    sessionStorage.setItem('customerId', resolved.id)
+    if (resolved.targetId) sessionStorage.setItem('targetId', resolved.targetId)
+    emit('logged-in', { role: resolved.role, name: resolved.name })
   } catch (e) {
     if (e.errorCode !== 'user_cancelled') {
       error.value = 'Microsoft-Anmeldung fehlgeschlagen. Bitte erneut versuchen.'

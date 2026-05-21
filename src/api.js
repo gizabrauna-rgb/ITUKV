@@ -25,6 +25,7 @@ export async function authFetch(path, options = {}) {
 
 // Auth
 export const loginCustomer = (data) => authFetch('/login', { method: 'POST', data })
+export const resolveMsLogin = (data) => authFetch('/auth/resolve', { method: 'POST', data })
 
 // Targets (Mandate)
 export const getTargets = () => authFetch('/targets')
