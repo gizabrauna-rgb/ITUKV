@@ -3,7 +3,7 @@
   <div v-if="impersonating" class="bg-[#c8b274] text-[#161e2a] px-6 py-2 flex items-center justify-between text-sm font-medium">
     <div class="flex items-center gap-2">
       <Eye class="w-4 h-4" />
-      <span>Du siehst gerade die {{ impersonationLabel }}-Ansicht als Admin</span>
+      <span>Du siehst gerade die <strong>{{ impersonating }}</strong>-Ansicht als Admin</span>
     </div>
     <button @click="stopImpersonation" class="flex items-center gap-1.5 px-3 py-1 bg-[#161e2a] text-white rounded-lg text-xs hover:bg-black">
       <X class="w-3.5 h-3.5" />
@@ -14,7 +14,8 @@
   <component
     :is="currentView"
     :user-name="userName"
-    :impersonating="impersonating"
+    :projekttyp="impersonating || ''"
+    :impersonating="!!impersonating"
     @logged-in="onLoggedIn"
     @logout="onLogout"
     @switch-view="switchView"
@@ -33,15 +34,15 @@ const role = ref(sessionStorage.getItem('userRole') || '')
 const userName = ref(sessionStorage.getItem('userName') || '')
 const impersonating = ref(sessionStorage.getItem('impersonateAs') || '')
 
-const impersonationLabel = computed(() =>
-  impersonating.value === 'target' ? 'Verkäufer (Target)' : 'Investor'
-)
+// Projekttypen, die Verkäufer/Target-Seite sehen
+const TARGET_TYPS = ['UVE Target', 'Projekt Target', 'MC Target']
+const INVESTOR_TYPS = ['Projekt Investoren', 'MC Investoren']
 
 const currentView = computed(() => {
   if (!role.value) return Login
-  // Wenn Admin gerade eine andere Sicht testet → diese Sicht anzeigen
-  if (role.value === 'admin' && impersonating.value === 'target') return TargetDashboard
-  if (role.value === 'admin' && impersonating.value === 'investor') return InvestorDashboard
+  // Admin testet eine bestimmte Projekttyp-Ansicht
+  if (role.value === 'admin' && TARGET_TYPS.includes(impersonating.value)) return TargetDashboard
+  if (role.value === 'admin' && INVESTOR_TYPS.includes(impersonating.value)) return InvestorDashboard
   if (role.value === 'admin') return AdminDashboard
   if (role.value === 'target') return TargetDashboard
   if (role.value === 'investor') return InvestorDashboard
@@ -61,8 +62,8 @@ function onLogout() {
 }
 
 function switchView(viewType) {
-  // viewType: 'target' | 'investor' | 'admin'
-  if (viewType === 'admin') {
+  // viewType: 'admin' | 'UVE Target' | 'Projekt Target' | 'MC Target' | 'Projekt Investoren' | 'MC Investoren'
+  if (viewType === 'admin' || !viewType) {
     sessionStorage.removeItem('impersonateAs')
     impersonating.value = ''
   } else {

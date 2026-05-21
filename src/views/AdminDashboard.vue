@@ -20,23 +20,21 @@
             Ansicht testen
             <ChevronDown class="w-3.5 h-3.5" />
           </button>
-          <div v-if="showSwitcher" class="absolute right-0 top-full mt-1 bg-white text-gray-800 rounded-xl shadow-xl border border-gray-100 w-64 z-50 overflow-hidden">
+          <div v-if="showSwitcher" class="absolute right-0 top-full mt-1 bg-white text-gray-800 rounded-xl shadow-xl border border-gray-100 w-72 z-50 overflow-hidden">
             <div class="p-3 border-b border-gray-100">
               <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Wechsle die Sicht</div>
             </div>
-            <button @click="switchTo('target')" class="w-full px-3 py-2.5 text-left hover:bg-gray-50 flex items-start gap-3 border-b border-gray-50">
-              <Briefcase class="w-4 h-4 text-[#097e92] mt-0.5" />
-              <div>
-                <div class="text-sm font-medium">Target-Sicht (Verkäufer)</div>
-                <div class="text-xs text-gray-400">So sieht ein Verkäufer sein Portal</div>
-              </div>
+            <div class="px-3 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase">Verkäufer-Ansichten</div>
+            <button v-for="t in targetTypes" :key="t" @click="switchTo(t)"
+              class="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-3">
+              <Briefcase class="w-4 h-4 text-[#097e92]" />
+              <span class="text-sm">{{ t }}</span>
             </button>
-            <button @click="switchTo('investor')" class="w-full px-3 py-2.5 text-left hover:bg-gray-50 flex items-start gap-3">
-              <Users class="w-4 h-4 text-[#097e92] mt-0.5" />
-              <div>
-                <div class="text-sm font-medium">Investor-Sicht (Käufer)</div>
-                <div class="text-xs text-gray-400">So sieht ein Investor sein Portal</div>
-              </div>
+            <div class="px-3 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase border-t border-gray-50 mt-1">Käufer-Ansichten</div>
+            <button v-for="t in investorTypes" :key="t" @click="switchTo(t)"
+              class="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-3">
+              <Users class="w-4 h-4 text-[#3498db]" />
+              <span class="text-sm">{{ t }}</span>
             </button>
           </div>
         </div>
@@ -198,6 +196,9 @@ const emit = defineEmits(['logout', 'switch-view'])
 
 const tab = ref('uebersicht')
 const showSwitcher = ref(false)
+
+const targetTypes = ['UVE Target', 'Projekt Target', 'MC Target']
+const investorTypes = ['Projekt Investoren', 'MC Investoren']
 
 function switchTo(view) {
   showSwitcher.value = false

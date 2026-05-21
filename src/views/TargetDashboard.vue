@@ -20,9 +20,17 @@
     </header>
 
     <div class="max-w-4xl mx-auto px-6 py-8">
+      <!-- Projekttyp-Label -->
+      <div v-if="projekttyp" class="mb-3">
+        <span class="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#097e92]/10 text-[#097e92] px-2.5 py-1 rounded-full">
+          <Briefcase class="w-3 h-3" />
+          {{ projekttyp }}
+        </span>
+      </div>
+
       <!-- Tab Nav -->
       <div class="flex gap-1 mb-6 bg-white rounded-xl border border-gray-100 p-1 w-fit">
-        <button v-for="item in navItems" :key="item.tab" @click="tab = item.tab"
+        <button v-for="item in visibleNavItems" :key="item.tab" @click="tab = item.tab"
           :class="['flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors', tab === item.tab ? 'bg-[#097e92] text-white' : 'text-gray-600 hover:bg-gray-50']">
           <component :is="item.icon" class="w-4 h-4" />
           {{ item.label }}
@@ -121,6 +129,70 @@
         </div>
       </div>
 
+      <!-- Tab: Links -->
+      <div v-else-if="tab === 'links'">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="text-xl font-bold text-gray-900">Wichtige Links</h2>
+          <button @click="showLinkModal = true" class="flex items-center gap-2 px-3 py-2 bg-[#097e92] text-white rounded-xl text-sm hover:bg-[#0a9aaf]">
+            <Plus class="w-4 h-4" /> Link hinzufügen
+          </button>
+        </div>
+        <div v-if="!links.length" class="bg-white rounded-xl border border-gray-100 p-8 text-center text-gray-400 text-sm">
+          <LinkIcon class="w-10 h-10 mx-auto mb-3 text-gray-200" />
+          Noch keine Links hinterlegt.
+        </div>
+        <div v-else class="space-y-3">
+          <div v-for="l in links" :key="l.RowKey" class="bg-white rounded-xl border border-gray-100 p-4 flex items-start gap-3">
+            <div class="w-10 h-10 bg-[#097e92]/10 rounded-lg flex items-center justify-center flex-shrink-0">
+              <LinkIcon class="w-5 h-5 text-[#097e92]" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <a :href="l.url" target="_blank" rel="noopener" class="font-medium text-gray-900 hover:text-[#097e92] truncate">{{ l.titel }}</a>
+                <span v-if="l.kategorie" class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{{ l.kategorie }}</span>
+              </div>
+              <div class="text-xs text-gray-400 mt-0.5 truncate">{{ l.url }}</div>
+              <div v-if="l.beschreibung" class="text-sm text-gray-600 mt-1">{{ l.beschreibung }}</div>
+            </div>
+            <button @click="deleteLink(l)" class="text-gray-300 hover:text-red-500"><Trash2 class="w-4 h-4" /></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Link Modal -->
+      <div v-if="showLinkModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-gray-900">Link hinzufügen</h3>
+            <button @click="showLinkModal = false"><X class="w-5 h-5 text-gray-400" /></button>
+          </div>
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Titel *</label>
+              <input v-model="linkForm.titel" placeholder="z.B. Datenraum" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">URL *</label>
+              <input v-model="linkForm.url" placeholder="https://…" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Kategorie</label>
+              <select v-model="linkForm.kategorie" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none">
+                <option>Allgemein</option><option>Datenraum</option><option>Element-Raum</option><option>Tools</option><option>Externe Dokumente</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Beschreibung</label>
+              <textarea v-model="linkForm.beschreibung" rows="2" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 resize-none"></textarea>
+            </div>
+          </div>
+          <div class="flex gap-3 mt-5">
+            <button @click="showLinkModal = false" class="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-xl">Abbrechen</button>
+            <button @click="createLink" class="flex-1 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium">Speichern</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Tab: Dokumente -->
       <div v-else-if="tab === 'dokumente'">
         <h2 class="text-xl font-bold text-gray-900 mb-5">Meine Dokumente</h2>
@@ -184,14 +256,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import {
   Building2, LogOut, Briefcase, Users, FolderOpen, Check, CheckCircle, Circle,
-  Star, UserCheck, Ban, Folder, ChevronLeft, Upload, FileText, Download
+  Star, UserCheck, Ban, Folder, ChevronLeft, Upload, FileText, Download,
+  Link as LinkIcon, Plus, Trash2, X
 } from '@lucide/vue'
 import { authFetch, getInteressenten, updateInteressent, getDokumente } from '../api.js'
 
-const props = defineProps({ userName: String })
+const props = defineProps({ userName: String, projekttyp: String, impersonating: Boolean })
 const emit = defineEmits(['logout'])
 const targetId = sessionStorage.getItem('targetId') || ''
 
@@ -199,17 +272,30 @@ const tab = ref('projekt')
 const checkliste = ref([])
 const interessenten = ref([])
 const dokumente = ref([])
+const links = ref([])
 const loadingCheck = ref(true)
 const loadingInt = ref(true)
 const selectedOrdner = ref(null)
 const vetoTarget = ref(null)
 const vetoText = ref('')
+const showLinkModal = ref(false)
+const linkForm = ref({ titel: '', url: '', beschreibung: '', kategorie: 'Allgemein' })
 
-const navItems = [
-  { tab: 'projekt', label: 'Mein Projekt', icon: Briefcase },
-  { tab: 'interessenten', label: 'Interessenten', icon: Users },
-  { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
-]
+// Projekttypen mit Links-Tab
+const TYPES_WITH_LINKS = ['UVE Target', 'MC Target', 'MC Investoren']
+
+const navItems = computed(() => {
+  const base = [
+    { tab: 'projekt', label: 'Mein Projekt', icon: Briefcase },
+    { tab: 'interessenten', label: 'Interessenten', icon: Users },
+    { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
+  ]
+  if (TYPES_WITH_LINKS.includes(props.projekttyp)) {
+    base.push({ tab: 'links', label: 'Links', icon: LinkIcon })
+  }
+  return base
+})
+const visibleNavItems = computed(() => navItems.value)
 
 const ordnerListe = ['Unterlagen Ausschreibung', 'Exposé', 'Protokoll', 'NDA', 'Gesprächsnotizen', 'Datenraum', 'Beratervertrag', 'Diverses']
 
@@ -219,20 +305,43 @@ const filteredDok = computed(() => dokumente.value.filter(d => d.ordner === sele
 
 function countInOrdner(o) { return dokumente.value.filter(d => d.ordner === o).length }
 
-onMounted(async () => {
+async function loadAllData() {
   if (targetId) {
     try {
       const full = await authFetch(`/targets/${targetId}`)
       checkliste.value = JSON.parse(full.checklisteJson || '[]')
-    } finally { loadingCheck.value = false }
+    } catch {} finally { loadingCheck.value = false }
+    try { interessenten.value = await getInteressenten(targetId) } catch {} finally { loadingInt.value = false }
+    try { dokumente.value = await getDokumente(targetId) } catch {}
+    try { links.value = await authFetch(`/targets/${targetId}/links`) } catch {}
+  } else if (props.impersonating && props.projekttyp) {
+    // Admin testet eine Ansicht – zeige Beispiel-Checkliste je Projekttyp
     try {
-      interessenten.value = await getInteressenten(targetId)
-    } finally { loadingInt.value = false }
-    dokumente.value = await getDokumente(targetId)
+      checkliste.value = await authFetch(`/checkliste-vorlage/${encodeURIComponent(props.projekttyp)}`)
+    } catch {}
+    loadingCheck.value = false; loadingInt.value = false
   } else {
     loadingCheck.value = false; loadingInt.value = false
   }
-})
+}
+
+onMounted(loadAllData)
+watch(() => props.projekttyp, loadAllData)
+
+async function createLink() {
+  if (!linkForm.value.titel || !linkForm.value.url) return
+  const tid = targetId || 'demo'
+  const created = await authFetch(`/targets/${tid}/links`, { method: 'POST', data: linkForm.value })
+  links.value.push(created)
+  showLinkModal.value = false
+  linkForm.value = { titel: '', url: '', beschreibung: '', kategorie: 'Allgemein' }
+}
+
+async function deleteLink(l) {
+  if (!confirm('Link löschen?')) return
+  await authFetch(`/targets/${l.targetId}/links/${l.RowKey}`, { method: 'DELETE' })
+  links.value = links.value.filter(x => x.RowKey !== l.RowKey)
+}
 
 async function toggleItem(item) {
   item.done = !item.done

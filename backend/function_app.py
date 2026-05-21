@@ -62,16 +62,58 @@ def plz_to_coords(plz, country="DE"):
     return coords.get(f"{country}:{plz_clean}") or coords.get(plz_clean)
 
 
-DEFAULT_CHECKLISTE = [
-    {"id": "1", "label": "Unternehmensbewertung", "done": False},
-    {"id": "2", "label": "Fragebogen Unternehmensbewertung", "done": False},
-    {"id": "3", "label": "Exposé erstellt", "done": False},
-    {"id": "4", "label": "Mandat unterschrieben", "done": False},
-    {"id": "5", "label": "Element-Raum eröffnet", "done": False},
-    {"id": "6", "label": "Target beworben", "done": False},
-    {"id": "7", "label": "Eingehende NDAs geprüft", "done": False},
-    {"id": "8", "label": "Alle Dokumente vollständig", "done": False},
-]
+CHECKLISTEN_PER_TYP = {
+    "UVE Target": [
+        {"id": "1", "label": "Unternehmensbewertung", "done": False},
+        {"id": "2", "label": "Fragebogen Unternehmensbewertung", "done": False},
+        {"id": "3", "label": "Exposé erstellt", "done": False},
+        {"id": "4", "label": "Mandat unterschrieben", "done": False},
+        {"id": "5", "label": "Element-Raum eröffnet", "done": False},
+        {"id": "6", "label": "Target beworben", "done": False},
+        {"id": "7", "label": "Eingehende NDAs geprüft", "done": False},
+        {"id": "8", "label": "Alle Dokumente vollständig", "done": False},
+    ],
+    "Projekt Target": [
+        {"id": "1", "label": "Unternehmensbewertung", "done": False},
+        {"id": "2", "label": "Fragebogen Unternehmensbewertung", "done": False},
+        {"id": "3", "label": "Exposé erstellt", "done": False},
+        {"id": "4", "label": "Mandat unterschrieben", "done": False},
+        {"id": "5", "label": "Element-Raum eröffnet", "done": False},
+        {"id": "6", "label": "Target beworben", "done": False},
+        {"id": "7", "label": "Alle Dokumente vollständig", "done": False},
+    ],
+    "MC Target": [
+        {"id": "1", "label": "M&A-Mandat unterschrieben", "done": False},
+        {"id": "2", "label": "Unternehmensbewertung", "done": False},
+        {"id": "3", "label": "Detail-Exposé erstellt", "done": False},
+        {"id": "4", "label": "Datenraum vorbereitet", "done": False},
+        {"id": "5", "label": "Käufer-Longlist erstellt", "done": False},
+        {"id": "6", "label": "Ansprache durchgeführt", "done": False},
+        {"id": "7", "label": "NDAs geprüft", "done": False},
+        {"id": "8", "label": "Erstgespräche geführt", "done": False},
+        {"id": "9", "label": "Gebote erhalten", "done": False},
+        {"id": "10", "label": "Due Diligence vorbereitet", "done": False},
+    ],
+    "Projekt Investoren": [
+        {"id": "1", "label": "NDA unterzeichnet", "done": False},
+        {"id": "2", "label": "Leadliste zusammenstellen", "done": False},
+        {"id": "3", "label": "Element-Raum eröffnen", "done": False},
+    ],
+    "MC Investoren": [
+        {"id": "1", "label": "NDA unterzeichnet", "done": False},
+        {"id": "2", "label": "Investmentprofil festgelegt", "done": False},
+        {"id": "3", "label": "Leadliste zusammenstellen", "done": False},
+        {"id": "4", "label": "Element-Raum / Datenraum geöffnet", "done": False},
+        {"id": "5", "label": "Erstgespräch mit Verkäufer", "done": False},
+        {"id": "6", "label": "Indikatives Angebot abgegeben", "done": False},
+        {"id": "7", "label": "Due Diligence durchgeführt", "done": False},
+    ],
+}
+DEFAULT_CHECKLISTE = CHECKLISTEN_PER_TYP["Projekt Target"]
+
+
+def get_checkliste_for_typ(projekttyp):
+    return CHECKLISTEN_PER_TYP.get(projekttyp, DEFAULT_CHECKLISTE)
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -228,7 +270,8 @@ def targets(req: func.HttpRequest) -> func.HttpResponse:
         return ok(items)
     body = req.get_json()
     tid = new_id()
-    checkliste = json.dumps(DEFAULT_CHECKLISTE)
+    projekttyp = body.get("projekttyp", "Projekt Target")
+    checkliste = json.dumps(get_checkliste_for_typ(projekttyp))
     entity = {
         "PartitionKey": "target", "RowKey": tid,
         "mbNr": body.get("mbNr", ""),
@@ -239,13 +282,71 @@ def targets(req: func.HttpRequest) -> func.HttpResponse:
         "mitarbeiter": str(body.get("mitarbeiter", "")),
         "umsatz": body.get("umsatz", ""),
         "beschreibung": body.get("beschreibung", ""),
-        "projekttyp": body.get("projekttyp", "Projekt Target"),
+        "projekttyp": projekttyp,
         "status": "verfuegbar",
         "checklisteJson": checkliste,
         "createdAt": now(),
     }
     tc.create_entity(entity)
     return ok(dict(entity), 201)
+
+
+# Default-Checkliste pro Projekttyp abrufen
+@app.route(route="checkliste-vorlage/{typ}", methods=["GET", "OPTIONS"])
+def checkliste_vorlage(req: func.HttpRequest, typ: str) -> func.HttpResponse:
+    if req.method == "OPTIONS": return opt()
+    p, e = auth(req)
+    if e: return e
+    return ok(get_checkliste_for_typ(typ))
+
+
+# ── Links (pro Target / Investor) ────────────────────────────────────────────
+
+@app.route(route="targets/{target_id}/links", methods=["GET", "POST", "OPTIONS"])
+def links(req: func.HttpRequest, target_id: str) -> func.HttpResponse:
+    if req.method == "OPTIONS": return opt()
+    p, e = auth(req)
+    if e: return e
+    tc = table("links")
+    if req.method == "GET":
+        items = [dict(i) for i in tc.query_entities(f"targetId eq '{target_id}'")]
+        items.sort(key=lambda x: x.get("createdAt",""))
+        return ok(items)
+    body = req.get_json()
+    lid = new_id()
+    entity = {
+        "PartitionKey": target_id,
+        "RowKey": lid,
+        "targetId": target_id,
+        "titel": body.get("titel",""),
+        "url": body.get("url",""),
+        "beschreibung": body.get("beschreibung",""),
+        "kategorie": body.get("kategorie","Allgemein"),
+        "createdAt": now(),
+    }
+    tc.create_entity(entity)
+    return ok(dict(entity), 201)
+
+
+@app.route(route="targets/{target_id}/links/{lid}", methods=["PATCH", "DELETE", "OPTIONS"])
+def link_detail(req: func.HttpRequest, target_id: str, lid: str) -> func.HttpResponse:
+    if req.method == "OPTIONS": return opt()
+    p, e = auth(req)
+    if e: return e
+    tc = table("links")
+    try:
+        entity = tc.get_entity(target_id, lid)
+    except Exception:
+        return err("Link nicht gefunden", 404)
+    if req.method == "DELETE":
+        tc.delete_entity(target_id, lid)
+        return ok({"deleted": True})
+    body = req.get_json()
+    for k, v in body.items():
+        if k not in ("PartitionKey", "RowKey"):
+            entity[k] = v
+    tc.update_entity(dict(entity))
+    return ok(dict(entity))
 
 
 @app.route(route="targets/{target_id}", methods=["GET", "PATCH", "OPTIONS"])
