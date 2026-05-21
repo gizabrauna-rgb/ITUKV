@@ -101,17 +101,13 @@
 
         <!-- Targets -->
         <div v-else-if="tab === 'targets'">
-          <TargetsTab @open-detail="openTargetDetail" />
+          <TargetAkte v-if="akteTargetId" :target-id="akteTargetId" @close="akteTargetId = null" />
+          <TargetsTab v-else @open-detail="openAkte" />
         </div>
 
         <!-- Pipeline -->
         <div v-else-if="tab === 'pipeline'">
           <PipelineTab />
-        </div>
-
-        <!-- Master-Prozess -->
-        <div v-else-if="tab === 'prozess'">
-          <PhasenProzess />
         </div>
 
         <!-- CRM -->
@@ -142,48 +138,6 @@
       </main>
     </div>
 
-    <!-- Target Detail Panel -->
-    <div v-if="detailTarget" class="fixed inset-0 bg-black/40 flex items-start justify-end z-50" @click.self="detailTarget = null">
-      <div class="bg-white h-full w-full max-w-lg shadow-2xl overflow-y-auto">
-        <div class="flex items-center justify-between p-5 border-b border-gray-100 bg-[#161e2a] text-white">
-          <div>
-            <span class="font-mono text-xs bg-[#097e92] px-2 py-0.5 rounded mr-2">{{ detailTarget.mbNr }}</span>
-            <span class="font-bold">{{ detailTarget.verkaueferName }}</span>
-          </div>
-          <button @click="detailTarget = null"><X class="w-5 h-5 text-gray-400" /></button>
-        </div>
-        <div class="p-5 space-y-4">
-          <div class="grid grid-cols-2 gap-3 text-sm">
-            <div><span class="text-gray-400 text-xs">Region</span><div class="font-medium">{{ detailTarget.region }}</div></div>
-            <div><span class="text-gray-400 text-xs">Projekttyp</span><div class="font-medium">{{ detailTarget.projekttyp }}</div></div>
-            <div><span class="text-gray-400 text-xs">Branche</span><div class="font-medium">{{ detailTarget.branche || '—' }}</div></div>
-            <div><span class="text-gray-400 text-xs">Mitarbeiter</span><div class="font-medium">{{ detailTarget.mitarbeiter || '—' }}</div></div>
-            <div><span class="text-gray-400 text-xs">Umsatz</span><div class="font-medium">{{ detailTarget.umsatz || '—' }}</div></div>
-            <div><span class="text-gray-400 text-xs">PLZ</span><div class="font-medium">{{ detailTarget.plz || '—' }}</div></div>
-          </div>
-          <!-- Checkliste -->
-          <div class="bg-gray-50 rounded-xl p-4">
-            <h4 class="text-sm font-semibold text-gray-700 mb-3">Checkliste</h4>
-            <div v-if="detailCheckliste.length">
-              <div class="mb-2">
-                <div class="w-full bg-gray-200 rounded-full h-1.5">
-                  <div class="bg-[#097e92] h-1.5 rounded-full transition-all" :style="`width: ${checklistProgress}%`"></div>
-                </div>
-                <div class="text-xs text-gray-400 mt-1">{{ donCount }} / {{ detailCheckliste.length }} erledigt</div>
-              </div>
-              <ul class="space-y-2">
-                <li v-for="item in detailCheckliste" :key="item.id" class="flex items-center gap-2">
-                  <button @click="toggleChecklist(item)" :class="['w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors', item.done ? 'bg-[#097e92] border-[#097e92]' : 'border-gray-300 hover:border-[#097e92]']">
-                    <Check v-if="item.done" class="w-2.5 h-2.5 text-white" />
-                  </button>
-                  <span :class="['text-sm', item.done ? 'line-through text-gray-400' : 'text-gray-700']">{{ item.label }}</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -201,7 +155,7 @@ import AusschreibungenTab from '../components/admin/AusschreibungenTab.vue'
 import DokumenteTab from '../components/admin/DokumenteTab.vue'
 import BenutzerTab from '../components/admin/BenutzerTab.vue'
 import EinstellungenTab from '../components/admin/EinstellungenTab.vue'
-import PhasenProzess from '../components/admin/PhasenProzess.vue'
+import TargetAkte from '../components/admin/TargetAkte.vue'
 
 const props = defineProps({ userName: String })
 const emit = defineEmits(['logout', 'switch-view'])
@@ -220,12 +174,16 @@ const statsLoading = ref(true)
 const statsRaw = ref({ aktiveTargets: 0, offeneNdas: 0, investorenGesamt: 0, dealsAbgeschlossen: 0 })
 const detailTarget = ref(null)
 const detailCheckliste = ref([])
+const akteTargetId = ref(null)
+
+function openAkte(target) {
+  akteTargetId.value = target.RowKey
+}
 
 const navItems = [
   { tab: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard },
   { tab: 'targets', label: 'Targets', icon: Briefcase },
   { tab: 'pipeline', label: 'Pipeline', icon: GitBranch },
-  { tab: 'prozess', label: 'Master-Prozess', icon: Workflow },
   { tab: 'crm', label: 'Kundenstamm', icon: Users },
   { tab: 'ausschreibungen', label: 'Ausschreibungen', icon: Megaphone },
   { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },

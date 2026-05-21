@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="flex items-center justify-between mb-6">
+    <div v-if="!embedded" class="flex items-center justify-between mb-6">
       <h2 class="text-xl font-bold text-gray-900">Master-Prozess</h2>
       <select v-model="selectedTargetId" @change="loadTarget" class="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#097e92]/30">
         <option value="">— Target auswählen —</option>
@@ -176,21 +176,28 @@ const PHASEN_VORLAGE = () => ([
   ]},
 ])
 
+const props = defineProps({ targetId: { type: String, default: '' } })
+const embedded = computed(() => !!props.targetId)
 const targets = ref([])
-const selectedTargetId = ref('')
+const selectedTargetId = ref(props.targetId || '')
 const phasen = ref(PHASEN_VORLAGE())
 const expanded = ref({})
 const currentTarget = ref(null)
 
 onMounted(async () => {
-  try {
-    const all = await getTargets()
-    targets.value = [...all].sort((a, b) => {
-      const na = parseInt((a.mbNr || '').replace(/[^\d]/g, ''), 10) || 0
-      const nb = parseInt((b.mbNr || '').replace(/[^\d]/g, ''), 10) || 0
-      return na - nb
-    })
-  } catch (e) { console.error(e) }
+  if (!embedded.value) {
+    try {
+      const all = await getTargets()
+      targets.value = [...all].sort((a, b) => {
+        const na = parseInt((a.mbNr || '').replace(/[^\d]/g, ''), 10) || 0
+        const nb = parseInt((b.mbNr || '').replace(/[^\d]/g, ''), 10) || 0
+        return na - nb
+      })
+    } catch (e) { console.error(e) }
+  }
+  if (selectedTargetId.value) {
+    await loadTarget()
+  }
 })
 
 async function loadTarget() {
