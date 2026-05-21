@@ -23,20 +23,10 @@ function makeIcon(typ) {
   const color = TYP_COLORS[typ] || '#097e92'
   return L.divIcon({
     className: 'itukv-pin',
-    html: `<div style="
-      width: 24px; height: 32px;
-      display: flex; align-items: flex-start; justify-content: center;
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
-    ">
-      <svg viewBox="0 0 24 32" width="24" height="32" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 0 C 5.4 0 0 5.4 0 12 C 0 21 12 32 12 32 C 12 32 24 21 24 12 C 24 5.4 18.6 0 12 0 Z"
-              fill="${color}" stroke="#161e2a" stroke-width="1.5"/>
-        <circle cx="12" cy="12" r="4" fill="#fff"/>
-      </svg>
-    </div>`,
-    iconSize: [24, 32],
-    iconAnchor: [12, 32],
-    popupAnchor: [0, -28],
+    html: `<div style="width:10px;height:10px;border-radius:50%;background:${color};border:1.5px solid white;box-shadow:0 1px 2px rgba(0,0,0,0.3)"></div>`,
+    iconSize: [10, 10],
+    iconAnchor: [5, 5],
+    popupAnchor: [0, -8],
   })
 }
 
