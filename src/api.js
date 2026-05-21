@@ -27,6 +27,13 @@ export async function authFetch(path, options = {}) {
 export const loginCustomer = (data) => authFetch('/login', { method: 'POST', data })
 export const resolveMsLogin = (data) => authFetch('/auth/resolve', { method: 'POST', data })
 
+// User Management
+export const getUsers = () => authFetch('/users')
+export const createUser = (data) => authFetch('/users', { method: 'POST', data })
+export const updateUser = (id, data) => authFetch(`/users/${id}`, { method: 'PATCH', data })
+export const deleteUser = (id) => authFetch(`/users/${id}`, { method: 'DELETE' })
+export const resetUserPassword = (id, data) => authFetch(`/users/${id}/reset-password`, { method: 'POST', data })
+
 // Targets (Mandate)
 export const getTargets = () => authFetch('/targets')
 export const getTarget = (id) => authFetch(`/targets/${id}`)

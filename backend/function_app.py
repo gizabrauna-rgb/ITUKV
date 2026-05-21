@@ -257,6 +257,102 @@ def register(req: func.HttpRequest) -> func.HttpResponse:
         return err("Interner Fehler", 500)
 
 
+# ── User Management (Admin) ───────────────────────────────────────────────────
+
+@app.route(route="users", methods=["GET", "POST", "OPTIONS"])
+def users_list(req: func.HttpRequest) -> func.HttpResponse:
+    """Liste aller Benutzer (admin only) + neuer Benutzer anlegen."""
+    if req.method == "OPTIONS": return opt()
+    p, e = auth(req, roles=["admin"])
+    if e: return e
+    tc = table("users")
+    if req.method == "GET":
+        items = [dict(u) for u in tc.list_entities()]
+        # Passwort-Hash niemals zurückgeben
+        for u in items:
+            u.pop("passwordHash", None)
+        items.sort(key=lambda x: x.get("createdAt",""), reverse=True)
+        return ok(items)
+    # POST – Neuer User mit Initial-Passwort
+    body = req.get_json()
+    email = body.get("email","").lower().strip()
+    if not email:
+        return err("E-Mail erforderlich", 400)
+    existing = list(tc.query_entities(f"email eq '{email}'"))
+    if existing:
+        return err("E-Mail bereits registriert", 409)
+    # Initial-Passwort: vom Admin gesetzt oder zufällig generiert
+    import secrets, string
+    pw = body.get("password") or "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
+    pw_hash = bcrypt.hashpw(pw.encode(), bcrypt.gensalt()).decode()
+    uid = new_id()
+    entity = {
+        "PartitionKey": "user", "RowKey": uid,
+        "email": email,
+        "passwordHash": pw_hash,
+        "role": body.get("role", "target"),
+        "name": body.get("name", ""),
+        "targetId": body.get("targetId", ""),
+        "customerId": body.get("customerId", ""),
+        "createdAt": now(),
+        "loginVia": "password",
+    }
+    tc.create_entity(entity)
+    result = {k: v for k, v in entity.items() if k != "passwordHash"}
+    result["initialPassword"] = pw  # nur einmal beim Anlegen zurückgeben
+    return ok(result, 201)
+
+
+@app.route(route="users/{uid}", methods=["GET", "PATCH", "DELETE", "OPTIONS"])
+def user_detail(req: func.HttpRequest, uid: str) -> func.HttpResponse:
+    if req.method == "OPTIONS": return opt()
+    p, e = auth(req, roles=["admin"])
+    if e: return e
+    tc = table("users")
+    try:
+        entity = tc.get_entity("user", uid)
+    except Exception:
+        return err("Benutzer nicht gefunden", 404)
+    if req.method == "GET":
+        out = dict(entity)
+        out.pop("passwordHash", None)
+        return ok(out)
+    if req.method == "DELETE":
+        tc.delete_entity("user", uid)
+        return ok({"deleted": True})
+    # PATCH
+    body = req.get_json()
+    for k, v in body.items():
+        if k in ("PartitionKey", "RowKey", "passwordHash"):
+            continue
+        entity[k] = v
+    entity["updatedAt"] = now()
+    tc.update_entity(dict(entity))
+    out = dict(entity)
+    out.pop("passwordHash", None)
+    return ok(out)
+
+
+@app.route(route="users/{uid}/reset-password", methods=["POST", "OPTIONS"])
+def user_reset_password(req: func.HttpRequest, uid: str) -> func.HttpResponse:
+    """Generiert ein neues Passwort für einen Benutzer und gibt es einmal zurück."""
+    if req.method == "OPTIONS": return opt()
+    p, e = auth(req, roles=["admin"])
+    if e: return e
+    tc = table("users")
+    try:
+        entity = tc.get_entity("user", uid)
+    except Exception:
+        return err("Benutzer nicht gefunden", 404)
+    import secrets, string
+    body = req.get_json() or {}
+    pw = body.get("password") or "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
+    entity["passwordHash"] = bcrypt.hashpw(pw.encode(), bcrypt.gensalt()).decode()
+    entity["updatedAt"] = now()
+    tc.update_entity(dict(entity))
+    return ok({"email": entity.get("email"), "newPassword": pw})
+
+
 # ── Targets ──────────────────────────────────────────────────────────────────
 
 @app.route(route="targets", methods=["GET", "POST", "OPTIONS"])

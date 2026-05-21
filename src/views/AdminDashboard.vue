@@ -124,6 +124,11 @@
           <DokumenteTab />
         </div>
 
+        <!-- Benutzer -->
+        <div v-else-if="tab === 'benutzer'">
+          <BenutzerTab />
+        </div>
+
         <!-- Einstellungen -->
         <div v-else-if="tab === 'einstellungen'">
           <EinstellungenTab />
@@ -181,7 +186,7 @@
 import { ref, computed, onMounted } from 'vue'
 import {
   Building2, LogOut, LayoutDashboard, Briefcase, GitBranch,
-  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings
+  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog
 } from '@lucide/vue'
 import { authFetch } from '../api.js'
 import TargetsTab from '../components/admin/TargetsTab.vue'
@@ -189,6 +194,7 @@ import PipelineTab from '../components/admin/PipelineTab.vue'
 import CrmTab from '../components/admin/CrmTab.vue'
 import AusschreibungenTab from '../components/admin/AusschreibungenTab.vue'
 import DokumenteTab from '../components/admin/DokumenteTab.vue'
+import BenutzerTab from '../components/admin/BenutzerTab.vue'
 import EinstellungenTab from '../components/admin/EinstellungenTab.vue'
 
 const props = defineProps({ userName: String })
@@ -216,6 +222,7 @@ const navItems = [
   { tab: 'crm', label: 'CRM / Investoren', icon: Users },
   { tab: 'ausschreibungen', label: 'Ausschreibungen', icon: Megaphone },
   { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
+  { tab: 'benutzer', label: 'Benutzer', icon: UserCog },
   { tab: 'einstellungen', label: 'Einstellungen', icon: Settings },
 ]
 
