@@ -67,6 +67,10 @@
       <table v-else class="w-full">
         <thead class="bg-gray-50 border-b border-gray-100">
           <tr>
+            <th class="text-left px-3 py-3 w-10">
+              <input type="checkbox" :checked="allVisibleSelected" @change="toggleAllVisible"
+                class="rounded border-gray-300 text-[#097e92] focus:ring-[#097e92]/30" title="Alle sichtbaren auswählen" />
+            </th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Firma</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Name</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Typ</th>
@@ -76,7 +80,11 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-50">
-          <tr v-for="k in visibleList" :key="k.RowKey" class="hover:bg-gray-50">
+          <tr v-for="k in visibleList" :key="k.RowKey || k.id" :class="['hover:bg-gray-50', selectedIds.has(k.id || k.RowKey) && 'bg-[#097e92]/5']">
+            <td class="px-3 py-3">
+              <input type="checkbox" :checked="selectedIds.has(k.id || k.RowKey)" @change="toggleSelect(k)"
+                class="rounded border-gray-300 text-[#097e92] focus:ring-[#097e92]/30" />
+            </td>
             <td class="px-4 py-3 text-sm font-medium text-gray-800">{{ k.firma }}</td>
             <td class="px-4 py-3 text-sm text-gray-600">{{ k.name }}</td>
             <td class="px-4 py-3">
@@ -123,6 +131,76 @@
         :targets="visibleTargets"
         :center-plz="filterCenterPlz"
         :radius-km="filterRadiusKm" />
+    </div>
+
+    <!-- Sticky Aktion-Leiste bei Auswahl -->
+    <div v-if="selectedCount > 0" class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-[#161e2a] text-white rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-4 z-40">
+      <div class="flex items-center gap-2 text-sm">
+        <CheckCircle class="w-5 h-5 text-[#c8b274]" />
+        <strong>{{ selectedCount }}</strong> ausgewählt
+      </div>
+      <div class="w-px h-6 bg-white/20"></div>
+      <button @click="clearSelection" class="text-xs text-gray-300 hover:text-white">Auswahl löschen</button>
+      <div class="w-px h-6 bg-white/20"></div>
+      <button @click="showAusschreibungModal = true" class="flex items-center gap-2 px-4 py-2 bg-[#097e92] hover:bg-[#0a9aaf] rounded-xl text-sm font-medium">
+        <Megaphone class="w-4 h-4" /> Ausschreibung versenden
+      </button>
+    </div>
+
+    <!-- Ausschreibung-Versand Modal -->
+    <div v-if="showAusschreibungModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+      <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
+          <div>
+            <h3 class="font-bold text-gray-900">Ausschreibung versenden</h3>
+            <p class="text-xs text-gray-500 mt-0.5">An {{ selectedCount }} ausgewählte Kontakte</p>
+          </div>
+          <button @click="showAusschreibungModal = false"><X class="w-5 h-5 text-gray-400" /></button>
+        </div>
+        <div class="p-6 space-y-4">
+          <!-- Target wählen -->
+          <div>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">Für welches Target ist die Ausschreibung? *</label>
+            <select v-model="ausschreibungForm.targetId" @change="prefillTemplate" class="input">
+              <option value="">— Target auswählen —</option>
+              <option v-for="t in mapData.targets || []" :key="t.id" :value="t.id">
+                {{ t.mbNr }} · {{ t.verkaueferName }} ({{ t.plz }} {{ t.ort }})
+              </option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">Betreff *</label>
+            <input v-model="ausschreibungForm.betreff" placeholder="z.B. IT-Systemhaus zu verkaufen – {{ mb-XXX }}" class="input" />
+          </div>
+
+          <div>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">Anschreiben</label>
+            <textarea v-model="ausschreibungForm.text" rows="10" class="input resize-none font-mono text-xs leading-relaxed"></textarea>
+            <p class="text-xs text-gray-400 mt-1">Platzhalter: <code>{firma}</code>, <code>{name}</code>, <code>{ort}</code> werden pro Empfänger ersetzt.</p>
+          </div>
+
+          <!-- Vorschau erster Empfänger -->
+          <div v-if="firstSelected" class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Vorschau (erste Auswahl: {{ firstSelected.firma || firstSelected.name }})</div>
+            <div class="text-xs text-gray-500 mb-1"><strong>An:</strong> {{ firstSelected.email }}</div>
+            <div class="text-xs text-gray-500 mb-2"><strong>Betreff:</strong> {{ replaceVars(ausschreibungForm.betreff, firstSelected) }}</div>
+            <div class="text-sm text-gray-700 whitespace-pre-wrap border-t border-gray-200 pt-2">{{ replaceVars(ausschreibungForm.text, firstSelected) }}</div>
+          </div>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-100 sticky bottom-0 bg-white flex justify-end gap-3">
+          <button @click="showAusschreibungModal = false" class="px-4 py-2 text-sm border border-gray-200 rounded-xl">Abbrechen</button>
+          <button @click="sendMailto" :disabled="!canSend" class="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-xl text-sm disabled:opacity-50">
+            <Mail class="w-4 h-4" /> E-Mail-App öffnen
+          </button>
+          <button @click="downloadCsv" :disabled="!canSend" class="flex items-center gap-2 px-4 py-2 border border-[#097e92] text-[#097e92] rounded-xl text-sm disabled:opacity-50">
+            <Download class="w-4 h-4" /> Für Serien-Mail (CSV)
+          </button>
+          <button @click="sendAcs" :disabled="!canSend" class="flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium disabled:opacity-50" title="Wenn ACS-Domain mail.itukv.de verifiziert ist">
+            <Send class="w-4 h-4" /> Direkt senden (ACS)
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Import Modal -->
@@ -179,7 +257,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { Map, List, Download, Upload, UserPlus, Search, Mail, Pencil, X } from '@lucide/vue'
+import { Map, List, Download, Upload, UserPlus, Search, Mail, Pencil, X, CheckCircle, Megaphone, Send } from '@lucide/vue'
 import { getKontakte, createKontakt, updateKontakt, importKontakte, exportKontakte } from '../../api.js'
 import { authFetch } from '../../api.js'
 import KundenMap from '../KundenMap.vue'
@@ -270,6 +348,105 @@ function exportFilteredCsv() {
 const search = ref('')
 const filterTyp = ref('')
 const filterStatus = ref('')
+
+// Mehrfach-Auswahl
+const selectedIds = ref(new Set())
+const selectedCount = computed(() => selectedIds.value.size)
+const allVisibleSelected = computed(() => {
+  if (!visibleList.value.length) return false
+  return visibleList.value.every(k => selectedIds.value.has(k.id || k.RowKey))
+})
+function toggleSelect(k) {
+  const id = k.id || k.RowKey
+  const s = new Set(selectedIds.value)
+  if (s.has(id)) s.delete(id); else s.add(id)
+  selectedIds.value = s
+}
+function toggleAllVisible() {
+  const s = new Set(selectedIds.value)
+  const allSelected = allVisibleSelected.value
+  for (const k of visibleList.value) {
+    const id = k.id || k.RowKey
+    if (allSelected) s.delete(id); else s.add(id)
+  }
+  selectedIds.value = s
+}
+function clearSelection() {
+  selectedIds.value = new Set()
+}
+
+const selectedKontakte = computed(() =>
+  (mapData.value.kontakte || []).filter(k => selectedIds.value.has(k.id || k.RowKey))
+)
+const firstSelected = computed(() => selectedKontakte.value[0])
+
+// Ausschreibung-Versand
+const showAusschreibungModal = ref(false)
+const ausschreibungForm = ref({
+  targetId: '',
+  betreff: '',
+  text: '',
+})
+
+const canSend = computed(() =>
+  ausschreibungForm.value.targetId && ausschreibungForm.value.betreff && ausschreibungForm.value.text && selectedCount.value > 0
+)
+
+function prefillTemplate() {
+  const t = (mapData.value.targets || []).find(x => x.id === ausschreibungForm.value.targetId)
+  if (!t) return
+  if (!ausschreibungForm.value.betreff) {
+    ausschreibungForm.value.betreff = `IT-Systemhaus zu verkaufen – ${t.mbNr}`
+  }
+  if (!ausschreibungForm.value.text) {
+    ausschreibungForm.value.text =
+`Sehr geehrte Damen und Herren,
+
+wir haben Sie als möglichen Käufer eines IT-Unternehmens in unserer Datenbank.
+
+Aktuell betreuen wir den Verkauf eines IT-Systemhauses (Projektnummer ${t.mbNr}) im Raum ${t.ort || t.region || '—'}.
+
+Wenn Sie an einem anonymisierten Kurzexposé Interesse haben, antworten Sie einfach auf diese E-Mail. Nach Unterzeichnung einer Vertraulichkeitsvereinbarung (NDA) stellen wir Ihnen die vollständigen Unterlagen zur Verfügung.
+
+Mit freundlichen Grüßen
+Mike Bergmann
+mibeca GmbH – M&A Beratung für IT-Unternehmen
+www.itukv.de`
+  }
+}
+
+function replaceVars(text, k) {
+  if (!text || !k) return text || ''
+  return text
+    .replaceAll('{firma}', k.firma || '')
+    .replaceAll('{name}', k.name || '')
+    .replaceAll('{ort}', k.ort || '')
+}
+
+function sendMailto() {
+  const subject = encodeURIComponent(ausschreibungForm.value.betreff)
+  const body = encodeURIComponent(ausschreibungForm.value.text)
+  const bcc = selectedKontakte.value.map(k => k.email).filter(Boolean).join(',')
+  window.location.href = `mailto:?bcc=${bcc}&subject=${subject}&body=${body}`
+}
+
+function downloadCsv() {
+  const fields = ['firma','name','email','plz','ort','betreff','text']
+  const rows = selectedKontakte.value.map(k => [
+    k.firma || '', k.name || '', k.email || '', k.plz || '', k.ort || '',
+    replaceVars(ausschreibungForm.value.betreff, k),
+    replaceVars(ausschreibungForm.value.text, k).replaceAll('\n', ' | ')
+  ].map(v => `"${(v + '').replaceAll('"', '""')}"`).join(';'))
+  const csv = '﻿' + [fields.join(';'), ...rows].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a'); a.href = url; a.download = 'ausschreibung_serienmail.csv'; a.click()
+  URL.revokeObjectURL(url)
+}
+
+async function sendAcs() {
+  alert('ACS-Versand wird aktiviert, sobald die DNS-Records bei 1blu für mail.itukv.de gesetzt und verifiziert sind. Solange bitte "E-Mail-App öffnen" oder "CSV für Serien-Mail" nutzen.')
+}
 const showImport = ref(false)
 const showNewModal = ref(false)
 const editKontakt = ref(null)
