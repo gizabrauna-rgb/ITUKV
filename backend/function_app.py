@@ -737,9 +737,161 @@ def dokument_delete(req: func.HttpRequest, target_id: str, did: str) -> func.Htt
 
 # ── Webhook CRM Sync ──────────────────────────────────────────────────────────
 
+WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
+
+def check_webhook_secret(req):
+    """Prüft Webhook-Token im Header X-Webhook-Token oder Query-Param ?token=."""
+    token = req.headers.get("X-Webhook-Token", "") or req.params.get("token", "")
+    if not WEBHOOK_SECRET:
+        return False, err("WEBHOOK_SECRET nicht konfiguriert", 500)
+    if token != WEBHOOK_SECRET:
+        return False, err("Ungültiger Webhook-Token", 401)
+    return True, None
+
+
+@app.route(route="webhook/kunde", methods=["POST", "OPTIONS"])
+def webhook_kunde(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Webhook für neue/aktualisierte Kunden aus deinem CRM.
+
+    Authentifizierung: Header `X-Webhook-Token: <secret>` ODER ?token=<secret>
+
+    Body: Einzelnes Objekt oder Array von Objekten mit den Feldern:
+    - email (Pflicht – wird zum Deduplizieren genutzt)
+    - firma, vorname, nachname, name
+    - telefon, website
+    - plz, ort, land
+    - kundennummer, kundenstatus
+    - mbNr (optional – wenn vorhanden, wird ein Target angelegt)
+    - notizen, beschreibung, herkunft
+    - sucht, bietet, typ (PE/Systemhausgruppe/Strategisch/Sonstige)
+
+    Antwort: { "targets": N, "kontakte": N, "details": [...] }
+    """
+    if req.method == "OPTIONS": return opt()
+    ok_secret, err_resp = check_webhook_secret(req)
+    if not ok_secret: return err_resp
+
+    try:
+        body = req.get_json()
+        items = body if isinstance(body, list) else [body]
+
+        tc_kontakte = table("kontakte")
+        tc_targets = table("targets")
+
+        result_targets = 0
+        result_kontakte = 0
+        details = []
+
+        import re
+        for item in items:
+            email = (item.get("email","") or "").lower().strip()
+            mbNr_raw = item.get("mbNr","") or ""
+
+            # mb-Nummer normalisieren
+            mbNr = ""
+            if mbNr_raw:
+                m = re.search(r"mb-?(\d+)", str(mbNr_raw), re.IGNORECASE)
+                if m:
+                    mbNr = f"mb-{m.group(1)}"
+
+            name = item.get("name","") or f"{item.get('vorname','')} {item.get('nachname','')}".strip()
+            firma = item.get("firma","") or item.get("firmenname","")
+
+            # === TARGET wenn mb-Nummer vorhanden ===
+            if mbNr:
+                # Existiert bereits?
+                existing = list(tc_targets.query_entities(f"mbNr eq '{mbNr}'"))
+                if existing:
+                    target_id = existing[0]["RowKey"]
+                    entity = existing[0]
+                else:
+                    target_id = new_id()
+                    entity = {
+                        "PartitionKey": "target",
+                        "RowKey": target_id,
+                        "mbNr": mbNr,
+                        "checklisteJson": json.dumps(DEFAULT_CHECKLISTE),
+                        "createdAt": now(),
+                        "status": "verfuegbar",
+                        "projekttyp": item.get("projekttyp","Projekt Target"),
+                    }
+                # Felder updaten/setzen
+                entity.update({
+                    "verkaueferName": name or firma,
+                    "firma": firma,
+                    "email": email,
+                    "telefon": item.get("telefon",""),
+                    "website": item.get("website",""),
+                    "region": item.get("ort","") or item.get("region",""),
+                    "plz": item.get("plz",""),
+                    "branche": item.get("branche","IT-Systemhaus"),
+                    "mitarbeiter": str(item.get("mitarbeiter","")),
+                    "umsatz": item.get("umsatz",""),
+                    "beschreibung": item.get("beschreibung","") or item.get("notizen",""),
+                    "updatedAt": now(),
+                })
+                tc_targets.upsert_entity(entity)
+                result_targets += 1
+                details.append({"type": "target", "mbNr": mbNr, "id": target_id})
+                continue
+
+            # === KONTAKT (CRM) ===
+            if not email:
+                details.append({"type": "skipped", "reason": "no email"})
+                continue
+
+            existing = list(tc_kontakte.query_entities(f"email eq '{email}'"))
+            if existing:
+                kontakt_id = existing[0]["RowKey"]
+                entity = existing[0]
+            else:
+                kontakt_id = new_id()
+                entity = {
+                    "PartitionKey": "kontakt",
+                    "RowKey": kontakt_id,
+                    "createdAt": now(),
+                }
+            entity.update({
+                "name": name,
+                "firma": firma,
+                "email": email,
+                "telefon": item.get("telefon",""),
+                "website": item.get("website",""),
+                "plz": item.get("plz",""),
+                "ort": item.get("ort",""),
+                "typ": item.get("typ","Sonstige"),
+                "sucht": item.get("sucht",""),
+                "bietet": item.get("bietet",""),
+                "kommentar": item.get("notizen","") or item.get("kommentar",""),
+                "herkunft": item.get("herkunft","Webhook"),
+                "kundenstatus": item.get("kundenstatus",""),
+                "kundennummer": item.get("kundennummer",""),
+                "updatedAt": now(),
+            })
+            tc_kontakte.upsert_entity(entity)
+            result_kontakte += 1
+            details.append({"type": "kontakt", "email": email, "id": kontakt_id})
+
+        return ok({
+            "success": True,
+            "targets": result_targets,
+            "kontakte": result_kontakte,
+            "total": len(items),
+            "details": details,
+        })
+
+    except Exception as ex:
+        logging.error(f"webhook/kunde: {ex}")
+        return err(f"Webhook fehlgeschlagen: {ex}", 500)
+
+
+# Alter Endpoint bleibt aus Kompatibilitäts-Gründen
 @app.route(route="webhook/crm", methods=["POST", "OPTIONS"])
 def webhook_crm(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS": return opt()
+    ok_secret, err_resp = check_webhook_secret(req)
+    if not ok_secret: return err_resp
     try:
         body = req.get_json()
         items = body if isinstance(body, list) else body.get("items", [])
@@ -954,6 +1106,21 @@ def verteiler_detail(req: func.HttpRequest, vid: str) -> func.HttpResponse:
             entity[k] = v
     tc.update_entity(dict(entity))
     return ok(dict(entity))
+
+
+# ── Einstellungen / Webhook-Info ──────────────────────────────────────────────
+
+@app.route(route="settings/webhook", methods=["GET", "OPTIONS"])
+def settings_webhook(req: func.HttpRequest) -> func.HttpResponse:
+    """Liefert Webhook-URL und Token für die Admin-UI."""
+    if req.method == "OPTIONS": return opt()
+    p, e = auth(req, roles=["admin"])
+    if e: return e
+    return ok({
+        "url": "https://itukv-func.azurewebsites.net/api/webhook/kunde",
+        "token": WEBHOOK_SECRET,
+        "headerName": "X-Webhook-Token",
+    })
 
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
