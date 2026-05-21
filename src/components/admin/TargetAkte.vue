@@ -119,10 +119,7 @@
 
       <!-- Verlauf -->
       <div v-else-if="tab === 'verlauf'">
-        <div class="bg-white rounded-xl border border-gray-100 p-10 text-center text-gray-400 text-sm">
-          <MessageSquare class="w-10 h-10 mx-auto mb-3 text-gray-200" />
-          Kommunikations-Verlauf folgt — zentraler Ort statt verteilt auf Element/Teams/Asana.
-        </div>
+        <Verlauf :target-id="targetId" />
       </div>
 
       <!-- Zwischenstand -->
@@ -144,6 +141,7 @@ import { authFetch } from '../../api.js'
 import PhasenProzessEingebettet from './PhasenProzess.vue'
 import MandatDaten from '../target/MandatDaten.vue'
 import Zwischenstand from './Zwischenstand.vue'
+import Verlauf from './Verlauf.vue'
 
 const props = defineProps({ targetId: String })
 defineEmits(['close'])
