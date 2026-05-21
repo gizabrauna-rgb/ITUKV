@@ -12,6 +12,7 @@
     "@azure/msal-browser": "^5.11.0",
     "@lucide/vue": "^1.16.0",
     "axios": "^1.16.1",
+    "leaflet": "^1.9.4",
     "lucide-vue-next": "^1.0.0",
     "vue": "^3.5.34"
   },
