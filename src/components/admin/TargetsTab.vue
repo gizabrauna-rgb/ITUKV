@@ -121,8 +121,16 @@ const showModal = ref(false)
 const saving = ref(false)
 const form = ref({ mbNr: '', verkaueferName: '', region: '', plz: '', branche: '', mitarbeiter: '', umsatz: '', beschreibung: '', projekttyp: 'Projekt Target' })
 
+function sortByMbNr(list) {
+  return [...list].sort((a, b) => {
+    const na = parseInt((a.mbNr || '').replace(/[^\d]/g, ''), 10) || 0
+    const nb = parseInt((b.mbNr || '').replace(/[^\d]/g, ''), 10) || 0
+    return na - nb
+  })
+}
+
 onMounted(async () => {
-  try { targets.value = await getTargets() } finally { loading.value = false }
+  try { targets.value = sortByMbNr(await getTargets()) } finally { loading.value = false }
 })
 
 function statusClass(s) {
@@ -141,7 +149,7 @@ async function createTarget() {
   saving.value = true
   try {
     const t = await apiCreateTarget(form.value)
-    targets.value.push(t)
+    targets.value = sortByMbNr([...targets.value, t])
     showModal.value = false
     form.value = { mbNr: '', verkaueferName: '', region: '', plz: '', branche: '', mitarbeiter: '', umsatz: '', beschreibung: '', projekttyp: 'Projekt Target' }
   } finally { saving.value = false }
