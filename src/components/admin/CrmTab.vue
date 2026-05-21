@@ -76,9 +76,24 @@
       </table>
     </div>
 
-    <!-- Kartenansicht -->
-    <div v-else class="bg-white rounded-xl border border-gray-100 overflow-hidden" style="height: 520px;">
-      <div ref="mapContainer" class="w-full h-full"></div>
+    <!-- Kartenansicht (DACH) -->
+    <div v-else>
+      <div class="bg-white rounded-xl border border-gray-100 p-4 mb-3 flex items-center justify-between text-sm">
+        <div class="flex items-center gap-4">
+          <span class="text-gray-600"><strong>{{ mapData.kontakte?.length || 0 }}</strong> mit Standort</span>
+          <span class="text-gray-400">·</span>
+          <span class="text-gray-500">{{ mapData.withoutCoords || 0 }} ohne PLZ</span>
+        </div>
+        <!-- Legende -->
+        <div class="flex items-center gap-3 text-xs">
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#097e92"></span>Strategisch</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#3498db"></span>Systemhausgruppe</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#a855f7"></span>PE</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#c8b274"></span>Verkäufer-Interesse</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#64748b"></span>Sonstige</span>
+        </div>
+      </div>
+      <KundenMap :kontakte="mapData.kontakte || []" />
     </div>
 
     <!-- Import Modal -->
@@ -137,9 +152,12 @@
 import { ref, onMounted, watch, nextTick } from 'vue'
 import { Map, List, Download, Upload, UserPlus, Search, Mail, Pencil, X } from '@lucide/vue'
 import { getKontakte, createKontakt, updateKontakt, importKontakte, exportKontakte } from '../../api.js'
+import { authFetch } from '../../api.js'
+import KundenMap from '../KundenMap.vue'
 
 const allKontakte = ref([])
 const filtered = ref([])
+const mapData = ref({ kontakte: [], withoutCoords: 0 })
 const loading = ref(true)
 const view = ref('list')
 const search = ref('')
@@ -151,8 +169,6 @@ const editKontakt = ref(null)
 const importJson = ref('')
 const importing = ref(false)
 const saving = ref(false)
-const mapContainer = ref(null)
-let leafletMap = null
 const form = ref({ firma: '', name: '', email: '', telefon: '', plz: '', ort: '', typ: 'Sonstige', sucht: '', bietet: '', kommentar: '' })
 
 onMounted(async () => {
@@ -180,40 +196,11 @@ function typClass(t) {
 
 async function toggleView() {
   view.value = view.value === 'list' ? 'map' : 'list'
-  if (view.value === 'map') {
-    await nextTick()
-    await initMap()
+  if (view.value === 'map' && !mapData.value.kontakte.length) {
+    try {
+      mapData.value = await authFetch('/kontakte/locations')
+    } catch { mapData.value = { kontakte: [], withoutCoords: 0 } }
   }
-}
-
-async function initMap() {
-  if (!mapContainer.value) return
-  const L = (await import('leaflet')).default
-  await import('leaflet/dist/leaflet.css')
-  if (leafletMap) { leafletMap.remove(); leafletMap = null }
-  leafletMap = L.map(mapContainer.value).setView([51.1657, 10.4515], 6)
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap'
-  }).addTo(leafletMap)
-
-  // PLZ -> Koordinaten (grobe Zentroids nach Vorwahl)
-  const plzCoords = { '1': [52.5, 13.4], '2': [53.5, 10.0], '3': [52.3, 9.7], '4': [51.5, 7.5], '5': [50.9, 7.0], '6': [50.1, 8.7], '7': [48.8, 9.2], '8': [48.1, 11.6], '9': [49.5, 11.0] }
-
-  filtered.value.forEach(k => {
-    if (!k.plz) return
-    const prefix = String(k.plz)[0]
-    const coords = plzCoords[prefix]
-    if (!coords) return
-    const jitter = [(Math.random()-0.5)*0.8, (Math.random()-0.5)*0.8]
-    const icon = L.divIcon({
-      className: '',
-      html: `<div style="width:10px;height:10px;border-radius:50%;background:#097e92;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>`,
-      iconSize: [10, 10],
-    })
-    L.marker([coords[0]+jitter[0], coords[1]+jitter[1]], { icon })
-      .addTo(leafletMap)
-      .bindPopup(`<b>${k.firma||k.name}</b><br/>${k.typ}<br/>${k.plz} ${k.ort}<br/><a href="mailto:${k.email}">${k.email}</a>`)
-  })
 }
 
 async function exportCsv() {

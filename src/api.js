@@ -53,6 +53,20 @@ export const requestExpose = (id, data) => authFetch(`/ausschreibungen/${id}/exp
 export const getNdaStatus = (ausschreibungId) => authFetch(`/nda/${ausschreibungId}`)
 export const sendNda = (data) => authFetch('/nda/send', { method: 'POST', data })
 
+// Erfolgsmeldungen / PR-Mitteilungen
+export const getPrMitteilungen = () => authFetch('/pr-mitteilungen')
+export const createPrMitteilung = (data) => authFetch('/pr-mitteilungen', { method: 'POST', data })
+export const updatePrMitteilung = (id, data) => authFetch(`/pr-mitteilungen/${id}`, { method: 'PATCH', data })
+export const deletePrMitteilung = (id) => authFetch(`/pr-mitteilungen/${id}`, { method: 'DELETE' })
+export const generatePrText = (id, data) => authFetch(`/pr-mitteilungen/${id}/generate`, { method: 'POST', data })
+export const sendPrMitteilung = (id, data) => authFetch(`/pr-mitteilungen/${id}/send`, { method: 'POST', data })
+
+// Verteiler
+export const getVerteiler = () => authFetch('/verteiler')
+export const createVerteiler = (data) => authFetch('/verteiler', { method: 'POST', data })
+export const updateVerteiler = (id, data) => authFetch(`/verteiler/${id}`, { method: 'PATCH', data })
+export const deleteVerteiler = (id) => authFetch(`/verteiler/${id}`, { method: 'DELETE' })
+
 // Dokumente
 export const getDokumente = (targetId) => authFetch(`/targets/${targetId}/dokumente`)
 export const uploadDokument = (targetId, formData) => authFetch(`/targets/${targetId}/dokumente`, { method: 'POST', data: formData, headers: { 'Content-Type': 'multipart/form-data' } })

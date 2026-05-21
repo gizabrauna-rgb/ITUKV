@@ -25,6 +25,43 @@ CORS = {
     "Content-Type": "application/json",
 }
 
+# PLZ → Koordinaten (lazy geladen aus CSV)
+_PLZ_COORDS = None
+def get_plz_coords():
+    global _PLZ_COORDS
+    if _PLZ_COORDS is not None:
+        return _PLZ_COORDS
+    _PLZ_COORDS = {}
+    try:
+        csv_path = os.path.join(os.path.dirname(__file__), "plz_geocoord.csv")
+        with open(csv_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                country = (row.get("country") or "DE").strip()
+                plz = (row.get("plz") or "").strip()
+                if not plz:
+                    continue
+                try:
+                    lat = float(row["lat"])
+                    lon = float(row["lon"])
+                    _PLZ_COORDS[f"{country}:{plz}"] = (lat, lon)
+                    # auch ohne country-prefix
+                    if country == "DE" and plz not in _PLZ_COORDS:
+                        _PLZ_COORDS[plz] = (lat, lon)
+                except (ValueError, KeyError):
+                    continue
+    except Exception as e:
+        logging.error(f"PLZ-CSV laden fehlgeschlagen: {e}")
+    return _PLZ_COORDS
+
+def plz_to_coords(plz, country="DE"):
+    if not plz:
+        return None
+    coords = get_plz_coords()
+    plz_clean = str(plz).strip()
+    return coords.get(f"{country}:{plz_clean}") or coords.get(plz_clean)
+
+
 DEFAULT_CHECKLISTE = [
     {"id": "1", "label": "Unternehmensbewertung", "done": False},
     {"id": "2", "label": "Fragebogen Unternehmensbewertung", "done": False},
@@ -380,6 +417,40 @@ def kontakte_import(req: func.HttpRequest) -> func.HttpResponse:
         return err("Import fehlgeschlagen", 500)
 
 
+@app.route(route="kontakte/locations", methods=["GET", "OPTIONS"])
+def kontakte_locations(req: func.HttpRequest) -> func.HttpResponse:
+    """Liefert Kontakte mit lat/lon (für DACH-Karte). Filterbar nach typ, kategorie."""
+    if req.method == "OPTIONS": return opt()
+    p, e = auth(req, roles=["admin"])
+    if e: return e
+    tc = table("kontakte")
+    items = [dict(i) for i in tc.list_entities()]
+    typ = req.params.get("typ")
+    if typ:
+        items = [i for i in items if i.get("typ") == typ]
+    total = len(items)
+    with_coords = []
+    without_coords = 0
+    for k in items:
+        c = plz_to_coords(k.get("plz",""))
+        if c:
+            with_coords.append({
+                "id": k.get("RowKey"),
+                "firma": k.get("firma","") or k.get("name",""),
+                "name": k.get("name",""),
+                "email": k.get("email",""),
+                "telefon": k.get("telefon",""),
+                "plz": k.get("plz",""),
+                "ort": k.get("ort",""),
+                "typ": k.get("typ",""),
+                "kundenstatus": k.get("kundenstatus",""),
+                "lat": c[0], "lon": c[1],
+            })
+        else:
+            without_coords += 1
+    return ok({"kontakte": with_coords, "total": total, "withoutCoords": without_coords})
+
+
 @app.route(route="kontakte/export", methods=["GET", "OPTIONS"])
 def kontakte_export(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS": return opt()
@@ -684,6 +755,205 @@ def webhook_crm(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as ex:
         logging.error(str(ex))
         return err("Webhook fehlgeschlagen", 500)
+
+
+# ── Erfolgsmeldungen / PR-Mitteilungen ────────────────────────────────────────
+
+@app.route(route="pr-mitteilungen", methods=["GET", "POST", "OPTIONS"])
+def pr_mitteilungen(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS": return opt()
+    p, e = auth(req, roles=["admin"])
+    if e: return e
+    tc = table("prmitteilungen")
+    if req.method == "GET":
+        items = [dict(i) for i in tc.list_entities()]
+        items.sort(key=lambda x: x.get("createdAt",""), reverse=True)
+        return ok(items)
+    body = req.get_json()
+    pid = new_id()
+    entity = {
+        "PartitionKey": "pr", "RowKey": pid,
+        "targetId": body.get("targetId",""),
+        "mbNr": body.get("mbNr",""),
+        "titel": body.get("titel",""),
+        "kurzText": body.get("kurzText",""),
+        "langText": body.get("langText",""),
+        "linkedInText": body.get("linkedInText",""),
+        "anonymisiert": body.get("anonymisiert", True),
+        "status": "entwurf",
+        "createdAt": now(),
+        "versendetAm": "",
+        "empfaengerCount": 0,
+    }
+    tc.create_entity(entity)
+    return ok(dict(entity), 201)
+
+
+@app.route(route="pr-mitteilungen/{pid}", methods=["GET", "PATCH", "DELETE", "OPTIONS"])
+def pr_mitteilung_detail(req: func.HttpRequest, pid: str) -> func.HttpResponse:
+    if req.method == "OPTIONS": return opt()
+    p, e = auth(req, roles=["admin"])
+    if e: return e
+    tc = table("prmitteilungen")
+    try:
+        entity = tc.get_entity("pr", pid)
+    except Exception:
+        return err("PR-Mitteilung nicht gefunden", 404)
+    if req.method == "GET":
+        return ok(dict(entity))
+    if req.method == "DELETE":
+        tc.delete_entity("pr", pid)
+        return ok({"deleted": True})
+    body = req.get_json()
+    for k, v in body.items():
+        if k not in ("PartitionKey","RowKey"):
+            entity[k] = v
+    tc.update_entity(dict(entity))
+    return ok(dict(entity))
+
+
+@app.route(route="pr-mitteilungen/{pid}/generate", methods=["POST", "OPTIONS"])
+def pr_generate(req: func.HttpRequest, pid: str) -> func.HttpResponse:
+    """Generiert Text-Vorschlag aus Target-Daten (Vorlage – KI später)."""
+    if req.method == "OPTIONS": return opt()
+    p, e = auth(req, roles=["admin"])
+    if e: return e
+    body = req.get_json() or {}
+    target_id = body.get("targetId","")
+    anonym = body.get("anonymisiert", True)
+    if not target_id:
+        return err("targetId erforderlich", 400)
+    try:
+        target = dict(table("targets").get_entity("target", target_id))
+    except Exception:
+        return err("Target nicht gefunden", 404)
+
+    mbNr = target.get("mbNr","")
+    branche = target.get("branche","IT-Systemhaus") or "IT-Systemhaus"
+    region = target.get("region","")
+    mitarbeiter = target.get("mitarbeiter","")
+    umsatz = target.get("umsatz","")
+    verkaeufer = target.get("verkaueferName","") if not anonym else ""
+
+    # Titel
+    titel = f"Erfolgreicher Unternehmensverkauf abgeschlossen"
+    if mbNr:
+        titel += f" ({mbNr})"
+
+    # Kurz-Text (für LinkedIn, Newsletter-Header)
+    kurz_parts = [f"Wir freuen uns mitteilen zu dürfen, dass ein weiterer Unternehmensverkauf im IT-Sektor erfolgreich abgeschlossen wurde."]
+    if region:
+        kurz_parts.append(f"Das verkaufte Unternehmen ist im Raum {region} ansässig.")
+    if mitarbeiter:
+        kurz_parts.append(f"Es beschäftigt {mitarbeiter} Mitarbeitende.")
+    kurz = " ".join(kurz_parts)
+
+    # Lang-Text (für Pressemitteilung / Newsletter)
+    lang_lines = [
+        f"PRESSEMITTEILUNG",
+        f"",
+        f"Erfolgreicher Verkauf eines IT-Unternehmens im Raum {region or '[Region]'}",
+        f"",
+        f"Die mibeca GmbH freut sich, einen weiteren erfolgreichen Unternehmensverkauf im deutschen IT-Sektor bekanntzugeben. Das von uns beratene {branche}{f' aus dem Raum {region}' if region else ''} hat einen passenden Käufer gefunden und der Kaufvertrag wurde planmäßig unterzeichnet.",
+        f"",
+        f"Eckdaten des Unternehmens:",
+        f"• Branche: {branche}",
+    ]
+    if region: lang_lines.append(f"• Standort: {region}")
+    if mitarbeiter: lang_lines.append(f"• Mitarbeitende: {mitarbeiter}")
+    if umsatz: lang_lines.append(f"• Jahresumsatz: {umsatz}")
+    if not anonym and verkaeufer:
+        lang_lines.append(f"• Verkäufer: {verkaeufer}")
+    lang_lines.extend([
+        f"",
+        f"Mike Bergmann, Geschäftsführer der mibeca GmbH: „Wir freuen uns sehr, dass wir den Verkäufer auf diesem wichtigen Schritt begleiten durften. Der gefundene Käufer passt sowohl strategisch als auch kulturell hervorragend, sodass die Mitarbeitenden und Kunden auch in Zukunft optimal betreut werden."",
+        f"",
+        f"Über mibeca GmbH:",
+        f"Die mibeca GmbH ist auf M&A-Beratung für IT-Unternehmen im DACH-Raum spezialisiert. Mit langjähriger Branchenerfahrung begleitet das Team von Mike Bergmann Verkäufer und Käufer durch alle Phasen des Transaktionsprozesses – von der Erstbewertung bis zum erfolgreichen Closing.",
+        f"",
+        f"Kontakt:",
+        f"mibeca GmbH",
+        f"Mike Bergmann · Geschäftsführer",
+        f"E-Mail: mb@mike-bergmann.de",
+        f"Web: www.itukv.de",
+    ])
+    lang = "\n".join(lang_lines)
+
+    # LinkedIn-Entwurf
+    linkedin = f"🎉 Erfolg im IT-M&A-Markt!\n\nGerade haben wir einen weiteren erfolgreichen Verkauf eines {branche}s "
+    if region: linkedin += f"im Raum {region} "
+    linkedin += "abgeschlossen. "
+    if mitarbeiter: linkedin += f"Das Unternehmen mit {mitarbeiter} Mitarbeitenden "
+    linkedin += "hat einen passenden Nachfolger gefunden – strategisch und kulturell stimmig.\n\nMehr als ein Deal: Eine Lebensentscheidung, die wir respektvoll begleitet haben. 🤝\n\n#MundA #ITUnternehmen #Nachfolge #mibeca"
+
+    return ok({"titel": titel, "kurzText": kurz, "langText": lang, "linkedInText": linkedin})
+
+
+@app.route(route="pr-mitteilungen/{pid}/send", methods=["POST", "OPTIONS"])
+def pr_send(req: func.HttpRequest, pid: str) -> func.HttpResponse:
+    """Versendet PR-Mitteilung an Verteiler (Platzhalter – ACS-Integration optional)."""
+    if req.method == "OPTIONS": return opt()
+    p, e = auth(req, roles=["admin"])
+    if e: return e
+    body = req.get_json() or {}
+    empfaenger = body.get("empfaenger", [])
+    tc = table("prmitteilungen")
+    try:
+        entity = tc.get_entity("pr", pid)
+    except Exception:
+        return err("PR-Mitteilung nicht gefunden", 404)
+    # TODO: Hier ACS-Integration für echten E-Mail-Versand
+    entity["status"] = "versendet"
+    entity["versendetAm"] = now()
+    entity["empfaengerCount"] = len(empfaenger)
+    tc.update_entity(dict(entity))
+    return ok({"sent": len(empfaenger), "message": f"PR-Mitteilung an {len(empfaenger)} Empfänger versendet (Platzhalter – ACS-Integration folgt)"})
+
+
+# ── Verteiler (Distribution List) ─────────────────────────────────────────────
+
+@app.route(route="verteiler", methods=["GET", "POST", "OPTIONS"])
+def verteiler(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS": return opt()
+    p, e = auth(req, roles=["admin"])
+    if e: return e
+    tc = table("verteiler")
+    if req.method == "GET":
+        items = [dict(i) for i in tc.list_entities()]
+        return ok(items)
+    body = req.get_json()
+    vid = new_id()
+    entity = {
+        "PartitionKey": "verteiler", "RowKey": vid,
+        "email": body.get("email","").lower().strip(),
+        "name": body.get("name",""),
+        "firma": body.get("firma",""),
+        "kategorie": body.get("kategorie","Allgemein"),  # Presse / Investoren / Newsletter / Allgemein
+        "createdAt": now(),
+    }
+    tc.create_entity(entity)
+    return ok(dict(entity), 201)
+
+
+@app.route(route="verteiler/{vid}", methods=["PATCH", "DELETE", "OPTIONS"])
+def verteiler_detail(req: func.HttpRequest, vid: str) -> func.HttpResponse:
+    if req.method == "OPTIONS": return opt()
+    p, e = auth(req, roles=["admin"])
+    if e: return e
+    tc = table("verteiler")
+    try:
+        entity = tc.get_entity("verteiler", vid)
+    except Exception:
+        return err("Eintrag nicht gefunden", 404)
+    if req.method == "DELETE":
+        tc.delete_entity("verteiler", vid)
+        return ok({"deleted": True})
+    body = req.get_json()
+    for k, v in body.items():
+        if k not in ("PartitionKey","RowKey"):
+            entity[k] = v
+    tc.update_entity(dict(entity))
+    return ok(dict(entity))
 
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
