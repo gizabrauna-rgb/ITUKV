@@ -109,6 +109,11 @@
           <PipelineTab />
         </div>
 
+        <!-- Master-Prozess -->
+        <div v-else-if="tab === 'prozess'">
+          <PhasenProzess />
+        </div>
+
         <!-- CRM -->
         <div v-else-if="tab === 'crm'">
           <CrmTab />
@@ -186,7 +191,7 @@
 import { ref, computed, onMounted } from 'vue'
 import {
   Building2, LogOut, LayoutDashboard, Briefcase, GitBranch,
-  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog
+  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow
 } from '@lucide/vue'
 import { authFetch } from '../api.js'
 import TargetsTab from '../components/admin/TargetsTab.vue'
@@ -196,6 +201,7 @@ import AusschreibungenTab from '../components/admin/AusschreibungenTab.vue'
 import DokumenteTab from '../components/admin/DokumenteTab.vue'
 import BenutzerTab from '../components/admin/BenutzerTab.vue'
 import EinstellungenTab from '../components/admin/EinstellungenTab.vue'
+import PhasenProzess from '../components/admin/PhasenProzess.vue'
 
 const props = defineProps({ userName: String })
 const emit = defineEmits(['logout', 'switch-view'])
@@ -219,6 +225,7 @@ const navItems = [
   { tab: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard },
   { tab: 'targets', label: 'Targets', icon: Briefcase },
   { tab: 'pipeline', label: 'Pipeline', icon: GitBranch },
+  { tab: 'prozess', label: 'Master-Prozess', icon: Workflow },
   { tab: 'crm', label: 'Kundenstamm', icon: Users },
   { tab: 'ausschreibungen', label: 'Ausschreibungen', icon: Megaphone },
   { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
