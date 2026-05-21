@@ -110,10 +110,21 @@ async function loginMicrosoft() {
   loading.value = true
   loginType.value = 'microsoft'
   error.value = ''
+  console.log('[Login] loginMicrosoft clicked')
   try {
-    // Redirect-Login (kein Popup) – wie KIwerk
+    // Falls noch eine alte Interaction hängt: aufräumen
+    for (const k of Object.keys(sessionStorage)) {
+      if (k.includes('interaction.status')) {
+        console.log('[Login] cleaning stale interaction:', k)
+        sessionStorage.removeItem(k)
+      }
+    }
+    console.log('[Login] initialize…')
+    await msalInstance.initialize()
+    console.log('[Login] loginRedirect…')
     await msalInstance.loginRedirect(loginRequest)
   } catch (e) {
+    console.error('[Login] FAILED', e)
     error.value = 'Microsoft-Anmeldung fehlgeschlagen: ' + (e.message || e)
     loading.value = false
     loginType.value = ''
