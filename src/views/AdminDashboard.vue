@@ -182,7 +182,7 @@ function openAkte(target) {
 
 const navItems = [
   { tab: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard },
-  { tab: 'targets', label: 'Targets', icon: Briefcase },
+  { tab: 'targets', label: 'Projekte', icon: Briefcase },
   { tab: 'pipeline', label: 'Pipeline', icon: GitBranch },
   { tab: 'crm', label: 'Kundenstamm', icon: Users },
   { tab: 'ausschreibungen', label: 'Ausschreibungen', icon: Megaphone },

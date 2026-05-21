@@ -1,9 +1,9 @@
 <template>
   <div>
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl font-bold text-gray-900">Targets (Verkaufsmandate)</h2>
+      <h2 class="text-xl font-bold text-gray-900">Projekte</h2>
       <button @click="showModal = true" class="flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf] transition-colors">
-        <Plus class="w-4 h-4" /> Neues Mandat
+        <Plus class="w-4 h-4" /> Neues Projekt
       </button>
     </div>
 
@@ -41,33 +41,40 @@
       <table v-else class="w-full">
         <thead class="bg-gray-50 border-b border-gray-100">
           <tr>
+            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-8"></th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">mb-Nr</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Verkäufer</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Name / Firma</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Region</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Typ</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Aktionen</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Wiedervorlage</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-50">
-          <tr v-for="t in filtered" :key="t.RowKey" class="hover:bg-gray-50 cursor-pointer" @click="$emit('open-detail', t)">
+          <tr v-for="t in sortedFiltered" :key="t.RowKey" class="hover:bg-gray-50 cursor-pointer" @click="$emit('open-detail', t)">
+            <td class="px-3 py-3">
+              <span :class="['inline-block w-2.5 h-2.5 rounded-full', wvDotClass(t.wiedervorlage)]" :title="wvTooltip(t.wiedervorlage)"></span>
+            </td>
             <td class="px-4 py-3">
               <span class="font-mono text-xs bg-blue-50 text-blue-800 px-2 py-0.5 rounded">{{ t.mbNr }}</span>
             </td>
-            <td class="px-4 py-3 text-sm font-medium text-gray-800">{{ t.verkaueferName }}</td>
+            <td class="px-4 py-3 text-sm">
+              <div class="font-medium text-gray-800">{{ t.verkaueferName }}</div>
+              <div class="text-xs text-gray-400">{{ t.firma }}</div>
+            </td>
             <td class="px-4 py-3 text-sm text-gray-600">{{ t.region }}</td>
             <td class="px-4 py-3 text-sm text-gray-600">{{ t.projekttyp }}</td>
-            <td class="px-4 py-3">
-              <span :class="statusClass(t.status)" class="text-xs font-medium px-2 py-0.5 rounded-full">
-                {{ statusLabel(t.status) }}
-              </span>
-            </td>
             <td class="px-4 py-3" @click.stop>
-              <select v-model="t.status" @change="updateStatus(t)" class="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#097e92]">
+              <select v-model="t.status" @change="updateStatus(t)" :class="['text-xs border rounded-lg px-2 py-1 focus:outline-none', statusSelectClass(t.status)]">
                 <option value="verfuegbar">Verfügbar</option>
                 <option value="in_verhandlung">In Verhandlung</option>
                 <option value="verkauft">Verkauft</option>
               </select>
+            </td>
+            <td class="px-4 py-3" @click.stop>
+              <input v-model="t.wiedervorlage" type="date" @change="updateWiedervorlage(t)"
+                :class="['text-xs border rounded-lg px-2 py-1 focus:outline-none', wvInputClass(t.wiedervorlage)]" />
+              <button v-if="t.wiedervorlage" @click="t.wiedervorlage = ''; updateWiedervorlage(t)" class="ml-1 text-xs text-gray-400 hover:text-red-500">✕</button>
             </td>
           </tr>
         </tbody>
@@ -210,6 +217,70 @@ async function createTarget() {
 
 async function updateStatus(t) {
   await updateTarget(t.RowKey, { status: t.status })
+}
+
+async function updateWiedervorlage(t) {
+  await updateTarget(t.RowKey, { wiedervorlage: t.wiedervorlage || '' })
+}
+
+// Sortierung: Überfällige zuerst, dann nach Wiedervorlage-Datum, dann ohne Datum nach mb-Nr
+const sortedFiltered = computed(() => {
+  const today = new Date().toISOString().slice(0, 10)
+  return [...filtered.value].sort((a, b) => {
+    const av = a.wiedervorlage || ''
+    const bv = b.wiedervorlage || ''
+    // Beide ohne Datum → nach mbNr
+    if (!av && !bv) {
+      const na = parseInt((a.mbNr || '').replace(/[^\d]/g, ''), 10) || 0
+      const nb = parseInt((b.mbNr || '').replace(/[^\d]/g, ''), 10) || 0
+      return na - nb
+    }
+    // Mit Datum kommt zuerst
+    if (av && !bv) return -1
+    if (!av && bv) return 1
+    // Beide mit Datum: aufsteigend (älteste = überfällig oben)
+    return av < bv ? -1 : av > bv ? 1 : 0
+  })
+})
+
+function daysUntil(dateStr) {
+  if (!dateStr) return null
+  const today = new Date(); today.setHours(0,0,0,0)
+  const d = new Date(dateStr); d.setHours(0,0,0,0)
+  return Math.round((d - today) / 86400000)
+}
+
+function wvDotClass(dateStr) {
+  const d = daysUntil(dateStr)
+  if (d === null) return 'bg-gray-200'
+  if (d < 0) return 'bg-red-500'      // überfällig
+  if (d === 0) return 'bg-yellow-400'  // heute
+  if (d <= 7) return 'bg-blue-400'     // demnächst
+  return 'bg-gray-300'
+}
+
+function wvTooltip(dateStr) {
+  const d = daysUntil(dateStr)
+  if (d === null) return 'Keine Wiedervorlage'
+  if (d < 0) return `Überfällig (vor ${Math.abs(d)} Tagen)`
+  if (d === 0) return 'Heute fällig'
+  if (d === 1) return 'Morgen fällig'
+  return `In ${d} Tagen fällig`
+}
+
+function wvInputClass(dateStr) {
+  const d = daysUntil(dateStr)
+  if (d === null) return 'border-gray-200 text-gray-500'
+  if (d < 0) return 'border-red-300 bg-red-50 text-red-700 font-medium'
+  if (d === 0) return 'border-yellow-300 bg-yellow-50 text-yellow-700 font-medium'
+  if (d <= 7) return 'border-blue-200 bg-blue-50 text-blue-700'
+  return 'border-gray-200 text-gray-600'
+}
+
+function statusSelectClass(s) {
+  if (s === 'verfuegbar') return 'border-green-200 bg-green-50 text-green-700'
+  if (s === 'in_verhandlung') return 'border-yellow-200 bg-yellow-50 text-yellow-700'
+  return 'border-gray-200'
 }
 </script>
 
