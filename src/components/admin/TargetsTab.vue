@@ -1,16 +1,43 @@
 <template>
   <div>
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center justify-between mb-4">
       <h2 class="text-xl font-bold text-gray-900">Targets (Verkaufsmandate)</h2>
       <button @click="showModal = true" class="flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf] transition-colors">
         <Plus class="w-4 h-4" /> Neues Mandat
       </button>
     </div>
 
+    <!-- Such- und Filter-Leiste -->
+    <div class="flex flex-wrap items-center gap-3 mb-3">
+      <div class="relative flex-1 min-w-[260px] max-w-md">
+        <Search class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+        <input v-model="search" placeholder="Suche nach mb-Nr, Verkäufer, Firma, Region…"
+          class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+      </div>
+      <select v-model="filterStatus" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
+        <option value="">Alle Status</option>
+        <option value="verfuegbar">Verfügbar</option>
+        <option value="in_verhandlung">In Verhandlung</option>
+        <option value="verkauft">Verkauft</option>
+      </select>
+      <select v-model="filterTyp" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
+        <option value="">Alle Typen</option>
+        <option>UVE Target</option>
+        <option>Projekt Target</option>
+        <option>MC Target</option>
+        <option>Projekt Investoren</option>
+        <option>MC Investoren</option>
+      </select>
+      <span class="text-sm text-gray-400 self-center">{{ filtered.length }} / {{ targets.length }}</span>
+    </div>
+
     <!-- Tabelle -->
     <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
       <div v-if="loading" class="p-8 text-center text-gray-400 text-sm">Lade Targets…</div>
       <div v-else-if="!targets.length" class="p-8 text-center text-gray-400 text-sm">Noch keine Targets angelegt.</div>
+      <div v-else-if="!filtered.length" class="p-8 text-center text-gray-400 text-sm">
+        Keine Treffer. <button @click="clearFilters" class="underline hover:text-gray-700">Filter zurücksetzen</button>
+      </div>
       <table v-else class="w-full">
         <thead class="bg-gray-50 border-b border-gray-100">
           <tr>
@@ -23,7 +50,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-50">
-          <tr v-for="t in targets" :key="t.RowKey" class="hover:bg-gray-50 cursor-pointer" @click="$emit('open-detail', t)">
+          <tr v-for="t in filtered" :key="t.RowKey" class="hover:bg-gray-50 cursor-pointer" @click="$emit('open-detail', t)">
             <td class="px-4 py-3">
               <span class="font-mono text-xs bg-blue-50 text-blue-800 px-2 py-0.5 rounded">{{ t.mbNr }}</span>
             </td>
@@ -110,13 +137,39 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { Plus, X } from '@lucide/vue'
+import { ref, computed, onMounted } from 'vue'
+import { Plus, X, Search } from '@lucide/vue'
 import { getTargets, createTarget as apiCreateTarget, updateTarget } from '../../api.js'
 
 const emit = defineEmits(['open-detail'])
 const targets = ref([])
+const search = ref('')
+const filterStatus = ref('')
+const filterTyp = ref('')
 const loading = ref(true)
+
+const filtered = computed(() => {
+  let r = targets.value
+  if (filterStatus.value) r = r.filter(t => t.status === filterStatus.value)
+  if (filterTyp.value) r = r.filter(t => t.projekttyp === filterTyp.value)
+  if (search.value) {
+    const q = search.value.toLowerCase()
+    r = r.filter(t =>
+      (t.mbNr || '').toLowerCase().includes(q) ||
+      (t.verkaueferName || '').toLowerCase().includes(q) ||
+      (t.firma || '').toLowerCase().includes(q) ||
+      (t.region || '').toLowerCase().includes(q) ||
+      (t.branche || '').toLowerCase().includes(q)
+    )
+  }
+  return r
+})
+
+function clearFilters() {
+  search.value = ''
+  filterStatus.value = ''
+  filterTyp.value = ''
+}
 const showModal = ref(false)
 const saving = ref(false)
 const form = ref({ mbNr: '', verkaueferName: '', region: '', plz: '', branche: '', mitarbeiter: '', umsatz: '', beschreibung: '', projekttyp: 'Projekt Target' })
