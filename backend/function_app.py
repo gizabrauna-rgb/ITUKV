@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from azure.data.tables import TableServiceClient
 from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
 
-app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
+app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
 TABLE_CONN = os.environ.get("AZURE_TABLE_STORAGE_CONNECTION_STRING", "")
 BLOB_CONN  = os.environ.get("AZURE_BLOB_STORAGE_CONNECTION_STRING", "")

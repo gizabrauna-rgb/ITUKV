@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:7071/api'
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://itukv-func.azurewebsites.net/api'
 const FUNC_KEY = import.meta.env.VITE_FUNC_KEY || ''
 
 function getToken() {

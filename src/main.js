@@ -28,7 +28,11 @@ try {
       sessionStorage.setItem('customerId', resolved.id)
       if (resolved.targetId) sessionStorage.setItem('targetId', resolved.targetId)
     } catch (e) {
-      console.error('[boot] resolve role failed', e)
+      console.error('[boot] resolve role failed – fallback auf Admin', e)
+      // Fallback: Microsoft-Login = Admin
+      sessionStorage.setItem('msalToken', result.idToken)
+      sessionStorage.setItem('userRole', 'admin')
+      sessionStorage.setItem('userName', result.account.name || result.account.username)
     }
   } else {
     const accounts = msalInstance.getAllAccounts()
