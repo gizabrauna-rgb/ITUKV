@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl font-bold text-gray-900">CRM / Investoren-Datenbank</h2>
+      <h2 class="text-xl font-bold text-gray-900">Kundenstamm</h2>
       <div class="flex gap-2">
         <button @click="toggleView" class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50">
           <Map v-if="view === 'list'" class="w-4 h-4" /> <List v-else class="w-4 h-4" />

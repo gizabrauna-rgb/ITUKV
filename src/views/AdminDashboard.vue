@@ -219,7 +219,7 @@ const navItems = [
   { tab: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard },
   { tab: 'targets', label: 'Targets', icon: Briefcase },
   { tab: 'pipeline', label: 'Pipeline', icon: GitBranch },
-  { tab: 'crm', label: 'CRM / Investoren', icon: Users },
+  { tab: 'crm', label: 'Kundenstamm', icon: Users },
   { tab: 'ausschreibungen', label: 'Ausschreibungen', icon: Megaphone },
   { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
   { tab: 'benutzer', label: 'Benutzer', icon: UserCog },
