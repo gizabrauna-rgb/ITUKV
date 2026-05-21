@@ -1,0 +1,248 @@
+<template>
+  <div>
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h3 class="text-lg font-bold text-gray-900">Kommunikations-Verlauf</h3>
+        <p class="text-xs text-gray-500">Alle Interaktionen mit diesem Mandanten – zentral statt verteilt auf Element/Teams/Asana</p>
+      </div>
+      <button @click="openNew" class="flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf]">
+        <Plus class="w-4 h-4" /> Eintrag hinzufügen
+      </button>
+    </div>
+
+    <!-- Filter -->
+    <div class="flex items-center gap-2 mb-4 flex-wrap">
+      <button v-for="t in typFilters" :key="t.value"
+        @click="filterTyp = filterTyp === t.value ? '' : t.value"
+        :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                 filterTyp === t.value ? `${t.activeClass} text-white border-transparent` : 'border-gray-200 text-gray-600 hover:bg-gray-50']">
+        <component :is="t.icon" class="w-3.5 h-3.5" />
+        {{ t.label }}
+        <span :class="['text-[10px] px-1.5 py-0.5 rounded', filterTyp === t.value ? 'bg-white/20' : 'bg-gray-100']">{{ countByTyp(t.value) }}</span>
+      </button>
+    </div>
+
+    <!-- Timeline -->
+    <div v-if="loading" class="text-center text-sm text-gray-400 py-10">Lade Verlauf…</div>
+    <div v-else-if="!filtered.length" class="bg-white rounded-xl border border-gray-100 p-10 text-center text-gray-400 text-sm">
+      <MessageSquare class="w-10 h-10 mx-auto mb-3 text-gray-200" />
+      <p>Noch keine Einträge im Verlauf.</p>
+      <button @click="openNew" class="text-[#097e92] hover:underline mt-2 text-sm">Ersten Eintrag erstellen →</button>
+    </div>
+    <div v-else class="relative">
+      <!-- Timeline-Linie -->
+      <div class="absolute left-5 top-2 bottom-2 w-px bg-gray-200"></div>
+
+      <div v-for="(entry, idx) in filtered" :key="entry.id" class="relative pl-14 pb-4">
+        <!-- Icon-Kreis -->
+        <div :class="['absolute left-2 top-2 w-7 h-7 rounded-full flex items-center justify-center', typBg(entry.typ)]">
+          <component :is="typIcon(entry.typ)" class="w-3.5 h-3.5 text-white" />
+        </div>
+
+        <!-- Karte -->
+        <div class="bg-white rounded-xl border border-gray-100 p-4 hover:border-gray-200 transition-colors">
+          <div class="flex items-start justify-between mb-1">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span :class="typBadge(entry.typ)" class="text-xs px-2 py-0.5 rounded-full font-medium">{{ typLabel(entry.typ) }}</span>
+              <span class="text-xs text-gray-400">{{ formatDateTime(entry.datum) }}</span>
+              <span v-if="entry.autor" class="text-xs text-gray-500">· {{ entry.autor }}</span>
+            </div>
+            <div class="flex gap-1">
+              <button @click="openEdit(entry)" class="text-gray-300 hover:text-gray-600 p-1" title="Bearbeiten">
+                <Pencil class="w-3.5 h-3.5" />
+              </button>
+              <button @click="deleteEntry(entry)" class="text-gray-300 hover:text-red-500 p-1" title="Löschen">
+                <Trash2 class="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+          <div v-if="entry.betreff" class="font-semibold text-sm text-gray-900 mb-1">{{ entry.betreff }}</div>
+          <p v-if="entry.beschreibung" class="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{{ entry.beschreibung }}</p>
+          <div v-if="entry.beteiligte" class="flex items-center gap-1.5 mt-2 text-xs text-gray-400">
+            <Users class="w-3 h-3" /> {{ entry.beteiligte }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Neuer/Bearbeitener Eintrag -->
+    <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+      <div class="bg-white rounded-2xl w-full max-w-lg p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-gray-900">{{ editing ? 'Eintrag bearbeiten' : 'Neuer Verlauf-Eintrag' }}</h3>
+          <button @click="closeModal"><X class="w-5 h-5 text-gray-400" /></button>
+        </div>
+        <div class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-medium text-gray-600 mb-1 block">Typ *</label>
+              <select v-model="form.typ" class="input">
+                <option v-for="t in typFilters" :key="t.value" :value="t.value">{{ t.label }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-600 mb-1 block">Datum & Uhrzeit *</label>
+              <input v-model="form.datum" type="datetime-local" class="input" />
+            </div>
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">Autor (wer)</label>
+            <input v-model="form.autor" placeholder="z.B. Jenny, Mike, Anna…" class="input" />
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">Betreff / Titel</label>
+            <input v-model="form.betreff" placeholder="z.B. Telefonat mit Käufer-Kandidat" class="input" />
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">Beschreibung / Notiz</label>
+            <textarea v-model="form.beschreibung" rows="5" placeholder="Was wurde besprochen? Wichtige Punkte?" class="input resize-none"></textarea>
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">Beteiligte Personen</label>
+            <input v-model="form.beteiligte" placeholder="z.B. Verkäufer, 2 Interessenten" class="input" />
+          </div>
+        </div>
+        <div class="flex gap-3 mt-5">
+          <button @click="closeModal" class="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50">Abbrechen</button>
+          <button @click="saveEntry" class="flex-1 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium">Speichern</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import {
+  Mail, Phone, Calendar, MessageSquare, FileText, AlertCircle,
+  Plus, Pencil, Trash2, X, Users
+} from '@lucide/vue'
+import { authFetch } from '../../api.js'
+
+const props = defineProps({ targetId: String })
+
+const entries = ref([])
+const loading = ref(true)
+const showModal = ref(false)
+const editing = ref(null)
+const filterTyp = ref('')
+
+const form = ref({ typ: 'notiz', datum: '', autor: '', betreff: '', beschreibung: '', beteiligte: '' })
+
+const typFilters = [
+  { value: 'mail_in', label: 'E-Mail eingegangen', icon: Mail, activeClass: 'bg-blue-500' },
+  { value: 'mail_out', label: 'E-Mail versendet', icon: Mail, activeClass: 'bg-[#097e92]' },
+  { value: 'telefon', label: 'Telefonat', icon: Phone, activeClass: 'bg-purple-500' },
+  { value: 'termin', label: 'Termin', icon: Calendar, activeClass: 'bg-amber-500' },
+  { value: 'notiz', label: 'Notiz', icon: FileText, activeClass: 'bg-gray-500' },
+  { value: 'wichtig', label: 'Wichtig', icon: AlertCircle, activeClass: 'bg-red-500' },
+]
+
+const filtered = computed(() => {
+  let r = entries.value
+  if (filterTyp.value) r = r.filter(e => e.typ === filterTyp.value)
+  return [...r].sort((a, b) => (a.datum < b.datum ? 1 : -1))
+})
+
+function countByTyp(t) {
+  return entries.value.filter(e => e.typ === t).length
+}
+
+function typLabel(t) { return typFilters.find(f => f.value === t)?.label || t }
+function typIcon(t) {
+  const map = { mail_in: Mail, mail_out: Mail, telefon: Phone, termin: Calendar, notiz: FileText, wichtig: AlertCircle }
+  return map[t] || FileText
+}
+function typBg(t) {
+  const map = { mail_in: 'bg-blue-500', mail_out: 'bg-[#097e92]', telefon: 'bg-purple-500', termin: 'bg-amber-500', notiz: 'bg-gray-500', wichtig: 'bg-red-500' }
+  return map[t] || 'bg-gray-500'
+}
+function typBadge(t) {
+  const map = {
+    mail_in: 'bg-blue-50 text-blue-700',
+    mail_out: 'bg-[#097e92]/10 text-[#097e92]',
+    telefon: 'bg-purple-50 text-purple-700',
+    termin: 'bg-amber-50 text-amber-700',
+    notiz: 'bg-gray-100 text-gray-600',
+    wichtig: 'bg-red-50 text-red-700',
+  }
+  return map[t] || 'bg-gray-100 text-gray-600'
+}
+
+function formatDateTime(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+async function loadEntries() {
+  if (!props.targetId) return
+  loading.value = true
+  try {
+    const target = await authFetch(`/targets/${props.targetId}`)
+    if (target.kommunikationJson) {
+      try { entries.value = JSON.parse(target.kommunikationJson) } catch { entries.value = [] }
+    } else {
+      entries.value = []
+    }
+  } finally { loading.value = false }
+}
+
+onMounted(loadEntries)
+
+function openNew() {
+  editing.value = null
+  const now = new Date()
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
+  form.value = {
+    typ: 'notiz',
+    datum: now.toISOString().slice(0, 16),
+    autor: sessionStorage.getItem('userName') || '',
+    betreff: '', beschreibung: '', beteiligte: '',
+  }
+  showModal.value = true
+}
+
+function openEdit(entry) {
+  editing.value = entry
+  form.value = { ...entry }
+  showModal.value = true
+}
+
+function closeModal() {
+  showModal.value = false
+  editing.value = null
+}
+
+async function saveAll() {
+  await authFetch(`/targets/${props.targetId}`, {
+    method: 'PATCH',
+    data: { kommunikationJson: JSON.stringify(entries.value) }
+  })
+}
+
+async function saveEntry() {
+  if (editing.value) {
+    const idx = entries.value.findIndex(e => e.id === editing.value.id)
+    if (idx >= 0) entries.value[idx] = { ...editing.value, ...form.value }
+  } else {
+    entries.value.push({
+      id: 'k' + Date.now(),
+      ...form.value,
+    })
+  }
+  await saveAll()
+  closeModal()
+}
+
+async function deleteEntry(entry) {
+  if (!confirm('Eintrag wirklich löschen?')) return
+  entries.value = entries.value.filter(e => e.id !== entry.id)
+  await saveAll()
+}
+</script>
+
+<style scoped>
+@reference "tailwindcss";
+.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]; }
+</style>

@@ -19,27 +19,51 @@
       </div>
     </div>
 
-    <!-- Filter-Zeile -->
-    <div class="flex gap-3 mb-4">
-      <div class="relative flex-1 max-w-xs">
-        <Search class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-        <input v-model="search" @input="applyFilters" placeholder="Firma, Name, E-Mail…" class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+    <!-- Vereinheitlichte Filter-Zeile (gilt für Liste UND Karte) -->
+    <div class="bg-white rounded-xl border border-gray-100 p-3 mb-3">
+      <div class="flex gap-3 flex-wrap items-center">
+        <div class="relative flex-1 min-w-[260px] max-w-md">
+          <Search class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+          <input v-model="search" placeholder="Suche: Firma, Name, E-Mail…" class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+        </div>
+        <select v-model="filterTyp" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
+          <option value="">Alle Typen</option>
+          <option>PE</option>
+          <option>Systemhausgruppe</option>
+          <option>Strategisch</option>
+          <option>Sonstige</option>
+        </select>
+        <select v-model="filterStatus" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
+          <option value="">Status (alle)</option>
+          <option>Kunde</option>
+          <option>Ex-Kunde</option>
+        </select>
+        <div class="flex items-center gap-2 border-l border-gray-200 pl-3">
+          <label class="text-xs font-medium text-gray-600">PLZ</label>
+          <input v-model="filterCenterPlz" placeholder="z.B. 80331" maxlength="5"
+            class="w-24 px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+          <label class="text-xs font-medium text-gray-600">Umkreis</label>
+          <select v-model.number="filterRadiusKm" class="px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none">
+            <option :value="0">alle</option>
+            <option :value="25">25 km</option>
+            <option :value="50">50 km</option>
+            <option :value="100">100 km</option>
+            <option :value="200">200 km</option>
+            <option :value="500">500 km</option>
+          </select>
+        </div>
+        <button v-if="hasAnyFilter" @click="clearAllFilters" class="text-xs text-gray-500 hover:text-gray-800 underline">Filter zurücksetzen</button>
+        <div class="flex-1"></div>
+        <span class="text-sm text-gray-500"><strong class="text-gray-800">{{ visibleList.length }}</strong> Treffer</span>
       </div>
-      <select v-model="filterTyp" @change="applyFilters" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
-        <option value="">Alle Typen</option>
-        <option>PE</option>
-        <option>Systemhausgruppe</option>
-        <option>Strategisch</option>
-        <option>Sonstige</option>
-      </select>
-      <input v-model="filterPlz" @input="applyFilters" placeholder="PLZ-Prefix" class="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
-      <span class="text-sm text-gray-400 self-center">{{ filtered.length }} Kontakte</span>
     </div>
 
     <!-- Listenansicht -->
     <div v-if="view === 'list'" class="bg-white rounded-xl border border-gray-100 overflow-hidden">
       <div v-if="loading" class="p-8 text-center text-gray-400 text-sm">Lade Kontakte…</div>
-      <div v-else-if="!filtered.length" class="p-8 text-center text-gray-400 text-sm">Keine Kontakte gefunden.</div>
+      <div v-else-if="!visibleList.length" class="p-8 text-center text-gray-400 text-sm">
+        Keine Treffer mit aktuellem Filter. <button @click="clearAllFilters" class="underline hover:text-gray-700">zurücksetzen</button>
+      </div>
       <table v-else class="w-full">
         <thead class="bg-gray-50 border-b border-gray-100">
           <tr>
@@ -52,7 +76,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-50">
-          <tr v-for="k in filtered" :key="k.RowKey" class="hover:bg-gray-50">
+          <tr v-for="k in visibleList" :key="k.RowKey" class="hover:bg-gray-50">
             <td class="px-4 py-3 text-sm font-medium text-gray-800">{{ k.firma }}</td>
             <td class="px-4 py-3 text-sm text-gray-600">{{ k.name }}</td>
             <td class="px-4 py-3">
@@ -78,46 +102,25 @@
 
     <!-- Kartenansicht (DACH) -->
     <div v-else>
-      <!-- Filter-Leiste -->
-      <div class="bg-white rounded-xl border border-gray-100 p-4 mb-3">
-        <div class="flex items-center gap-3 flex-wrap mb-3">
-          <div class="flex items-center gap-2">
-            <label class="text-xs font-medium text-gray-600">PLZ-Mitte</label>
-            <input v-model="filterCenterPlz" placeholder="z.B. 80331" maxlength="5"
-              class="w-24 px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
-          </div>
-          <div class="flex items-center gap-2">
-            <label class="text-xs font-medium text-gray-600">Umkreis</label>
-            <select v-model.number="filterRadiusKm" class="px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none">
-              <option :value="0">alle</option>
-              <option :value="25">25 km</option>
-              <option :value="50">50 km</option>
-              <option :value="100">100 km</option>
-              <option :value="200">200 km</option>
-              <option :value="500">500 km</option>
-            </select>
-          </div>
-          <button @click="clearMapFilter" v-if="filterCenterPlz || filterRadiusKm" class="text-xs text-gray-500 hover:text-gray-800 underline">Filter zurücksetzen</button>
-          <div class="flex-1"></div>
-          <button @click="exportFilteredCsv" class="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">
-            <Download class="w-3 h-3" /> Auswahl exportieren ({{ filteredOnMap.length }})
-          </button>
+      <div class="bg-white rounded-xl border border-gray-100 p-3 mb-3 flex items-center justify-between text-xs">
+        <div class="text-gray-500">
+          <strong class="text-gray-800">{{ visibleList.length }}</strong> {{ filterRadiusKm ? 'Kontakte im Radius' : 'Kontakte sichtbar' }} ·
+          <strong class="text-orange-600">{{ visibleTargets.length }}</strong> {{ filterRadiusKm ? 'Targets im Radius' : 'Targets gesamt' }} ·
+          <strong class="text-gray-400">{{ mapData.withoutCoords || 0 }}</strong> ohne PLZ
         </div>
-        <div class="flex items-center justify-between">
-          <div class="text-xs text-gray-500">
-            <strong class="text-gray-800">{{ filteredOnMap.length }}</strong> Kontakte im Radius · <strong class="text-orange-600">{{ mapData.targets?.length || 0 }}</strong> Targets · <strong class="text-gray-400">{{ mapData.withoutCoords || 0 }}</strong> ohne PLZ
-          </div>
-          <div class="flex items-center gap-3 text-xs">
-            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full" style="background:#f97316"></span>Target</span>
-            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#22c55e"></span>Investor</span>
-            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#097e92"></span>Kunde</span>
-            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#64748b"></span>Ex-Kunde</span>
-          </div>
+        <div class="flex items-center gap-3">
+          <button @click="exportFilteredCsv" class="flex items-center gap-1.5 px-3 py-1 border border-gray-200 rounded-lg hover:bg-gray-50">
+            <Download class="w-3 h-3" /> Auswahl exportieren ({{ visibleList.length }})
+          </button>
+          <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full" style="background:#f97316"></span>Target</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#22c55e"></span>Investor</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#097e92"></span>Kunde</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#64748b"></span>Ex-Kunde</span>
         </div>
       </div>
       <KundenMap
-        :kontakte="filteredOnMap"
-        :targets="mapData.targets || []"
+        :kontakte="visibleList.filter(k => k.lat && k.lon)"
+        :targets="visibleTargets"
         :center-plz="filterCenterPlz"
         :radius-km="filterRadiusKm" />
     </div>
@@ -198,35 +201,75 @@ function distanceKm(lat1, lon1, lat2, lon2) {
   return 2 * R * Math.asin(Math.sqrt(a))
 }
 
-const filteredOnMap = computed(() => {
-  const all = mapData.value.kontakte || []
-  if (!filterCenterPlz.value || !filterRadiusKm.value) return all
-  // Mittelpunkt finden (entweder bei Targets oder Kontakten mit der PLZ)
-  const center = (mapData.value.targets || []).find(t => t.plz === filterCenterPlz.value)
-              || all.find(k => k.plz === filterCenterPlz.value)
-  if (!center) return all
-  return all.filter(k => k.lat && k.lon && distanceKm(center.lat, center.lon, k.lat, k.lon) <= filterRadiusKm.value)
+// Zentrum-Koordinaten für Radius-Filter ermitteln
+const centerCoords = computed(() => {
+  if (!filterCenterPlz.value) return null
+  const t = (mapData.value.targets || []).find(x => x.plz === filterCenterPlz.value)
+  if (t && t.lat && t.lon) return { lat: t.lat, lon: t.lon }
+  const k = (mapData.value.kontakte || []).find(x => x.plz === filterCenterPlz.value)
+  if (k && k.lat && k.lon) return { lat: k.lat, lon: k.lon }
+  return null
 })
 
-function clearMapFilter() {
+// EINE Datenquelle: Map-Daten (haben lat/lon) – wird für Liste und Karte verwendet
+const visibleList = computed(() => {
+  let r = (mapData.value.kontakte || [])
+  // Such-Filter
+  if (search.value) {
+    const q = search.value.toLowerCase()
+    r = r.filter(k => ((k.firma||'') + (k.name||'') + (k.email||'')).toLowerCase().includes(q))
+  }
+  // Typ-Filter
+  if (filterTyp.value) r = r.filter(k => k.typ === filterTyp.value)
+  // Status-Filter
+  if (filterStatus.value) r = r.filter(k => k.kundenstatus === filterStatus.value || k.typ === filterStatus.value)
+  // PLZ-Mitte + Umkreis
+  if (filterCenterPlz.value && filterRadiusKm.value && centerCoords.value) {
+    r = r.filter(k => k.lat && k.lon && distanceKm(centerCoords.value.lat, centerCoords.value.lon, k.lat, k.lon) <= filterRadiusKm.value)
+  }
+  return r
+})
+
+const visibleTargets = computed(() => {
+  let r = (mapData.value.targets || [])
+  if (filterCenterPlz.value && filterRadiusKm.value && centerCoords.value) {
+    r = r.filter(t => t.lat && t.lon && distanceKm(centerCoords.value.lat, centerCoords.value.lon, t.lat, t.lon) <= filterRadiusKm.value)
+  }
+  return r
+})
+
+const hasAnyFilter = computed(() =>
+  !!(search.value || filterTyp.value || filterStatus.value || filterCenterPlz.value || filterRadiusKm.value)
+)
+
+function clearAllFilters() {
+  search.value = ''
+  filterTyp.value = ''
+  filterStatus.value = ''
   filterCenterPlz.value = ''
   filterRadiusKm.value = 0
 }
 
 function exportFilteredCsv() {
-  const items = filteredOnMap.value
-  const fields = ['firma','name','email','telefon','plz','ort','typ']
+  const items = visibleList.value
+  const fields = ['firma','name','email','telefon','plz','ort','typ','kundenstatus']
   const header = fields.join(';')
   const rows = items.map(k => fields.map(f => (k[f] || '').toString().replaceAll(';', ',')).join(';'))
   const csv = '﻿' + [header, ...rows].join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
-  const a = document.createElement('a'); a.href = url; a.download = `kontakte_radius_${filterCenterPlz.value}_${filterRadiusKm.value}km.csv`; a.click()
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filterCenterPlz.value && filterRadiusKm.value
+    ? `kontakte_radius_${filterCenterPlz.value}_${filterRadiusKm.value}km.csv`
+    : 'kontakte_filter.csv'
+  a.click()
   URL.revokeObjectURL(url)
 }
+
 const search = ref('')
 const filterTyp = ref('')
-const filterPlz = ref('')
+const filterStatus = ref('')
 const showImport = ref(false)
 const showNewModal = ref(false)
 const editKontakt = ref(null)
@@ -235,21 +278,18 @@ const importing = ref(false)
 const saving = ref(false)
 const form = ref({ firma: '', name: '', email: '', telefon: '', plz: '', ort: '', typ: 'Sonstige', sucht: '', bietet: '', kommentar: '' })
 
+// Beim Mount: BEIDES laden (Liste + Map-Daten mit Koordinaten)
 onMounted(async () => {
-  try { allKontakte.value = await getKontakte(); filtered.value = [...allKontakte.value] }
-  finally { loading.value = false }
-})
-
-function applyFilters() {
-  let r = [...allKontakte.value]
-  if (search.value) {
-    const q = search.value.toLowerCase()
-    r = r.filter(k => (k.firma+k.name+k.email).toLowerCase().includes(q))
+  try {
+    // Lade direkt die Map-Daten - die enthalten ALLES was wir brauchen (mit Koordinaten)
+    mapData.value = await authFetch('/kontakte/locations')
+    allKontakte.value = mapData.value.kontakte || []
+  } catch (e) {
+    console.error(e)
+  } finally {
+    loading.value = false
   }
-  if (filterTyp.value) r = r.filter(k => k.typ === filterTyp.value)
-  if (filterPlz.value) r = r.filter(k => String(k.plz||'').startsWith(filterPlz.value))
-  filtered.value = r
-}
+})
 
 function typClass(t) {
   if (t === 'PE') return 'bg-purple-100 text-purple-700'
@@ -258,13 +298,8 @@ function typClass(t) {
   return 'bg-gray-100 text-gray-600'
 }
 
-async function toggleView() {
+function toggleView() {
   view.value = view.value === 'list' ? 'map' : 'list'
-  if (view.value === 'map' && !mapData.value.kontakte.length) {
-    try {
-      mapData.value = await authFetch('/kontakte/locations')
-    } catch { mapData.value = { kontakte: [], withoutCoords: 0 } }
-  }
 }
 
 async function exportCsv() {
