@@ -29,6 +29,7 @@ import Login from './views/Login.vue'
 import AdminDashboard from './views/AdminDashboard.vue'
 import TargetDashboard from './views/TargetDashboard.vue'
 import InvestorDashboard from './views/InvestorDashboard.vue'
+import { msalInstance } from './authConfig.js'
 
 const role = ref(sessionStorage.getItem('userRole') || '')
 const userName = ref(sessionStorage.getItem('userName') || '')
@@ -54,11 +55,21 @@ function onLoggedIn(user) {
   userName.value = user.name
 }
 
-function onLogout() {
+async function onLogout() {
   sessionStorage.clear()
+  localStorage.clear()
   role.value = ''
   userName.value = ''
   impersonating.value = ''
+  // Auch Microsoft-Session beenden, sonst loggt sich der User automatisch wieder ein
+  try {
+    const account = msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0]
+    if (account) {
+      await msalInstance.logoutRedirect({ account, postLogoutRedirectUri: window.location.origin })
+      return
+    }
+  } catch (e) { console.error('logout', e) }
+  window.location.reload()
 }
 
 function switchView(viewType) {

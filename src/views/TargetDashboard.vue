@@ -74,6 +74,11 @@
         </div>
       </div>
 
+      <!-- Tab: Meine Daten (Mandat-Vorlage) -->
+      <div v-else-if="tab === 'mandat'">
+        <MandatDaten :target-id="targetId" :read-only="impersonating" />
+      </div>
+
       <!-- Tab: Interessenten -->
       <div v-else-if="tab === 'interessenten'">
         <h2 class="text-xl font-bold text-gray-900 mb-5">Meine Interessenten</h2>
@@ -260,8 +265,9 @@ import { ref, computed, onMounted, watch } from 'vue'
 import {
   Building2, LogOut, Briefcase, Users, FolderOpen, Check, CheckCircle, Circle,
   Star, UserCheck, Ban, Folder, ChevronLeft, Upload, FileText, Download,
-  Link as LinkIcon, Plus, Trash2, X
+  Link as LinkIcon, Plus, Trash2, X, ClipboardList
 } from '@lucide/vue'
+import MandatDaten from '../components/target/MandatDaten.vue'
 import { authFetch, getInteressenten, updateInteressent, getDokumente } from '../api.js'
 
 const props = defineProps({ userName: String, projekttyp: String, impersonating: Boolean })
@@ -287,6 +293,7 @@ const TYPES_WITH_LINKS = ['UVE Target', 'MC Target', 'MC Investoren']
 const navItems = computed(() => {
   const base = [
     { tab: 'projekt', label: 'Mein Projekt', icon: Briefcase },
+    { tab: 'mandat', label: 'Meine Daten', icon: ClipboardList },
     { tab: 'interessenten', label: 'Interessenten', icon: Users },
     { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
   ]

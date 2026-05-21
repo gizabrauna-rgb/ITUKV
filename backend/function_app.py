@@ -485,6 +485,55 @@ def checkliste_update(req: func.HttpRequest, target_id: str) -> func.HttpRespons
     return ok(items)
 
 
+# ── Potentielle Käufer (vom Verkäufer manuell gepflegt) ───────────────────────
+
+@app.route(route="targets/{target_id}/kaeufer", methods=["GET", "POST", "OPTIONS"])
+def kaeufer(req: func.HttpRequest, target_id: str) -> func.HttpResponse:
+    if req.method == "OPTIONS": return opt()
+    p, e = auth(req)
+    if e: return e
+    tc = table("kaeufer")
+    if req.method == "GET":
+        items = [dict(i) for i in tc.query_entities(f"targetId eq '{target_id}'")]
+        return ok(items)
+    body = req.get_json()
+    kid = new_id()
+    entity = {
+        "PartitionKey": target_id, "RowKey": kid,
+        "targetId": target_id,
+        "name": body.get("name", ""),
+        "vorname": body.get("vorname", ""),
+        "unternehmen": body.get("unternehmen", ""),
+        "email": body.get("email", ""),
+        "telefon": body.get("telefon", ""),
+        "beschreibung": body.get("beschreibung", ""),
+        "createdAt": now(),
+    }
+    tc.create_entity(entity)
+    return ok(dict(entity), 201)
+
+
+@app.route(route="targets/{target_id}/kaeufer/{kid}", methods=["PATCH", "DELETE", "OPTIONS"])
+def kaeufer_detail(req: func.HttpRequest, target_id: str, kid: str) -> func.HttpResponse:
+    if req.method == "OPTIONS": return opt()
+    p, e = auth(req)
+    if e: return e
+    tc = table("kaeufer")
+    try:
+        entity = tc.get_entity(target_id, kid)
+    except Exception:
+        return err("Käufer nicht gefunden", 404)
+    if req.method == "DELETE":
+        tc.delete_entity(target_id, kid)
+        return ok({"deleted": True})
+    body = req.get_json()
+    for k, v in body.items():
+        if k not in ("PartitionKey", "RowKey"):
+            entity[k] = v
+    tc.update_entity(dict(entity))
+    return ok(dict(entity))
+
+
 # ── Interessenten ─────────────────────────────────────────────────────────────
 
 @app.route(route="targets/{target_id}/interessenten", methods=["GET", "POST", "OPTIONS"])
