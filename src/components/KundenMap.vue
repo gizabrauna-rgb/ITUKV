@@ -9,7 +9,24 @@ const props = defineProps({
   centerPlz: { type: String, default: '' },
   centerCoords: { type: Object, default: null },
   radiusKm: { type: Number, default: 0 },
+  colorByProdukt: { type: String, default: '' },  // wenn gesetzt: Pin-Farbe nach diesem Produkt
 })
+
+// Hex-Farben pro Produkt (für die Karte)
+const PRODUKT_COLORS = {
+  hatUC: '#ef4444',          // rot
+  hatUCS: '#a855f7',         // lila
+  hatMC: '#eab308',          // gelb
+  hatFKE: '#d97706',         // bernstein
+  hatUVE: '#ec4899',         // pink
+  hatVME: '#57534e',         // steingrau
+  hatKIwerkOne: '#10b981',   // smaragd
+  hatMSQ: '#6366f1',         // indigo
+  hatKMQ: '#0891b2',         // cyan
+  hatKIT: '#d946ef',         // fuchsia
+  hatKK: '#e11d48',          // rose
+  imITUKV: '#097e92',        // teal
+}
 
 const mapEl = ref(null)
 let mapInstance = null
@@ -33,6 +50,10 @@ const TYP_COLORS = {
 }
 
 function colorForKontakt(k) {
+  // Wenn nach einem Produkt gefiltert wird → Pin-Farbe nach Produkt
+  if (props.colorByProdukt && PRODUKT_COLORS[props.colorByProdukt]) {
+    return PRODUKT_COLORS[props.colorByProdukt]
+  }
   // Investor-Status
   if (['PE','Systemhausgruppe','Strategisch','INVESTOR'].includes(k.typ)) return TYP_COLORS.INVESTOR
   if (k.typ === 'Verkäufer-Interesse') return TYP_COLORS['Verkäufer-Interesse']

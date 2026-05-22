@@ -134,10 +134,17 @@
     <!-- Kartenansicht (DACH) -->
     <div v-else>
       <div class="bg-white rounded-xl border border-gray-100 p-3 mb-3 flex items-center justify-between text-xs">
-        <div class="text-gray-500">
+        <div class="text-gray-500 flex items-center gap-2 flex-wrap">
           <strong class="text-gray-800">{{ visibleList.length }}</strong> {{ filterRadiusKm ? 'Kontakte im Radius' : 'Kontakte sichtbar' }} ·
           <strong class="text-orange-600">{{ visibleTargets.length }}</strong> {{ filterRadiusKm ? 'Targets im Radius' : 'Targets gesamt' }} ·
           <strong class="text-gray-400">{{ mapData.withoutCoords || 0 }}</strong> ohne PLZ
+          <span v-if="selectedProdukte.length" class="flex items-center gap-1 ml-2">
+            · Pins gefärbt nach
+            <span v-for="(p, i) in selectedProdukte" :key="p" class="flex items-center gap-1">
+              <span class="w-2.5 h-2.5 rounded-full" :style="`background:${produktHexColor(p)}`"></span>
+              <strong>{{ produktLabel(p) }}</strong>{{ i < selectedProdukte.length - 1 ? ',' : '' }}
+            </span>
+          </span>
         </div>
         <div class="flex items-center gap-3">
           <button @click="exportFilteredCsv" class="flex items-center gap-1.5 px-3 py-1 border border-gray-200 rounded-lg hover:bg-gray-50">
@@ -154,7 +161,8 @@
         :targets="visibleTargets"
         :center-plz="filterCenterPlz"
         :center-coords="centerCoords"
-        :radius-km="filterRadiusKm" />
+        :radius-km="filterRadiusKm"
+        :color-by-produkt="selectedProdukte[0] || ''" />
     </div>
 
     <!-- Sticky Aktion-Leiste bei Auswahl -->
@@ -426,6 +434,15 @@ function toggleProdukt(key) {
 function countProdukt(key) {
   return (mapData.value.kontakte || []).filter(k => k[key] === true).length
 }
+
+const PRODUKT_HEX = {
+  hatUC: '#ef4444', hatUCS: '#a855f7', hatMC: '#eab308', hatFKE: '#d97706',
+  hatUVE: '#ec4899', hatVME: '#57534e', hatKIwerkOne: '#10b981',
+  hatMSQ: '#6366f1', hatKMQ: '#0891b2', hatKIT: '#d946ef',
+  hatKK: '#e11d48', imITUKV: '#097e92',
+}
+function produktHexColor(key) { return PRODUKT_HEX[key] || '#64748b' }
+function produktLabel(key) { return produktListe.find(p => p.key === key)?.label || key }
 
 // Mehrfach-Auswahl
 const selectedIds = ref(new Set())
