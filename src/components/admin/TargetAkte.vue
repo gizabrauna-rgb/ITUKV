@@ -116,10 +116,7 @@
 
       <!-- Exposé -->
       <div v-else-if="tab === 'expose'">
-        <div class="bg-white rounded-xl border border-gray-100 p-10 text-center text-gray-400 text-sm">
-          <FileText class="w-10 h-10 mx-auto mb-3 text-gray-200" />
-          Exposé-Generator + Editor folgt im nächsten Schritt.
-        </div>
+        <ExposeGenerator :target-id="targetId" />
       </div>
 
       <!-- Verlauf -->
@@ -148,6 +145,7 @@ import MandatDaten from '../target/MandatDaten.vue'
 import Fragebogen from '../target/Fragebogen.vue'
 import Zwischenstand from './Zwischenstand.vue'
 import Verlauf from './Verlauf.vue'
+import ExposeGenerator from './ExposeGenerator.vue'
 
 const props = defineProps({ targetId: String })
 defineEmits(['close'])
