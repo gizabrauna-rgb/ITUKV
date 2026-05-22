@@ -421,8 +421,6 @@ const produktListe = [
   { key: 'hatMSQ', label: 'MSQ', color: 'bg-indigo-500' },
   { key: 'hatKMQ', label: 'KMQ', color: 'bg-cyan-600' },
   { key: 'hatKIT', label: 'KIT', color: 'bg-fuchsia-500' },
-  { key: 'hatKK', label: 'KK', color: 'bg-rose-600' },
-  { key: 'imITUKV', label: 'ITUKV', color: 'bg-[#097e92]' },
 ]
 
 function toggleProdukt(key) {
@@ -439,7 +437,6 @@ const PRODUKT_HEX = {
   hatUC: '#ef4444', hatUCS: '#a855f7', hatMC: '#eab308', hatFKE: '#d97706',
   hatUVE: '#ec4899', hatVME: '#57534e', hatKIwerkOne: '#10b981',
   hatMSQ: '#6366f1', hatKMQ: '#0891b2', hatKIT: '#d946ef',
-  hatKK: '#e11d48', imITUKV: '#097e92',
 }
 function produktHexColor(key) { return PRODUKT_HEX[key] || '#64748b' }
 function produktLabel(key) { return produktListe.find(p => p.key === key)?.label || key }

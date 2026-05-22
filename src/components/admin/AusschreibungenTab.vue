@@ -114,9 +114,9 @@ const detailInteressenten = ref([])
 const form = ref({ targetId: '', mbNr: '', titel: '', region: '', branche: '', mitarbeiter: '', umsatz: '', kurzprofil: '' })
 
 onMounted(async () => {
-  try {
-    [items.value, targets.value] = await Promise.all([getAusschreibungen(), getTargets()])
-  } finally { loading.value = false }
+  try { targets.value = await getTargets() } catch (e) { console.error('getTargets failed', e) }
+  try { items.value = await getAusschreibungen() } catch (e) { items.value = [] }
+  loading.value = false
 })
 
 function prefillFromTarget() {

@@ -89,6 +89,11 @@
         <ExposeFreigabe :target-id="targetId" />
       </div>
 
+      <!-- Tab: Verlauf -->
+      <div v-else-if="tab === 'verlauf'">
+        <Verlauf :target-id="targetId" />
+      </div>
+
       <!-- Tab: Interessenten -->
       <div v-else-if="tab === 'interessenten'">
         <h2 class="text-xl font-bold text-gray-900 mb-5">Meine Interessenten</h2>
@@ -275,11 +280,12 @@ import { ref, computed, onMounted, watch } from 'vue'
 import {
   Building2, LogOut, Briefcase, Users, FolderOpen, Check, CheckCircle, Circle,
   Star, UserCheck, Ban, Folder, ChevronLeft, Upload, FileText, Download,
-  Link as LinkIcon, Plus, Trash2, X, ClipboardList, FileEdit
+  Link as LinkIcon, Plus, Trash2, X, ClipboardList, FileEdit, MessageSquare
 } from '@lucide/vue'
 import MandatDaten from '../components/target/MandatDaten.vue'
 import Fragebogen from '../components/target/Fragebogen.vue'
 import ExposeFreigabe from '../components/target/ExposeFreigabe.vue'
+import Verlauf from '../components/admin/Verlauf.vue'
 import { authFetch, getInteressenten, updateInteressent, getDokumente } from '../api.js'
 
 const props = defineProps({ userName: String, projekttyp: String, impersonating: Boolean })
@@ -310,6 +316,7 @@ const navItems = computed(() => {
     { tab: 'expose', label: 'Mein Exposé', icon: FileText },
     { tab: 'interessenten', label: 'Interessenten', icon: Users },
     { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
+    { tab: 'verlauf', label: 'Verlauf', icon: MessageSquare },
   ]
   if (TYPES_WITH_LINKS.includes(props.projekttyp)) {
     base.push({ tab: 'links', label: 'Links', icon: LinkIcon })

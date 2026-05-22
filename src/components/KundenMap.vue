@@ -24,8 +24,6 @@ const PRODUKT_COLORS = {
   hatMSQ: '#6366f1',         // indigo
   hatKMQ: '#0891b2',         // cyan
   hatKIT: '#d946ef',         // fuchsia
-  hatKK: '#e11d48',          // rose
-  imITUKV: '#097e92',        // teal
 }
 
 const mapEl = ref(null)

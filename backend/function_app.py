@@ -371,7 +371,7 @@ def kontakte_locations_route(req: func.HttpRequest) -> func.HttpResponse:
     kontakte_items = [dict(i) for i in table_("kontakte").list_entities()]
     kontakte_out = []
     without_k = 0
-    flag_fields = ['hatUC','hatUCS','hatMC','hatFKE','hatUVE','hatVME','hatKIwerkOne','hatMSQ','hatKMQ','hatKIT','hatKK','imITUKV']
+    flag_fields = ['hatUC','hatUCS','hatMC','hatFKE','hatUVE','hatVME','hatKIwerkOne','hatMSQ','hatKMQ','hatKIT']
     for k in kontakte_items:
         plz = str(k.get("plz","")).strip()
         c = coords.get(plz)
