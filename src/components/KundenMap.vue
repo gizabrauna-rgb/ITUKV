@@ -27,7 +27,7 @@ const TYP_COLORS = {
   'Strategisch': '#22c55e',
   'Verkäufer-Interesse': '#c8b274',
   'Kunde': '#60a5fa',          // hellblau (Bestandskunde)
-  'Ex-Kunde': '#94a3b8',
+  'Ex-Kunde': '#475569',       // dunkles slate
   'Sonstige': '#94a3b8',
 }
 

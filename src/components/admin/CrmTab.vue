@@ -125,7 +125,7 @@
           <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full" style="background:#f97316"></span>Target</span>
           <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#22c55e"></span>Investor</span>
           <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#60a5fa"></span>Kunde</span>
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#94a3b8"></span>Ex-Kunde</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#475569"></span>Ex-Kunde</span>
         </div>
       </div>
       <KundenMap
