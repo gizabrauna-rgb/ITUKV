@@ -129,6 +129,11 @@
         <Verlauf :target-id="targetId" />
       </div>
 
+      <!-- Zeiterfassung -->
+      <div v-else-if="tab === 'zeit'">
+        <Zeiterfassung :target-id="targetId" />
+      </div>
+
       <!-- Zwischenstand -->
       <div v-else-if="tab === 'zwischenstand'">
         <Zwischenstand :target-id="targetId" />
@@ -142,7 +147,7 @@ import { ref, computed, onMounted, defineComponent, h } from 'vue'
 import {
   ArrowLeft, MapPin, Tag, Users, Euro, Hash, Mail,
   Sparkles, Circle, Folder, FileText, MessageSquare,
-  LayoutDashboard, Workflow, ClipboardList, FileEdit, ShieldCheck
+  LayoutDashboard, Workflow, ClipboardList, FileEdit, ShieldCheck, Clock
 } from '@lucide/vue'
 import { authFetch } from '../../api.js'
 import PhasenProzessEingebettet from './PhasenProzess.vue'
@@ -152,6 +157,7 @@ import Zwischenstand from './Zwischenstand.vue'
 import Verlauf from './Verlauf.vue'
 import ExposeGenerator from './ExposeGenerator.vue'
 import NdaGenerator from './NdaGenerator.vue'
+import Zeiterfassung from './Zeiterfassung.vue'
 
 const props = defineProps({ targetId: String })
 defineEmits(['close'])
@@ -169,6 +175,7 @@ const tabs = [
   { tab: 'expose', label: 'Exposé', icon: FileText },
   { tab: 'nda', label: 'NDA', icon: ShieldCheck },
   { tab: 'verlauf', label: 'Verlauf', icon: MessageSquare },
+  { tab: 'zeit', label: 'Zeiterfassung', icon: Clock },
   { tab: 'zwischenstand', label: 'Zwischenstand', icon: FileEdit },
 ]
 
