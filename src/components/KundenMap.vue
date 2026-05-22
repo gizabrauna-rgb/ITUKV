@@ -7,6 +7,7 @@ const props = defineProps({
   kontakte: { type: Array, default: () => [] },
   targets: { type: Array, default: () => [] },
   centerPlz: { type: String, default: '' },
+  centerCoords: { type: Object, default: null },
   radiusKm: { type: Number, default: 0 },
 })
 
@@ -97,19 +98,16 @@ function renderMarkers() {
     mapInstance.removeLayer(circleLayer)
     circleLayer = null
   }
-  if (props.centerPlz && props.radiusKm > 0) {
-    const target = props.targets.find(t => t.plz === props.centerPlz)
-    const kont = props.kontakte.find(k => k.plz === props.centerPlz)
-    const center = target || kont
-    if (center && center.lat && center.lon) {
-      circleLayer = L.circle([center.lat, center.lon], {
-        radius: props.radiusKm * 1000,
-        color: '#f97316',
-        fillColor: '#f97316',
-        fillOpacity: 0.08,
-        weight: 2,
-      }).addTo(mapInstance)
-    }
+  if (props.radiusKm > 0 && props.centerCoords?.lat && props.centerCoords?.lon) {
+    circleLayer = L.circle([props.centerCoords.lat, props.centerCoords.lon], {
+      radius: props.radiusKm * 1000,
+      color: '#f97316',
+      fillColor: '#f97316',
+      fillOpacity: 0.08,
+      weight: 2,
+    }).addTo(mapInstance)
+    // Optional: Karte auf Kreis-Bereich einzoomen
+    mapInstance.fitBounds(circleLayer.getBounds(), { padding: [40, 40], maxZoom: 10 })
   }
 }
 
@@ -137,7 +135,7 @@ onMounted(() => {
   )
 })
 
-watch(() => [props.kontakte, props.targets, props.centerPlz, props.radiusKm],
+watch(() => [props.kontakte, props.targets, props.centerPlz, props.radiusKm, props.centerCoords],
   () => renderMarkers(), { deep: true })
 
 onBeforeUnmount(() => {

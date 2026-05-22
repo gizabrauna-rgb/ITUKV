@@ -132,6 +132,7 @@
         :kontakte="visibleList.filter(k => k.lat && k.lon)"
         :targets="visibleTargets"
         :center-plz="filterCenterPlz"
+        :center-coords="centerCoords"
         :radius-km="filterRadiusKm" />
     </div>
 
