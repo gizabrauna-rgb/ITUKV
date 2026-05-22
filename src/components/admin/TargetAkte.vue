@@ -119,6 +119,11 @@
         <ExposeGenerator :target-id="targetId" />
       </div>
 
+      <!-- NDA -->
+      <div v-else-if="tab === 'nda'">
+        <NdaGenerator :target-id="targetId" />
+      </div>
+
       <!-- Verlauf -->
       <div v-else-if="tab === 'verlauf'">
         <Verlauf :target-id="targetId" />
@@ -137,7 +142,7 @@ import { ref, computed, onMounted, defineComponent, h } from 'vue'
 import {
   ArrowLeft, MapPin, Tag, Users, Euro, Hash, Mail,
   Sparkles, Circle, Folder, FileText, MessageSquare,
-  LayoutDashboard, Workflow, ClipboardList, FileEdit
+  LayoutDashboard, Workflow, ClipboardList, FileEdit, ShieldCheck
 } from '@lucide/vue'
 import { authFetch } from '../../api.js'
 import PhasenProzessEingebettet from './PhasenProzess.vue'
@@ -146,6 +151,7 @@ import Fragebogen from '../target/Fragebogen.vue'
 import Zwischenstand from './Zwischenstand.vue'
 import Verlauf from './Verlauf.vue'
 import ExposeGenerator from './ExposeGenerator.vue'
+import NdaGenerator from './NdaGenerator.vue'
 
 const props = defineProps({ targetId: String })
 defineEmits(['close'])
@@ -161,6 +167,7 @@ const tabs = [
   { tab: 'interessenten', label: 'Interessenten', icon: Users },
   { tab: 'dokumente', label: 'Dokumente', icon: Folder },
   { tab: 'expose', label: 'Exposé', icon: FileText },
+  { tab: 'nda', label: 'NDA', icon: ShieldCheck },
   { tab: 'verlauf', label: 'Verlauf', icon: MessageSquare },
   { tab: 'zwischenstand', label: 'Zwischenstand', icon: FileEdit },
 ]
