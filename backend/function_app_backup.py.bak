@@ -159,35 +159,28 @@ def kontakte_route(req: func.HttpRequest) -> func.HttpResponse:
     return ok_(items)
 
 
-@app.route(route="users", methods=["GET", "OPTIONS"])
-def users_list(req: func.HttpRequest) -> func.HttpResponse:
+@app.route(route="users", methods=["GET", "POST", "OPTIONS"])
+def users_route(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return opt_()
     p = auth_user(req)
     if not p or p.get("role") != "admin":
         return err_("Nicht autorisiert", 401)
-    items = [dict(u) for u in table_("users").list_entities()]
-    for u in items:
-        u.pop("passwordHash", None)
-    return ok_(items)
-
-
-@app.route(route="user-create", methods=["POST", "OPTIONS"])
-def user_create(req: func.HttpRequest) -> func.HttpResponse:
-    if req.method == "OPTIONS":
-        return opt_()
-    p = auth_user(req)
-    if not p or p.get("role") != "admin":
-        return err_("Nicht autorisiert", 401)
+    tc = table_("users")
+    if req.method == "GET":
+        items = [dict(u) for u in tc.list_entities()]
+        for u in items:
+            u.pop("passwordHash", None)
+        return ok_(items)
+    # POST – Neuer User
+    import string
     body = req.get_json()
     email = body.get("email","").lower().strip()
     if not email:
         return err_("E-Mail erforderlich", 400)
-    tc = table_("users")
     existing = list(tc.query_entities(f"email eq '{email}'"))
     if existing:
         return err_("E-Mail bereits registriert", 409)
-    import string
     pw = body.get("password") or "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
     salt = secrets.token_bytes(16)
     pw_hash = "pbkdf2$" + base64.b64encode(salt).decode() + "$" + base64.b64encode(hashlib.pbkdf2_hmac('sha256', pw.encode(), salt, 100000)).decode()
@@ -201,49 +194,34 @@ def user_create(req: func.HttpRequest) -> func.HttpResponse:
         "createdAt": datetime.utcnow().isoformat(),
     }
     tc.create_entity(entity)
-    return ok_({"id": uid, "email": email, "role": entity["role"], "name": entity["name"], "initialPassword": pw}, 201)
+    result = {k: v for k, v in entity.items() if k != "passwordHash"}
+    result["initialPassword"] = pw
+    return ok_(result, 201)
 
 
-@app.route(route="user-delete", methods=["POST", "OPTIONS"])
-def user_delete(req: func.HttpRequest) -> func.HttpResponse:
+@app.route(route="users/{uid}", methods=["PATCH", "DELETE", "OPTIONS"])
+def user_detail_route(req: func.HttpRequest, uid: str) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return opt_()
     p = auth_user(req)
     if not p or p.get("role") != "admin":
         return err_("Nicht autorisiert", 401)
-    body = req.get_json()
-    uid = body.get("id","")
-    if not uid:
-        return err_("id erforderlich", 400)
-    try:
-        table_("users").delete_entity("user", uid)
-        return ok_({"deleted": True})
-    except Exception:
-        return err_("Benutzer nicht gefunden", 404)
-
-
-@app.route(route="user-reset-password", methods=["POST", "OPTIONS"])
-def user_reset_password(req: func.HttpRequest) -> func.HttpResponse:
-    if req.method == "OPTIONS":
-        return opt_()
-    p = auth_user(req)
-    if not p or p.get("role") != "admin":
-        return err_("Nicht autorisiert", 401)
-    body = req.get_json()
-    uid = body.get("id","")
-    if not uid:
-        return err_("id erforderlich", 400)
     tc = table_("users")
     try:
         entity = tc.get_entity("user", uid)
     except Exception:
         return err_("Benutzer nicht gefunden", 404)
-    import string
-    pw = body.get("password") or "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
-    salt = secrets.token_bytes(16)
-    entity["passwordHash"] = "pbkdf2$" + base64.b64encode(salt).decode() + "$" + base64.b64encode(hashlib.pbkdf2_hmac('sha256', pw.encode(), salt, 100000)).decode()
+    if req.method == "DELETE":
+        tc.delete_entity("user", uid)
+        return ok_({"deleted": True})
+    body = req.get_json()
+    for k, v in body.items():
+        if k in ("PartitionKey", "RowKey", "passwordHash"):
+            continue
+        entity[k] = v
     tc.update_entity(dict(entity))
-    return ok_({"email": entity.get("email"), "newPassword": pw})
+    out = dict(entity); out.pop("passwordHash", None)
+    return ok_(out)
 
 
 @app.route(route="kontakte/locations", methods=["GET", "OPTIONS"])
