@@ -84,6 +84,11 @@
         <MandatDaten :target-id="targetId" :read-only="impersonating" />
       </div>
 
+      <!-- Tab: Mein Exposé (Freigabe) -->
+      <div v-else-if="tab === 'expose'">
+        <ExposeFreigabe :target-id="targetId" />
+      </div>
+
       <!-- Tab: Interessenten -->
       <div v-else-if="tab === 'interessenten'">
         <h2 class="text-xl font-bold text-gray-900 mb-5">Meine Interessenten</h2>
@@ -274,6 +279,7 @@ import {
 } from '@lucide/vue'
 import MandatDaten from '../components/target/MandatDaten.vue'
 import Fragebogen from '../components/target/Fragebogen.vue'
+import ExposeFreigabe from '../components/target/ExposeFreigabe.vue'
 import { authFetch, getInteressenten, updateInteressent, getDokumente } from '../api.js'
 
 const props = defineProps({ userName: String, projekttyp: String, impersonating: Boolean })
@@ -301,6 +307,7 @@ const navItems = computed(() => {
     { tab: 'projekt', label: 'Mein Projekt', icon: Briefcase },
     { tab: 'fragebogen', label: 'Fragebogen', icon: FileEdit },
     { tab: 'mandat', label: 'Meine Daten', icon: ClipboardList },
+    { tab: 'expose', label: 'Mein Exposé', icon: FileText },
     { tab: 'interessenten', label: 'Interessenten', icon: Users },
     { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
   ]
