@@ -346,11 +346,12 @@ def kontakte_locations_route(req: func.HttpRequest) -> func.HttpResponse:
     kontakte_items = [dict(i) for i in table_("kontakte").list_entities()]
     kontakte_out = []
     without_k = 0
+    flag_fields = ['hatUC','hatUCS','hatMC','hatFKE','hatUVE','hatVME','hatKIwerkOne','hatMSQ','hatKMQ','hatKIT','hatKK','imITUKV']
     for k in kontakte_items:
         plz = str(k.get("plz","")).strip()
         c = coords.get(plz)
         if c:
-            kontakte_out.append({
+            entry = {
                 "id": k.get("RowKey"),
                 "firma": k.get("firma","") or k.get("name",""),
                 "name": k.get("name",""),
@@ -361,7 +362,12 @@ def kontakte_locations_route(req: func.HttpRequest) -> func.HttpResponse:
                 "typ": k.get("typ","") or k.get("kundenstatus",""),
                 "kundenstatus": k.get("kundenstatus",""),
                 "lat": c[0], "lon": c[1],
-            })
+            }
+            # Produkt-Flags
+            for f in flag_fields:
+                if k.get(f) is True:
+                    entry[f] = True
+            kontakte_out.append(entry)
         else:
             without_k += 1
 

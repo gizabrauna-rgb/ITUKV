@@ -54,9 +54,26 @@
             <option :value="500">500 km</option>
           </select>
         </div>
+        <button @click="showProduktFilter = !showProduktFilter" :class="['flex items-center gap-1.5 px-3 py-2 border rounded-xl text-sm', selectedProdukte.length ? 'border-[#097e92] bg-[#097e92]/5 text-[#097e92]' : 'border-gray-200 text-gray-600 hover:bg-gray-50']">
+          <Filter class="w-4 h-4" /> Produkte
+          <span v-if="selectedProdukte.length" class="bg-[#097e92] text-white text-[10px] px-1.5 py-0.5 rounded-full">{{ selectedProdukte.length }}</span>
+        </button>
         <button v-if="hasAnyFilter" @click="clearAllFilters" class="text-xs text-gray-500 hover:text-gray-800 underline">Filter zurücksetzen</button>
         <div class="flex-1"></div>
         <span class="text-sm text-gray-500"><strong class="text-gray-800">{{ visibleList.length }}</strong> Treffer</span>
+      </div>
+      <!-- Produkt-Filter (aufklappbar) -->
+      <div v-if="showProduktFilter" class="mt-3 pt-3 border-t border-gray-100">
+        <div class="text-xs font-medium text-gray-600 mb-2">Produkte / Kundenart (Mehrfachauswahl)</div>
+        <div class="flex flex-wrap gap-1.5">
+          <button v-for="p in produktListe" :key="p.key"
+            @click="toggleProdukt(p.key)"
+            :class="['flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border transition-colors',
+                     selectedProdukte.includes(p.key) ? `${p.color} text-white border-transparent` : 'border-gray-200 text-gray-600 hover:bg-gray-50']">
+            {{ p.label }}
+            <span class="opacity-70">({{ countProdukt(p.key) }})</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -77,7 +94,7 @@
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Name</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Typ</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">PLZ / Ort</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Sucht / Bietet</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Produkte</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Aktionen</th>
           </tr>
         </thead>
@@ -93,9 +110,13 @@
               <span :class="typClass(k.typ)" class="text-xs px-2 py-0.5 rounded-full font-medium">{{ k.typ }}</span>
             </td>
             <td class="px-4 py-3 text-sm text-gray-500">{{ k.plz }} {{ k.ort }}</td>
-            <td class="px-4 py-3 text-xs text-gray-500 max-w-xs">
-              <div v-if="k.sucht" class="truncate">Sucht: {{ k.sucht }}</div>
-              <div v-if="k.bietet" class="truncate">Bietet: {{ k.bietet }}</div>
+            <td class="px-4 py-3">
+              <div class="flex flex-wrap gap-1">
+                <span v-for="p in produktListe.filter(p => k[p.key])" :key="p.key"
+                  :class="[p.color, 'text-white text-[10px] font-bold px-1.5 py-0.5 rounded']" :title="p.label">
+                  {{ p.label }}
+                </span>
+              </div>
             </td>
             <td class="px-4 py-3">
               <a v-if="k.email" :href="`mailto:${k.email}`" class="inline-flex items-center gap-1 text-xs text-[#097e92] hover:text-[#0a9aaf] mr-2">
@@ -260,7 +281,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { Map, List, Download, Upload, UserPlus, Search, Mail, Pencil, X, CheckCircle, Megaphone, Send } from '@lucide/vue'
+import { Map, List, Download, Upload, UserPlus, Search, Mail, Pencil, X, CheckCircle, Megaphone, Send, Filter } from '@lucide/vue'
 import { getKontakte, createKontakt, updateKontakt, importKontakte, exportKontakte } from '../../api.js'
 import { authFetch } from '../../api.js'
 import KundenMap from '../KundenMap.vue'
@@ -330,6 +351,10 @@ const visibleList = computed(() => {
   if (filterCenterPlz.value && filterRadiusKm.value && centerCoords.value) {
     r = r.filter(k => k.lat && k.lon && distanceKm(centerCoords.value.lat, centerCoords.value.lon, k.lat, k.lon) <= filterRadiusKm.value)
   }
+  // Produkt-Filter (Mehrfachauswahl: ALLE ausgewählten müssen wahr sein)
+  if (selectedProdukte.value.length) {
+    r = r.filter(k => selectedProdukte.value.every(p => k[p] === true))
+  }
   return r
 })
 
@@ -342,7 +367,7 @@ const visibleTargets = computed(() => {
 })
 
 const hasAnyFilter = computed(() =>
-  !!(search.value || filterTyp.value || filterStatus.value || filterCenterPlz.value || filterRadiusKm.value)
+  !!(search.value || filterTyp.value || filterStatus.value || filterCenterPlz.value || filterRadiusKm.value || selectedProdukte.value.length)
 )
 
 function clearAllFilters() {
@@ -351,6 +376,7 @@ function clearAllFilters() {
   filterStatus.value = ''
   filterCenterPlz.value = ''
   filterRadiusKm.value = 0
+  selectedProdukte.value = []
 }
 
 function exportFilteredCsv() {
@@ -373,6 +399,33 @@ function exportFilteredCsv() {
 const search = ref('')
 const filterTyp = ref('')
 const filterStatus = ref('')
+const showProduktFilter = ref(false)
+const selectedProdukte = ref([])
+
+const produktListe = [
+  { key: 'hatUC', label: 'UC', color: 'bg-red-500' },
+  { key: 'hatUCS', label: 'UCS', color: 'bg-purple-500' },
+  { key: 'hatMC', label: 'MC', color: 'bg-yellow-500' },
+  { key: 'hatFKE', label: 'FKE', color: 'bg-amber-600' },
+  { key: 'hatUVE', label: 'UVE', color: 'bg-pink-500' },
+  { key: 'hatVME', label: 'VME', color: 'bg-stone-600' },
+  { key: 'hatKIwerkOne', label: 'KIwerk.one', color: 'bg-emerald-500' },
+  { key: 'hatMSQ', label: 'MSQ', color: 'bg-indigo-500' },
+  { key: 'hatKMQ', label: 'KMQ', color: 'bg-cyan-600' },
+  { key: 'hatKIT', label: 'KIT', color: 'bg-fuchsia-500' },
+  { key: 'hatKK', label: 'KK', color: 'bg-rose-600' },
+  { key: 'imITUKV', label: 'ITUKV', color: 'bg-[#097e92]' },
+]
+
+function toggleProdukt(key) {
+  const idx = selectedProdukte.value.indexOf(key)
+  if (idx >= 0) selectedProdukte.value.splice(idx, 1)
+  else selectedProdukte.value.push(key)
+}
+
+function countProdukt(key) {
+  return (mapData.value.kontakte || []).filter(k => k[key] === true).length
+}
 
 // Mehrfach-Auswahl
 const selectedIds = ref(new Set())
