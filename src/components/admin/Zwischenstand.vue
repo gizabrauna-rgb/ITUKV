@@ -130,10 +130,7 @@ async function save() {
   clearTimeout(saveTimer)
   saveTimer = setTimeout(async () => {
     try {
-      await authFetch(`/targets/${props.targetId}`, {
-        method: 'PATCH',
-        data: { zwischenstandJson: JSON.stringify(data.value) }
-      })
+      await authFetch('/target-update', { method: 'POST', data: { id: props.targetId,  zwischenstandJson: JSON.stringify(data.value)  } })
     } catch (e) { console.error('save zwischenstand', e) }
   }, 600)
 }
@@ -141,7 +138,7 @@ async function save() {
 onMounted(async () => {
   if (!props.targetId) return
   try {
-    const target = await authFetch(`/targets/${props.targetId}`)
+    const target = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
     if (target.zwischenstandJson) {
       const parsed = JSON.parse(target.zwischenstandJson)
       data.value = { datum: parsed.datum || '', beraterName: parsed.beraterName || '',

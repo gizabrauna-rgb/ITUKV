@@ -230,7 +230,7 @@ onMounted(async () => {
 async function loadTarget() {
   if (!selectedTargetId.value) return
   try {
-    const target = await authFetch(`/targets/${selectedTargetId.value}`)
+    const target = await authFetch('/target-get', { method: 'POST', data: { id: selectedTargetId.value } })
     currentTarget.value = target
     if (target.phasenJson) {
       try { phasen.value = JSON.parse(target.phasenJson) }
@@ -251,10 +251,7 @@ async function save() {
   clearTimeout(saveTimer)
   saveTimer = setTimeout(async () => {
     try {
-      await authFetch(`/targets/${selectedTargetId.value}`, {
-        method: 'PATCH',
-        data: { phasenJson: JSON.stringify(phasen.value) }
-      })
+      await authFetch('/target-update', { method: 'POST', data: { id: selectedTargetId.value,  phasenJson: JSON.stringify(phasen.value)  } })
     } catch (e) { console.error('save phasen', e) }
   }, 500)
 }

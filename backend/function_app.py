@@ -137,15 +137,77 @@ def stats_route(req: func.HttpRequest) -> func.HttpResponse:
         return ok_({"aktiveTargets": 0, "offeneNdas": 0, "investorenGesamt": 0, "dealsAbgeschlossen": 0})
 
 
-@app.route(route="targets", methods=["GET", "OPTIONS"])
+@app.route(route="targets", methods=["GET", "POST", "OPTIONS"])
 def targets_route(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return opt_()
     p = auth_user(req)
     if not p:
         return err_("Nicht autorisiert", 401)
-    items = [dict(i) for i in table_("targets").list_entities()]
-    return ok_(items)
+    tc = table_("targets")
+    if req.method == "GET":
+        items = [dict(i) for i in tc.list_entities()]
+        return ok_(items)
+    # POST – neues Target
+    body = req.get_json()
+    tid = str(uuid.uuid4())
+    entity = {
+        "PartitionKey": "target", "RowKey": tid,
+        "mbNr": body.get("mbNr", ""),
+        "verkaueferName": body.get("verkaueferName", ""),
+        "region": body.get("region", ""),
+        "plz": body.get("plz", ""),
+        "branche": body.get("branche", ""),
+        "mitarbeiter": str(body.get("mitarbeiter", "")),
+        "umsatz": body.get("umsatz", ""),
+        "beschreibung": body.get("beschreibung", ""),
+        "projekttyp": body.get("projekttyp", "Projekt Target"),
+        "status": "verfuegbar",
+        "createdAt": datetime.utcnow().isoformat(),
+    }
+    tc.create_entity(entity)
+    return ok_(dict(entity), 201)
+
+
+@app.route(route="target-get", methods=["POST", "OPTIONS"])
+def target_get(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json()
+    tid = body.get("id", "")
+    if not tid:
+        return err_("id erforderlich", 400)
+    try:
+        entity = table_("targets").get_entity("target", tid)
+        return ok_(dict(entity))
+    except Exception:
+        return err_("Target nicht gefunden", 404)
+
+
+@app.route(route="target-update", methods=["POST", "OPTIONS"])
+def target_update(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json()
+    tid = body.pop("id", "")
+    if not tid:
+        return err_("id erforderlich", 400)
+    tc = table_("targets")
+    try:
+        entity = tc.get_entity("target", tid)
+    except Exception:
+        return err_("Target nicht gefunden", 404)
+    for k, v in body.items():
+        if k not in ("PartitionKey", "RowKey"):
+            entity[k] = v
+    tc.update_entity(dict(entity))
+    return ok_(dict(entity))
 
 
 @app.route(route="kontakte", methods=["GET", "OPTIONS"])

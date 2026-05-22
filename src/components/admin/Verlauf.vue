@@ -179,7 +179,7 @@ async function loadEntries() {
   if (!props.targetId) return
   loading.value = true
   try {
-    const target = await authFetch(`/targets/${props.targetId}`)
+    const target = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
     if (target.kommunikationJson) {
       try { entries.value = JSON.parse(target.kommunikationJson) } catch { entries.value = [] }
     } else {
@@ -215,10 +215,7 @@ function closeModal() {
 }
 
 async function saveAll() {
-  await authFetch(`/targets/${props.targetId}`, {
-    method: 'PATCH',
-    data: { kommunikationJson: JSON.stringify(entries.value) }
-  })
+  await authFetch('/target-update', { method: 'POST', data: { id: props.targetId,  kommunikationJson: JSON.stringify(entries.value)  } })
 }
 
 async function saveEntry() {

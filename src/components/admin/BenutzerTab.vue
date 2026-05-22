@@ -45,7 +45,12 @@
               </span>
               <span v-else class="text-gray-400 text-xs">—</span>
             </td>
-            <td class="px-4 py-3 text-xs text-gray-500">{{ u.loginVia || 'password' }}</td>
+            <td class="px-4 py-3 text-xs">
+              <div class="flex gap-1.5 flex-wrap">
+                <span v-if="canUseMicrosoft(u)" class="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">Microsoft</span>
+                <span v-if="u.loginVia !== 'microsoft' || canUseBoth(u)" class="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">Passwort</span>
+              </div>
+            </td>
             <td class="px-4 py-3 text-xs text-gray-500">{{ formatDate(u.createdAt) }}</td>
             <td class="px-4 py-3 text-right">
               <div class="flex justify-end gap-1">
@@ -188,6 +193,18 @@ function targetMbNrById(id) {
 
 function formatDate(iso) {
   return iso ? new Date(iso).toLocaleDateString('de-DE') : ''
+}
+
+// Erkennt ob User Microsoft-Konto haben könnte (interne Domains)
+const MS_DOMAINS = ['mike-bergmann.de', 'visoma.de', 'mibeca.de', 'visoma2013.onmicrosoft.com']
+function canUseMicrosoft(u) {
+  if (u.loginVia === 'microsoft') return true
+  if (u.role === 'admin') return true  // Admins sind interne User
+  const domain = (u.email || '').split('@')[1] || ''
+  return MS_DOMAINS.includes(domain)
+}
+function canUseBoth(u) {
+  return canUseMicrosoft(u) && u.role !== 'admin' && u.loginVia !== 'microsoft'
 }
 
 onMounted(async () => {

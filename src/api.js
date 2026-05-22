@@ -34,11 +34,11 @@ export const deleteUser = (id) => authFetch('/user-delete', { method: 'POST', da
 export const resetUserPassword = (id, data = {}) => authFetch('/user-reset-password', { method: 'POST', data: { id, ...data } })
 export const updateUser = (id, data) => createUser(data)
 
-// Targets (Mandate)
+// Targets (Mandate) – KIwerk-Style action endpoints
 export const getTargets = () => authFetch('/targets')
-export const getTarget = (id) => authFetch(`/targets/${id}`)
+export const getTarget = (id) => authFetch('/target-get', { method: 'POST', data: { id } })
 export const createTarget = (data) => authFetch('/targets', { method: 'POST', data })
-export const updateTarget = (id, data) => authFetch(`/targets/${id}`, { method: 'PATCH', data })
+export const updateTarget = (id, data) => authFetch('/target-update', { method: 'POST', data: { id, ...data } })
 
 // Interessenten
 export const getInteressenten = (targetId) => authFetch(`/targets/${targetId}/interessenten`)

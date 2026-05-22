@@ -101,7 +101,7 @@ const statusBoxClass = computed(() => ({
 onMounted(async () => {
   if (!props.targetId) { loading.value = false; return }
   try {
-    target.value = await authFetch(`/targets/${props.targetId}`)
+    target.value = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
     exposeText.value = target.value.exposeText || ''
     exposeStatus.value = target.value.exposeStatus || 'draft'
   } catch (e) { console.error(e) }
@@ -111,9 +111,7 @@ onMounted(async () => {
 async function freigeben() {
   if (!confirm('Exposé freigeben? Damit startet die Ausschreibung.')) return
   exposeStatus.value = 'approved'
-  await authFetch(`/targets/${props.targetId}`, {
-    method: 'PATCH', data: { exposeStatus: 'approved' }
-  })
+  await authFetch('/target-update', { method: 'POST', data: { id: props.targetId,  exposeStatus: 'approved'  } })
 }
 
 function korrekturwunsch() {
@@ -135,10 +133,7 @@ async function sendKorrektur() {
       beschreibung: korrekturText.value,
       beteiligte: 'Verkäufer → Jenny',
     })
-    await authFetch(`/targets/${props.targetId}`, {
-      method: 'PATCH',
-      data: { kommunikationJson: JSON.stringify(existing), exposeStatus: 'in_review' }
-    })
+    await authFetch('/target-update', { method: 'POST', data: { id: props.targetId,  kommunikationJson: JSON.stringify(existing), exposeStatus: 'in_review'  } })
     exposeStatus.value = 'in_review'
     showKorrektur.value = false
     alert('Korrekturwunsch wurde an Jenny gesendet — sie passt das Exposé an und gibt es dann erneut frei.')

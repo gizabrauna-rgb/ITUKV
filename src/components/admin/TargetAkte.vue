@@ -183,7 +183,7 @@ const ordnerListe = ['Verträge', 'Datenraum', 'NDA', 'Exposé', 'Vertragsverhan
 
 async function loadTarget() {
   if (!props.targetId) return
-  try { target.value = await authFetch(`/targets/${props.targetId}`) }
+  try { target.value = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } }) }
   catch (e) { console.error(e) }
 }
 

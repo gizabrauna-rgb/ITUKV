@@ -141,7 +141,7 @@ const filterStunden = computed(() => filtered.value.reduce((s, e) => s + (Number
 onMounted(async () => {
   if (!props.targetId) return
   try {
-    target.value = await authFetch(`/targets/${props.targetId}`)
+    target.value = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
     if (target.value.zeiterfassungJson) {
       try { entries.value = JSON.parse(target.value.zeiterfassungJson) } catch { entries.value = [] }
     }
@@ -171,9 +171,7 @@ async function deleteEntry(e) {
 }
 
 async function persist() {
-  await authFetch(`/targets/${props.targetId}`, {
-    method: 'PATCH', data: { zeiterfassungJson: JSON.stringify(entries.value) }
-  })
+  await authFetch('/target-update', { method: 'POST', data: { id: props.targetId,  zeiterfassungJson: JSON.stringify(entries.value)  } })
 }
 
 function formatDate(s) {

@@ -305,10 +305,7 @@ async function save() {
   clearTimeout(saveTimer)
   saveTimer = setTimeout(async () => {
     try {
-      await authFetch(`/targets/${props.targetId}`, {
-        method: 'PATCH',
-        data: { fragebogenJson: JSON.stringify(data.value) }
-      })
+      await authFetch('/target-update', { method: 'POST', data: { id: props.targetId,  fragebogenJson: JSON.stringify(data.value)  } })
     } catch (e) { console.error(e) }
   }, 600)
 }
@@ -316,7 +313,7 @@ async function save() {
 onMounted(async () => {
   if (!props.targetId) return
   try {
-    const t = await authFetch(`/targets/${props.targetId}`)
+    const t = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
     if (t.fragebogenJson) {
       try {
         const parsed = JSON.parse(t.fragebogenJson)

@@ -180,7 +180,7 @@ function countSection(fields) {
 onMounted(async () => {
   if (!props.targetId) return
   try {
-    const target = await authFetch(`/targets/${props.targetId}`)
+    const target = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
     // Bestehende Felder ins data-Objekt mergen
     for (const k of Object.keys(data.value)) {
       if (target[k] !== undefined) data.value[k] = target[k]
@@ -194,7 +194,7 @@ async function save() {
   if (props.readOnly || !props.targetId) return
   clearTimeout(saveTimer)
   saveTimer = setTimeout(async () => {
-    try { await authFetch(`/targets/${props.targetId}`, { method: 'PATCH', data: { ...data.value } }) }
+    try { await authFetch('/target-update', { method: 'POST', data: { id: props.targetId,  ...data.value  } }) }
     catch (e) { console.error('save failed', e) }
   }, 500)
 }

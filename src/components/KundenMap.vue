@@ -26,9 +26,9 @@ const TYP_COLORS = {
   'Systemhausgruppe': '#22c55e',
   'Strategisch': '#22c55e',
   'Verkäufer-Interesse': '#c8b274',
-  'Kunde': '#097e92',          // teal (Bestandskunde)
-  'Ex-Kunde': '#64748b',
-  'Sonstige': '#64748b',
+  'Kunde': '#60a5fa',          // hellblau (Bestandskunde)
+  'Ex-Kunde': '#94a3b8',
+  'Sonstige': '#94a3b8',
 }
 
 function colorForKontakt(k) {

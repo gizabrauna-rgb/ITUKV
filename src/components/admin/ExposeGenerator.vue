@@ -97,7 +97,7 @@ const statusHinweis = computed(() => ({
 onMounted(async () => {
   if (!props.targetId) return
   try {
-    target.value = await authFetch(`/targets/${props.targetId}`)
+    target.value = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
     exposeText.value = target.value.exposeText || ''
     exposeStatus.value = target.value.exposeStatus || 'draft'
     if (target.value.fragebogenJson) {
@@ -261,10 +261,7 @@ async function save() {
   clearTimeout(saveTimer)
   saveTimer = setTimeout(async () => {
     try {
-      await authFetch(`/targets/${props.targetId}`, {
-        method: 'PATCH',
-        data: { exposeText: exposeText.value, exposeStatus: exposeStatus.value }
-      })
+      await authFetch('/target-update', { method: 'POST', data: { id: props.targetId,  exposeText: exposeText.value, exposeStatus: exposeStatus.value  } })
     } catch (e) { console.error(e) }
   }, 500)
 }

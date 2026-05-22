@@ -35,6 +35,8 @@
         </select>
         <select v-model="filterStatus" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
           <option value="">Status (alle)</option>
+          <option>Target</option>
+          <option>Investor</option>
           <option>Kunde</option>
           <option>Ex-Kunde</option>
         </select>
@@ -122,8 +124,8 @@
           </button>
           <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full" style="background:#f97316"></span>Target</span>
           <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#22c55e"></span>Investor</span>
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#097e92"></span>Kunde</span>
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#64748b"></span>Ex-Kunde</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#60a5fa"></span>Kunde</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#94a3b8"></span>Ex-Kunde</span>
         </div>
       </div>
       <KundenMap
