@@ -87,6 +87,11 @@
         <MandatDaten :target-id="targetId" />
       </div>
 
+      <!-- Fragebogen (Read-only von Kunde, Jenny sieht alle Antworten) -->
+      <div v-else-if="tab === 'fragebogen'">
+        <Fragebogen :target-id="targetId" />
+      </div>
+
       <!-- Interessenten -->
       <div v-else-if="tab === 'interessenten'">
         <div class="bg-white rounded-xl border border-gray-100 p-10 text-center text-gray-400 text-sm">
@@ -140,6 +145,7 @@ import {
 import { authFetch } from '../../api.js'
 import PhasenProzessEingebettet from './PhasenProzess.vue'
 import MandatDaten from '../target/MandatDaten.vue'
+import Fragebogen from '../target/Fragebogen.vue'
 import Zwischenstand from './Zwischenstand.vue'
 import Verlauf from './Verlauf.vue'
 
@@ -152,6 +158,7 @@ const tab = ref('uebersicht')
 const tabs = [
   { tab: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard },
   { tab: 'prozess', label: 'Master-Prozess', icon: Workflow },
+  { tab: 'fragebogen', label: 'Fragebogen', icon: FileEdit },
   { tab: 'mandat', label: 'Mandat-Daten', icon: ClipboardList },
   { tab: 'interessenten', label: 'Interessenten', icon: Users },
   { tab: 'dokumente', label: 'Dokumente', icon: Folder },
