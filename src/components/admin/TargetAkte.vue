@@ -18,7 +18,7 @@
         </div>
         <div class="text-right">
           <div class="text-xs text-gray-500">Aktuelle Phase</div>
-          <div class="font-semibold text-[#097e92]">{{ currentPhase }} / 13 · {{ progressPercent }}%</div>
+          <div class="font-semibold text-[#097e92]">Phase {{ currentPhase }} / {{ phasen.length || 15 }} · {{ progressPercent }}%</div>
         </div>
       </div>
 

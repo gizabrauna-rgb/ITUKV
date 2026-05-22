@@ -18,7 +18,7 @@
       <div class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
         <div class="flex items-center justify-between mb-2">
           <span class="text-sm font-medium text-gray-700">Gesamtfortschritt M&A-Prozess</span>
-          <span class="text-sm font-bold text-[#097e92]">Phase {{ activePhaseNumber }} / 13 · {{ doneTasksTotal }} / {{ totalTasksTotal }} Aufgaben</span>
+          <span class="text-sm font-bold text-[#097e92]">Phase {{ activePhaseNumber }} / {{ phasen.length }} · {{ doneTasksTotal }} / {{ totalTasksTotal }} Aufgaben</span>
         </div>
         <div class="w-full bg-gray-100 rounded-full h-2">
           <div class="bg-[#097e92] h-2 rounded-full transition-all" :style="`width: ${progressPercent}%`"></div>
@@ -104,11 +104,17 @@ import { getTargets, authFetch } from '../../api.js'
 
 // Master-Prozess Vorlage (13 Phasen aus Jennys Doku)
 const PHASEN_VORLAGE = () => ([
-  { id: 1, titel: '1. UVE Start — Unterlagen erstellen', notiz: '', aufgaben: [
-    { id: 't1', label: 'Zahlen, Daten, Fakten sammeln', done: false, verantwortlich: '', datum: '', notiz: '' },
+  { id: 1, titel: '1. UVE Start — Vorbereitungs-Checkliste', notiz: '', aufgaben: [
+    { id: 'uve1', label: 'MB050: Videolektionen ansehen ("Wie läuft Verkauf von A bis Z ab?")', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
+    { id: 'uve2', label: 'MB050: Fragebogen Unternehmensbewertung ausfüllen', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
+    { id: 'uve3', label: 'MB050: Due-Diligence-Datenraum nach Muster anlegen', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
+    { id: 'uve4', label: 'MB041: Verkaufsstory entwickeln (Ziele, Wunsch-Exit, W-Fragen, Deal-Struktur)', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
+    { id: 'uve5', label: 'Eigenes Unternehmensexposé erstellen (Vorlage aus Unterlagenpaket)', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
+    { id: 'uve6', label: 'Verkaufsmandat erteilen → Marktansprache durch mibeca', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
+    { id: 'uve7', label: 'Kosten-Tabelle ansehen ("Welche Kosten kommen auf Dich zu")', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
+    { id: 't1', label: 'Zahlen, Daten, Fakten zusammentragen', done: false, verantwortlich: '', datum: '', notiz: '' },
     { id: 't2', label: 'Unternehmensbewertung erstellen', done: false, verantwortlich: '', datum: '', notiz: '' },
-    { id: 't3', label: 'Checkliste Unternehmensbewertung', done: false, verantwortlich: '', datum: '', notiz: '' },
-    { id: 't4', label: 'Exposé-Entwurf erstellen', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 't3', label: 'Exposé-Entwurf erstellen', done: false, verantwortlich: '', datum: '', notiz: '' },
   ]},
   { id: 2, titel: '2. UVE Abschluss — Verkaufsmandat-Eröffnung', notiz: '', aufgaben: [
     { id: 't1', label: 'Verkaufsmandat unterzeichnet (12 Monate)', done: false, verantwortlich: '', datum: '', notiz: '' },
@@ -156,23 +162,44 @@ const PHASEN_VORLAGE = () => ([
     { id: 't2', label: 'LOI unterzeichnet', done: false, verantwortlich: '', datum: '', notiz: '' },
   ]},
   { id: 11, titel: '11. Due Diligence', notiz: '', aufgaben: [
-    { id: 't1', label: 'Datenraum vollständig befüllt', done: false, verantwortlich: '', datum: '', notiz: '' },
-    { id: 't2', label: 'DD-Anforderungsliste abgearbeitet', done: false, verantwortlich: '', datum: '', notiz: '' },
-    { id: 't3', label: 'Rechtliche Prüfung (Anwalt)', done: false, verantwortlich: '', datum: '', notiz: '' },
-    { id: 't4', label: 'Steuerliche Prüfung (Steuerberater)', done: false, verantwortlich: '', datum: '', notiz: '' },
-    { id: 't5', label: 'Finanzielle Prüfung', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 'ddprep', label: 'Datenraum vollständig befüllt', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 'dda', label: 'A. Allgemeines: Ansprechpartner geklärt (Veräußerer + Erwerber)', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 'ddb', label: 'B. Rechtliche DD: Gesellschaftsunterlagen, Verträge, Arbeitsrecht (~58 Items)', done: false, verantwortlich: 'Anwalt', datum: '', notiz: '' },
+    { id: 'ddc', label: 'C. Steuerliche DD: Veranlagung, Betriebsprüfungen, Verlustvorträge (~35 Items)', done: false, verantwortlich: 'Steuerberater', datum: '', notiz: '' },
+    { id: 'ddd', label: 'D. Financial DD: Jahresabschlüsse, BWAs, Budgets (~95 Items)', done: false, verantwortlich: 'Steuerberater', datum: '', notiz: '' },
+    { id: 'dde', label: 'E. Business DD: Markt, Wettbewerber, Vertrieb, Personal (~14 Items)', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 'ddf', label: 'F. Technologische DD: IT-Architektur, Security, F&E (~16 Items)', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 'ddend', label: 'DD-Bericht / Fragen-Antworten dokumentiert', done: false, verantwortlich: '', datum: '', notiz: '' },
   ]},
-  { id: 12, titel: '12. Vertragsgestaltung (SPA)', notiz: '', aufgaben: [
-    { id: 't1', label: 'SPA-Entwurf vom Anwalt', done: false, verantwortlich: '', datum: '', notiz: '' },
-    { id: 't2', label: 'Vertragsverhandlungen Klauseln', done: false, verantwortlich: '', datum: '', notiz: '' },
-    { id: 't3', label: 'Finale Version abgestimmt', done: false, verantwortlich: '', datum: '', notiz: '' },
+  { id: 12, titel: '12. Vertragsgestaltung', notiz: '', aufgaben: [
+    { id: 't1', label: 'Deal-Struktur entscheiden: Share Deal (SPA) vs. Asset Deal', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 't2', label: 'Kaufvertrag Entwurf (Vorlage: SPA-Master oder Asset-Deal-Vertrag)', done: false, verantwortlich: 'Anwalt', datum: '', notiz: '' },
+    { id: 't3', label: 'GF-Anstellungsvertrag (falls GF im Unternehmen verbleibt)', done: false, verantwortlich: 'Anwalt', datum: '', notiz: '' },
+    { id: 't4', label: 'Gesellschaftsvertrag anpassen (falls neue Gesellschafter)', done: false, verantwortlich: 'Anwalt', datum: '', notiz: '' },
+    { id: 't5', label: 'Vertragsverhandlungen — Garantien, Earn-Out, Klauseln', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 't6', label: 'Finale Version abgestimmt zwischen Käufer und Verkäufer', done: false, verantwortlich: '', datum: '', notiz: '' },
   ]},
   { id: 13, titel: '13. Notartermin & Closing', notiz: '', aufgaben: [
     { id: 't1', label: 'Notartermin koordiniert', done: false, verantwortlich: '', datum: '', notiz: '' },
     { id: 't2', label: 'Unterzeichnung beim Notar', done: false, verantwortlich: '', datum: '', notiz: '' },
     { id: 't3', label: 'Kaufpreis überwiesen', done: false, verantwortlich: '', datum: '', notiz: '' },
     { id: 't4', label: 'Anteilsübertragung vollzogen', done: false, verantwortlich: '', datum: '', notiz: '' },
-    { id: 't5', label: 'Erfolgshonorar berechnet & gestellt', done: false, verantwortlich: 'Claudia', datum: '', notiz: '' },
+  ]},
+  { id: 14, titel: '14. Post-Closing — Übergabe & Kommunikation', notiz: '', aufgaben: [
+    { id: 'pc1', label: 'Übergabe-Plan erstellt (Begleitung 3-12 Monate)', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 'pc2', label: 'Mitarbeiter informiert', done: false, verantwortlich: 'Verkäufer', datum: '', notiz: '' },
+    { id: 'pc3', label: 'Kunden-Information: "Unternehmen wurde verkauft" (Vorlage nutzen)', done: false, verantwortlich: 'Verkäufer', datum: '', notiz: '' },
+    { id: 'pc4', label: 'Vertragsübergabe-Information an Kunden (Vorlage nutzen)', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 'pc5', label: 'Earn-Out-Phase tracken (falls vereinbart)', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 'pc6', label: 'Aufhebungsvertrag GF (falls GF ausscheidet)', done: false, verantwortlich: 'Anwalt', datum: '', notiz: '' },
+  ]},
+  { id: 15, titel: '15. Erfolgsmeldung & Abrechnung', notiz: '', aufgaben: [
+    { id: 'pr1', label: 'Pressemitteilung erstellt (Vorlage: DATAreform x Knoblauch)', done: false, verantwortlich: 'Marketing', datum: '', notiz: '' },
+    { id: 'pr2', label: 'Erfolgsmeldung an Branche/Newsletter', done: false, verantwortlich: 'Marketing', datum: '', notiz: '' },
+    { id: 'pr3', label: 'LinkedIn-Post (anonymisiert oder mit Zustimmung)', done: false, verantwortlich: 'Marketing', datum: '', notiz: '' },
+    { id: 'pr4', label: 'Erfolgshonorar berechnet & in Rechnung gestellt', done: false, verantwortlich: 'Claudia', datum: '', notiz: '' },
+    { id: 'pr5', label: 'Zeiterfassung final abgerechnet', done: false, verantwortlich: 'Claudia', datum: '', notiz: '' },
+    { id: 'pr6', label: 'Mandat in Ordnerstruktur archiviert', done: false, verantwortlich: '', datum: '', notiz: '' },
   ]},
 ])
 
@@ -263,7 +290,7 @@ const activePhaseNumber = computed(() => {
   for (const p of phasen.value) {
     if (!phaseAllDone(p)) return p.id
   }
-  return 13
+  return phasen.value.length
 })
 const totalTasksTotal = computed(() => phasen.value.reduce((s, p) => s + p.aufgaben.length, 0))
 const doneTasksTotal = computed(() => phasen.value.reduce((s, p) => s + p.aufgaben.filter(t => t.done).length, 0))
