@@ -37,6 +37,31 @@ def table_(name):
     return svc.get_table_client(name)
 
 
+# Blacklist-Check: verhindert Import gesperrter E-Mails / Domains
+_BLACKLIST_CACHE = None
+def is_blacklisted(email):
+    global _BLACKLIST_CACHE
+    if not email:
+        return False
+    if _BLACKLIST_CACHE is None:
+        _BLACKLIST_CACHE = {"emails": set(), "domains": set()}
+        try:
+            tc = table_("blacklist")
+            for b in tc.list_entities():
+                pk = b.get("PartitionKey","")
+                if pk == "blacklist":
+                    _BLACKLIST_CACHE["emails"].add((b.get("email","") or "").lower())
+                elif pk == "blacklist-domain":
+                    _BLACKLIST_CACHE["domains"].add((b.get("domain","") or "").lower())
+        except Exception:
+            pass
+    email = email.lower().strip()
+    if email in _BLACKLIST_CACHE["emails"]:
+        return True
+    domain = email.split("@")[1] if "@" in email else ""
+    return domain in _BLACKLIST_CACHE["domains"]
+
+
 _PLZ = None
 def get_plz_coords():
     global _PLZ
