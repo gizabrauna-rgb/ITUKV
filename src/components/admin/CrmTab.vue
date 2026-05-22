@@ -282,14 +282,36 @@ function distanceKm(lat1, lon1, lat2, lon2) {
 }
 
 // Zentrum-Koordinaten für Radius-Filter ermitteln
-const centerCoords = computed(() => {
-  if (!filterCenterPlz.value) return null
-  const t = (mapData.value.targets || []).find(x => x.plz === filterCenterPlz.value)
-  if (t && t.lat && t.lon) return { lat: t.lat, lon: t.lon }
-  const k = (mapData.value.kontakte || []).find(x => x.plz === filterCenterPlz.value)
-  if (k && k.lat && k.lon) return { lat: k.lat, lon: k.lon }
-  return null
-})
+const plzLookupCache = ref({})
+const centerCoords = ref(null)
+
+watch([filterCenterPlz, () => mapData.value.kontakte?.length], async () => {
+  if (!filterCenterPlz.value) { centerCoords.value = null; return }
+  const plz = filterCenterPlz.value.trim()
+  if (plz.length < 2) { centerCoords.value = null; return }
+
+  // 1. Cache?
+  if (plzLookupCache.value[plz]) { centerCoords.value = plzLookupCache.value[plz]; return }
+
+  // 2. Exakter Match in unseren Daten?
+  const allPoints = [...(mapData.value.targets || []), ...(mapData.value.kontakte || [])]
+    .filter(x => x.plz && x.lat && x.lon)
+  const exact = allPoints.find(x => x.plz === plz)
+  if (exact) {
+    centerCoords.value = { lat: exact.lat, lon: exact.lon }
+    plzLookupCache.value[plz] = centerCoords.value
+    return
+  }
+
+  // 3. Backend-Lookup
+  try {
+    const r = await authFetch('/plz-resolve', { method: 'POST', data: { plz } })
+    centerCoords.value = { lat: r.lat, lon: r.lon }
+    plzLookupCache.value[plz] = centerCoords.value
+  } catch {
+    centerCoords.value = null
+  }
+}, { immediate: true })
 
 // EINE Datenquelle: Map-Daten (haben lat/lon) – wird für Liste und Karte verwendet
 const visibleList = computed(() => {

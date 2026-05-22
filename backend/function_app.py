@@ -308,6 +308,31 @@ def user_reset_password(req: func.HttpRequest) -> func.HttpResponse:
     return ok_({"email": entity.get("email"), "newPassword": pw})
 
 
+@app.route(route="plz-resolve", methods=["POST", "OPTIONS"])
+def plz_resolve(req: func.HttpRequest) -> func.HttpResponse:
+    """PLZ -> Koordinaten (für Radius-Filter auf der Karte)."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json()
+    plz = str(body.get("plz","")).strip()
+    if not plz:
+        return err_("plz erforderlich", 400)
+    coords = get_plz_coords()
+    c = coords.get(plz)
+    if c:
+        return ok_({"plz": plz, "lat": c[0], "lon": c[1], "exact": True})
+    # Prefix-Match (längster zuerst)
+    for length in range(len(plz) - 1, 0, -1):
+        prefix = plz[:length]
+        for cand_plz, latlon in coords.items():
+            if cand_plz.startswith(prefix):
+                return ok_({"plz": cand_plz, "lat": latlon[0], "lon": latlon[1], "exact": False, "matched": cand_plz})
+    return err_("PLZ nicht gefunden", 404)
+
+
 @app.route(route="kontakte/locations", methods=["GET", "OPTIONS"])
 def kontakte_locations_route(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
