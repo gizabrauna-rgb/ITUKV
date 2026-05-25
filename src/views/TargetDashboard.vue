@@ -519,5 +519,4 @@ async function downloadDok(dok) {
   const r = await authFetch(`/targets/${targetId}/dokumente/${dok.RowKey}/download`)
   window.open(r.url, '_blank')
 }
-function formatDate(iso) { return iso ? new Date(iso).toLocaleDateString('de-DE') : '' }
 </script>
