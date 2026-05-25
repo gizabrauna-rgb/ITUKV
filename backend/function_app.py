@@ -767,18 +767,20 @@ def _render_vertrag_pdf_bytes(form, variante):
     return pdf_bytes
 
 
-def _embed_signature_in_pdf(unsigned_bytes, sig_img_bytes, signature_name, audit):
-    """Bettet Signatur ins PDF + haengt Audit-Trail-Seite an. Uses fitz."""
+def _embed_signature_in_pdf(unsigned_bytes, sig_img_bytes, signature_name, audit,
+                              anchor_keywords=None, audit_trail=True):
+    """Bettet Signatur ins PDF an Anker + haengt optional Audit-Trail-Seite an."""
     import fitz
+    if anchor_keywords is None:
+        anchor_keywords = ["Unterschrift (Auftraggeber)", "Unterschrift", "Datum"]
     doc = fitz.open(stream=unsigned_bytes, filetype="pdf")
     try:
         if doc.page_count > 0 and sig_img_bytes:
             last_page = doc[doc.page_count - 1]
             pw = last_page.rect.width
             ph = last_page.rect.height
-            # Suche Anker "Unterschrift"
             anchor_rect = None
-            for needle in ("Unterschrift (Auftraggeber)", "Unterschrift", "Datum"):
+            for needle in anchor_keywords:
                 try:
                     hits = last_page.search_for(needle) or []
                 except Exception:
@@ -806,7 +808,10 @@ def _embed_signature_in_pdf(unsigned_bytes, sig_img_bytes, signature_name, audit
             except Exception:
                 pass
 
-        # Audit-Trail-Seite
+        # Audit-Trail-Seite (kann unterdrueckt werden bei Gegenzeichnung)
+        if not audit_trail:
+            out = doc.write()
+            return out
         audit_page = doc.new_page(width=595, height=842)
         y = 60
         audit_page.insert_text(fitz.Point(50, y),
@@ -947,6 +952,8 @@ def sign_info(req: func.HttpRequest) -> func.HttpResponse:
         "variante": sig.get("variante", ""),
         "expires_at": sig.get("expires_at", ""),
         "signed_at": sig.get("signed_at", ""),
+        "signed_at_admin": sig.get("signed_at_admin", ""),
+        "signed_by_admin_name": sig.get("signed_by_admin_name", ""),
     })
 
 
@@ -958,7 +965,8 @@ def sign_pdf_public(req: func.HttpRequest) -> func.HttpResponse:
     sig = _lookup_signature_by_token(token)
     if not sig:
         return err_("Ungueltiger Link.", 404)
-    blob_name = sig.get("signed_pdf_blob") or sig.get("pdf_blob")
+    # Prio: final (beide unterzeichnet) > target-signed > unsigniert
+    blob_name = sig.get("final_pdf_blob") or sig.get("signed_pdf_blob") or sig.get("pdf_blob")
     if not blob_name:
         return err_("PDF nicht verfuegbar", 404)
     try:
@@ -1072,7 +1080,7 @@ def sign_submit(req: func.HttpRequest) -> func.HttpResponse:
 
     tc = table_("vertragsignaturen")
     ent = tc.get_entity("signatur", sig["RowKey"])
-    ent["status"] = "signed"
+    ent["status"] = "awaiting_countersign"
     ent["signed_at"] = signed_at
     ent["signed_by_name"] = sig_name
     ent["signed_ip"] = ip
@@ -1088,9 +1096,138 @@ def sign_submit(req: func.HttpRequest) -> func.HttpResponse:
         v["signiertAm"] = signed_at
         v["signiertVon"] = sig_name
         v["signedPdfBlob"] = signed_blob_name
+        v["status"] = "awaiting_countersign"
+        v["signId"] = sig["RowKey"]
+        v["signToken"] = sig.get("token", "")
         t["vertragJson"] = json.dumps(v, ensure_ascii=False)
         targets.update_entity(dict(t))
     except Exception:
         pass
 
-    return ok_({"ok": True, "signed_at": signed_at})
+    # Mibeca-Team per Mail informieren dass Gegenzeichnung anliegt
+    if ACS_CONN:
+        try:
+            from azure.communication.email import EmailClient
+            client = EmailClient.from_connection_string(ACS_CONN)
+            mibeca_mail = os.environ.get("MIBECA_NOTIFY_EMAIL", "jk@mike-bergmann.de")
+            html = f"""<html><body style="font-family:Arial,sans-serif">
+                <p><strong>Vertrag zur Gegenzeichnung bereit</strong></p>
+                <p>{sig_name} ({sig.get('lead_email','')}) hat den Mandatsvertrag unterschrieben.</p>
+                <p>Bitte oeffne die Akte im Dashboard und zeichne gegen.</p></body></html>"""
+            client.begin_send({
+                "senderAddress": ACS_SENDER,
+                "recipients": {"to": [{"address": mibeca_mail}]},
+                "content": {"subject": f"Vertrag {sig.get('lead_name','')} – Gegenzeichnung benoetigt", "plainText": "Vertrag wartet auf Gegenzeichnung im Dashboard.", "html": html},
+            })
+        except Exception:
+            pass
+
+    return ok_({"ok": True, "signed_at": signed_at, "status": "awaiting_countersign"})
+
+
+@app.route(route="vertrag-countersign", methods=["POST", "OPTIONS"])
+def vertrag_countersign(req: func.HttpRequest) -> func.HttpResponse:
+    """Admin gegenzeichnet ein vom Target signiertes PDF und finalisiert es."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    sig_id = (body.get("signId") or "").strip()
+    sig_image = (body.get("signature_image") or "").strip()
+    sig_name = (body.get("signature_name") or p.get("name") or "mibeca").strip()
+    if not (sig_id and sig_image):
+        return err_("signId und signature_image erforderlich", 400)
+
+    tc = table_("vertragsignaturen")
+    try:
+        sig = dict(tc.get_entity("signatur", sig_id))
+    except Exception:
+        return err_("Signatur-Record nicht gefunden", 404)
+    if sig.get("status") != "awaiting_countersign":
+        return err_(f"Vertrag im falschen Status: {sig.get('status')}", 400)
+
+    # Target-signiertes PDF laden
+    try:
+        target_signed = _blob_container_lazy("vertraege").download_blob(sig["signed_pdf_blob"]).readall()
+    except Exception as ex:
+        return err_(f"PDF nicht abrufbar: {ex}", 500)
+
+    sig_bytes = b""
+    if sig_image.startswith("data:"):
+        try:
+            sig_bytes = base64.b64decode(sig_image.split(",", 1)[1])
+        except Exception:
+            sig_bytes = b""
+
+    signed_at_admin = datetime.utcnow().isoformat()
+    audit = {
+        "email": p.get("email", ""),
+        "signed_at": signed_at_admin,
+        "ip": (req.headers.get("X-Forwarded-For", "") or "").split(",")[0].strip(),
+        "ua": req.headers.get("User-Agent", "")[:200],
+        "code_hash": "—",
+        "token_hash": "(admin)",
+    }
+    try:
+        # Mibeca-Sig auf der linken Seite einbetten – kein neuer Audit-Trail
+        # (wir aktualisieren stattdessen die bestehende Audit-Seite)
+        final_bytes = _embed_signature_in_pdf(
+            target_signed, sig_bytes, sig_name, audit,
+            anchor_keywords=["Unterschrift (mibeca)", "mibeca"],
+            audit_trail=False,
+        )
+    except Exception as ex:
+        return err_(f"Gegenzeichnung fehlgeschlagen: {ex}", 500)
+
+    final_blob_name = f"final-{sig_id}.pdf"
+    try:
+        _blob_container_lazy("vertraege").upload_blob(final_blob_name, final_bytes, overwrite=True)
+    except Exception as ex:
+        return err_(f"Finales PDF konnte nicht gespeichert werden: {ex}", 500)
+
+    sig["status"] = "signed"
+    sig["signed_at_admin"] = signed_at_admin
+    sig["signed_by_admin_name"] = sig_name
+    sig["signed_by_admin_email"] = p.get("email", "")
+    sig["final_pdf_blob"] = final_blob_name
+    tc.update_entity(sig)
+
+    # Target-Akte aktualisieren
+    try:
+        targets = table_("targets")
+        t = targets.get_entity("target", sig["targetId"])
+        v = json.loads(t.get("vertragJson", "{}") or "{}")
+        v["status"] = "signed"
+        v["gegengezeichnetAm"] = signed_at_admin
+        v["gegengezeichnetVon"] = sig_name
+        v["finalPdfBlob"] = final_blob_name
+        t["vertragJson"] = json.dumps(v, ensure_ascii=False)
+        targets.update_entity(dict(t))
+    except Exception:
+        pass
+
+    # Target informieren dass finaler Vertrag bereitsteht
+    if ACS_CONN:
+        try:
+            from azure.communication.email import EmailClient
+            client = EmailClient.from_connection_string(ACS_CONN)
+            download_url = f"{FRONTEND_BASE}/sign/{sig.get('token','')}"
+            html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
+                <h2 style="color:#097e92">Dein Mandatsvertrag ist vollstaendig unterschrieben</h2>
+                <p>Hallo {sig.get('lead_name','')},</p>
+                <p>{sig_name} hat den Vertrag fuer mibeca gegengezeichnet. Der Vertrag ist damit final unterzeichnet und liegt fuer dich zum Download bereit.</p>
+                <p style="margin:24px 0"><a href="{download_url}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Mein Exemplar herunterladen</a></p>
+                <p>Du findest den Vertrag ausserdem jederzeit in deinem Dashboard unter Vertraege.</p>
+                <p>Viele Gruesse<br/>Dein mibeca-Team</p>
+                </body></html>"""
+            client.begin_send({
+                "senderAddress": ACS_SENDER,
+                "recipients": {"to": [{"address": sig.get("lead_email","")}]},
+                "content": {"subject": "Mandatsvertrag final unterschrieben", "plainText": f"Vertrag herunterladen: {download_url}", "html": html},
+            })
+        except Exception:
+            pass
+
+    return ok_({"ok": True, "signed_at_admin": signed_at_admin, "status": "signed", "final_pdf_blob": final_blob_name})

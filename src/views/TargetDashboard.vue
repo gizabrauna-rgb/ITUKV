@@ -41,6 +41,27 @@
       <div v-if="tab === 'projekt'">
         <h2 class="text-xl font-bold text-gray-900 mb-5">Mein Verkaufsprojekt</h2>
 
+        <!-- Mandatsvertrag-Status -->
+        <div v-if="vertragInfo" class="mb-4">
+          <div v-if="vertragInfo.gegengezeichnetAm" class="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+            <CheckCircle class="w-6 h-6 text-green-600 flex-shrink-0" />
+            <div class="flex-1">
+              <p class="font-semibold text-green-900 text-sm">Mandatsvertrag vollständig unterschrieben</p>
+              <p class="text-xs text-green-700">Gegengezeichnet am {{ formatDate(vertragInfo.gegengezeichnetAm) }} durch {{ vertragInfo.gegengezeichnetVon }}.</p>
+            </div>
+            <a v-if="vertragInfo.signToken" :href="`${apiBaseUrl}/sign-pdf?token=${vertragInfo.signToken}`" target="_blank" rel="noopener" class="px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf] flex items-center gap-2">
+              <Download class="w-4 h-4" /> Mein Exemplar herunterladen
+            </a>
+          </div>
+          <div v-else-if="vertragInfo.signiertAm" class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-center gap-3">
+            <Clock class="w-6 h-6 text-yellow-600 flex-shrink-0" />
+            <div>
+              <p class="font-semibold text-yellow-900 text-sm">Vertrag unterschrieben – wartet auf Gegenzeichnung durch mibeca</p>
+              <p class="text-xs text-yellow-700">Sobald mibeca gegenzeichnet, bekommst du dein finales Exemplar.</p>
+            </div>
+          </div>
+        </div>
+
         <!-- Master-Prozess: Aktuelle Phase -->
         <div v-if="phasen.length" class="bg-gradient-to-br from-[#097e92] to-[#0a9aaf] rounded-xl p-5 mb-4 text-white">
           <div class="text-xs uppercase tracking-wide opacity-80 mb-1">Aktuelle Phase</div>
@@ -314,8 +335,10 @@ import { ref, computed, onMounted, watch } from 'vue'
 import {
   Building2, LogOut, Briefcase, Users, FolderOpen, Check, CheckCircle, Circle,
   Star, UserCheck, Ban, Folder, ChevronLeft, Upload, FileText, Download,
-  Link as LinkIcon, Plus, Trash2, X, ClipboardList, FileEdit, MessageSquare, TrendingUp
+  Link as LinkIcon, Plus, Trash2, X, ClipboardList, FileEdit, MessageSquare, TrendingUp, Clock
 } from '@lucide/vue'
+
+const apiBaseUrl = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
 import MandatDaten from '../components/target/MandatDaten.vue'
 import Fragebogen from '../components/target/Fragebogen.vue'
 import Unternehmensbewertung from '../components/target/Unternehmensbewertung.vue'
@@ -333,6 +356,13 @@ const interessenten = ref([])
 const dokumente = ref([])
 const links = ref([])
 const target = ref(null)
+const vertragInfo = computed(() => {
+  try { return target.value?.vertragJson ? JSON.parse(target.value.vertragJson) : null } catch { return null }
+})
+function formatDate(iso) {
+  if (!iso) return ''
+  return new Date(iso).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
 const showAllPhasen = ref(false)
 const loadingCheck = ref(true)
 const loadingInt = ref(true)

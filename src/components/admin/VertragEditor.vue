@@ -149,14 +149,59 @@
           <button @click="downloadDocx" class="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 flex items-center gap-2">
             <Download class="w-4 h-4" /> Vorschau (PDF)
           </button>
-          <button @click="zurSignaturSenden" :disabled="!form.auftraggeberFirma || sending" class="ml-auto px-4 py-2.5 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf] flex items-center gap-2 disabled:opacity-50">
+          <button v-if="!vertrag?.gesendetAm && !vertrag?.signiertAm" @click="zurSignaturSenden" :disabled="!form.auftraggeberFirma || sending" class="ml-auto px-4 py-2.5 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf] flex items-center gap-2 disabled:opacity-50">
             <Send class="w-4 h-4" />
             {{ sending ? 'Wird gesendet…' : 'An Target zur Signatur senden' }}
           </button>
         </div>
-        <p v-if="vertrag?.signiertAm" class="text-xs text-green-700 mt-3 flex items-center gap-1.5">
-          <CheckCircle2 class="w-4 h-4" /> Signiert am {{ formatDate(vertrag.signiertAm) }} durch {{ vertrag.signiertVon }}
+        <p v-if="vertrag?.signiertAm && !vertrag?.gegengezeichnetAm" class="text-xs text-yellow-700 mt-3 flex items-center gap-1.5">
+          <Clock class="w-4 h-4" /> Target hat am {{ formatDate(vertrag.signiertAm) }} unterschrieben ({{ vertrag.signiertVon }}). Wartet auf deine Gegenzeichnung unten.
         </p>
+        <p v-if="vertrag?.gegengezeichnetAm" class="text-xs text-green-700 mt-3 flex items-center gap-1.5">
+          <CheckCircle2 class="w-4 h-4" /> Final unterschrieben am {{ formatDate(vertrag.gegengezeichnetAm) }} durch {{ vertrag.gegengezeichnetVon }}.
+        </p>
+      </div>
+
+      <!-- Gegenzeichnungs-Bereich (nur sichtbar wenn Target signiert hat) -->
+      <div v-if="vertrag?.signiertAm && !vertrag?.gegengezeichnetAm" class="bg-yellow-50 border border-yellow-200 rounded-xl p-5 mb-4">
+        <h3 class="font-semibold text-yellow-900 text-sm mb-2 flex items-center gap-2">
+          <PenTool class="w-4 h-4" /> Jetzt gegenzeichnen
+        </h3>
+        <p class="text-xs text-yellow-800 mb-3">Zeichne hier deine Unterschrift. Sobald du gegenzeichnest, bekommt der Target eine Mail mit dem fertigen Vertrag.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="field-label">Unterschrift (zeichnen)</label>
+            <canvas ref="sigCanvas" width="500" height="160"
+              @mousedown="startDraw" @mousemove="moveDraw" @mouseup="endDraw" @mouseleave="endDraw"
+              @touchstart="startDraw" @touchmove="moveDraw" @touchend="endDraw"
+              class="border-2 border-dashed border-yellow-300 rounded-xl bg-white w-full touch-none"
+              style="cursor: crosshair"></canvas>
+            <button @click="clearCanvas" class="text-xs text-gray-500 underline mt-1">Löschen / neu zeichnen</button>
+          </div>
+          <div>
+            <label class="field-label">Dein Name (für Signatur)</label>
+            <input v-model="adminSigName" placeholder="z.B. Jennifer Kaplan" class="input" />
+            <p class="text-xs text-gray-500 mt-2">Mit der Gegenzeichnung erklärst du, den Vertrag stellvertretend für mibeca anzunehmen.</p>
+            <button @click="countersign" :disabled="countersigning || !adminSigName"
+              class="mt-3 w-full px-4 py-2.5 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf] flex items-center justify-center gap-2 disabled:opacity-50">
+              <PenTool class="w-4 h-4" />
+              {{ countersigning ? 'Wird gegengezeichnet…' : 'Jetzt gegenzeichnen' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Download fuer finalen Vertrag (nach Gegenzeichnung) -->
+      <div v-if="vertrag?.gegengezeichnetAm && vertrag?.signToken" class="bg-green-50 border border-green-200 rounded-xl p-5 mb-4 flex items-center gap-3">
+        <CheckCircle2 class="w-6 h-6 text-green-600" />
+        <div class="flex-1">
+          <p class="text-sm font-semibold text-green-900">Vertrag ist final unterschrieben</p>
+          <p class="text-xs text-green-700">Der Target kann sein Exemplar aus seinem Dashboard herunterladen.</p>
+        </div>
+        <a :href="`${apiBase}/sign-pdf?token=${vertrag.signToken}`" target="_blank" rel="noopener" class="px-4 py-2 bg-white border border-green-300 text-green-700 rounded-xl text-sm font-medium hover:bg-green-100 flex items-center gap-2">
+          <Download class="w-4 h-4" /> Finalen Vertrag öffnen
+        </a>
       </div>
     </div>
 
@@ -179,8 +224,10 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { Check, X, FileEdit, Save, Download, Send, CheckCircle2, Clock, FileText, AlertTriangle } from '@lucide/vue'
+import { Check, X, FileEdit, Save, Download, Send, CheckCircle2, Clock, FileText, AlertTriangle, PenTool } from '@lucide/vue'
 import { authFetch } from '../../api.js'
+
+const apiBase = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
 
 const props = defineProps({ targetId: String })
 
@@ -210,20 +257,70 @@ const form = ref({
 
 const statusLabel = computed(() => {
   if (!vertrag.value) return 'Entwurf'
-  if (vertrag.value.signiertAm) return 'Signiert'
+  if (vertrag.value.gegengezeichnetAm) return 'Vollständig unterschrieben'
+  if (vertrag.value.signiertAm) return 'Target hat unterschrieben'
   if (vertrag.value.gesendetAm) return 'An Target gesendet'
   return 'Entwurf'
 })
 const statusIcon = computed(() => {
-  if (vertrag.value?.signiertAm) return CheckCircle2
+  if (vertrag.value?.gegengezeichnetAm) return CheckCircle2
+  if (vertrag.value?.signiertAm) return PenTool
   if (vertrag.value?.gesendetAm) return Clock
   return FileText
 })
 const statusBadgeClass = computed(() => {
-  if (vertrag.value?.signiertAm) return 'bg-green-100 text-green-700'
-  if (vertrag.value?.gesendetAm) return 'bg-yellow-100 text-yellow-700'
+  if (vertrag.value?.gegengezeichnetAm) return 'bg-green-100 text-green-700'
+  if (vertrag.value?.signiertAm) return 'bg-yellow-100 text-yellow-700'
+  if (vertrag.value?.gesendetAm) return 'bg-blue-100 text-blue-700'
   return 'bg-gray-100 text-gray-500'
 })
+
+// Canvas-Signatur fuer Gegenzeichnung
+const sigCanvas = ref(null)
+const adminSigName = ref('')
+const countersigning = ref(false)
+let canvasDirty = false
+let drawing = false
+let lastPos = null
+
+function pos(e) {
+  const c = sigCanvas.value
+  const r = c.getBoundingClientRect()
+  const t = e.touches?.[0] || e
+  return { x: (t.clientX - r.left) * (c.width / r.width),
+           y: (t.clientY - r.top) * (c.height / r.height) }
+}
+function startDraw(e) { e.preventDefault(); drawing = true; canvasDirty = true; lastPos = pos(e) }
+function moveDraw(e) {
+  if (!drawing) return
+  e.preventDefault()
+  const p = pos(e); const ctx = sigCanvas.value.getContext('2d')
+  ctx.strokeStyle = '#0A2F2F'; ctx.lineWidth = 2.2; ctx.lineCap = 'round'
+  ctx.beginPath(); ctx.moveTo(lastPos.x, lastPos.y); ctx.lineTo(p.x, p.y); ctx.stroke()
+  lastPos = p
+}
+function endDraw(e) { e?.preventDefault?.(); drawing = false }
+function clearCanvas() {
+  const c = sigCanvas.value; if (!c) return
+  c.getContext('2d').clearRect(0, 0, c.width, c.height); canvasDirty = false
+}
+
+async function countersign() {
+  if (!canvasDirty) { alert('Bitte zuerst deine Unterschrift zeichnen.'); return }
+  if (!vertrag.value?.signId) { alert('Keine offene Signatur gefunden.'); return }
+  countersigning.value = true
+  try {
+    const data = sigCanvas.value.toDataURL('image/png')
+    await authFetch('/vertrag-countersign', { method: 'POST', data: {
+      signId: vertrag.value.signId,
+      signature_image: data,
+      signature_name: adminSigName.value.trim(),
+    }})
+    await load()
+    alert('Vertrag erfolgreich gegengezeichnet. Der Target wurde per Mail informiert.')
+  } catch (e) { alert('Gegenzeichnung fehlgeschlagen: ' + (e?.response?.data?.error || e.message)) }
+  finally { countersigning.value = false }
+}
 
 function setMandat(val) {
   mandatAngenommen.value = val
