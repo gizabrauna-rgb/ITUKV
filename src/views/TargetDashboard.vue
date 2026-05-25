@@ -3,9 +3,7 @@
     <!-- Topbar -->
     <header class="bg-[#161e2a] text-white px-6 py-3 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div class="w-8 h-8 bg-[#097e92] rounded-lg flex items-center justify-center">
-          <Building2 class="w-4 h-4 text-white" />
-        </div>
+        <img src="/Logo_mibeca_Start.png" alt="mibeca" class="h-9 w-auto bg-white rounded-md p-1" />
         <div>
           <span class="font-bold text-sm">ITUKV Dashboard</span>
           <span class="text-gray-400 text-xs ml-2">Verkäufer-Portal</span>

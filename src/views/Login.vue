@@ -4,7 +4,7 @@
       <!-- Logo / Header -->
       <div class="text-center mb-8">
         <div class="inline-flex items-center justify-center mb-6">
-          <img src="/Mike-Bergmann-Favicon.png" alt="ITUKV" class="w-48 h-48 object-contain" />
+          <img src="/Logo_mibeca_Start.png" alt="mibeca" class="h-32 object-contain" />
         </div>
         <h1 class="text-2xl font-bold text-white">ITUKV Dashboard</h1>
         <p class="text-gray-400 text-sm mt-1">IT-Unternehmen kaufen &amp; verkaufen · mibeca GmbH</p>
