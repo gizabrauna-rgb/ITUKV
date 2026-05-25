@@ -3,11 +3,10 @@
     <div class="w-full max-w-md">
       <!-- Logo / Header -->
       <div class="text-center mb-8">
-        <div class="inline-flex items-center justify-center mb-6">
-          <img src="/Logo_mibeca_Start.png" alt="mibeca" class="h-32 object-contain" />
+        <div class="inline-flex items-center justify-center mb-4">
+          <img src="/Logo_mibeca_Start.png" alt="mibeca" class="h-20 object-contain" />
         </div>
         <h1 class="text-2xl font-bold text-white">ITUKV Dashboard</h1>
-        <p class="text-gray-400 text-sm mt-1">IT-Unternehmen kaufen &amp; verkaufen · mibeca GmbH</p>
       </div>
 
       <!-- Login Card -->
