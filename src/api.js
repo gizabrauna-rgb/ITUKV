@@ -41,8 +41,10 @@ export const createTarget = (data) => authFetch('/targets', { method: 'POST', da
 export const updateTarget = (id, data) => authFetch('/target-update', { method: 'POST', data: { id, ...data } })
 
 // Interessenten
-export const getInteressenten = (targetId) => authFetch(`/targets/${targetId}/interessenten`)
-export const updateInteressent = (targetId, id, data) => authFetch(`/targets/${targetId}/interessenten/${id}`, { method: 'PATCH', data })
+export const getInteressenten = (targetId) => authFetch('/interessenten', { method: 'POST', data: { targetId } })
+export const createInteressent = (data) => authFetch('/interessent-create', { method: 'POST', data })
+export const updateInteressent = (id, data) => authFetch('/interessent-update', { method: 'POST', data: { id, ...data } })
+export const deleteInteressent = (id) => authFetch('/interessent-delete', { method: 'POST', data: { id } })
 
 // CRM / Kontakte
 export const getKontakte = (params) => authFetch('/kontakte', { params })
@@ -53,7 +55,9 @@ export const exportKontakte = (params) => authFetch('/kontakte/export', { params
 
 // Ausschreibungen
 export const getAusschreibungen = () => authFetch('/ausschreibungen')
-export const getAusschreibung = (id) => authFetch(`/ausschreibungen/${id}`)
+export const createAusschreibung = (data) => authFetch('/ausschreibungen', { method: 'POST', data })
+export const updateAusschreibung = (id, data) => authFetch('/ausschreibungen-update'.replace('en-','-'), { method: 'POST', data: { id, ...data } })
+export const deleteAusschreibung = (id) => authFetch('/ausschreibung-delete', { method: 'POST', data: { id } })
 export const requestExpose = (id, data) => authFetch(`/ausschreibungen/${id}/expose`, { method: 'POST', data })
 
 // NDA

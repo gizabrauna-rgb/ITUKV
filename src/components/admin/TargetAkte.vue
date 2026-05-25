@@ -92,6 +92,11 @@
         <Fragebogen :target-id="targetId" />
       </div>
 
+      <!-- Bewertung (Score-System auf Basis der 33 Fragen) -->
+      <div v-else-if="tab === 'bewertung'">
+        <Unternehmensbewertung :target-id="targetId" />
+      </div>
+
       <!-- Interessenten -->
       <div v-else-if="tab === 'interessenten'">
         <div class="bg-white rounded-xl border border-gray-100 p-10 text-center text-gray-400 text-sm">
@@ -147,12 +152,13 @@ import { ref, computed, onMounted, defineComponent, h } from 'vue'
 import {
   ArrowLeft, MapPin, Tag, Users, Euro, Hash, Mail,
   Sparkles, Circle, Folder, FileText, MessageSquare,
-  LayoutDashboard, Workflow, ClipboardList, FileEdit, ShieldCheck, Clock
+  LayoutDashboard, Workflow, ClipboardList, FileEdit, ShieldCheck, Clock, TrendingUp
 } from '@lucide/vue'
 import { authFetch } from '../../api.js'
 import PhasenProzessEingebettet from './PhasenProzess.vue'
 import MandatDaten from '../target/MandatDaten.vue'
 import Fragebogen from '../target/Fragebogen.vue'
+import Unternehmensbewertung from '../target/Unternehmensbewertung.vue'
 import Zwischenstand from './Zwischenstand.vue'
 import Verlauf from './Verlauf.vue'
 import ExposeGenerator from './ExposeGenerator.vue'
@@ -169,14 +175,15 @@ const tabs = [
   { tab: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard },
   { tab: 'prozess', label: 'Master-Prozess', icon: Workflow },
   { tab: 'fragebogen', label: 'Fragebogen', icon: FileEdit },
+  { tab: 'bewertung', label: 'Bewertung', icon: TrendingUp },
   { tab: 'mandat', label: 'Mandat-Daten', icon: ClipboardList },
-  { tab: 'interessenten', label: 'Interessenten', icon: Users },
-  { tab: 'dokumente', label: 'Dokumente', icon: Folder },
   { tab: 'expose', label: 'Exposé', icon: FileText },
   { tab: 'nda', label: 'NDA', icon: ShieldCheck },
+  { tab: 'interessenten', label: 'Interessenten', icon: Users },
+  { tab: 'dokumente', label: 'Dokumente', icon: Folder },
+  { tab: 'zwischenstand', label: 'Zwischenstand', icon: FileEdit },
   { tab: 'verlauf', label: 'Verlauf', icon: MessageSquare },
   { tab: 'zeit', label: 'Zeiterfassung', icon: Clock },
-  { tab: 'zwischenstand', label: 'Zwischenstand', icon: FileEdit },
 ]
 
 const ordnerListe = ['Verträge', 'Datenraum', 'NDA', 'Exposé', 'Vertragsverhandlungen', 'Videoprotokoll']

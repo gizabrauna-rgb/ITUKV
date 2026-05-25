@@ -1,0 +1,192 @@
+[
+  {
+    "name": "Themenblock 1: Der Unternehmer und Verkäufer",
+    "fragen": [
+      {
+        "nr": 1,
+        "frage": "Wie unabhängig ist das Unternehmen im Tagesgeschäft vom verkaufenden Unternehmer?",
+        "erklaerung": "1 = Der Unternehmer spielt für das Tagesgeschäft keine Rolle mehr, 5 = ohne den Unternehmer funktioniert im Tagesgeschäft überhaupt nichts"
+      },
+      {
+        "nr": 2,
+        "frage": "Wie lange kann der Unternehmer für eine Übergangsphase nach dem Verkauf zur Verfügung stehen?",
+        "erklaerung": "1 = Der Unternehmer kann bis zu 2 Jahre begleitend nach dem Verkauf zur Verfügung stehen.\n2 = Der Unternehmer kann bis zu 1 Jahr zur Verfügung stehen.\n3 = Der Unternehmer kann bis zu 6 Monaten zur Verfügung stehen.\n4 = der Unternehmer kann bis zu 3 Monaten zur Verfügung stehen.\n5 = Der Unternehmer ist direkt nach dem Verkauf nicht mehr greifbar."
+      },
+      {
+        "nr": 3,
+        "frage": "Wie sind Alter und Gesundheitszustand des verkaufenden Unternehmers, gibt es also einen dadurch bedingten Verkaufsdruck?",
+        "erklaerung": "1 = Weder durch Alter noch durch den Gesundheitszustand entsteht ein Verkaufsdruck.\n3 = Aufgrund von Alter und/oder Gesundheit möchte der Verkäufer binnen 2 Jahren verkaufen\n5 = Aufgrund von Alter und/oder Gesundheit muss der Unternehmer binnen weniger Wochen verkaufen."
+      },
+      {
+        "nr": 4,
+        "frage": "Wie stark ist der Unternehmer im Tagesgeschäft in der Technik eingebunden?",
+        "erklaerung": "1 = Der Unternehmer hat keine Steuerungsaufgaben mehr in der Technik und arbeitet auch nicht mehr aktiv in der Technik\n5 = Fast die gesamte Technik (vor allem die Projekte) wird durch den Unternehmer gesteuert"
+      },
+      {
+        "nr": 5,
+        "frage": "Wie stark ist der Unternehmer im Tagesgeschäft im Vertrieb eingebunden?",
+        "erklaerung": "1 = Der Unternehmer hat keinerlei Aufgaben mehr im Vertrieb\n5 = Fast der gesamte Vertrieb (vor allem die Projekte) läuft über den Unternehmer"
+      },
+      {
+        "nr": 6,
+        "frage": "Sind alle Prozesse und Strukturen im Unternehmen schriftlich dokumentiert und funktionieren diese, ohne dass der Chef dabei eine Rolle spielt?",
+        "erklaerung": "1 = Alle Prozesse und Strukturen sind schriftlich dokumentiert, der Chef wird dafür nicht benötigt\n3 = Nur ein paar Grundprozesse sind schriftlich definiert, der Chef spielt in diesen Prozessen und Strukturen noch eine Rolle\n5 = Es gibt keine schriftliche Dokumentation von Prozessen und Strukturen"
+      },
+      {
+        "nr": 7,
+        "frage": "Wie sieht generell der Verkaufsdruck des Unternehmers aus?",
+        "erklaerung": "1 = Er könnte das Unternehmen beliebig lang weiter führen. Er verdient trotzdem gutes Geld mit wenig Stress.\n5 = Der Unternehmer will so schnell wie irgend möglich raus aus dem Unternehmen"
+      }
+    ]
+  },
+  {
+    "name": "Themenblock 2 \"Personal und Führung\"",
+    "fragen": [
+      {
+        "nr": 8,
+        "frage": "Wie viele Mitarbeiter beschäftigt das Unternehmen außer dem Unternehmer?",
+        "erklaerung": "1 = 30+ Mitarbeiter\n2 = 16-29 Mitarbeiter\n3 = 5-15 Mitarbeiter\n4 = 2-4 Mitarbeiter\n5 = 0-1 Mitarbeiter"
+      },
+      {
+        "nr": 9,
+        "frage": "Wie stark sind schon Führungsstrukturen aufgebaut (z.B. Team- oder Abteilungsleiter), die nicht vom Unternehmer abhängen?",
+        "erklaerung": "Von 5 Punkten subtrahieren für jeweils eine zutreffende Eigenschaft:\na) hierarchische Führungsstrukturen unterhalb der Geschäftsführung\nb) ausgebildete Führungskräfte mit entsprechenden Soft Skills \nc) Klare Stellenbeschreibungen und definierte Befugnisse der Führungskräfte\nd) Nicht mehr als 7 direkte Mitarbeiter unterstellt je Führungskraft\ne) Wenigstens eine Person hat Prokura oder eine ähnlich bedeutende Zeichnungsbefugnis"
+      },
+      {
+        "nr": 10,
+        "frage": "Gibt es für alle Mitarbeiter im Unternehmen eine Stellenbeschreibung?",
+        "erklaerung": "1 = Ja, alle Mitarbeiter haben eine klare Stellenbeschreibung und diese wird auch gelebt\n3 = Es gibt grobe Stellenbeschreibungen im Arbeitsvertrag, die einzelnen Stellen sind aber nicht bewusst aufeinander abgestimmt\n5 = Es gibt keine klaren Stellenbeschreibungen"
+      },
+      {
+        "nr": 11,
+        "frage": "Wie viel % des Stammpersonals (= länger als Probezeit beschäftigt) hat oder wurde innerhalb der letzten 2 Jahre gekündigt (= Mitarbeiterfluktuation)?\n(Neueinstellungen werden nicht berücksichtigt, es geht nur um die Personalabgänge)",
+        "erklaerung": "1 = 0 bis 10%\n2 = 11% bis 20%\n3 = 21% bis 30%\n4 = 30% bis 40%\n5 = 41% und mehr"
+      },
+      {
+        "nr": 12,
+        "frage": "Wie viele % neue Mitarbeiter sind in den letzten 12 Monaten hinzugekommen (bezogen auf die Größe von vor einem Jahr)?",
+        "erklaerung": "1 = Mehr als 20% Zuwachs\n2 = Mehr als 10% Zuwachs\n3 = Kein Nettowachstum\n4 = Mehr als 10% Personal verloren\n5 = Mehr als 20% Personal verloren"
+      },
+      {
+        "nr": 13,
+        "frage": "Wie stark ist die 1:1 Bindung von Kunden an die Mitarbeiter im Unternehmen?",
+        "erklaerung": "1 = Alle Mitarbeiter sind austauschbar, der Kunde ist mit dem Unternehmen und den Prozessen verbunden\n5 = Jeder Kunde hat einen 1:1 Ansprechpartner, der sich um alle Belange des Kunden kümmert. Ohne diesen Mitarbeiter können die Kunden nicht richtig betreut werden."
+      },
+      {
+        "nr": 14,
+        "frage": "Gibt es eigene Mitarbeiter für den Vertrieb?",
+        "erklaerung": "1 = Es gibt eine richtige Vertriebsabteilung mit Leitung, Vertriebsaußendienst und Vertriebsinnendienst\n3 = Es gibt mindestens 2 Vertriebsmitarbeiter (ohne den Chef)\n4 = Es gibt nur einen Vertriebsmitarbeiter\n5 = Nur der Chef macht Vertrieb"
+      },
+      {
+        "nr": 15,
+        "frage": "Gibt es eigene Mitarbeiter für das Marketing?",
+        "erklaerung": "1 = Es gibt eine richtige Marketingabteilung, die sich um Online und Offline Marketing kümmert, ohne auf externe Hilfe angewiesen zu sein\n3 = Es gibt eine Marketingkraft mit mind. 25 Std. pro Woche, die selbständig arbeitet\n4 = Der Chef macht selbst das Marketing, ggf. mit Unterstützung einer Agentur\n5 = Es gibt gar kein richtiges aktives Marketing"
+      },
+      {
+        "nr": 16,
+        "frage": "Wie viele Mitarbeiter mit überragender Leistung (im Vergleich zum Team) gibt es in der Technik, z.B. einen Experten mit wesentlich höheren Skills und deutlich höherer Produktivität? (Stichwort: Klumpenrisiko Technik)",
+        "erklaerung": "1 = Die Skills und Leistungen bei den Technikern sind recht gleichmäßig verteilt\n4 = Es gibt einen dominierenden Techniker, von dem alles abhängt.\n5 = Der beste Techniker ist der Chef selbst"
+      },
+      {
+        "nr": 17,
+        "frage": "Wie viele Mitarbeiter mit überragender Leistung (im Vergleich zum Team) gibt es im Vertrieb, z.B. einen Vertriebler mit extrem hoher Kundenbindung zu den Top 10 Kunden?",
+        "erklaerung": "1 = Die Vertriebszahlen bei den Vertrieblern sind recht gleichmäßig verteilt\n4 = Es gibt einen dominierenden Vertriebler, von dem alles abhängt.\n5 = Der beste Vertriebler ist der Chef selbst"
+      },
+      {
+        "nr": 18,
+        "frage": "Wie ist die Wissensdokumentation in der Technik organisiert?",
+        "erklaerung": "1 = Es gibt ein umfangreiches Unternehmenswiki und ausführliche Kundendokus. Es gibt ein wichtiges Wissen, welches nur in Mitarbeiterköpfen existiert.\n5 = Große Teile des relevanten KnowsHow findet sich nur in den Köpfen einzelner Mitarbeiter oder des Chefs"
+      },
+      {
+        "nr": 19,
+        "frage": "Gibt es einen stabil funktionierenden Rekrutierungsprozess, z.B. eine gute Karriereseite, Social Media Anzeigen, digitales Bewerbermanagement?",
+        "erklaerung": "1 = Es gibt eine gute Karriere-Website, funktionierende Social Media Anzeigen, digitales Bewerbergmanagement\n5 = Recruiting funktioniert zufällig und besteht nur aus dem Schalten von Stellenanzeigen auf Stellenportalen"
+      }
+    ]
+  },
+  {
+    "name": "Themenblock 3 \"Kunden und Verträge\"",
+    "fragen": [
+      {
+        "nr": 20,
+        "frage": "Wie viel % der Unternehmenskosten sind durch regelmäßige Vertragseinnahmen gedeckt?",
+        "erklaerung": "1 = Mehr als 140% aller Unternehmenskosten sind durch regelmäßige Vertragseinnahmen gedeckt\n2 = Mehr als 100%\n3 = Mehr als 60%\n4 = Mehr als 30%\n5 = Weniger als 30%"
+      },
+      {
+        "nr": 21,
+        "frage": "Wie ist die Umsatzverteilung zwischen Dienstleistung (inkl. Vertragsumsätzen) und Handelsware, z.B. aus Projekten?",
+        "erklaerung": "1 = Mehr als 80% der Umsätze sind DL/Verträge\n2 = Mehr als 60% der Umsätze sind DL/Verträge\n3 = Mehr als 40% der Umsätze sind DL/Verträge\n4 = Mehr als 20% der Umsätze sind DL/Verträge\n5 = Unter 20% der Umsätze sind DL/Verträge"
+      },
+      {
+        "nr": 22,
+        "frage": "Wie dominierend sind die größten Kunden? Gibt es ein Klumpenrisiko?",
+        "erklaerung": "1 = Es gibt keine Kunden mit einer besonderen Abhängigkeit\n2 = Würde die Top 10 der Kunden weg fallen, wäre das sofort unternehmenskritisch\n3 = Würde die Top 5 der Kunden weg fallen, wäre das sofort unternehmenskritisch\n4 = Würde die Top 3 der Kunden weg fallen, wäre das sofort unternehmenskritisch\n5 = Würde der größte Kunde weg fallen, wäre das sofort unternehmenskritisch"
+      },
+      {
+        "nr": 23,
+        "frage": "Gibt es ein modernes, aktuelles Vertragskonzept für Managed Services?",
+        "erklaerung": "1 = Die Managed Service Verträge sind etwa auf dem Niveau des Umsetzungscoachings der MB Akademie (AGB, BVB, Lösungsflyer etc.)\n3 = Es gibt ein paar individuelle Managed Service Verträge mit Kunden\n4 = Wenn es Verträge gibt, dann nur Kontingentverträge\n5 = Es gibt noch gar keine richtigen Managed Service Verträge"
+      },
+      {
+        "nr": 24,
+        "frage": "Gibt es einen stabil funktionierenden Prozess zur Wunschkundengewinnung, z.B. eine gute Website mit Landing Pages, Social Media Anzeigen, Vertriebsfunnel?",
+        "erklaerung": "1 = Es gibt eine gute Website mit Landing Pages, Social Media Anzeigen, Vertriebsfunnel\n5 = Kundengewinnung erfolgt eher zufällig und nicht gesteuert, sondern vor allem durch Empfehlungen"
+      }
+    ]
+  },
+  {
+    "name": "Themenblock 4 \"Betriebswirtschaftliche Zahlen\"",
+    "fragen": [
+      {
+        "nr": 25,
+        "frage": "Wie hoch ist die EBIT Marge in den letzten 3 Jahren im Durchschnitt gewesen? (Verhältnis EBIT zu Umsatz, z.B. 100k EBIT, 1 Mio Umsatz = 10% EBIT-Marge)",
+        "erklaerung": "1 = Die EBIT Marge liegt bei über 20%\n2 = Die EBIT Marge liegt bei über 15%\n3 = Die EBIT Marge liegt bei über 10%\n4 = Die EBIT Marge liegt bei über 5%\n5 = Die EBIT Marge liegt bei unter 5%"
+      },
+      {
+        "nr": 26,
+        "frage": "Wie war der Umsatz-Trend der letzten 3 Jahre?",
+        "erklaerung": "1 = Steigerung von über 50% in drei Jahren\n2 = Steigerung von über 30% in drei Jahren\n3 = Die Steigerung lag zwischen 1 und 30% in drei Jahren\n4 = Die Umsätze sind zwischen 0 und 20% zurückgegangen\n5 = Der Umsatz ist mehr als 20% zurückgegangen innerhalb von drei Jahren"
+      },
+      {
+        "nr": 27,
+        "frage": "Wie war der EBIT Trend der letzten drei Jahre?",
+        "erklaerung": "1 = Steigerung von über 50% in drei Jahren\n2 = Steigerung von über 30% in drei Jahren\n3 = Die Steigerung lag zwischen 1 und 30% in drei Jahren\n4 = Die Umsätze sind zwischen 0 und 20% zurückgegangen\n5 = Der Umsatz ist mehr als 20% zurückgegangen innerhalb von drei Jahren"
+      },
+      {
+        "nr": 28,
+        "frage": "Wie verändert sich das EBIT nach der Bereinigung (adjusted EBIT)?",
+        "erklaerung": "1 = Das schon gute EBIT steigt nach dem Adjustment noch einmal deutlich, das GF Gehalt ist überdurchschnittlich hoch, Familienangehörige und mehrere Autos werden durch die Firma gezahlt\n3 = Das EBIT ändert sich als adjusted EBIT nicht, der Geschäftsführer bezahlt sich also so wie einen angestellten Geschäftsführer\n5 = Das eh schon geringe EBIT wird 0 oder negativ, wenn man für den Geschäftsführer ein marktübliches Gehalt plus Firmenwagen ansetzen würde"
+      }
+    ]
+  },
+  {
+    "name": "Themenblock 5 \"Rahmenbedingungen\"",
+    "fragen": [
+      {
+        "nr": 29,
+        "frage": "Welche Unternehmensform liegt vor?",
+        "erklaerung": "1 = Eine GmbH oder AG, die von einer Holding-GmbH gehalten wird\n2 = Eine GmbH oder AG\n4 = Eine GmbH & Co. KG \n5 = Eine Personengesellschaft (Einzelunternehmen, GbR etc.)"
+      },
+      {
+        "nr": 30,
+        "frage": "Gibt es mehrere Gesellschafter, mit denen verhandelt werden muss?",
+        "erklaerung": "1 = Es gibt nur einen 100% Gesellschafter\n2 = Es gibt zwei Gesellschafter\n5 = Es gibt mehr als 4 Gesellschafter, ohne dass ein einzelner mehr als 50% hat"
+      },
+      {
+        "nr": 31,
+        "frage": "Wo sitzt das Unternehmen?",
+        "erklaerung": "1 = Ein normaler, flexibler Mietvertrag liegt vor\n3 = Das Unternehmen befindet sich in einem Gebäude des jetzigen Unternehmers, das Gebäude wird nicht mitverkauft\n5 = Das Unternehmen hat ein eigenes Gebäude, das in der Gesellschaft enthalten ist und miterworben werden muss"
+      },
+      {
+        "nr": 32,
+        "frage": "Gibt es wichtige Lieferanten oder Geschäftspartner mit Change-Of-Control Klauseln? (z.B. eine DATEV-Systempartnerschaft, die nicht automatisch an den Käufer übergehen würde?)",
+        "erklaerung": "1 = Es gibt keine dominierenden Geschäftspartner und damit zusammenhängende Verträge mit Change of Control Klausel\n5 = Es gibt einen oder mehrere dominierende Geschäftspartner und damit zusammenhängende Verträge mit Change of Control Klausel, und nach einem Unternehmens(ver)kauf würde dieser wichtige Vertrag enden"
+      },
+      {
+        "nr": 33,
+        "frage": "Gibt es ein intensives Arbeiten an Innovationen, gibt es laufende Weiterqualifizierungen?",
+        "erklaerung": "1 = Einige gute Mitarbeiter haben eine regelmäßige Terminplanung, um an Zukunftsprojekten zu arbeiten\n3 = Ab und zu gibt es eine Task Force, um neue Technologien einzuführen\n5 = Das Unternehmen läuft dem Markt eher hinterher und führt Innovationen ein, wenn Kunden danach fragen"
+      }
+    ]
+  }
+]

@@ -448,3 +448,185 @@ def kontakte_locations_route(req: func.HttpRequest) -> func.HttpResponse:
         "total": len(kontakte_items),
         "withoutCoords": without_k,
     })
+
+
+# =========================================================================
+# AUSSCHREIBUNGEN — Tender-Verwaltung pro Target
+# =========================================================================
+
+@app.route(route="ausschreibungen", methods=["GET", "POST", "OPTIONS"])
+def ausschreibungen_route(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    tc = table_("ausschreibungen")
+    if req.method == "GET":
+        items = [dict(i) for i in tc.list_entities()]
+        return ok_(items)
+    # POST – neue Ausschreibung
+    if p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json()
+    aid = str(uuid.uuid4())
+    entity = {
+        "PartitionKey": "ausschreibung", "RowKey": aid,
+        "targetId": body.get("targetId", ""),
+        "mbNr": body.get("mbNr", ""),
+        "titel": body.get("titel", ""),
+        "region": body.get("region", ""),
+        "branche": body.get("branche", ""),
+        "mitarbeiter": str(body.get("mitarbeiter", "")),
+        "umsatz": body.get("umsatz", ""),
+        "kurzprofil": body.get("kurzprofil", ""),
+        "status": body.get("status", "aktiv"),
+        "createdAt": datetime.utcnow().isoformat(),
+    }
+    tc.create_entity(entity)
+    return ok_(dict(entity), 201)
+
+
+@app.route(route="ausschreibung-update", methods=["POST", "OPTIONS"])
+def ausschreibung_update(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json()
+    aid = body.pop("id", "")
+    if not aid:
+        return err_("id erforderlich", 400)
+    tc = table_("ausschreibungen")
+    try:
+        ent = tc.get_entity("ausschreibung", aid)
+    except Exception:
+        return err_("Ausschreibung nicht gefunden", 404)
+    for k, v in body.items():
+        if k not in ("PartitionKey", "RowKey"):
+            ent[k] = v
+    tc.update_entity(dict(ent))
+    return ok_(dict(ent))
+
+
+@app.route(route="ausschreibung-delete", methods=["POST", "OPTIONS"])
+def ausschreibung_delete(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json()
+    aid = body.get("id", "")
+    if not aid:
+        return err_("id erforderlich", 400)
+    try:
+        table_("ausschreibungen").delete_entity("ausschreibung", aid)
+        return ok_({"deleted": True})
+    except Exception:
+        return err_("Ausschreibung nicht gefunden", 404)
+
+
+# =========================================================================
+# INTERESSENTEN — Pro Target / Pro Ausschreibung
+# =========================================================================
+
+@app.route(route="interessenten", methods=["POST", "OPTIONS"])
+def interessenten_list(req: func.HttpRequest) -> func.HttpResponse:
+    """POST {targetId: "..."} → Liste der Interessenten fuer dieses Target."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    target_id = body.get("targetId", "")
+    if not target_id:
+        return err_("targetId erforderlich", 400)
+    # Targets duerfen nur ihre eigenen Interessenten sehen
+    if p.get("role") == "target" and p.get("targetId") and p.get("targetId") != target_id:
+        return err_("Nicht autorisiert", 403)
+    tc = table_("interessenten")
+    items = [dict(i) for i in tc.query_entities(f"targetId eq '{target_id}'")]
+    return ok_(items)
+
+
+@app.route(route="interessent-create", methods=["POST", "OPTIONS"])
+def interessent_create(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json()
+    iid = str(uuid.uuid4())
+    entity = {
+        "PartitionKey": "interessent", "RowKey": iid,
+        "targetId": body.get("targetId", ""),
+        "ausschreibungId": body.get("ausschreibungId", ""),
+        "firma": body.get("firma", ""),
+        "name": body.get("name", ""),
+        "email": body.get("email", ""),
+        "telefon": body.get("telefon", ""),
+        "plz": body.get("plz", ""),
+        "ort": body.get("ort", ""),
+        "typ": body.get("typ", ""),  # PE / Strategisch / Systemhausgruppe
+        "ndaStatus": body.get("ndaStatus", "ausstehend"),
+        "rating": int(body.get("rating", 0)),
+        "veto": bool(body.get("veto", False)),
+        "vetoBegruendung": body.get("vetoBegruendung", ""),
+        "freigegebenFuerKontakt": bool(body.get("freigegebenFuerKontakt", False)),
+        "notiz": body.get("notiz", ""),
+        "createdAt": datetime.utcnow().isoformat(),
+    }
+    tc = table_("interessenten")
+    tc.create_entity(entity)
+    return ok_(dict(entity), 201)
+
+
+@app.route(route="interessent-update", methods=["POST", "OPTIONS"])
+def interessent_update(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json()
+    iid = body.pop("id", "")
+    if not iid:
+        return err_("id erforderlich", 400)
+    tc = table_("interessenten")
+    try:
+        ent = tc.get_entity("interessent", iid)
+    except Exception:
+        return err_("Interessent nicht gefunden", 404)
+    # Targets duerfen nur eigene Interessenten aendern (nur rating, veto, freigabe, notiz)
+    if p.get("role") == "target":
+        if p.get("targetId") != ent.get("targetId"):
+            return err_("Nicht autorisiert", 403)
+        allowed = {"rating", "veto", "vetoBegruendung", "freigegebenFuerKontakt", "notiz"}
+        body = {k: v for k, v in body.items() if k in allowed}
+    for k, v in body.items():
+        if k not in ("PartitionKey", "RowKey"):
+            ent[k] = v
+    tc.update_entity(dict(ent))
+    return ok_(dict(ent))
+
+
+@app.route(route="interessent-delete", methods=["POST", "OPTIONS"])
+def interessent_delete(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json()
+    iid = body.get("id", "")
+    if not iid:
+        return err_("id erforderlich", 400)
+    try:
+        table_("interessenten").delete_entity("interessent", iid)
+        return ok_({"deleted": True})
+    except Exception:
+        return err_("Interessent nicht gefunden", 404)

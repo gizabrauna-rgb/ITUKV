@@ -107,6 +107,11 @@
         <Fragebogen :target-id="targetId" />
       </div>
 
+      <!-- Tab: Bewertung (Scoring auf Basis 33 Fragen) -->
+      <div v-else-if="tab === 'bewertung'">
+        <Unternehmensbewertung :target-id="targetId" :read-only="impersonating" />
+      </div>
+
       <!-- Tab: Meine Daten (Mandat-Vorlage) -->
       <div v-else-if="tab === 'mandat'">
         <MandatDaten :target-id="targetId" :read-only="impersonating" />
@@ -308,10 +313,11 @@ import { ref, computed, onMounted, watch } from 'vue'
 import {
   Building2, LogOut, Briefcase, Users, FolderOpen, Check, CheckCircle, Circle,
   Star, UserCheck, Ban, Folder, ChevronLeft, Upload, FileText, Download,
-  Link as LinkIcon, Plus, Trash2, X, ClipboardList, FileEdit, MessageSquare
+  Link as LinkIcon, Plus, Trash2, X, ClipboardList, FileEdit, MessageSquare, TrendingUp
 } from '@lucide/vue'
 import MandatDaten from '../components/target/MandatDaten.vue'
 import Fragebogen from '../components/target/Fragebogen.vue'
+import Unternehmensbewertung from '../components/target/Unternehmensbewertung.vue'
 import ExposeFreigabe from '../components/target/ExposeFreigabe.vue'
 import Verlauf from '../components/admin/Verlauf.vue'
 import { authFetch, getInteressenten, updateInteressent, getDokumente } from '../api.js'
@@ -342,6 +348,7 @@ const navItems = computed(() => {
   const base = [
     { tab: 'projekt', label: 'Mein Projekt', icon: Briefcase },
     { tab: 'fragebogen', label: 'Fragebogen', icon: FileEdit },
+    { tab: 'bewertung', label: 'Bewertung', icon: TrendingUp },
     { tab: 'mandat', label: 'Meine Daten', icon: ClipboardList },
     { tab: 'expose', label: 'Mein Exposé', icon: FileText },
     { tab: 'interessenten', label: 'Interessenten', icon: Users },
