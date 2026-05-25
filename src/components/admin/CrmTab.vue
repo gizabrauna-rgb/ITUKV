@@ -26,13 +26,6 @@
           <Search class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
           <input v-model="search" placeholder="Suche: Firma, Name, E-Mail…" class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
         </div>
-        <select v-model="filterTyp" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
-          <option value="">Alle Typen</option>
-          <option>PE</option>
-          <option>Systemhausgruppe</option>
-          <option>Strategisch</option>
-          <option>Sonstige</option>
-        </select>
         <select v-model="filterStatus" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
           <option value="">Status (alle)</option>
           <option>Target</option>
