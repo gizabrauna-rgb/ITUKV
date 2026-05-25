@@ -315,7 +315,74 @@ def user_create(req: func.HttpRequest) -> func.HttpResponse:
         "createdAt": datetime.utcnow().isoformat(),
     }
     tc.create_entity(entity)
+
+    # Begruessungsmail mit Login-Daten an neuen User
+    acs_conn = os.environ.get("ACS_CONNECTION_STRING", "")
+    acs_sender = os.environ.get("ACS_SENDER_ADDRESS", "DoNotReply@mail.itukv.de")
+    frontend = os.environ.get("FRONTEND_BASE_URL", "https://dashboard.itukv.de")
+    if acs_conn:
+        try:
+            from azure.communication.email import EmailClient
+            client = EmailClient.from_connection_string(acs_conn)
+            html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
+                <h2 style="color:#097e92">Willkommen im ITUKV Dashboard</h2>
+                <p>Hallo {entity.get('name') or ''},</p>
+                <p>fuer dich wurde ein Zugang zum ITUKV Dashboard angelegt.</p>
+                <p><strong>Deine Login-Daten:</strong></p>
+                <table cellpadding="6" style="background:#f0fdfa;border-radius:8px;border-collapse:separate">
+                  <tr><td>E-Mail:</td><td><strong>{email}</strong></td></tr>
+                  <tr><td>Initial-Passwort:</td><td><strong style="font-family:monospace;font-size:15px">{pw}</strong></td></tr>
+                </table>
+                <p style="margin-top:24px"><a href="{frontend}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Jetzt einloggen</a></p>
+                <p style="font-size:12px;color:#666">Aus Sicherheitsgruenden empfehlen wir, das Passwort nach der ersten Anmeldung zu aendern.</p>
+                <p>Bei Fragen melde dich bei deinem mibeca-Ansprechpartner.</p>
+                </body></html>"""
+            client.begin_send({
+                "senderAddress": acs_sender,
+                "recipients": {"to": [{"address": email}]},
+                "content": {"subject": "Dein Zugang zum ITUKV Dashboard", "plainText": f"Login: {email} / Passwort: {pw} / URL: {frontend}", "html": html},
+            })
+        except Exception as ex:
+            logging.warning(f"Begruessungsmail fehlgeschlagen: {ex}") if 'logging' in dir() else None
+
     return ok_({"id": uid, "email": email, "role": entity["role"], "name": entity["name"], "initialPassword": pw}, 201)
+
+
+@app.route(route="login", methods=["POST", "OPTIONS"])
+def login_password(req: func.HttpRequest) -> func.HttpResponse:
+    """Login mit E-Mail + Passwort (fuer Kunden ohne Microsoft-Konto)."""
+    if req.method == "OPTIONS":
+        return opt_()
+    body = req.get_json() or {}
+    email = (body.get("email") or "").lower().strip()
+    pw = body.get("password") or ""
+    if not (email and pw):
+        return err_("E-Mail und Passwort erforderlich", 400)
+    tc = table_("users")
+    users = list(tc.query_entities(f"email eq '{email}'"))
+    if not users:
+        return err_("Login fehlgeschlagen", 401)
+    u = dict(users[0])
+    stored = u.get("passwordHash", "") or ""
+    if not stored.startswith("pbkdf2$"):
+        return err_("Kein Passwort-Login fuer diese E-Mail. Bitte ueber Microsoft anmelden.", 401)
+    try:
+        _, salt_b64, hash_b64 = stored.split("$")
+        salt = base64.b64decode(salt_b64)
+        expected = base64.b64decode(hash_b64)
+        actual = hashlib.pbkdf2_hmac('sha256', pw.encode(), salt, 100000)
+        if not hmac.compare_digest(expected, actual):
+            return err_("Login fehlgeschlagen", 401)
+    except Exception:
+        return err_("Login fehlgeschlagen", 401)
+    token = make_jwt(u["RowKey"], u.get("role", "target"), u.get("name", ""), email)
+    return ok_({
+        "token": token,
+        "role": u.get("role", "target"),
+        "name": u.get("name", ""),
+        "id": u["RowKey"],
+        "targetId": u.get("targetId", ""),
+    })
 
 
 @app.route(route="user-delete", methods=["POST", "OPTIONS"])
