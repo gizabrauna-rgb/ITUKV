@@ -634,7 +634,463 @@ def interessent_delete(req: func.HttpRequest) -> func.HttpResponse:
 
 
 # =========================================================================
-# MANDATSVERTRAG — Signatur-Endpoints (temporaer deaktiviert, kommt zurueck)
+# MANDATSVERTRAG — PDF-Generierung + Signatur (PyMuPDF/fitz, lazy imports)
 # =========================================================================
-# Wird ab dem naechsten Deploy wieder aktiviert sobald die Function App
-# die zusaetzlichen Python-Dependencies (reportlab/pypdf/pillow) gebaut hat.
+
+SIGNATURE_CODE_EXPIRY_MIN = 30
+SIGNATURE_LINK_EXPIRY_DAYS = 30
+ACS_CONN = os.environ.get("ACS_CONNECTION_STRING", "")
+ACS_SENDER = os.environ.get("ACS_SENDER_ADDRESS", "info@itukv.de")
+FRONTEND_BASE = os.environ.get("FRONTEND_BASE_URL", "https://dashboard.itukv.de")
+
+
+def _blob_container_lazy(name):
+    """Container holen – fitz/blob werden erst hier importiert."""
+    from azure.storage.blob import BlobServiceClient
+    svc = BlobServiceClient.from_connection_string(TABLE_CONN)
+    try:
+        svc.create_container(name)
+    except Exception:
+        pass
+    return svc.get_container_client(name)
+
+
+def _hash_code_sig(code, salt):
+    return hashlib.sha256((str(code) + "::" + str(salt)).encode("utf-8")).hexdigest()
+
+
+def _lookup_signature_by_token(token):
+    if not token:
+        return None
+    tc = table_("vertragsignaturen")
+    items = list(tc.query_entities(f"token eq '{token}'"))
+    return dict(items[0]) if items else None
+
+
+def _render_vertrag_pdf_bytes(form, variante):
+    """Erstellt das PDF mit PyMuPDF aus Vorlage – kein reportlab noetig."""
+    import fitz  # PyMuPDF
+    doc = fitz.open()
+    page = doc.new_page(width=595, height=842)  # A4
+    margin_x = 60
+    y = 60
+    line_h = 14
+
+    def add_para(text, fontsize=10, bold=False, color=(0.1, 0.1, 0.1), space_after=8):
+        nonlocal y, page
+        fontname = "hebo" if bold else "helv"
+        # Wenn am Seitenende, neue Seite anlegen
+        if y > 780:
+            page = doc.new_page(width=595, height=842)
+            y = 60
+        # Textbox fuer automatischen Umbruch
+        max_height = 800 - y
+        box = fitz.Rect(margin_x, y, 535, y + max_height)
+        rc = page.insert_textbox(box, text, fontsize=fontsize, fontname=fontname,
+                                  color=color, align=0)
+        # rc < 0 bedeutet: Text passt nicht vollstaendig in die Box
+        # Heuristik: jeden Umbruch zaehlen
+        approx_lines = max(1, int(len(text) / 80) + text.count("\n"))
+        y += approx_lines * line_h + space_after
+
+    def add_heading(text):
+        add_para(text, fontsize=12, bold=True, color=(0.04, 0.49, 0.57), space_after=6)
+
+    # Titel
+    add_para("Beratungs- und Dienstleistungsvertrag", fontsize=16, bold=True, color=(0.04, 0.49, 0.57), space_after=18)
+
+    # Parteien
+    add_para(f"zwischen", fontsize=10, space_after=6)
+    add_para(f"mibeca GmbH, Schillerstraße 1, 29525 Uelzen", bold=True, space_after=2)
+    add_para(f"vertreten durch {form.get('berater','Jennifer Kaplan')}", space_after=2)
+    add_para(f"nachfolgend „Berater“ genannt", space_after=14)
+    add_para(f"und", fontsize=10, space_after=6)
+    add_para(f"{form.get('auftraggeberFirma','')}", bold=True, space_after=2)
+    add_para(f"{form.get('auftraggeberStrasse','')}, {form.get('auftraggeberPlzOrt','')}", space_after=2)
+    add_para(f"vertreten durch {form.get('auftraggeberGf','')}", space_after=2)
+    add_para(f"nachfolgend „Auftraggeber“ genannt", space_after=16)
+
+    add_heading("§1 Vertragsgegenstand")
+    add_para(f"Der Auftraggeber erteilt hiermit dem Berater den Auftrag, ihn bei folgenden Entscheidungen/Vorhaben zu beraten und zu unterstützen: (Teil-)Veräußerung des Unternehmens {form.get('verkaufsobjekt','')} (im Folgenden „Verkaufsobjekt“ genannt).")
+
+    add_heading("§2 Leistungen des Beraters")
+    add_para("Aufbereitung der Daten für das Verkaufsobjekt · Erstellung eines anonymen Kurzexposés · Suche von Interessenten · Unterstützung bei Gesprächen mit Interessenten · Begleitung der Verkaufsverhandlungen · Vermittlung weiterer Berater (Rechtsanwälte, Steuerberater) · Laufende Beratung und Projektbegleitung (persönlich, telefonisch, per Videokonferenz, per E-Mail).", space_after=10)
+
+    add_heading("§3 Pflichten des Auftraggebers")
+    add_para("Der Auftraggeber stellt alle relevanten Unterlagen (Bilanzen, BWA, Statistiken, Kunden-/Lieferanten-/Mitarbeiterlisten) bereit und sichert deren Vollständigkeit und Richtigkeit zu. Der Berater haftet nicht für die inhaltliche Richtigkeit der gelieferten Informationen.", space_after=10)
+
+    add_heading("§4 Pflichten des Beraters / Vertraulichkeit")
+    add_para("Der Berater ist zum Stillschweigen gegenüber Dritten über sämtliche Inhalte des Verkaufsprozesses sowie über vertrauliche Informationen des Auftraggebers verpflichtet. Diese Verpflichtung gilt auch nach Ende des Vertrages. Unterlagen werden vertraulich aufbewahrt und nach Aufforderung zurückgegeben oder vernichtet.", space_after=10)
+
+    add_heading("§5 Vergütung")
+    add_para("Alle Vergütungen verstehen sich netto zzgl. 19 % Mehrwertsteuer.", space_after=8)
+    add_para("(1) Eröffnungsvergütung", bold=True, space_after=4)
+    if variante == 'mit_uve':
+        modus = form.get('eroeffnungsModus', 'einmalig')
+        if modus == 'einmalig':
+            txt = f"Einmalige Eröffnungsvergütung in Höhe von {form.get('eroeffnungsBetrag', 10000):,.0f} € netto für UVE-Coachingprogramm, Datenaufbereitung und Kurzexposé."
+        else:
+            txt = f"Eröffnungsvergütung: 6 Monatsraten zu je 1.800 € netto für UVE-Coachingprogramm, Datenaufbereitung und Kurzexposé."
+    elif variante == 'vorhandenes_uve':
+        txt = f"Keine Eröffnungsvergütung – der Auftraggeber hat das UVE-Coaching bereits abgeschlossen und bezahlt (ansonsten 3.490 €). Der Berater übernimmt die Datenaufbereitung sowie die Erstellung des Kurzexposés."
+    else:
+        txt = f"Eröffnungsvergütung: {form.get('eroeffnungsBetrag', 4950):,.0f} € netto für Datenaufbereitung und Erstellung des anonymen Kurzexposés."
+    add_para(txt.replace(',', '.'), space_after=10)
+
+    add_para("(2) Beratungsvergütung", bold=True, space_after=4)
+    add_para(f"Jennifer Kaplan: {form.get('honorarJennyStunde', 250):,.0f} € pro Stunde bzw. {form.get('honorarJennyTag', 2990):,.0f} € pro Tag vor Ort (zzgl. Reisespesen).".replace(',', '.'), space_after=4)
+    add_para(f"Mike Bergmann: {form.get('honorarMikeStunde', 250):,.0f} € pro Stunde bzw. {form.get('honorarMikeTag', 2990):,.0f} € pro Tag vor Ort (zzgl. Reisespesen).".replace(',', '.'), space_after=4)
+    add_para(f"Team-Mitarbeiter: {form.get('honorarTeamStunde', 150):,.0f} € pro Stunde bzw. {form.get('honorarTeamTag', 1500):,.0f} € pro Tag vor Ort (zzgl. Reisespesen).".replace(',', '.'), space_after=10)
+
+    add_para("(3) Erfolgsvergütung", bold=True, space_after=4)
+    add_para(f"Erfolgsvergütung in Höhe von {form.get('erfolgsProzent', 5)} % des Transaktionsvolumens bei erfolgreichem Vertragsabschluss zwischen Auftraggeber und einem Interessenten. Als Vertragsabschluss gilt jede Form eines Verkaufs-, Kaufs-, Beteiligungs- oder Fusionsvertrages sowie vergleichbare Aktivitäten (z.B. Asset Deals).", space_after=10)
+
+    add_heading("§6 Vertragsdauer und Vertragsende")
+    add_para(f"Der Vertrag beginnt mit Vertragsunterzeichnung und wird zunächst für {form.get('laufzeitMonate', 12)} Monate abgeschlossen. Die Laufzeit verlängert sich stillschweigend um jeweils 6 Monate, sofern er nicht mit einer Frist von 2 Monaten schriftlich gekündigt wird. Die Vertragslaufzeit endet automatisch zum Monatsende, sobald der Auftraggeber das Verkaufsobjekt veräußert hat.", space_after=10)
+
+    add_heading("§7 Haftungsfreistellung")
+    add_para("Der Berater agiert mit der Sorgfalt eines ordentlichen Kaufmannes. Für Schäden aus der Beratung sowie für entgangene Gewinne haftet der Berater nicht. Der Auftraggeber stellt den Berater von jeglicher Haftung frei, die auf Unvollständigkeit oder Unrichtigkeit der gelieferten Informationen beruht.", space_after=10)
+
+    add_heading("§8 Schlussbestimmungen")
+    add_para("Änderungen bedürfen der Schriftform. Mündliche Nebenabreden bestehen nicht. Sind einzelne Bestimmungen unwirksam, bleibt die Gültigkeit der übrigen unberührt. Es gilt deutsches Recht. Gerichtsstand ist Uelzen.", space_after=14)
+
+    if form.get('notizen'):
+        add_heading("§9 Zusatzklauseln / Notizen")
+        add_para(form.get('notizen'), space_after=14)
+
+    # Signatur-Bereich
+    add_para(f"Datum: {form.get('datum','')}", space_after=30)
+    add_para("Ort, Datum, Unterschrift (mibeca)                                Ort, Datum, Unterschrift (Auftraggeber)", fontsize=9, color=(0.4, 0.4, 0.4))
+
+    pdf_bytes = doc.write()
+    doc.close()
+    return pdf_bytes
+
+
+def _embed_signature_in_pdf(unsigned_bytes, sig_img_bytes, signature_name, audit):
+    """Bettet Signatur ins PDF + haengt Audit-Trail-Seite an. Uses fitz."""
+    import fitz
+    doc = fitz.open(stream=unsigned_bytes, filetype="pdf")
+    try:
+        if doc.page_count > 0 and sig_img_bytes:
+            last_page = doc[doc.page_count - 1]
+            pw = last_page.rect.width
+            ph = last_page.rect.height
+            # Suche Anker "Unterschrift"
+            anchor_rect = None
+            for needle in ("Unterschrift (Auftraggeber)", "Unterschrift", "Datum"):
+                try:
+                    hits = last_page.search_for(needle) or []
+                except Exception:
+                    hits = []
+                if hits:
+                    anchor_rect = hits[-1]
+                    break
+            if anchor_rect is not None:
+                sig_w = min(150.0, pw * 0.25)
+                sig_h = 32.0
+                x0 = anchor_rect.x0
+                y1 = anchor_rect.y0 - 4
+                y0 = y1 - sig_h
+            else:
+                sig_w = 150.0
+                sig_h = 50.0
+                x0 = pw - sig_w - 60
+                y1 = ph - 80
+                y0 = y1 - sig_h
+            try:
+                last_page.insert_image(fitz.Rect(x0, y0, x0 + sig_w, y1),
+                                       stream=sig_img_bytes, keep_proportion=True)
+                last_page.insert_text(fitz.Point(x0, y1 + 12),
+                                      signature_name, fontsize=8, color=(0.1, 0.1, 0.1))
+            except Exception:
+                pass
+
+        # Audit-Trail-Seite
+        audit_page = doc.new_page(width=595, height=842)
+        y = 60
+        audit_page.insert_text(fitz.Point(50, y),
+                               "Audit-Trail – Elektronische Signatur",
+                               fontsize=14, color=(0.04, 0.49, 0.57))
+        y += 24
+        audit_page.insert_text(fitz.Point(50, y),
+                               "Einfache elektronische Signatur gemäß eIDAS Art. 25 Abs. 1",
+                               fontsize=9, color=(0.4, 0.4, 0.4))
+        y += 28
+        for label, val in [
+            ("Unterzeichner:", signature_name),
+            ("E-Mail:", audit.get("email", "")),
+            ("Signiert am:", audit.get("signed_at", "")),
+            ("IP-Adresse:", audit.get("ip", "")),
+            ("User-Agent:", audit.get("ua", "")),
+            ("Bestätigungscode-Hash:", audit.get("code_hash", "")),
+            ("Token-Hash:", audit.get("token_hash", "")),
+        ]:
+            audit_page.insert_text(fitz.Point(50, y), label, fontsize=10, color=(0.3, 0.3, 0.3))
+            box = fitz.Rect(200, y - 9, 545, y + 30)
+            audit_page.insert_textbox(box, str(val or "—"), fontsize=9, color=(0.05, 0.05, 0.05))
+            y += 20
+        out = doc.write()
+        return out
+    finally:
+        doc.close()
+
+
+@app.route(route="vertrag-pdf", methods=["POST", "OPTIONS"])
+def vertrag_pdf(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    try:
+        pdf_bytes = _render_vertrag_pdf_bytes(body.get("form", {}), body.get("variante", "standard"))
+    except Exception as ex:
+        return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
+    return func.HttpResponse(pdf_bytes, status_code=200, mimetype="application/pdf",
+                             headers={**CORS, "Content-Disposition": 'attachment; filename="Mandatsvertrag.pdf"'})
+
+
+@app.route(route="vertrag-zur-signatur", methods=["POST", "OPTIONS"])
+def vertrag_zur_signatur(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    target_id = body.get("targetId", "")
+    variante = body.get("variante", "standard")
+    form = body.get("form", {})
+    if not target_id:
+        return err_("targetId erforderlich", 400)
+
+    target_users = list(table_("users").query_entities(f"targetId eq '{target_id}'"))
+    if not target_users:
+        return err_("Kein Target-Login angelegt. Bitte zuerst Benutzer fuer dieses Target erstellen.", 400)
+    target_email = target_users[0].get("email", "")
+    target_name = target_users[0].get("name", "")
+    if not target_email:
+        return err_("Target hat keine E-Mail-Adresse", 400)
+
+    try:
+        pdf_bytes = _render_vertrag_pdf_bytes(form, variante)
+    except Exception as ex:
+        return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
+
+    pdf_blob_name = f"mandat-{target_id}-{int(datetime.utcnow().timestamp())}.pdf"
+    try:
+        container = _blob_container_lazy("vertraege")
+        container.upload_blob(pdf_blob_name, pdf_bytes, overwrite=True)
+    except Exception as ex:
+        return err_(f"Blob-Upload fehlgeschlagen: {ex}", 500)
+
+    sig_id = str(uuid.uuid4())
+    token = secrets.token_urlsafe(32)
+    code_salt = secrets.token_hex(16)
+    expires = (datetime.utcnow() + timedelta(days=SIGNATURE_LINK_EXPIRY_DAYS)).isoformat()
+    tc = table_("vertragsignaturen")
+    tc.create_entity({
+        "PartitionKey": "signatur", "RowKey": sig_id,
+        "targetId": target_id, "token": token, "code_salt": code_salt,
+        "status": "pending", "lead_email": target_email, "lead_name": target_name,
+        "variante": variante, "pdf_blob": pdf_blob_name,
+        "form_json": json.dumps(form, ensure_ascii=False),
+        "created_at": datetime.utcnow().isoformat(),
+        "expires_at": expires,
+    })
+
+    sign_url = f"{FRONTEND_BASE}/sign/{token}"
+    if ACS_CONN:
+        try:
+            from azure.communication.email import EmailClient
+            client = EmailClient.from_connection_string(ACS_CONN)
+            html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
+                <h2 style="color:#097e92">Dein Mandatsvertrag liegt zur Unterschrift bereit</h2>
+                <p>Hallo {target_name or ''},</p>
+                <p>der Mandatsvertrag fuer dein Verkaufsprojekt ist fertig vorbereitet.
+                Du kannst ihn online ansehen und mit wenigen Klicks unterschreiben.</p>
+                <p style="margin:24px 0"><a href="{sign_url}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Vertrag ansehen &amp; unterschreiben</a></p>
+                <p style="font-size:12px;color:#666">Der Link ist {SIGNATURE_LINK_EXPIRY_DAYS} Tage gueltig.</p>
+                <p>Viele Gruesse<br/>Dein mibeca-Team</p>
+                </body></html>"""
+            client.begin_send({
+                "senderAddress": ACS_SENDER,
+                "recipients": {"to": [{"address": target_email}]},
+                "content": {"subject": "Dein Mandatsvertrag zur Unterschrift", "plainText": f"Vertrag unterschreiben: {sign_url}", "html": html},
+            })
+        except Exception:
+            pass
+
+    return ok_({"signId": sig_id, "token": token, "signUrl": sign_url})
+
+
+@app.route(route="sign-info", methods=["GET", "OPTIONS"])
+def sign_info(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    token = req.params.get("token", "").strip()
+    sig = _lookup_signature_by_token(token)
+    if not sig:
+        return err_("Ungueltiger oder abgelaufener Link.", 404)
+    now = datetime.utcnow()
+    try:
+        expires = datetime.fromisoformat(sig.get("expires_at", ""))
+    except Exception:
+        expires = now
+    expired = sig.get("status") == "pending" and now > expires
+    return ok_({
+        "status": "expired" if expired else sig.get("status", "pending"),
+        "lead_email": sig.get("lead_email", ""),
+        "lead_name": sig.get("lead_name", ""),
+        "variante": sig.get("variante", ""),
+        "expires_at": sig.get("expires_at", ""),
+        "signed_at": sig.get("signed_at", ""),
+    })
+
+
+@app.route(route="sign-pdf", methods=["GET", "OPTIONS"])
+def sign_pdf_public(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    token = req.params.get("token", "").strip()
+    sig = _lookup_signature_by_token(token)
+    if not sig:
+        return err_("Ungueltiger Link.", 404)
+    blob_name = sig.get("signed_pdf_blob") or sig.get("pdf_blob")
+    if not blob_name:
+        return err_("PDF nicht verfuegbar", 404)
+    try:
+        data = _blob_container_lazy("vertraege").download_blob(blob_name).readall()
+    except Exception as ex:
+        return err_(f"PDF nicht abrufbar: {ex}", 500)
+    return func.HttpResponse(data, status_code=200, mimetype="application/pdf",
+                             headers={**CORS, "Content-Disposition": 'inline; filename="vertrag.pdf"'})
+
+
+@app.route(route="sign-send-code", methods=["POST", "OPTIONS"])
+def sign_send_code(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    body = req.get_json() or {}
+    token = (body.get("token") or "").strip()
+    sig = _lookup_signature_by_token(token)
+    if not sig:
+        return err_("Ungueltiger Link", 404)
+    if sig.get("status") != "pending":
+        return err_("Vertrag bereits abgeschlossen", 400)
+    code = f"{secrets.randbelow(1000000):06d}"
+    code_hash = _hash_code_sig(code, sig.get("code_salt", ""))
+    now = datetime.utcnow()
+    tc = table_("vertragsignaturen")
+    ent = tc.get_entity("signatur", sig["RowKey"])
+    ent["code_hash"] = code_hash
+    ent["code_sent_at"] = now.isoformat()
+    tc.update_entity(dict(ent))
+    if not ACS_CONN:
+        return err_("E-Mail-Service nicht konfiguriert", 500)
+    try:
+        from azure.communication.email import EmailClient
+        client = EmailClient.from_connection_string(ACS_CONN)
+        html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a">
+            <p>Dein Bestaetigungscode fuer die Unterschrift lautet:</p>
+            <p style="font-size:28px;font-weight:700;letter-spacing:6px;background:#f0fdfa;padding:14px 22px;border-radius:10px;display:inline-block;color:#097e92">{code}</p>
+            <p>Der Code ist {SIGNATURE_CODE_EXPIRY_MIN} Minuten gueltig.</p>
+            </body></html>"""
+        client.begin_send({
+            "senderAddress": ACS_SENDER,
+            "recipients": {"to": [{"address": sig["lead_email"]}]},
+            "content": {"subject": "Bestaetigungscode Mandatsvertrag", "plainText": f"Code: {code}", "html": html},
+        })
+    except Exception as ex:
+        return err_(f"Mailversand fehlgeschlagen: {ex}", 500)
+    return ok_({"ok": True})
+
+
+@app.route(route="sign-submit", methods=["POST", "OPTIONS"])
+def sign_submit(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    body = req.get_json() or {}
+    token = (body.get("token") or "").strip()
+    code = (body.get("code") or "").strip()
+    sig_name = (body.get("signature_name") or "").strip()
+    sig_image = (body.get("signature_image") or "").strip()
+    accept_agb = bool(body.get("accept_agb"))
+    if not (token and code and sig_name and sig_image and accept_agb):
+        return err_("Bitte alle Felder ausfuellen.", 400)
+    sig = _lookup_signature_by_token(token)
+    if not sig:
+        return err_("Ungueltiger Link", 404)
+    if sig.get("status") != "pending":
+        return err_("Vertrag bereits abgeschlossen", 400)
+    expected = sig.get("code_hash", "")
+    if not expected:
+        return err_("Bitte zuerst Code anfordern", 400)
+    try:
+        code_sent_at = datetime.fromisoformat(sig.get("code_sent_at", ""))
+    except Exception:
+        return err_("Code abgelaufen", 400)
+    if (datetime.utcnow() - code_sent_at).total_seconds() > SIGNATURE_CODE_EXPIRY_MIN * 60:
+        return err_("Code abgelaufen", 400)
+    if _hash_code_sig(code, sig.get("code_salt", "")) != expected:
+        return err_("Code stimmt nicht", 400)
+
+    try:
+        original = _blob_container_lazy("vertraege").download_blob(sig["pdf_blob"]).readall()
+    except Exception as ex:
+        return err_(f"PDF nicht abrufbar: {ex}", 500)
+
+    sig_bytes = b""
+    if sig_image.startswith("data:"):
+        try:
+            sig_bytes = base64.b64decode(sig_image.split(",", 1)[1])
+        except Exception:
+            sig_bytes = b""
+
+    ip = (req.headers.get("X-Forwarded-For", "") or "").split(",")[0].strip() or req.headers.get("X-Client-IP", "")
+    ua = req.headers.get("User-Agent", "")[:200]
+    signed_at = datetime.utcnow().isoformat()
+    audit = {
+        "email": sig.get("lead_email", ""),
+        "signed_at": signed_at,
+        "ip": ip, "ua": ua,
+        "code_hash": expected[:16] + "…",
+        "token_hash": hashlib.sha256(token.encode()).hexdigest()[:16] + "…",
+    }
+    try:
+        signed_bytes = _embed_signature_in_pdf(original, sig_bytes, sig_name, audit)
+    except Exception as ex:
+        return err_(f"Signatur-Einbettung fehlgeschlagen: {ex}", 500)
+
+    signed_blob_name = f"signed-{sig['RowKey']}.pdf"
+    try:
+        _blob_container_lazy("vertraege").upload_blob(signed_blob_name, signed_bytes, overwrite=True)
+    except Exception as ex:
+        return err_(f"Signiertes PDF konnte nicht gespeichert werden: {ex}", 500)
+
+    tc = table_("vertragsignaturen")
+    ent = tc.get_entity("signatur", sig["RowKey"])
+    ent["status"] = "signed"
+    ent["signed_at"] = signed_at
+    ent["signed_by_name"] = sig_name
+    ent["signed_ip"] = ip
+    ent["signed_user_agent"] = ua
+    ent["signed_pdf_blob"] = signed_blob_name
+    tc.update_entity(dict(ent))
+
+    # Target-Akte aktualisieren
+    try:
+        targets = table_("targets")
+        t = targets.get_entity("target", sig["targetId"])
+        v = json.loads(t.get("vertragJson", "{}") or "{}")
+        v["signiertAm"] = signed_at
+        v["signiertVon"] = sig_name
+        v["signedPdfBlob"] = signed_blob_name
+        t["vertragJson"] = json.dumps(v, ensure_ascii=False)
+        targets.update_entity(dict(t))
+    except Exception:
+        pass
+
+    return ok_({"ok": True, "signed_at": signed_at})
