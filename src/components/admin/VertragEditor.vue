@@ -374,33 +374,40 @@ async function speichern() {
   finally { saving.value = false }
 }
 
+function _backendError(e) {
+  return e?.response?.data?.error || e?.message || 'Unbekannter Fehler'
+}
+
 async function downloadDocx() {
   if (!props.targetId || !variante.value) return
   try {
     const r = await fetch(`${import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'}/vertrag-pdf`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (sessionStorage.getItem('msalToken') || sessionStorage.getItem('partnerJwt') || '') },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (sessionStorage.getItem('customerJwt') || sessionStorage.getItem('msalToken') || '') },
       body: JSON.stringify({ targetId: props.targetId, variante: variante.value, form: form.value })
     })
-    if (!r.ok) throw new Error('PDF-Erstellung fehlgeschlagen')
+    if (!r.ok) {
+      const d = await r.json().catch(()=>({}))
+      throw new Error(d.error || `HTTP ${r.status}`)
+    }
     const blob = await r.blob()
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url; a.download = `Mandatsvertrag_${form.value.auftraggeberFirma}.pdf`
     a.click()
     URL.revokeObjectURL(url)
-  } catch (e) { alert('Vorschau noch nicht verfügbar – Backend-Endpoint folgt im nächsten Schritt.') }
+  } catch (e) { alert('PDF-Vorschau fehlgeschlagen: ' + _backendError(e)) }
 }
 
 async function zurSignaturSenden() {
   if (!confirm('Vertrag jetzt an den Target zur Signatur senden? Der Target erhält eine E-Mail mit einem Signier-Link.')) return
   sending.value = true
   try {
-    await authFetch('/vertrag-zur-signatur', { method: 'POST', data: { targetId: props.targetId, variante: variante.value, form: form.value } })
-    vertrag.value = { ...vertrag.value, gesendetAm: new Date().toISOString() }
+    const r = await authFetch('/vertrag-zur-signatur', { method: 'POST', data: { targetId: props.targetId, variante: variante.value, form: form.value } })
+    vertrag.value = { ...vertrag.value, gesendetAm: new Date().toISOString(), signId: r?.signId, signToken: r?.token }
     await speichern()
     alert('Vertrag wurde an den Target gesendet.')
-  } catch (e) { alert('Versand noch nicht verfügbar – Signatur-Endpoint folgt im nächsten Schritt.') }
+  } catch (e) { alert('Versand fehlgeschlagen: ' + _backendError(e)) }
   finally { sending.value = false }
 }
 
