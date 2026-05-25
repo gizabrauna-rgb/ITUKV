@@ -958,11 +958,24 @@ def vertrag_zur_signatur(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as ex:
         return err_(f"Blob-Upload fehlgeschlagen: {ex}", 500)
 
+    # Bestehende noch nicht final unterzeichnete Signaturen invalidieren
+    tc = table_("vertragsignaturen")
+    revision = 1
+    try:
+        old_sigs = list(tc.query_entities(f"targetId eq '{target_id}'"))
+        for old in old_sigs:
+            if old.get("status") in ("pending", "awaiting_countersign"):
+                old["status"] = "superseded"
+                old["superseded_at"] = datetime.utcnow().isoformat()
+                tc.update_entity(dict(old))
+        revision = len([o for o in old_sigs if o.get("status") not in ("pending",)]) + 1
+    except Exception:
+        pass
+
     sig_id = str(uuid.uuid4())
     token = secrets.token_urlsafe(32)
     code_salt = secrets.token_hex(16)
     expires = (datetime.utcnow() + timedelta(days=SIGNATURE_LINK_EXPIRY_DAYS)).isoformat()
-    tc = table_("vertragsignaturen")
     tc.create_entity({
         "PartitionKey": "signatur", "RowKey": sig_id,
         "targetId": target_id, "token": token, "code_salt": code_salt,
@@ -971,7 +984,29 @@ def vertrag_zur_signatur(req: func.HttpRequest) -> func.HttpResponse:
         "form_json": json.dumps(form, ensure_ascii=False),
         "created_at": datetime.utcnow().isoformat(),
         "expires_at": expires,
+        "revision": revision,
     })
+
+    # Verlauf-Eintrag anhaengen
+    try:
+        targets = table_("targets")
+        t = targets.get_entity("target", target_id)
+        verlauf = []
+        try: verlauf = json.loads(t.get("kommunikationJson", "[]") or "[]")
+        except Exception: verlauf = []
+        verlauf.insert(0, {
+            "id": "k" + str(int(datetime.utcnow().timestamp() * 1000)),
+            "typ": "mail_out",
+            "datum": datetime.utcnow().isoformat(),
+            "autor": p.get("name", "") or p.get("email", ""),
+            "betreff": f"Mandatsvertrag verschickt (Variante: {variante})" + (f" – Revision {revision}" if revision > 1 else ""),
+            "beschreibung": f"E-Mail mit Signatur-Link an {target_email} versendet.",
+            "beteiligte": target_email,
+        })
+        t["kommunikationJson"] = json.dumps(verlauf, ensure_ascii=False)
+        targets.update_entity(dict(t))
+    except Exception:
+        pass
 
     sign_url = f"{FRONTEND_BASE}/sign/{token}"
     if ACS_CONN:
@@ -1171,6 +1206,27 @@ def sign_submit(req: func.HttpRequest) -> func.HttpResponse:
     except Exception:
         pass
 
+    # Verlauf: Target hat unterschrieben
+    try:
+        targets = table_("targets")
+        t = targets.get_entity("target", sig["targetId"])
+        verlauf = []
+        try: verlauf = json.loads(t.get("kommunikationJson", "[]") or "[]")
+        except Exception: verlauf = []
+        verlauf.insert(0, {
+            "id": "k" + str(int(datetime.utcnow().timestamp() * 1000)),
+            "typ": "wichtig",
+            "datum": signed_at,
+            "autor": sig_name,
+            "betreff": "Mandatsvertrag vom Verkaeufer unterschrieben",
+            "beschreibung": f"{sig_name} hat den Vertrag elektronisch signiert. Wartet auf Gegenzeichnung durch mibeca.",
+            "beteiligte": sig.get("lead_email", ""),
+        })
+        t["kommunikationJson"] = json.dumps(verlauf, ensure_ascii=False)
+        targets.update_entity(dict(t))
+    except Exception:
+        pass
+
     # Mibeca-Team per Mail informieren dass Gegenzeichnung anliegt
     if ACS_CONN:
         try:
@@ -1271,6 +1327,27 @@ def vertrag_countersign(req: func.HttpRequest) -> func.HttpResponse:
         v["gegengezeichnetVon"] = sig_name
         v["finalPdfBlob"] = final_blob_name
         t["vertragJson"] = json.dumps(v, ensure_ascii=False)
+        targets.update_entity(dict(t))
+    except Exception:
+        pass
+
+    # Verlauf: mibeca gegengezeichnet
+    try:
+        targets = table_("targets")
+        t = targets.get_entity("target", sig["targetId"])
+        verlauf = []
+        try: verlauf = json.loads(t.get("kommunikationJson", "[]") or "[]")
+        except Exception: verlauf = []
+        verlauf.insert(0, {
+            "id": "k" + str(int(datetime.utcnow().timestamp() * 1000)),
+            "typ": "wichtig",
+            "datum": signed_at_admin,
+            "autor": sig_name,
+            "betreff": "Mandatsvertrag durch mibeca gegengezeichnet",
+            "beschreibung": f"Vertrag final unterzeichnet. Kunde wurde per Mail mit Download-Link informiert.",
+            "beteiligte": sig.get("lead_email", ""),
+        })
+        t["kommunikationJson"] = json.dumps(verlauf, ensure_ascii=False)
         targets.update_entity(dict(t))
     except Exception:
         pass

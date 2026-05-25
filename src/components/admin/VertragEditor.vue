@@ -149,9 +149,9 @@
           <button @click="downloadDocx" class="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 flex items-center gap-2">
             <Download class="w-4 h-4" /> Vorschau (PDF)
           </button>
-          <button v-if="!vertrag?.gesendetAm && !vertrag?.signiertAm" @click="zurSignaturSenden" :disabled="!form.auftraggeberFirma || sending" class="ml-auto px-4 py-2.5 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf] flex items-center gap-2 disabled:opacity-50">
+          <button v-if="!vertrag?.gegengezeichnetAm" @click="zurSignaturSenden" :disabled="!form.auftraggeberFirma || sending" class="ml-auto px-4 py-2.5 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf] flex items-center gap-2 disabled:opacity-50">
             <Send class="w-4 h-4" />
-            {{ sending ? 'Wird gesendet…' : 'An Target zur Signatur senden' }}
+            {{ sending ? 'Wird gesendet…' : (vertrag?.gesendetAm ? 'Erneut senden (mit aktuellen Daten)' : 'An Target zur Signatur senden') }}
           </button>
         </div>
         <p v-if="vertrag?.signiertAm && !vertrag?.gegengezeichnetAm" class="text-xs text-yellow-700 mt-3 flex items-center gap-1.5">
@@ -400,13 +400,27 @@ async function downloadDocx() {
 }
 
 async function zurSignaturSenden() {
-  if (!confirm('Vertrag jetzt an den Target zur Signatur senden? Der Target erhält eine E-Mail mit einem Signier-Link.')) return
+  const isResend = !!vertrag.value?.gesendetAm
+  const msg = isResend
+    ? 'Vertrag NEU versenden mit den aktuellen Daten? Der alte Sign-Link wird ungültig und der Target bekommt einen frischen Link per Mail.'
+    : 'Vertrag jetzt an den Target zur Signatur senden? Der Target erhält eine E-Mail mit einem Signier-Link.'
+  if (!confirm(msg)) return
   sending.value = true
   try {
     const r = await authFetch('/vertrag-zur-signatur', { method: 'POST', data: { targetId: props.targetId, variante: variante.value, form: form.value } })
-    vertrag.value = { ...vertrag.value, gesendetAm: new Date().toISOString(), signId: r?.signId, signToken: r?.token }
+    // Bei Neuversand: alte Unterschriften aufraeumen, neuer Stand = nur 'gesendet'
+    vertrag.value = {
+      ...vertrag.value,
+      gesendetAm: new Date().toISOString(),
+      signId: r?.signId,
+      signToken: r?.token,
+      signiertAm: null,
+      signiertVon: null,
+      gegengezeichnetAm: null,
+      gegengezeichnetVon: null,
+    }
     await speichern()
-    alert('Vertrag wurde an den Target gesendet.')
+    alert(isResend ? 'Vertrag wurde erneut an den Target gesendet.' : 'Vertrag wurde an den Target gesendet.')
   } catch (e) { alert('Versand fehlgeschlagen: ' + _backendError(e)) }
   finally { sending.value = false }
 }
