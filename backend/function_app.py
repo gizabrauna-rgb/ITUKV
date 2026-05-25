@@ -104,6 +104,24 @@ def make_jwt(uid, role, name, email):
     return f"{h}.{p}.{_b64u(sig)}"
 
 
+_last_seen_cache = {}  # uid -> unix_ts (throttle DB writes)
+
+def _touch_last_seen(uid):
+    if not uid:
+        return
+    now = datetime.utcnow().timestamp()
+    if now - _last_seen_cache.get(uid, 0) < 60:
+        return
+    _last_seen_cache[uid] = now
+    try:
+        tc = table_("users")
+        ent = tc.get_entity("user", uid)
+        ent["lastSeen"] = datetime.utcnow().isoformat()
+        tc.update_entity(dict(ent))
+    except Exception:
+        pass
+
+
 def auth_user(req):
     a = req.headers.get("Authorization", "")
     if not a.startswith("Bearer "):
@@ -113,7 +131,9 @@ def auth_user(req):
         expected = hmac.new(JWT_SECRET.encode(), f"{h}.{p}".encode(), hashlib.sha256).digest()
         if not hmac.compare_digest(_b64ud(s), expected):
             return None
-        return json.loads(_b64ud(p))
+        payload = json.loads(_b64ud(p))
+        _touch_last_seen(payload.get("id"))
+        return payload
     except Exception:
         return None
 
@@ -138,6 +158,13 @@ def auth_resolve(req: func.HttpRequest) -> func.HttpResponse:
         u = users[0]
         token = make_jwt(u["RowKey"], u["role"], u.get("name", name), email)
         return ok_({"token": token, "role": u["role"], "name": u.get("name", name), "id": u["RowKey"]})
+
+    # Bootstrap: nur wenn noch GAR KEIN User existiert, wird der erste Login zum Admin.
+    # Sonst: Zugriff verweigert. Neue Nutzer muessen vom Admin im Dashboard angelegt werden.
+    any_user = next(iter(tc.list_entities(results_per_page=1)), None)
+    if any_user is not None:
+        return err_("Kein Zugang. Bitte wende dich an den Administrator.", 403)
+
     uid = str(uuid.uuid4())
     tc.create_entity({
         "PartitionKey": "user", "RowKey": uid, "email": email,
