@@ -3,7 +3,7 @@
     <!-- Topbar -->
     <header class="bg-[#161e2a] text-white px-6 py-3 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <img src="/Logo_mibeca_Start.png" alt="mibeca" class="h-9 w-auto bg-white rounded-md p-1" />
+        <img src="/Logo_mibeca_Start.png" alt="mibeca" class="h-10 w-auto" />
         <div>
           <span class="font-bold text-sm">ITUKV Dashboard</span>
           <span class="text-gray-400 text-xs ml-2">Investor-Portal</span>
