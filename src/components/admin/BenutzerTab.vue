@@ -26,6 +26,7 @@
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Rolle</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Zuordnung</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Login via</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Angelegt</th>
             <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Aktionen</th>
           </tr>
@@ -50,6 +51,15 @@
                 <span v-if="canUseMicrosoft(u)" class="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">Microsoft</span>
                 <span v-if="u.loginVia !== 'microsoft' || canUseBoth(u)" class="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">Passwort</span>
               </div>
+            </td>
+            <td class="px-4 py-3 text-xs">
+              <span v-if="isOnline(u.lastSeen)" class="inline-flex items-center gap-1.5 text-green-700">
+                <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> online
+              </span>
+              <span v-else-if="u.lastSeen" class="text-gray-400" :title="formatDate(u.lastSeen)">
+                {{ lastSeenLabel(u.lastSeen) }}
+              </span>
+              <span v-else class="text-gray-300">noch nie</span>
             </td>
             <td class="px-4 py-3 text-xs text-gray-500">{{ formatDate(u.createdAt) }}</td>
             <td class="px-4 py-3 text-right">
@@ -193,6 +203,21 @@ function targetMbNrById(id) {
 
 function formatDate(iso) {
   return iso ? new Date(iso).toLocaleDateString('de-DE') : ''
+}
+
+function isOnline(iso) {
+  if (!iso) return false
+  return (Date.now() - new Date(iso).getTime()) < 5 * 60 * 1000  // <5min
+}
+
+function lastSeenLabel(iso) {
+  if (!iso) return ''
+  const diffSec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+  if (diffSec < 60) return 'gerade eben'
+  if (diffSec < 3600) return `vor ${Math.floor(diffSec / 60)} Min`
+  if (diffSec < 86400) return `vor ${Math.floor(diffSec / 3600)} Std`
+  if (diffSec < 7 * 86400) return `vor ${Math.floor(diffSec / 86400)} Tagen`
+  return new Date(iso).toLocaleDateString('de-DE')
 }
 
 // Erkennt ob User Microsoft-Konto haben könnte (interne Domains)

@@ -203,6 +203,26 @@ def targets_route(req: func.HttpRequest) -> func.HttpResponse:
     # POST – neues Target
     body = req.get_json()
     tid = str(uuid.uuid4())
+    # Minimale Phasen-Vorlage (15 Master-Phasen, ohne Aufgabenliste – die
+    # detaillierte Liste setzt PhasenProzess.vue beim ersten Oeffnen)
+    phasen_titel = [
+        "UVE Start – Vorbereitungs-Checkliste",
+        "UVE Abschluss – Verkaufsmandat-Eroeffnung",
+        "Marktansprache – Interessenten anschreiben",
+        "NDA von Interessenten abholen",
+        "Erstes Kennenlernen – Interessent Verkaeufer",
+        "Datenraum / Kommunikationsraum in Element",
+        "Austausch von Unterlagen",
+        "Indikatives Angebot",
+        "Verhandlungen",
+        "Letter of Intent (LOI)",
+        "Due Diligence",
+        "Vertragsgestaltung",
+        "Notartermin & Closing",
+        "Post-Closing – Uebergabe & Kommunikation",
+        "Erfolgsmeldung & Abrechnung",
+    ]
+    init_phasen = [{"id": i+1, "titel": f"{i+1}. {t}", "notiz": "", "aufgaben": []} for i, t in enumerate(phasen_titel)]
     entity = {
         "PartitionKey": "target", "RowKey": tid,
         "mbNr": body.get("mbNr", ""),
@@ -216,6 +236,7 @@ def targets_route(req: func.HttpRequest) -> func.HttpResponse:
         "projekttyp": body.get("projekttyp", "Projekt Target"),
         "status": "verfuegbar",
         "createdAt": datetime.utcnow().isoformat(),
+        "phasenJson": json.dumps(init_phasen, ensure_ascii=False),
     }
     tc.create_entity(entity)
     return ok_(dict(entity), 201)

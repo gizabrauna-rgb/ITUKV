@@ -236,7 +236,12 @@ async function loadTarget() {
       try { phasen.value = JSON.parse(target.phasenJson) }
       catch { phasen.value = PHASEN_VORLAGE() }
     } else {
+      // Erstmaliges Oeffnen: Standard-Phasen anlegen + sofort speichern,
+      // damit die Uebersicht/Target-Dashboard die Phasen kennen
       phasen.value = PHASEN_VORLAGE()
+      try {
+        await authFetch('/target-update', { method: 'POST', data: { id: selectedTargetId.value, phasenJson: JSON.stringify(phasen.value) } })
+      } catch (e) { console.error('Auto-init Phasen fehlgeschlagen', e) }
     }
     expanded.value = {}
     // aktive Phase aufklappen
