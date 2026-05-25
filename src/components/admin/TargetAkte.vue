@@ -124,9 +124,19 @@
         <ExposeGenerator :target-id="targetId" />
       </div>
 
-      <!-- NDA -->
+      <!-- Verträge (Mandatsvertrag + NDA) -->
       <div v-else-if="tab === 'nda'">
-        <NdaGenerator :target-id="targetId" />
+        <!-- Sub-Tabs -->
+        <div class="flex gap-1 mb-5 bg-white rounded-xl border border-gray-100 p-1 w-fit">
+          <button @click="vertragSubTab = 'mandat'" :class="['px-4 py-2 rounded-lg text-sm font-medium transition-colors', vertragSubTab === 'mandat' ? 'bg-[#097e92] text-white' : 'text-gray-600 hover:bg-gray-50']">
+            Mandatsvertrag
+          </button>
+          <button @click="vertragSubTab = 'nda'" :class="['px-4 py-2 rounded-lg text-sm font-medium transition-colors', vertragSubTab === 'nda' ? 'bg-[#097e92] text-white' : 'text-gray-600 hover:bg-gray-50']">
+            NDA für Interessenten
+          </button>
+        </div>
+        <VertragEditor v-if="vertragSubTab === 'mandat'" :target-id="targetId" />
+        <NdaGenerator v-else :target-id="targetId" />
       </div>
 
       <!-- Verlauf -->
@@ -159,6 +169,7 @@ import PhasenProzessEingebettet from './PhasenProzess.vue'
 import MandatDaten from '../target/MandatDaten.vue'
 import Fragebogen from '../target/Fragebogen.vue'
 import Unternehmensbewertung from '../target/Unternehmensbewertung.vue'
+import VertragEditor from './VertragEditor.vue'
 import Zwischenstand from './Zwischenstand.vue'
 import Verlauf from './Verlauf.vue'
 import ExposeGenerator from './ExposeGenerator.vue'
@@ -170,6 +181,7 @@ defineEmits(['close'])
 
 const target = ref(null)
 const tab = ref('uebersicht')
+const vertragSubTab = ref('mandat')
 
 const tabs = [
   { tab: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard },
@@ -178,7 +190,7 @@ const tabs = [
   { tab: 'bewertung', label: 'Bewertung', icon: TrendingUp },
   { tab: 'mandat', label: 'Mandat-Daten', icon: ClipboardList },
   { tab: 'expose', label: 'Exposé', icon: FileText },
-  { tab: 'nda', label: 'NDA', icon: ShieldCheck },
+  { tab: 'nda', label: 'Verträge', icon: ShieldCheck },
   { tab: 'interessenten', label: 'Interessenten', icon: Users },
   { tab: 'dokumente', label: 'Dokumente', icon: Folder },
   { tab: 'zwischenstand', label: 'Zwischenstand', icon: FileEdit },
