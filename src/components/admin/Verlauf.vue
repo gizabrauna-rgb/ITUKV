@@ -5,9 +5,45 @@
         <h3 class="text-lg font-bold text-gray-900">Kommunikations-Verlauf</h3>
         <p class="text-xs text-gray-500">Alle Interaktionen mit diesem Mandanten – zentral statt verteilt auf Element/Teams/Asana</p>
       </div>
-      <button @click="openNew" class="flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf]">
-        <Plus class="w-4 h-4" /> Eintrag hinzufügen
-      </button>
+      <div class="flex items-center gap-2">
+        <button @click="openMail" class="flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf]">
+          <Mail class="w-4 h-4" /> E-Mail senden
+        </button>
+        <button @click="openNew" class="flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">
+          <Plus class="w-4 h-4" /> Notiz
+        </button>
+      </div>
+
+      <!-- Mail-Dialog -->
+      <div v-if="showMailModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4" @click.self="showMailModal = false">
+        <div class="bg-white rounded-2xl w-full max-w-lg p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-gray-900 flex items-center gap-2"><Mail class="w-5 h-5 text-[#097e92]" /> E-Mail senden</h3>
+            <button @click="showMailModal = false"><X class="w-5 h-5 text-gray-400" /></button>
+          </div>
+          <p class="text-xs text-gray-500 mb-3">Geht direkt an den Empfänger – Antworten erscheinen automatisch hier im Verlauf.</p>
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs font-medium text-gray-600 mb-1 block">An (E-Mail)</label>
+              <input v-model="mailForm.empfaengerEmail" placeholder="z.B. kunde@example.de" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-600 mb-1 block">Betreff *</label>
+              <input v-model="mailForm.betreff" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-600 mb-1 block">Nachricht *</label>
+              <textarea v-model="mailForm.body" rows="8" placeholder="Hallo …" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 resize-y"></textarea>
+            </div>
+          </div>
+          <div class="flex gap-3 mt-5">
+            <button @click="showMailModal = false" class="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm">Abbrechen</button>
+            <button @click="sendMail" :disabled="!mailForm.betreff || !mailForm.body || mailSending" class="flex-1 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf] disabled:opacity-50">
+              {{ mailSending ? 'Wird gesendet…' : 'E-Mail senden' }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Filter -->
@@ -117,9 +153,27 @@ import {
   Mail, Phone, Calendar, MessageSquare, FileText, AlertCircle,
   Plus, Pencil, Trash2, X, Users
 } from '@lucide/vue'
-import { authFetch } from '../../api.js'
+import { authFetch, verlaufSendMail, verlaufMarkRead } from '../../api.js'
 
 const props = defineProps({ targetId: String })
+
+// Mail-Dialog
+const showMailModal = ref(false)
+const mailSending = ref(false)
+const mailForm = ref({ empfaengerEmail: '', betreff: '', body: '' })
+function openMail() {
+  mailForm.value = { empfaengerEmail: '', betreff: '', body: '' }
+  showMailModal.value = true
+}
+async function sendMail() {
+  mailSending.value = true
+  try {
+    const r = await verlaufSendMail({ targetId: props.targetId, ...mailForm.value })
+    if (r?.entry) entries.value.unshift(r.entry)
+    showMailModal.value = false
+  } catch (e) { alert('E-Mail-Versand fehlgeschlagen: ' + (e?.response?.data?.error || e.message)) }
+  finally { mailSending.value = false }
+}
 
 const entries = ref([])
 const loading = ref(true)
@@ -185,6 +239,8 @@ async function loadEntries() {
     } else {
       entries.value = []
     }
+    // Markiert als gelesen sobald Verlauf geoeffnet wird
+    try { await verlaufMarkRead(props.targetId) } catch {}
   } finally { loading.value = false }
 }
 

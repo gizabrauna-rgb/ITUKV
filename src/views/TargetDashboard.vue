@@ -10,6 +10,12 @@
         </div>
       </div>
       <div class="flex items-center gap-4">
+        <button @click="tab = 'verlauf'" class="relative flex items-center gap-1.5 text-xs text-gray-300 hover:text-white" :title="`${unreadTotal} ungelesene Nachrichten`">
+          <Bell class="w-4 h-4" />
+          <span v-if="unreadTotal > 0" class="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+            {{ unreadTotal > 99 ? '99+' : unreadTotal }}
+          </span>
+        </button>
         <span class="text-sm text-gray-300">{{ userName }}</span>
         <button @click="$emit('logout')" class="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white">
           <LogOut class="w-4 h-4" /> Abmelden
@@ -333,7 +339,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import {
   Building2, LogOut, Briefcase, Users, FolderOpen, Check, CheckCircle, Circle,
   Star, UserCheck, Ban, Folder, ChevronLeft, Upload, FileText, Download,
-  Link as LinkIcon, Plus, Trash2, X, ClipboardList, FileEdit, MessageSquare, TrendingUp, Clock
+  Link as LinkIcon, Plus, Trash2, X, ClipboardList, FileEdit, MessageSquare, TrendingUp, Clock, Bell
 } from '@lucide/vue'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
@@ -342,7 +348,7 @@ import Fragebogen from '../components/target/Fragebogen.vue'
 import Unternehmensbewertung from '../components/target/Unternehmensbewertung.vue'
 import ExposeFreigabe from '../components/target/ExposeFreigabe.vue'
 import Verlauf from '../components/admin/Verlauf.vue'
-import { authFetch, getInteressenten, updateInteressent, getDokumente } from '../api.js'
+import { authFetch, getInteressenten, updateInteressent, getDokumente, verlaufUnreadCount } from '../api.js'
 
 const props = defineProps({ userName: String, projekttyp: String, impersonating: Boolean })
 const emit = defineEmits(['logout'])
@@ -451,7 +457,18 @@ async function loadAllData() {
   } catch { links.value = [] }
 }
 
-onMounted(loadAllData)
+const unreadTotal = ref(0)
+async function pollUnread() {
+  try { const r = await verlaufUnreadCount(); unreadTotal.value = r?.total || 0 } catch {}
+}
+let unreadTimer = null
+onMounted(() => {
+  loadAllData()
+  pollUnread()
+  unreadTimer = setInterval(pollUnread, 30000)
+})
+import { onBeforeUnmount } from 'vue'
+onBeforeUnmount(() => { if (unreadTimer) clearInterval(unreadTimer) })
 watch(() => props.projekttyp, loadAllData)
 
 async function createLink() {

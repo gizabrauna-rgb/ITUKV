@@ -1375,3 +1375,328 @@ def vertrag_countersign(req: func.HttpRequest) -> func.HttpResponse:
             pass
 
     return ok_({"ok": True, "signed_at_admin": signed_at_admin, "status": "signed", "final_pdf_blob": final_blob_name})
+
+
+# =========================================================================
+# VERLAUF — Direkt-Mail-Versand, Inbound (SendGrid), Ungelesen-Zaehler
+# =========================================================================
+
+def _replytokens_table():
+    return table_("replytokens")
+
+
+def _get_user_full(user_id):
+    try:
+        return dict(table_("users").get_entity("user", user_id))
+    except Exception:
+        return None
+
+
+def _verlauf_append(target_id, entry):
+    """Haengt einen Verlauf-Eintrag an target.kommunikationJson."""
+    try:
+        targets = table_("targets")
+        t = targets.get_entity("target", target_id)
+        verlauf = []
+        try: verlauf = json.loads(t.get("kommunikationJson", "[]") or "[]")
+        except Exception: verlauf = []
+        verlauf.insert(0, entry)
+        t["kommunikationJson"] = json.dumps(verlauf, ensure_ascii=False)
+        targets.update_entity(dict(t))
+        return True
+    except Exception as ex:
+        logging.warning(f"verlauf_append fehlgeschlagen: {ex}") if 'logging' in globals() else None
+        return False
+
+
+def _notify_new_entry(target_id, entry, sender_user_id=None):
+    """Schickt Push-Mail an die andere Partei wenn ein neuer Verlauf-Eintrag kam."""
+    if not ACS_CONN:
+        return
+    try:
+        targets = table_("targets")
+        t = dict(targets.get_entity("target", target_id))
+
+        # Empfaenger ermitteln: wenn Sender = Admin -> Target-User, sonst mibeca
+        recipients = []
+        if sender_user_id:
+            sender = _get_user_full(sender_user_id)
+            if sender and sender.get("role") == "target":
+                # Target hat geschrieben -> mibeca informieren
+                recipients = [os.environ.get("MIBECA_NOTIFY_EMAIL", "jk@mike-bergmann.de")]
+            else:
+                # Admin/mibeca hat geschrieben -> Target informieren
+                tu = list(table_("users").query_entities(f"targetId eq '{target_id}'"))
+                recipients = [u.get("email", "") for u in tu if u.get("email")]
+        else:
+            tu = list(table_("users").query_entities(f"targetId eq '{target_id}'"))
+            recipients = [u.get("email", "") for u in tu if u.get("email")]
+
+        if not recipients:
+            return
+
+        from azure.communication.email import EmailClient
+        client = EmailClient.from_connection_string(ACS_CONN)
+        betreff = entry.get("betreff", "Neuer Eintrag im ITUKV Dashboard")
+        beschr = entry.get("beschreibung", "")
+        mb = t.get("mbNr", "")
+        link = f"{FRONTEND_BASE}/?targetId={target_id}#verlauf"
+        for rcpt in recipients:
+            html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
+                <h3 style="color:#097e92">Neuer Eintrag im ITUKV Dashboard</h3>
+                <p><strong>Projekt:</strong> {mb}</p>
+                <p><strong>Betreff:</strong> {betreff}</p>
+                <p style="background:#f8f9fa;border-left:3px solid #097e92;padding:12px;white-space:pre-wrap">{beschr}</p>
+                <p style="margin-top:24px"><a href="{link}" style="background:#097e92;color:white;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600">Im Dashboard oeffnen</a></p>
+                </body></html>"""
+            client.begin_send({
+                "senderAddress": ACS_SENDER,
+                "recipients": {"to": [{"address": rcpt}]},
+                "content": {"subject": f"[ITUKV] {betreff}", "plainText": f"{betreff}\n\n{beschr}\n\nDashboard: {link}", "html": html},
+            })
+    except Exception as ex:
+        logging.warning(f"notify_new_entry fehlgeschlagen: {ex}") if 'logging' in globals() else None
+
+
+@app.route(route="verlauf-send-mail", methods=["POST", "OPTIONS"])
+def verlauf_send_mail(req: func.HttpRequest) -> func.HttpResponse:
+    """Verschickt eine Mail an den Target/Kunden + erstellt Verlauf-Eintrag.
+    Body: { targetId, betreff, body, empfaengerEmail (optional, sonst aus User) }
+    """
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    target_id = body.get("targetId", "")
+    betreff = (body.get("betreff") or "").strip()
+    text_body = (body.get("body") or "").strip()
+    if not (target_id and betreff and text_body):
+        return err_("targetId, betreff, body erforderlich", 400)
+
+    # Empfaenger
+    recipient = body.get("empfaengerEmail", "")
+    if not recipient:
+        if p.get("role") == "target":
+            # Target schreibt -> an mibeca
+            recipient = os.environ.get("MIBECA_NOTIFY_EMAIL", "jk@mike-bergmann.de")
+        else:
+            tu = list(table_("users").query_entities(f"targetId eq '{target_id}'"))
+            if not tu or not tu[0].get("email"):
+                return err_("Kein Empfaenger gefunden – Target hat keinen User-Account", 400)
+            recipient = tu[0].get("email")
+
+    if not ACS_CONN:
+        return err_("E-Mail-Service nicht konfiguriert", 500)
+
+    # Reply-Token erzeugen + Index speichern
+    token = secrets.token_urlsafe(16)
+    try:
+        _replytokens_table().create_entity({
+            "PartitionKey": "token", "RowKey": token,
+            "targetId": target_id,
+            "originalSender": p.get("email", ""),
+            "createdAt": datetime.utcnow().isoformat(),
+        })
+    except Exception:
+        pass
+    reply_domain = os.environ.get("REPLY_DOMAIN", "reply.itukv.de")
+    reply_to = f"verlauf+{token}@{reply_domain}"
+
+    try:
+        from azure.communication.email import EmailClient
+        client = EmailClient.from_connection_string(ACS_CONN)
+        sender_name = p.get("name", "") or "mibeca"
+        html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
+            <p>{text_body.replace(chr(10), '<br/>')}</p>
+            <hr/>
+            <p style="font-size:11px;color:#888">Diese Nachricht wurde aus dem ITUKV Dashboard verschickt von {sender_name}.
+            Sie koennen direkt auf diese E-Mail antworten – Ihre Antwort wird automatisch im Dashboard-Verlauf gespeichert.</p>
+            </body></html>"""
+        client.begin_send({
+            "senderAddress": ACS_SENDER,
+            "replyTo": [{"address": reply_to, "displayName": sender_name}],
+            "recipients": {"to": [{"address": recipient}]},
+            "content": {"subject": betreff, "plainText": text_body, "html": html},
+        })
+    except Exception as ex:
+        return err_(f"Mailversand fehlgeschlagen: {ex}", 500)
+
+    # Verlauf-Eintrag
+    entry = {
+        "id": "k" + str(int(datetime.utcnow().timestamp() * 1000)),
+        "typ": "mail_out",
+        "datum": datetime.utcnow().isoformat(),
+        "autor": p.get("name", "") or p.get("email", ""),
+        "betreff": betreff,
+        "beschreibung": text_body,
+        "beteiligte": recipient,
+        "createdBy": p.get("id", ""),
+    }
+    _verlauf_append(target_id, entry)
+    return ok_({"ok": True, "entry": entry})
+
+
+@app.route(route="verlauf-add", methods=["POST", "OPTIONS"])
+def verlauf_add(req: func.HttpRequest) -> func.HttpResponse:
+    """Direkt-Nachricht in App (ohne Mail-Versand). Body: { targetId, betreff, body, typ? }"""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    target_id = body.get("targetId", "")
+    if not target_id:
+        return err_("targetId erforderlich", 400)
+    entry = {
+        "id": "k" + str(int(datetime.utcnow().timestamp() * 1000)),
+        "typ": body.get("typ", "notiz"),
+        "datum": datetime.utcnow().isoformat(),
+        "autor": p.get("name", "") or p.get("email", ""),
+        "betreff": body.get("betreff", ""),
+        "beschreibung": body.get("body", ""),
+        "beteiligte": body.get("beteiligte", ""),
+        "createdBy": p.get("id", ""),
+    }
+    _verlauf_append(target_id, entry)
+    _notify_new_entry(target_id, entry, sender_user_id=p.get("id"))
+    return ok_({"ok": True, "entry": entry})
+
+
+@app.route(route="verlauf-unread-count", methods=["GET", "OPTIONS"])
+def verlauf_unread_count(req: func.HttpRequest) -> func.HttpResponse:
+    """Liefert pro Target die Anzahl ungelesener Verlauf-Eintraege fuer den aktuellen User."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    user = _get_user_full(p.get("id"))
+    if not user:
+        return ok_({"perTarget": {}, "total": 0})
+    last_seen = {}
+    try:
+        last_seen = json.loads(user.get("lastSeenVerlauf", "{}") or "{}")
+    except Exception:
+        last_seen = {}
+
+    # Welche Targets sieht der User? Target sieht nur sein Target, Admin alle.
+    target_ids = []
+    if user.get("role") == "target" and user.get("targetId"):
+        target_ids = [user["targetId"]]
+    else:
+        try:
+            target_ids = [t.get("RowKey") for t in table_("targets").list_entities()]
+        except Exception:
+            target_ids = []
+
+    per_target = {}
+    total = 0
+    for tid in target_ids:
+        try:
+            t = dict(table_("targets").get_entity("target", tid))
+            verlauf = json.loads(t.get("kommunikationJson", "[]") or "[]")
+        except Exception:
+            verlauf = []
+        ls = last_seen.get(tid, "1970-01-01T00:00:00")
+        # Nicht eigene Eintraege zaehlen
+        unread = sum(1 for e in verlauf
+                     if (e.get("datum", "") or "") > ls
+                     and e.get("createdBy", "") != p.get("id", ""))
+        if unread:
+            per_target[tid] = unread
+            total += unread
+    return ok_({"perTarget": per_target, "total": total})
+
+
+@app.route(route="verlauf-mark-read", methods=["POST", "OPTIONS"])
+def verlauf_mark_read(req: func.HttpRequest) -> func.HttpResponse:
+    """Markiert alle Verlauf-Eintraege fuer den User als gelesen.
+    Body: { targetId } – wenn fehlt: alle Targets."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    target_id = body.get("targetId", "")
+    user = _get_user_full(p.get("id"))
+    if not user:
+        return err_("User nicht gefunden", 404)
+    try:
+        last_seen = json.loads(user.get("lastSeenVerlauf", "{}") or "{}")
+    except Exception:
+        last_seen = {}
+    now = datetime.utcnow().isoformat()
+    if target_id:
+        last_seen[target_id] = now
+    else:
+        try:
+            for t in table_("targets").list_entities():
+                last_seen[t.get("RowKey")] = now
+        except Exception:
+            pass
+    user["lastSeenVerlauf"] = json.dumps(last_seen, ensure_ascii=False)
+    try:
+        table_("users").update_entity(user)
+    except Exception as ex:
+        return err_(f"Update fehlgeschlagen: {ex}", 500)
+    return ok_({"ok": True})
+
+
+@app.route(route="inbound-mail", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def inbound_mail(req: func.HttpRequest) -> func.HttpResponse:
+    """SendGrid Inbound Parse Webhook.
+    Body: multipart/form-data mit Feldern wie 'to', 'from', 'subject', 'text', 'html', 'envelope'.
+    Wir extrahieren das Reply-Token aus der to-Adresse (verlauf+TOKEN@reply.itukv.de),
+    schlagen das Token im Index nach und schreiben den Eintrag in den Verlauf.
+    """
+    try:
+        # SendGrid postet multipart/form-data
+        form = req.form if hasattr(req, "form") else {}
+        # Fallback: req.params/req.get_body()
+        if not form:
+            try:
+                from urllib.parse import parse_qs
+                raw = req.get_body().decode("utf-8", "ignore")
+                form = {k: v[0] if v else "" for k, v in parse_qs(raw).items()}
+            except Exception:
+                form = {}
+
+        to_field = form.get("to", "") or form.get("envelope", "")
+        from_field = form.get("from", "")
+        subject = form.get("subject", "") or "(ohne Betreff)"
+        text_body = form.get("text", "") or form.get("html", "")
+
+        # Token aus to-Adresse rausziehen: verlauf+TOKEN@...
+        import re
+        m = re.search(r"verlauf\+([A-Za-z0-9_\-]+)@", to_field)
+        if not m:
+            return func.HttpResponse(json.dumps({"error": "Kein Reply-Token in Adresse"}),
+                                     status_code=400, headers=CORS)
+        token = m.group(1)
+        try:
+            rec = _replytokens_table().get_entity("token", token)
+            target_id = rec.get("targetId", "")
+        except Exception:
+            return func.HttpResponse(json.dumps({"error": "Token nicht gefunden"}),
+                                     status_code=404, headers=CORS)
+
+        # Eintrag anhaengen
+        entry = {
+            "id": "k" + str(int(datetime.utcnow().timestamp() * 1000)),
+            "typ": "mail_in",
+            "datum": datetime.utcnow().isoformat(),
+            "autor": from_field,
+            "betreff": subject,
+            "beschreibung": text_body[:5000],  # max 5k chars
+            "beteiligte": from_field,
+        }
+        _verlauf_append(target_id, entry)
+        _notify_new_entry(target_id, entry, sender_user_id=None)  # benachrichtigt Admins
+        return func.HttpResponse(json.dumps({"ok": True}), status_code=200, headers=CORS)
+    except Exception as ex:
+        logging.error(f"inbound-mail Fehler: {ex}") if 'logging' in globals() else None
+        return func.HttpResponse(json.dumps({"error": str(ex)}), status_code=500, headers=CORS)

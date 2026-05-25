@@ -105,3 +105,9 @@ export async function publicSubmitSignature(payload) {
   if (!res.ok) throw new Error(d.error || `HTTP ${res.status}`)
   return d
 }
+
+// === Verlauf: Mail-Versand + Inbox + Unread ===
+export const verlaufSendMail = (data) => authFetch('/verlauf-send-mail', { method: 'POST', data })
+export const verlaufAddEntry = (data) => authFetch('/verlauf-add', { method: 'POST', data })
+export const verlaufUnreadCount = () => authFetch('/verlauf-unread-count')
+export const verlaufMarkRead = (targetId) => authFetch('/verlauf-mark-read', { method: 'POST', data: { targetId } })

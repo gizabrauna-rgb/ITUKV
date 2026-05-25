@@ -37,6 +37,13 @@
           </div>
         </div>
 
+        <!-- Posteingang / Ungelesen-Badge -->
+        <button @click="tab = 'targets'" class="relative flex items-center gap-1.5 text-xs text-gray-300 hover:text-white" :title="`${unreadTotal} ungelesene Verlauf-Eintraege`">
+          <Bell class="w-4 h-4" />
+          <span v-if="unreadTotal > 0" class="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+            {{ unreadTotal > 99 ? '99+' : unreadTotal }}
+          </span>
+        </button>
         <span class="text-sm text-gray-300">{{ userName }}</span>
         <button @click="$emit('logout')" class="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors">
           <LogOut class="w-4 h-4" /> Abmelden
@@ -143,9 +150,9 @@
 import { ref, computed, onMounted } from 'vue'
 import {
   Building2, LogOut, LayoutDashboard, Briefcase, GitBranch,
-  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow
+  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow, Bell
 } from '@lucide/vue'
-import { authFetch } from '../api.js'
+import { authFetch, verlaufUnreadCount } from '../api.js'
 import TargetsTab from '../components/admin/TargetsTab.vue'
 import PipelineTab from '../components/admin/PipelineTab.vue'
 import CrmTab from '../components/admin/CrmTab.vue'
@@ -208,9 +215,23 @@ const checklistProgress = computed(() => {
 })
 const donCount = computed(() => detailCheckliste.value.filter(i => i.done).length)
 
+const unreadTotal = ref(0)
+async function pollUnread() {
+  try {
+    const r = await verlaufUnreadCount()
+    unreadTotal.value = r?.total || 0
+  } catch {}
+}
+let unreadTimer = null
+
 onMounted(async () => {
   try { statsRaw.value = await authFetch('/stats') } finally { statsLoading.value = false }
+  pollUnread()
+  unreadTimer = setInterval(pollUnread, 30000)
 })
+
+import { onBeforeUnmount } from 'vue'
+onBeforeUnmount(() => { if (unreadTimer) clearInterval(unreadTimer) })
 
 async function openTargetDetail(t) {
   detailTarget.value = t
