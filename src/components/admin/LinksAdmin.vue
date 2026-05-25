@@ -37,9 +37,12 @@
                 <div v-if="l.beschreibung" class="text-sm text-gray-600 mt-1">{{ l.beschreibung }}</div>
                 <div class="text-xs text-gray-400 mt-1 truncate">{{ l.url }}</div>
               </div>
-              <div class="flex gap-1">
-                <button @click="openEdit(l)" class="text-gray-300 hover:text-gray-600 p-1.5"><Pencil class="w-3.5 h-3.5" /></button>
-                <button @click="deleteLink(l)" class="text-gray-300 hover:text-red-500 p-1.5"><Trash2 class="w-3.5 h-3.5" /></button>
+              <div class="flex gap-1 items-center">
+                <span v-if="l.system" class="text-[10px] uppercase tracking-wide bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-semibold">System</span>
+                <template v-else>
+                  <button @click="openEdit(l)" class="text-gray-300 hover:text-gray-600 p-1.5"><Pencil class="w-3.5 h-3.5" /></button>
+                  <button @click="deleteLink(l)" class="text-gray-300 hover:text-red-500 p-1.5"><Trash2 class="w-3.5 h-3.5" /></button>
+                </template>
               </div>
             </div>
           </div>
@@ -104,15 +107,41 @@ const showModal = ref(false)
 const editing = ref(null)
 const form = ref({ kategorie: 'kajabi', titel: '', url: '', beschreibung: '' })
 
+// System-Standard-Links – fuer alle Targets automatisch sichtbar
+const SYSTEM_LINKS = [
+  {
+    id: 'sys-uve-kurs',
+    system: true,
+    kategorie: 'kajabi',
+    titel: 'UVE Videokurse',
+    url: 'https://www.mike-bergmann-akademie.de/products/mb058-uv-expressweg',
+    beschreibung: 'Unternehmensverkauf-Expressweg – die Videokurse von Mike Bergmann.',
+  },
+  {
+    id: 'sys-uve-livecall',
+    system: true,
+    kategorie: 'livecall',
+    titel: 'UVE Live Call (Zoom)',
+    url: 'https://us02web.zoom.us/j/85389200945?pwd=btDgPrB3awzuJNtxh8nrU8zX1cQSIb.1',
+    beschreibung: 'Wiederkehrender Live Call zum Unternehmensverkauf-Expressweg.',
+  },
+]
+
 function byCategory(kat) {
   return links.value.filter(l => l.kategorie === kat)
 }
 
 async function load() {
-  if (!props.targetId) return
+  if (!props.targetId) {
+    links.value = [...SYSTEM_LINKS]
+    return
+  }
   try {
     const t = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
-    links.value = t.linksJson ? JSON.parse(t.linksJson) : []
+    const custom = t.linksJson ? JSON.parse(t.linksJson) : []
+    // System-Links zuerst, dann die individuellen Links (ohne Duplikate)
+    const customFiltered = custom.filter(l => !SYSTEM_LINKS.some(s => s.id === l.id))
+    links.value = [...SYSTEM_LINKS, ...customFiltered]
   } catch (e) { console.error(e) }
 }
 
@@ -153,7 +182,9 @@ async function deleteLink(l) {
 }
 
 async function persist() {
-  await authFetch('/target-update', { method: 'POST', data: { id: props.targetId, linksJson: JSON.stringify(links.value) } })
+  // System-Links nicht in die DB schreiben – die kommen ueber SYSTEM_LINKS-Konstante
+  const persisted = links.value.filter(l => !l.system)
+  await authFetch('/target-update', { method: 'POST', data: { id: props.targetId, linksJson: JSON.stringify(persisted) } })
 }
 </script>
 
