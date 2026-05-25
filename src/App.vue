@@ -29,7 +29,11 @@ import Login from './views/Login.vue'
 import AdminDashboard from './views/AdminDashboard.vue'
 import TargetDashboard from './views/TargetDashboard.vue'
 import InvestorDashboard from './views/InvestorDashboard.vue'
+import SignPage from './SignPage.vue'
 import { msalInstance } from './authConfig.js'
+
+// Oeffentliche Signier-Seite: /sign/<token> — kein Login noetig
+const isSignRoute = /^\/sign\/[^/?#]+/.test(window.location.pathname)
 
 const role = ref(sessionStorage.getItem('userRole') || '')
 const userName = ref(sessionStorage.getItem('userName') || '')
@@ -40,6 +44,7 @@ const TARGET_TYPS = ['UVE Target', 'Projekt Target', 'MC Target']
 const INVESTOR_TYPS = ['Projekt Investoren', 'MC Investoren']
 
 const currentView = computed(() => {
+  if (isSignRoute) return SignPage
   if (!role.value) return Login
   // Admin testet eine bestimmte Projekttyp-Ansicht
   if (role.value === 'admin' && TARGET_TYPS.includes(impersonating.value)) return TargetDashboard

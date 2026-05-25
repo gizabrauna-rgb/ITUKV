@@ -81,3 +81,27 @@ export const deleteVerteiler = (id) => authFetch(`/verteiler/${id}`, { method: '
 // Dokumente
 export const getDokumente = (targetId) => authFetch(`/targets/${targetId}/dokumente`)
 export const uploadDokument = (targetId, formData) => authFetch(`/targets/${targetId}/dokumente`, { method: 'POST', data: formData, headers: { 'Content-Type': 'multipart/form-data' } })
+
+// === Oeffentliche Signier-API (kein Auth, Token in URL) ===
+export async function publicFetchSignInfo(token) {
+  const res = await fetch(`${API_BASE}/sign-info?token=${encodeURIComponent(token)}`)
+  if (!res.ok) { const d = await res.json().catch(()=>({})); const e = new Error(d.error || `HTTP ${res.status}`); e.status = res.status; throw e }
+  return res.json()
+}
+export async function publicFetchSignPdfBlob(token) {
+  const res = await fetch(`${API_BASE}/sign-pdf?token=${encodeURIComponent(token)}`)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return URL.createObjectURL(await res.blob())
+}
+export async function publicSendSignCode(token) {
+  const res = await fetch(`${API_BASE}/sign-send-code`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token }) })
+  const d = await res.json().catch(()=>({}))
+  if (!res.ok) throw new Error(d.error || `HTTP ${res.status}`)
+  return d
+}
+export async function publicSubmitSignature(payload) {
+  const res = await fetch(`${API_BASE}/sign-submit`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+  const d = await res.json().catch(()=>({}))
+  if (!res.ok) throw new Error(d.error || `HTTP ${res.status}`)
+  return d
+}
