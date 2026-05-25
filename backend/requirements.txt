@@ -1,7 +1,2 @@
 azure-functions
 azure-data-tables
-azure-storage-blob
-azure-communication-email
-reportlab
-pypdf
-pillow

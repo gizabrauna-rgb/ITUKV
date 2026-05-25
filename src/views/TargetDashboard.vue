@@ -402,16 +402,6 @@ async function loadAllData() {
     } catch {} finally { loadingCheck.value = false }
     try { interessenten.value = await getInteressenten(targetId) } catch {} finally { loadingInt.value = false }
     try { dokumente.value = await getDokumente(targetId) } catch {}
-    // Links: aus target.linksJson + System-Standards NUR bei UVE Targets
-    try {
-      const isUve = (target.value?.projekttyp || props.projekttyp || '').toLowerCase().includes('uve')
-      const systemLinks = isUve ? [
-        { id: 'sys-uve-kurs', system: true, kategorie: 'Kajabi Videokurse', titel: 'UVE Videokurse', url: 'https://www.mike-bergmann-akademie.de/products/mb058-uv-expressweg', beschreibung: 'Unternehmensverkauf-Expressweg – Videokurse von Mike Bergmann.' },
-        { id: 'sys-uve-livecall', system: true, kategorie: 'Live-Calls', titel: 'UVE Live Call (Zoom)', url: 'https://us02web.zoom.us/j/85389200945?pwd=btDgPrB3awzuJNtxh8nrU8zX1cQSIb.1', beschreibung: 'Wiederkehrender Live Call zum UVE.' },
-      ] : []
-      const custom = target.value?.linksJson ? JSON.parse(target.value.linksJson) : []
-      links.value = [...systemLinks, ...custom.filter(l => !systemLinks.some(s => s.id === l.id))]
-    } catch { links.value = [] }
   } else if (props.impersonating && props.projekttyp) {
     // Admin testet eine Ansicht – zeige Beispiel-Checkliste je Projekttyp
     try {
@@ -421,6 +411,16 @@ async function loadAllData() {
   } else {
     loadingCheck.value = false; loadingInt.value = false
   }
+  // Links IMMER neu setzen – System-Links bei UVE auch im Impersonation-Mode
+  try {
+    const isUve = (target.value?.projekttyp || props.projekttyp || '').toLowerCase().includes('uve')
+    const systemLinks = isUve ? [
+      { id: 'sys-uve-kurs', system: true, kategorie: 'Kajabi Videokurse', titel: 'UVE Videokurse', url: 'https://www.mike-bergmann-akademie.de/products/mb058-uv-expressweg', beschreibung: 'Unternehmensverkauf-Expressweg – Videokurse von Mike Bergmann.' },
+      { id: 'sys-uve-livecall', system: true, kategorie: 'Live-Calls', titel: 'UVE Live Call (Zoom)', url: 'https://us02web.zoom.us/j/85389200945?pwd=btDgPrB3awzuJNtxh8nrU8zX1cQSIb.1', beschreibung: 'Wiederkehrender Live Call zum UVE.' },
+    ] : []
+    const custom = target.value?.linksJson ? JSON.parse(target.value.linksJson) : []
+    links.value = [...systemLinks, ...custom.filter(l => !systemLinks.some(s => s.id === l.id))]
+  } catch { links.value = [] }
 }
 
 onMounted(loadAllData)
