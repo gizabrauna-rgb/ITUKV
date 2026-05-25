@@ -195,19 +195,20 @@
           Noch keine Links hinterlegt.
         </div>
         <div v-else class="space-y-3">
-          <div v-for="l in links" :key="l.RowKey" class="bg-white rounded-xl border border-gray-100 p-4 flex items-start gap-3">
+          <div v-for="l in links" :key="l.RowKey || l.id" class="bg-white rounded-xl border border-gray-100 p-4 flex items-start gap-3">
             <div class="w-10 h-10 bg-[#097e92]/10 rounded-lg flex items-center justify-center flex-shrink-0">
               <LinkIcon class="w-5 h-5 text-[#097e92]" />
             </div>
             <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 flex-wrap">
                 <a :href="l.url" target="_blank" rel="noopener" class="font-medium text-gray-900 hover:text-[#097e92] truncate">{{ l.titel }}</a>
                 <span v-if="l.kategorie" class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{{ l.kategorie }}</span>
+                <span v-if="l.system" class="text-[10px] uppercase tracking-wide bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-semibold">System</span>
               </div>
               <div class="text-xs text-gray-400 mt-0.5 truncate">{{ l.url }}</div>
               <div v-if="l.beschreibung" class="text-sm text-gray-600 mt-1">{{ l.beschreibung }}</div>
             </div>
-            <button @click="deleteLink(l)" class="text-gray-300 hover:text-red-500"><Trash2 class="w-4 h-4" /></button>
+            <button v-if="!l.system" @click="deleteLink(l)" class="text-gray-300 hover:text-red-500"><Trash2 class="w-4 h-4" /></button>
           </div>
         </div>
       </div>
@@ -401,12 +402,13 @@ async function loadAllData() {
     } catch {} finally { loadingCheck.value = false }
     try { interessenten.value = await getInteressenten(targetId) } catch {} finally { loadingInt.value = false }
     try { dokumente.value = await getDokumente(targetId) } catch {}
-    // Links: aus target.linksJson + System-Standards (UVE Kurs/LiveCall)
+    // Links: aus target.linksJson + System-Standards NUR bei UVE Targets
     try {
-      const systemLinks = [
+      const isUve = (target.value?.projekttyp || props.projekttyp || '').toLowerCase().includes('uve')
+      const systemLinks = isUve ? [
         { id: 'sys-uve-kurs', system: true, kategorie: 'Kajabi Videokurse', titel: 'UVE Videokurse', url: 'https://www.mike-bergmann-akademie.de/products/mb058-uv-expressweg', beschreibung: 'Unternehmensverkauf-Expressweg – Videokurse von Mike Bergmann.' },
         { id: 'sys-uve-livecall', system: true, kategorie: 'Live-Calls', titel: 'UVE Live Call (Zoom)', url: 'https://us02web.zoom.us/j/85389200945?pwd=btDgPrB3awzuJNtxh8nrU8zX1cQSIb.1', beschreibung: 'Wiederkehrender Live Call zum UVE.' },
-      ]
+      ] : []
       const custom = target.value?.linksJson ? JSON.parse(target.value.linksJson) : []
       links.value = [...systemLinks, ...custom.filter(l => !systemLinks.some(s => s.id === l.id))]
     } catch { links.value = [] }

@@ -132,16 +132,15 @@ function byCategory(kat) {
 }
 
 async function load() {
-  if (!props.targetId) {
-    links.value = [...SYSTEM_LINKS]
-    return
-  }
+  if (!props.targetId) return
   try {
     const t = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
     const custom = t.linksJson ? JSON.parse(t.linksJson) : []
-    // System-Links zuerst, dann die individuellen Links (ohne Duplikate)
-    const customFiltered = custom.filter(l => !SYSTEM_LINKS.some(s => s.id === l.id))
-    links.value = [...SYSTEM_LINKS, ...customFiltered]
+    // System-Links nur bei UVE-Targets
+    const isUve = (t.projekttyp || '').toLowerCase().includes('uve')
+    const sys = isUve ? SYSTEM_LINKS : []
+    const customFiltered = custom.filter(l => !sys.some(s => s.id === l.id))
+    links.value = [...sys, ...customFiltered]
   } catch (e) { console.error(e) }
 }
 
