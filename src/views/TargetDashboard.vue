@@ -19,7 +19,7 @@
       </div>
     </header>
 
-    <div class="max-w-4xl mx-auto px-6 py-8">
+    <div class="max-w-7xl mx-auto px-6 py-8">
       <!-- Projekttyp-Label -->
       <div v-if="projekttyp" class="mb-3">
         <span class="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#097e92]/10 text-[#097e92] px-2.5 py-1 rounded-full">
@@ -347,17 +347,17 @@ const TYPES_WITH_LINKS = ['UVE Target', 'MC Target', 'MC Investoren']
 const navItems = computed(() => {
   const base = [
     { tab: 'projekt', label: 'Mein Projekt', icon: Briefcase },
+    { tab: 'mandat', label: 'Meine Daten', icon: ClipboardList },
     { tab: 'fragebogen', label: 'Fragebogen', icon: FileEdit },
     { tab: 'bewertung', label: 'Bewertung', icon: TrendingUp },
-    { tab: 'mandat', label: 'Meine Daten', icon: ClipboardList },
     { tab: 'expose', label: 'Mein Exposé', icon: FileText },
     { tab: 'interessenten', label: 'Interessenten', icon: Users },
     { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
-    { tab: 'verlauf', label: 'Verlauf', icon: MessageSquare },
   ]
   if (TYPES_WITH_LINKS.includes(props.projekttyp)) {
     base.push({ tab: 'links', label: 'Links', icon: LinkIcon })
   }
+  base.push({ tab: 'verlauf', label: 'Verlauf', icon: MessageSquare })
   return base
 })
 const visibleNavItems = computed(() => navItems.value)
