@@ -101,8 +101,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { Plus, Users, X } from '@lucide/vue'
-import { getAusschreibungen, getTargets, updateTarget, getInteressenten } from '../../api.js'
-import { authFetch } from '../../api.js'
+import { getAusschreibungen, createAusschreibung, updateAusschreibung, getTargets, getInteressenten } from '../../api.js'
 
 const items = ref([])
 const targets = ref([])
@@ -127,15 +126,16 @@ function prefillFromTarget() {
 async function create() {
   saving.value = true
   try {
-    const a = await authFetch('/ausschreibungen', { method: 'POST', data: form.value })
+    const a = await createAusschreibung(form.value)
     items.value.push(a)
     showModal.value = false
     form.value = { targetId: '', mbNr: '', titel: '', region: '', branche: '', mitarbeiter: '', umsatz: '', kurzprofil: '' }
-  } finally { saving.value = false }
+  } catch (e) { alert('Anlegen fehlgeschlagen') }
+  finally { saving.value = false }
 }
 
 async function updateStatus(a) {
-  await authFetch(`/ausschreibungen/${a.RowKey}`, { method: 'PATCH', data: { status: a.status } })
+  try { await updateAusschreibung(a.RowKey, { status: a.status }) } catch (e) { console.error(e) }
 }
 
 async function openDetail(a) {

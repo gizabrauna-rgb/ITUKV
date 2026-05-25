@@ -438,24 +438,24 @@ async function toggleItem(item) {
 
 async function setRating(i, n) {
   i.rating = n
-  await updateInteressent(targetId, i.RowKey, { rating: n })
+  try { await updateInteressent(i.RowKey, { rating: n }) } catch (e) { console.error(e) }
 }
 
 async function toggleFreigabe(i) {
   i.freigegebenFuerKontakt = !i.freigegebenFuerKontakt
-  await updateInteressent(targetId, i.RowKey, { freigegebenFuerKontakt: i.freigegebenFuerKontakt })
+  try { await updateInteressent(i.RowKey, { freigegebenFuerKontakt: i.freigegebenFuerKontakt }) } catch (e) { console.error(e) }
 }
 
 function openVeto(i) { vetoTarget.value = i }
 async function confirmVeto() {
   vetoTarget.value.veto = true
   vetoTarget.value.vetoBegruendung = vetoText.value
-  await updateInteressent(targetId, vetoTarget.value.RowKey, { veto: true, vetoBegruendung: vetoText.value })
+  try { await updateInteressent(vetoTarget.value.RowKey, { veto: true, vetoBegruendung: vetoText.value }) } catch (e) { console.error(e) }
   vetoTarget.value = null; vetoText.value = ''
 }
 async function removeVeto(i) {
   i.veto = false; i.vetoBegruendung = ''
-  await updateInteressent(targetId, i.RowKey, { veto: false, vetoBegruendung: '' })
+  try { await updateInteressent(i.RowKey, { veto: false, vetoBegruendung: '' }) } catch (e) { console.error(e) }
 }
 
 function ndaClass(s) {

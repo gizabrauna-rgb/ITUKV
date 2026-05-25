@@ -56,7 +56,7 @@ export const exportKontakte = (params) => authFetch('/kontakte/export', { params
 // Ausschreibungen
 export const getAusschreibungen = () => authFetch('/ausschreibungen')
 export const createAusschreibung = (data) => authFetch('/ausschreibungen', { method: 'POST', data })
-export const updateAusschreibung = (id, data) => authFetch('/ausschreibungen-update'.replace('en-','-'), { method: 'POST', data: { id, ...data } })
+export const updateAusschreibung = (id, data) => authFetch('/ausschreibung-update', { method: 'POST', data: { id, ...data } })
 export const deleteAusschreibung = (id) => authFetch('/ausschreibung-delete', { method: 'POST', data: { id } })
 export const requestExpose = (id, data) => authFetch(`/ausschreibungen/${id}/expose`, { method: 'POST', data })
 
