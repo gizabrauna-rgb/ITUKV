@@ -41,6 +41,34 @@
       <div v-if="tab === 'projekt'">
         <h2 class="text-xl font-bold text-gray-900 mb-5">Mein Verkaufsprojekt</h2>
 
+        <!-- Master-Prozess: Aktuelle Phase -->
+        <div v-if="phasen.length" class="bg-gradient-to-br from-[#097e92] to-[#0a9aaf] rounded-xl p-5 mb-4 text-white">
+          <div class="text-xs uppercase tracking-wide opacity-80 mb-1">Aktuelle Phase</div>
+          <div class="text-xl font-bold mb-3">Phase {{ currentPhase }} von {{ phasen.length }}: {{ currentPhaseTitle }}</div>
+          <div class="w-full bg-white/20 rounded-full h-2 mb-1">
+            <div class="bg-white h-2 rounded-full transition-all" :style="`width: ${phasenProgress}%`"></div>
+          </div>
+          <div class="text-xs opacity-90">{{ donePhasen }} von {{ phasen.length }} Phasen abgeschlossen</div>
+          <button @click="showAllPhasen = !showAllPhasen" class="text-xs underline opacity-90 hover:opacity-100 mt-3">
+            {{ showAllPhasen ? 'Phasen-Übersicht ausblenden' : 'Alle Phasen anzeigen →' }}
+          </button>
+        </div>
+
+        <!-- Phasen-Liste (passive Sicht) -->
+        <div v-if="phasen.length && showAllPhasen" class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
+          <h3 class="text-sm font-semibold text-gray-700 mb-3">Alle Phasen</h3>
+          <ul class="space-y-2">
+            <li v-for="(p, idx) in phasen" :key="p.id" class="flex items-center gap-3 text-sm">
+              <div :class="['w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0', phasenStatus(p) === 'done' ? 'bg-green-100 text-green-700' : phasenStatus(p) === 'current' ? 'bg-[#097e92] text-white' : 'bg-gray-100 text-gray-400']">
+                <Check v-if="phasenStatus(p) === 'done'" class="w-3.5 h-3.5" />
+                <span v-else>{{ idx + 1 }}</span>
+              </div>
+              <span :class="phasenStatus(p) === 'done' ? 'text-gray-400 line-through' : phasenStatus(p) === 'current' ? 'font-semibold text-gray-900' : 'text-gray-500'">{{ p.titel.replace(/^\d+\.\s*/, '') }}</span>
+            </li>
+          </ul>
+          <p class="text-xs text-gray-400 mt-4">Die Phasen werden von deinem M&A-Berater bei mibeca aktualisiert.</p>
+        </div>
+
         <!-- Fortschritt -->
         <div class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
           <div class="flex items-center justify-between mb-2">
@@ -297,6 +325,8 @@ const checkliste = ref([])
 const interessenten = ref([])
 const dokumente = ref([])
 const links = ref([])
+const target = ref(null)
+const showAllPhasen = ref(false)
 const loadingCheck = ref(true)
 const loadingInt = ref(true)
 const selectedOrdner = ref(null)
@@ -329,6 +359,29 @@ const ordnerListe = ['Unterlagen Ausschreibung', 'Exposé', 'Protokoll', 'NDA', 
 
 const doneCount = computed(() => checkliste.value.filter(i => i.done).length)
 const progress = computed(() => !checkliste.value.length ? 0 : Math.round(doneCount.value / checkliste.value.length * 100))
+
+// --- Master-Prozess (Phasen-Sicht für Kunden) ---
+const phasen = computed(() => {
+  try { return JSON.parse(target.value?.phasenJson || '[]') } catch { return [] }
+})
+function isPhaseDone(p) { return p.aufgaben && p.aufgaben.length && p.aufgaben.every(t => t.done) }
+const currentPhase = computed(() => {
+  for (let i = 0; i < phasen.value.length; i++) {
+    if (!isPhaseDone(phasen.value[i])) return i + 1
+  }
+  return phasen.value.length || 1
+})
+const currentPhaseTitle = computed(() => {
+  const p = phasen.value[currentPhase.value - 1]
+  return p ? p.titel.replace(/^\d+\.\s*/, '') : '—'
+})
+const donePhasen = computed(() => phasen.value.filter(isPhaseDone).length)
+const phasenProgress = computed(() => !phasen.value.length ? 0 : Math.round(donePhasen.value / phasen.value.length * 100))
+function phasenStatus(p) {
+  if (isPhaseDone(p)) return 'done'
+  if (phasen.value[currentPhase.value - 1]?.id === p.id) return 'current'
+  return 'pending'
+}
 const filteredDok = computed(() => dokumente.value.filter(d => d.ordner === selectedOrdner.value))
 
 function countInOrdner(o) { return dokumente.value.filter(d => d.ordner === o).length }
@@ -336,8 +389,8 @@ function countInOrdner(o) { return dokumente.value.filter(d => d.ordner === o).l
 async function loadAllData() {
   if (targetId) {
     try {
-      const full = await authFetch(`/targets/${targetId}`)
-      checkliste.value = JSON.parse(full.checklisteJson || '[]')
+      target.value = await authFetch('/target-get', { method: 'POST', data: { id: targetId } })
+      checkliste.value = JSON.parse(target.value.checklisteJson || '[]')
     } catch {} finally { loadingCheck.value = false }
     try { interessenten.value = await getInteressenten(targetId) } catch {} finally { loadingInt.value = false }
     try { dokumente.value = await getDokumente(targetId) } catch {}
