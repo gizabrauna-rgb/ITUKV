@@ -135,10 +135,12 @@
                   <span class="text-gray-500">Vertrag gegenzeichnen</span>
                 </button>
                 <button v-for="v in ueberblick.wartet.ndaReview || []" :key="'nda'+v.interessentId"
+                  @click="openNdaInAkte(v)"
                   class="w-full text-left flex items-center gap-2 p-2 hover:bg-amber-50 rounded-lg text-xs">
-                  <span class="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>
+                  <span class="w-1.5 h-1.5 rounded-full bg-[#FF6F00] flex-shrink-0"></span>
+                  <span v-if="v.mbNr" class="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ v.mbNr }}</span>
                   <span class="font-medium truncate flex-1">NDA von {{ v.firma }}</span>
-                  <span class="text-gray-500">prüfen</span>
+                  <span class="text-[#FF6F00]">prüfen</span>
                 </button>
                 <button v-for="v in ueberblick.wartet.wiedervorlage || []" :key="'wv'+v.targetId" @click="openAkte({ RowKey: v.targetId })"
                   class="w-full text-left flex items-center gap-2 p-2 hover:bg-amber-50 rounded-lg text-xs">
@@ -221,7 +223,7 @@
 
         <!-- Targets -->
         <div v-else-if="tab === 'targets'">
-          <TargetAkte v-if="akteTargetId" :target-id="akteTargetId" @close="akteTargetId = null" />
+          <TargetAkte v-if="akteTargetId" :target-id="akteTargetId" :initial-tab="akteInitialTab" :initial-doc="akteInitialDoc" @close="akteTargetId = null" />
           <TargetsTab v-else @open-detail="openAkte" />
         </div>
 
@@ -306,9 +308,20 @@ const statsRaw = ref({ aktiveTargets: 0, offeneNdas: 0, investorenGesamt: 0, dea
 const detailTarget = ref(null)
 const detailCheckliste = ref([])
 const akteTargetId = ref(null)
+const akteInitialTab = ref('')
+const akteInitialDoc = ref(null)
 
 function openAkte(target) {
   akteTargetId.value = target.RowKey
+  akteInitialTab.value = ''
+  akteInitialDoc.value = null
+  tab.value = 'targets'
+}
+
+function openNdaInAkte(v) {
+  akteTargetId.value = v.targetId
+  akteInitialTab.value = 'dokumente'
+  akteInitialDoc.value = { ordner: 'NDA', docId: v.ndaDocId }
   tab.value = 'targets'
 }
 

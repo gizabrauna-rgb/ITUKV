@@ -146,7 +146,7 @@
 
       <!-- Dokumente -->
       <div v-else-if="tab === 'dokumente'">
-        <DokumenteAkte :target-id="targetId" />
+        <DokumenteAkte :target-id="targetId" :initial-doc="initialDoc" />
       </div>
 
       <!-- Exposé -->
@@ -220,11 +220,15 @@ import ExposeGenerator from './ExposeGenerator.vue'
 import NdaGenerator from './NdaGenerator.vue'
 import Zeiterfassung from './Zeiterfassung.vue'
 
-const props = defineProps({ targetId: String })
+const props = defineProps({
+  targetId: String,
+  initialTab: { type: String, default: '' },
+  initialDoc: { type: Object, default: null },
+})
 defineEmits(['close'])
 
 const target = ref(null)
-const tab = ref('uebersicht')
+const tab = ref(props.initialTab || 'uebersicht')
 const vertragSubTab = ref('mandat')
 
 const isKaufMandat = computed(() => /kauf|investor/i.test(target.value?.projekttyp || ''))

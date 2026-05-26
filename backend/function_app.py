@@ -4039,13 +4039,18 @@ def dashboard_uebersicht(req: func.HttpRequest) -> func.HttpResponse:
 
     # Interessenten mit unterschriebenem NDA (zur Review)
     try:
+        # Build target-id → mb-Nr Lookup
+        target_mb = {t.get("RowKey", ""): t.get("mbNr", "") for t in targets}
         for i in table_("interessenten").list_entities():
             if i.get("ndaStatus") == "unterzeichnet" and not i.get("ndaReviewed"):
+                tid = i.get("targetId", "")
                 wartet["ndaReview"].append({
-                    "targetId": i.get("targetId", ""),
+                    "targetId": tid,
+                    "mbNr": target_mb.get(tid, ""),
                     "interessentId": i.get("RowKey", ""),
                     "firma": i.get("firma", "") or i.get("name", ""),
                     "uploadedAt": i.get("ndaUploadedAt", ""),
+                    "ndaDocId": "nda-" + i.get("RowKey", ""),  # Verweis auf dokumente-Tabelle
                 })
     except Exception: pass
 

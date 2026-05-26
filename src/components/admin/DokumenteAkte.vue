@@ -113,7 +113,11 @@ import { Folder, Upload, FileText, Download, Trash2, Eye, X, Image as ImageIcon,
 import { authFetch } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 
-const props = defineProps({ targetId: String, readOnly: { type: Boolean, default: false } })
+const props = defineProps({
+  targetId: String,
+  readOnly: { type: Boolean, default: false },
+  initialDoc: { type: Object, default: null },  // { ordner, docId } — direkt öffnen
+})
 const ordnerListe = ['Verträge', 'NDA', 'Exposé', 'Bilanzen & Finanzen', 'Vertragsverhandlungen', 'Videoprotokolle', 'Sonstiges']
 const dokumente = ref([])
 const selectedFolder = ref('Verträge')
@@ -270,5 +274,20 @@ async function moveFile(f, neuerOrdner) {
 function formatSize(b) { if (!b) return '0 B'; if (b < 1024) return b + ' B'; if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB'; return (b/1024/1024).toFixed(1) + ' MB' }
 function formatDate(iso) { return iso ? new Date(iso).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '' }
 
-onMounted(load)
+onMounted(async () => {
+  await load()
+  // Falls per Deep-Link ein Dokument gezielt geöffnet werden soll
+  if (props.initialDoc?.ordner) {
+    selectedFolder.value = props.initialDoc.ordner
+    if (props.initialDoc.docId) {
+      const f = dokumente.value.find(d => d.RowKey === props.initialDoc.docId)
+      if (f) await previewFile(f)
+      else {
+        // Fallback: erstes Dokument im NDA-Ordner zeigen (falls Auto-ID nicht greift)
+        const first = dokumente.value.find(d => d.ordner === props.initialDoc.ordner)
+        if (first) await previewFile(first)
+      }
+    }
+  }
+})
 </script>
