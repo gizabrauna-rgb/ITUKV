@@ -39,8 +39,8 @@
 
       <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
         <div v-if="!filesInFolder.length" class="p-6 text-center text-sm text-gray-400">Noch keine Dateien in „{{ selectedFolder }}".</div>
-        <div v-for="f in filesInFolder" :key="f.RowKey" class="flex items-center gap-3 px-4 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50">
-          <FileText class="w-5 h-5 text-[#097e92] flex-shrink-0" />
+        <div v-for="f in filesInFolder" :key="f.RowKey" class="flex items-center gap-3 px-4 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 cursor-pointer" @click="previewFile(f)">
+          <component :is="fileIcon(f)" class="w-5 h-5 text-[#097e92] flex-shrink-0" />
           <div class="flex-1 min-w-0">
             <div class="text-sm font-medium text-gray-800 truncate">{{ f.fileName }}</div>
             <div class="text-xs text-gray-400">
@@ -50,11 +50,12 @@
             </div>
           </div>
           <!-- Ordner ändern -->
-          <select :value="f.ordner" @change="moveFile(f, $event.target.value)" class="text-xs border border-gray-200 rounded-lg px-2 py-1">
+          <select :value="f.ordner" @change.stop="moveFile(f, $event.target.value)" @click.stop class="text-xs border border-gray-200 rounded-lg px-2 py-1">
             <option v-for="o in ordnerListe" :key="o" :value="o">{{ o }}</option>
           </select>
-          <button @click="downloadFile(f)" class="text-gray-500 hover:text-[#097e92] p-1.5"><Download class="w-4 h-4" /></button>
-          <button @click="deleteFile(f)" class="text-gray-400 hover:text-red-500 p-1.5"><Trash2 class="w-4 h-4" /></button>
+          <button @click.stop="previewFile(f)" class="text-gray-500 hover:text-[#097e92] p-1.5" title="Anzeigen"><Eye class="w-4 h-4" /></button>
+          <button @click.stop="downloadFile(f)" class="text-gray-500 hover:text-[#097e92] p-1.5" title="Download"><Download class="w-4 h-4" /></button>
+          <button v-if="!readOnly" @click.stop="deleteFile(f)" class="text-gray-400 hover:text-red-500 p-1.5" title="Löschen"><Trash2 class="w-4 h-4" /></button>
         </div>
       </div>
     </div>
@@ -62,12 +63,53 @@
       <Folder class="w-10 h-10 mx-auto mb-2 text-gray-300" />
       Bitte oben einen Ordner auswählen.
     </div>
+
+    <!-- Preview Modal -->
+    <div v-if="previewFile_" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" @click.self="closePreview">
+      <div class="bg-white rounded-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+        <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+          <div class="min-w-0 flex-1">
+            <h3 class="font-bold text-gray-900 truncate">{{ previewFile_.fileName }}</h3>
+            <p class="text-xs text-gray-500">{{ formatSize(previewFile_.size) }} · {{ formatDate(previewFile_.uploadedAt) }}</p>
+          </div>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <button @click="downloadFile(previewFile_)" class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center gap-1.5">
+              <Download class="w-3.5 h-3.5" /> Download
+            </button>
+            <button @click="closePreview" class="p-1.5 hover:bg-gray-100 rounded-lg"><X class="w-5 h-5 text-gray-500" /></button>
+          </div>
+        </div>
+        <div class="flex-1 bg-gray-100 overflow-hidden">
+          <div v-if="previewLoading" class="h-full flex items-center justify-center text-sm text-gray-500">Lade Vorschau…</div>
+          <iframe v-else-if="previewType === 'pdf'" :src="previewUrl" class="w-full h-full" frameborder="0"></iframe>
+          <div v-else-if="previewType === 'image'" class="h-full flex items-center justify-center p-4">
+            <img :src="previewUrl" :alt="previewFile_.fileName" class="max-h-full max-w-full object-contain" />
+          </div>
+          <div v-else-if="previewType === 'video'" class="h-full flex items-center justify-center p-4">
+            <video :src="previewUrl" controls autoplay class="max-h-full max-w-full"></video>
+          </div>
+          <div v-else-if="previewType === 'audio'" class="h-full flex items-center justify-center p-4">
+            <audio :src="previewUrl" controls autoplay class="w-full max-w-md"></audio>
+          </div>
+          <div v-else-if="previewType === 'text'" class="h-full overflow-auto p-6 bg-white">
+            <pre class="text-sm whitespace-pre-wrap">{{ previewText }}</pre>
+          </div>
+          <div v-else class="h-full flex flex-col items-center justify-center text-gray-500 p-8">
+            <FileText class="w-16 h-16 text-gray-300 mb-3" />
+            <p class="text-sm mb-4">Keine Inline-Vorschau für diesen Dateityp möglich.</p>
+            <button @click="downloadFile(previewFile_)" class="px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium flex items-center gap-2">
+              <Download class="w-4 h-4" /> Datei herunterladen
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Folder, Upload, FileText, Download, Trash2 } from '@lucide/vue'
+import { Folder, Upload, FileText, Download, Trash2, Eye, X, Image as ImageIcon, Video, Music, FileType2 } from '@lucide/vue'
 import { authFetch } from '../../api.js'
 
 const props = defineProps({ targetId: String, readOnly: { type: Boolean, default: false } })
@@ -130,6 +172,65 @@ async function handleFiles(fileList) {
   uploading.value = false
   uploadedCount.value = 0
   totalCount.value = 0
+}
+
+// Preview-Logik
+const previewFile_ = ref(null)
+const previewUrl = ref('')
+const previewType = ref('')
+const previewText = ref('')
+const previewLoading = ref(false)
+
+function detectType(f) {
+  const name = (f.fileName || '').toLowerCase()
+  const ct = (f.contentType || '').toLowerCase()
+  if (ct.startsWith('image/') || /\.(jpe?g|png|gif|webp|svg|bmp)$/.test(name)) return 'image'
+  if (ct === 'application/pdf' || name.endsWith('.pdf')) return 'pdf'
+  if (ct.startsWith('video/') || /\.(mp4|mov|webm|avi|mkv|m4v)$/.test(name)) return 'video'
+  if (ct.startsWith('audio/') || /\.(mp3|wav|ogg|m4a)$/.test(name)) return 'audio'
+  if (ct.startsWith('text/') || /\.(txt|md|csv|json|xml|log)$/.test(name)) return 'text'
+  return 'other'
+}
+
+function fileIcon(f) {
+  const t = detectType(f)
+  if (t === 'image') return ImageIcon
+  if (t === 'video') return Video
+  if (t === 'audio') return Music
+  if (t === 'pdf') return FileType2
+  return FileText
+}
+
+async function previewFile(f) {
+  previewFile_.value = f
+  previewType.value = detectType(f)
+  previewText.value = ''
+  previewUrl.value = ''
+  if (previewType.value === 'other') return
+  previewLoading.value = true
+  try {
+    const base = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
+    const token = sessionStorage.getItem('customerJwt') || sessionStorage.getItem('msalToken') || ''
+    const r = await fetch(`${base}/dokument-download?targetId=${props.targetId}&id=${f.RowKey}`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    if (previewType.value === 'text') {
+      previewText.value = await r.text()
+    } else {
+      const blob = await r.blob()
+      previewUrl.value = URL.createObjectURL(blob)
+    }
+  } catch (e) { alert('Vorschau fehlgeschlagen: ' + e.message) }
+  finally { previewLoading.value = false }
+}
+
+function closePreview() {
+  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
+  previewUrl.value = ''
+  previewType.value = ''
+  previewText.value = ''
+  previewFile_.value = null
 }
 
 async function downloadFile(f) {
