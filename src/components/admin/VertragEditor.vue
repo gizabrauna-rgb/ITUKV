@@ -38,9 +38,12 @@
     <div v-if="mandatAngenommen === true">
       <!-- Variante Auswahl -->
       <div class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
-        <h3 class="font-semibold text-gray-800 text-sm mb-3">Vertrags-Variante wählen</h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <button v-for="v in varianten" :key="v.key" @click="selectVariante(v.key)"
+        <h3 class="font-semibold text-gray-800 text-sm mb-3">
+          {{ isKaufMandat ? 'Kauf-Mandatsvertrag' : 'Vertrags-Variante wählen' }}
+        </h3>
+        <p v-if="isKaufMandat" class="text-xs text-gray-500 mb-3">Bei Kauf-Mandaten wird automatisch die Kauf-Variante genutzt (Käufer beauftragt mibeca zum Target-Scouting).</p>
+        <div :class="['grid gap-3', sichtbareVarianten.length === 1 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3']">
+          <button v-for="v in sichtbareVarianten" :key="v.key" @click="selectVariante(v.key)"
             :class="['p-4 rounded-xl border-2 text-left transition-all',
               variante === v.key ? 'border-[#097e92] bg-[#097e92]/5' : 'border-gray-200 hover:border-gray-300']">
             <div class="font-semibold text-sm text-gray-800 mb-1">{{ v.titel }}</div>
@@ -259,11 +262,17 @@ const saving = ref(false)
 const sending = ref(false)
 
 const varianten = [
-  { key: 'standard', titel: 'Verkauf · Standard', beschreibung: 'Kunde ohne UVE, kommt frisch zu mibeca', preis: 'Eröffnung: 4.950 €', richtung: 'verkauf' },
-  { key: 'mit_uve', titel: 'Verkauf · Mit UVE', beschreibung: 'UVE-Coaching wird im Rahmen des Mandats erstellt', preis: 'Eröffnung: 10.000 € oder 6× 1.800 €', richtung: 'verkauf' },
-  { key: 'vorhandenes_uve', titel: 'Verkauf · Vorhandenes UVE', beschreibung: 'Kunde hat UVE bereits abgeschlossen und bezahlt', preis: 'Eröffnung: 0 € (statt 3.490 €)', richtung: 'verkauf' },
-  { key: 'kauf_mandat', titel: 'Kauf-Mandat', beschreibung: 'Käufer beauftragt mibeca, ein passendes Zielunternehmen zu finden', preis: 'Eröffnung: 4.950 € + Erfolgsprov.', richtung: 'kauf' },
+  { key: 'standard', titel: 'Verkauf · Standard', beschreibung: 'Kunde ohne UVE, kommt frisch zu mibeca', preis: 'Eröffnung: 4.950 € · Erfolg 5%', richtung: 'verkauf' },
+  { key: 'mit_uve', titel: 'Verkauf · Mit UVE', beschreibung: 'UVE-Coaching wird im Rahmen des Mandats erstellt', preis: 'Eröffnung: 10.000 € oder 6× 1.800 € · Erfolg 5%', richtung: 'verkauf' },
+  { key: 'vorhandenes_uve', titel: 'Verkauf · Vorhandenes UVE', beschreibung: 'Kunde hat UVE bereits abgeschlossen und bezahlt', preis: 'Eröffnung: 0 € (statt 3.490 €) · Erfolg 5%', richtung: 'verkauf' },
+  { key: 'kauf_mandat', titel: 'Kauf-Mandat', beschreibung: 'Käufer beauftragt mibeca, ein passendes Zielunternehmen zu finden', preis: 'Eröffnung: 4.950 € · Erfolg 2% vom Kaufpreis', richtung: 'kauf' },
 ]
+
+const isKaufMandat = computed(() => /kauf|investor/i.test(target.value?.projekttyp || ''))
+const sichtbareVarianten = computed(() => {
+  if (isKaufMandat.value) return varianten.filter(v => v.richtung === 'kauf')
+  return varianten.filter(v => v.richtung === 'verkauf')
+})
 
 const form = ref({
   auftraggeberFirma: '', auftraggeberStrasse: '', auftraggeberPlzOrt: '', auftraggeberGf: '',
@@ -351,9 +360,10 @@ function setMandat(val) {
 function selectVariante(key) {
   variante.value = key
   // Defaults je Variante setzen
-  if (key === 'standard') { form.value.eroeffnungsBetrag = 4950; form.value.eroeffnungsModus = 'einmalig' }
-  if (key === 'mit_uve') { form.value.eroeffnungsBetrag = 10000; form.value.eroeffnungsModus = 'einmalig'; form.value.honorarMikeStunde = 350; form.value.honorarMikeTag = 3990 }
-  if (key === 'vorhandenes_uve') { form.value.eroeffnungsBetrag = 0; form.value.eroeffnungsModus = 'einmalig' }
+  if (key === 'standard') { form.value.eroeffnungsBetrag = 4950; form.value.eroeffnungsModus = 'einmalig'; form.value.erfolgsProzent = 5 }
+  if (key === 'mit_uve') { form.value.eroeffnungsBetrag = 10000; form.value.eroeffnungsModus = 'einmalig'; form.value.honorarMikeStunde = 350; form.value.honorarMikeTag = 3990; form.value.erfolgsProzent = 5 }
+  if (key === 'vorhandenes_uve') { form.value.eroeffnungsBetrag = 0; form.value.eroeffnungsModus = 'einmalig'; form.value.erfolgsProzent = 5 }
+  if (key === 'kauf_mandat') { form.value.eroeffnungsBetrag = 4950; form.value.eroeffnungsModus = 'einmalig'; form.value.erfolgsProzent = 2 }
 }
 
 async function load() {
@@ -371,6 +381,15 @@ async function load() {
       if (v.form) Object.assign(form.value, v.form)
       mandatAngenommen.value = v.mandatAngenommen ?? null
       variante.value = v.variante ?? null
+    }
+    // Bei Kauf-Mandat automatisch die kauf_mandat-Variante vorauswaehlen,
+    // wenn noch keine gewaehlt oder eine falsche (Verkauf-Variante) drin steht
+    const istKauf = /kauf|investor/i.test(target.value?.projekttyp || '')
+    if (istKauf && variante.value !== 'kauf_mandat') {
+      selectVariante('kauf_mandat')
+    } else if (!istKauf && variante.value === 'kauf_mandat') {
+      // Verkauf-Akte hatte versehentlich Kauf-Variante -> auf Standard zuruecksetzen
+      selectVariante('standard')
     }
   } catch (e) { console.error(e) }
 }
