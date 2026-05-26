@@ -288,6 +288,7 @@ const akteTargetId = ref(null)
 
 function openAkte(target) {
   akteTargetId.value = target.RowKey
+  tab.value = 'targets'
 }
 
 const navItems = [

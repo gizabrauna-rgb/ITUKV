@@ -71,6 +71,25 @@
           <div v-else class="text-sm opacity-90 mt-2">Phase abgeschlossen — gehe zur nächsten</div>
         </div>
 
+        <!-- Wiedervorlage -->
+        <div class="bg-white rounded-xl border border-gray-100 p-5 mb-6">
+          <h3 class="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
+            <CalendarClock class="w-4 h-4 text-[#097e92]" /> Wiedervorlage
+          </h3>
+          <div class="flex items-center gap-3">
+            <input
+              type="date"
+              :value="target?.wiedervorlage || ''"
+              @change="saveWiedervorlage($event.target.value)"
+              :class="['px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30', wvInputClass]" />
+            <button v-if="target?.wiedervorlage" @click="saveWiedervorlage('')" class="text-xs text-gray-400 hover:text-red-500 flex items-center gap-1">
+              <X class="w-3.5 h-3.5" /> Entfernen
+            </button>
+            <span v-if="wvHint" :class="['text-xs', wvHintClass]">{{ wvHint }}</span>
+            <span v-if="wvSaving" class="text-xs text-gray-400">Speichern…</span>
+          </div>
+        </div>
+
         <div class="bg-white rounded-xl border border-gray-100 p-5">
           <h3 class="font-semibold text-gray-800 text-sm mb-3">Beschreibung</h3>
           <p class="text-sm text-gray-600 leading-relaxed">{{ target?.beschreibung || 'Noch keine Beschreibung hinterlegt.' }}</p>
@@ -173,9 +192,11 @@ import { ref, computed, onMounted, defineComponent, h } from 'vue'
 import {
   ArrowLeft, MapPin, Tag, Users, Euro, Hash, Mail,
   Sparkles, Circle, Folder, FileText, MessageSquare,
-  LayoutDashboard, Workflow, ClipboardList, FileEdit, ShieldCheck, Clock, TrendingUp, Trophy, BookOpen
+  LayoutDashboard, Workflow, ClipboardList, FileEdit, ShieldCheck, Clock, TrendingUp, Trophy, BookOpen,
+  CalendarClock, X
 } from '@lucide/vue'
 import { authFetch } from '../../api.js'
+import { toast } from '../../composables/useToast.js'
 import PhasenProzessEingebettet from './PhasenProzess.vue'
 import MandatDaten from '../target/MandatDaten.vue'
 import Fragebogen from '../target/Fragebogen.vue'
@@ -245,6 +266,52 @@ async function loadTarget() {
 }
 
 onMounted(loadTarget)
+
+// Wiedervorlage
+const wvSaving = ref(false)
+async function saveWiedervorlage(value) {
+  if (!target.value) return
+  wvSaving.value = true
+  try {
+    await authFetch('/target-update', { method: 'POST', data: { id: props.targetId, wiedervorlage: value || '' } })
+    target.value.wiedervorlage = value || ''
+    toast.success(value ? 'Wiedervorlage gesetzt' : 'Wiedervorlage entfernt')
+  } catch (e) {
+    toast.error('Speichern fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
+  } finally { wvSaving.value = false }
+}
+
+function daysUntil(dateStr) {
+  if (!dateStr) return null
+  const today = new Date(); today.setHours(0,0,0,0)
+  const d = new Date(dateStr); d.setHours(0,0,0,0)
+  return Math.round((d - today) / 86400000)
+}
+const wvDays = computed(() => daysUntil(target.value?.wiedervorlage))
+const wvHint = computed(() => {
+  const d = wvDays.value
+  if (d === null) return ''
+  if (d < 0) return `Überfällig (vor ${Math.abs(d)} Tagen)`
+  if (d === 0) return 'Heute fällig'
+  if (d === 1) return 'Morgen fällig'
+  return `In ${d} Tagen fällig`
+})
+const wvHintClass = computed(() => {
+  const d = wvDays.value
+  if (d === null) return 'text-gray-400'
+  if (d < 0) return 'text-red-600 font-medium'
+  if (d === 0) return 'text-yellow-600 font-medium'
+  if (d <= 7) return 'text-blue-600'
+  return 'text-gray-500'
+})
+const wvInputClass = computed(() => {
+  const d = wvDays.value
+  if (d === null) return 'border-gray-200'
+  if (d < 0) return 'border-red-300 bg-red-50 text-red-700 font-medium'
+  if (d === 0) return 'border-yellow-300 bg-yellow-50 text-yellow-700 font-medium'
+  if (d <= 7) return 'border-blue-200 bg-blue-50 text-blue-700'
+  return 'border-gray-200'
+})
 
 const phasen = computed(() => {
   try { return JSON.parse(target.value?.phasenJson || '[]') }
