@@ -2,27 +2,56 @@
   <div>
     <div class="mb-5 flex items-start justify-between">
       <div>
-        <h2 class="text-xl font-bold text-gray-900">Long-List / Short-List</h2>
-        <p class="text-sm text-gray-500 mt-1">Targets, die für diesen Käufer in Frage kommen. Match-Score zeigt, wie gut sie zum Suchprofil passen.</p>
+        <h2 class="text-xl font-bold text-gray-900">Kandidaten-Match</h2>
+        <p class="text-sm text-gray-500 mt-1">Targets, die für diesen Käufer in Frage kommen. Score zeigt, wie gut sie zum Suchprofil passen.</p>
       </div>
       <button @click="refreshList" :disabled="loading"
         class="flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf] disabled:opacity-50">
         <RefreshCw :class="['w-4 h-4', loading ? 'animate-spin' : '']" />
-        {{ loading ? 'Lade…' : 'Long-List neu berechnen' }}
+        {{ loading ? 'Lade…' : 'Kandidaten neu suchen' }}
       </button>
     </div>
 
-    <!-- Filter -->
-    <div class="flex gap-2 mb-3">
+    <!-- Filter + Manuell hinzufügen -->
+    <div class="flex gap-2 mb-3 flex-wrap">
       <button @click="filter = 'long'" :class="['px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'long' ? 'bg-[#097e92] text-white' : 'bg-white border border-gray-200']">
-        Long-List ({{ items.length }})
+        💡 Vorschläge ({{ items.length - shortListCount - abgesagtCount }})
       </button>
       <button @click="filter = 'short'" :class="['px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'short' ? 'bg-[#097e92] text-white' : 'bg-white border border-gray-200']">
-        Short-List ({{ shortListCount }})
+        ⭐ Favoriten ({{ shortListCount }})
       </button>
       <button @click="filter = 'abgesagt'" :class="['px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'abgesagt' ? 'bg-[#097e92] text-white' : 'bg-white border border-gray-200']">
-        Abgesagt ({{ abgesagtCount }})
+        ❌ Abgelehnt ({{ abgesagtCount }})
       </button>
+      <button @click="showAddModal = true" class="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-dashed border-gray-300 text-gray-600 hover:border-[#097e92] hover:text-[#097e92]">
+        <Plus class="w-3.5 h-3.5" /> Kandidat manuell hinzufügen
+      </button>
+    </div>
+
+    <!-- Modal: Manuell hinzufügen -->
+    <div v-if="showAddModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4" @click.self="showAddModal = false">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-lg">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-gray-900">Kandidat manuell hinzufügen</h3>
+          <button @click="showAddModal = false"><X class="w-5 h-5 text-gray-400" /></button>
+        </div>
+        <p class="text-xs text-gray-500 mb-3">Suche einen Kontakt aus dem CRM oder lege einen neuen Eintrag an.</p>
+        <input v-model="addSearch" placeholder="Firma oder Name suchen…" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+        <div class="max-h-80 overflow-y-auto border border-gray-100 rounded-xl">
+          <div v-if="!addCandidates.length" class="p-4 text-sm text-gray-400 text-center">
+            <span v-if="!addSearch">Bitte Suchbegriff eingeben.</span>
+            <span v-else>Keine passenden Kontakte gefunden.</span>
+          </div>
+          <button v-for="k in addCandidates" :key="k.RowKey" @click="addManuell(k)"
+            class="w-full px-3 py-2 hover:bg-gray-50 flex items-start gap-2 text-left border-b border-gray-50 last:border-0">
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-medium text-gray-800">{{ k.firma }}</div>
+              <div class="text-xs text-gray-500">{{ k.name }} · {{ k.plz }} {{ k.ort }}</div>
+            </div>
+            <Plus class="w-4 h-4 text-[#097e92] flex-shrink-0 mt-1" />
+          </button>
+        </div>
+      </div>
     </div>
 
     <div v-if="loading" class="text-center text-sm text-gray-400 py-10">Lade Kandidaten…</div>
@@ -60,9 +89,9 @@
           </div>
         </div>
         <div class="flex gap-1 flex-shrink-0">
-          <button v-if="k.status !== 'short'" @click="setStatus(k, 'short')" title="Auf Short-List"
+          <button v-if="decisions[k.id] !== 'short'" @click="setStatus(k, 'short')" title="Zu Favoriten hinzufügen"
             class="p-1.5 hover:bg-green-50 rounded text-green-600"><Check class="w-4 h-4" /></button>
-          <button v-if="k.status !== 'abgesagt'" @click="setStatus(k, 'abgesagt')" title="Absagen"
+          <button v-if="decisions[k.id] !== 'abgesagt'" @click="setStatus(k, 'abgesagt')" title="Ablehnen"
             class="p-1.5 hover:bg-red-50 rounded text-red-600"><X class="w-4 h-4" /></button>
         </div>
       </div>
@@ -72,7 +101,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Users, RefreshCw, Check, X } from '@lucide/vue'
+import { Users, RefreshCw, Check, X, Plus } from '@lucide/vue'
 import { authFetch, getKontakte, getTargets } from '../../api.js'
 
 const props = defineProps({ targetId: String })
@@ -81,6 +110,44 @@ const items = ref([])
 const loading = ref(true)
 const filter = ref('long')
 const decisions = ref({})  // { kontaktId: 'short' | 'abgesagt' }
+const showAddModal = ref(false)
+const addSearch = ref('')
+const allKontakte = ref([])
+const manuellAdded = ref([])  // IDs der manuell hinzugefügten
+
+const addCandidates = computed(() => {
+  const q = addSearch.value.trim().toLowerCase()
+  if (!q) return []
+  const existingIds = new Set(items.value.map(i => i.id))
+  return allKontakte.value
+    .filter(k => !existingIds.has(k.RowKey || k.id))
+    .filter(k =>
+      (k.firma || '').toLowerCase().includes(q) ||
+      (k.name || '').toLowerCase().includes(q) ||
+      (k.email || '').toLowerCase().includes(q)
+    )
+    .slice(0, 20)
+})
+
+function addManuell(k) {
+  const id = k.RowKey || k.id
+  items.value.unshift({
+    ...k, id, score: 50,
+    matchGruende: ['📝 Manuell hinzugefügt'],
+    ablehnGruende: [],
+    _quelle: 'manuell',
+  })
+  manuellAdded.value.push(id)
+  showAddModal.value = false
+  addSearch.value = ''
+  saveManuell()
+}
+
+async function saveManuell() {
+  try {
+    await authFetch('/target-update', { method: 'POST', data: { id: props.targetId, longListManuellJson: JSON.stringify(manuellAdded.value) } })
+  } catch (e) { console.error(e) }
+}
 
 const shortListCount = computed(() => Object.values(decisions.value).filter(v => v === 'short').length)
 const abgesagtCount = computed(() => Object.values(decisions.value).filter(v => v === 'abgesagt').length)
@@ -138,9 +205,11 @@ async function refreshList() {
   try {
     const t = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
     const suchprofil = t.suchprofilJson ? JSON.parse(t.suchprofilJson) : {}
+    try { manuellAdded.value = JSON.parse(t.longListManuellJson || '[]') } catch { manuellAdded.value = [] }
 
     // 1. CRM-Kontakte matchen
     const kontakte = await getKontakte()
+    allKontakte.value = kontakte || []
     const crmMatches = (kontakte || []).map(k => {
       const { score, reasons, dislikes } = scoreFor(k, suchprofil)
       return { ...k, id: k.RowKey || k.id, score, matchGruende: reasons, ablehnGruende: dislikes, _quelle: 'crm' }
@@ -174,8 +243,10 @@ async function refreshList() {
         }
       })
 
+    // Manuell hinzugefügte: immer drin lassen, auch wenn Score < 30
+    const manuellSet = new Set(manuellAdded.value)
     const all = [...internalMatches, ...crmMatches]
-      .filter(k => k.score >= 30)
+      .filter(k => k.score >= 30 || manuellSet.has(k.id))
       .sort((a, b) => b.score - a.score)
     items.value = all
     try { decisions.value = JSON.parse(t.longListDecisionsJson || '{}') } catch { decisions.value = {} }

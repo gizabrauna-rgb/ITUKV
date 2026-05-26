@@ -217,7 +217,7 @@ const tabs = computed(() => {
       { tab: 'suchprofil', label: 'Suchprofil', icon: FileEdit },
       { tab: 'mandat', label: 'Mandat-Daten', icon: ClipboardList },
       { tab: 'nda', label: 'Verträge', icon: ShieldCheck },
-      { tab: 'longlist', label: 'Long-/Short-List', icon: Users },
+      { tab: 'longlist', label: 'Kandidaten-Match', icon: Users },
       { tab: 'dokumente', label: 'Dokumente', icon: Folder },
       { tab: 'zwischenstand', label: 'Zwischenstand', icon: FileEdit },
       { tab: 'erfolg', label: 'Erfolgsmeldung', icon: Trophy },
