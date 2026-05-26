@@ -321,12 +321,12 @@ function openNdaInAkte(v) {
   akteInitialTab.value = 'dokumente'
   akteInitialDoc.value = { ordner: 'NDA', docId: v.ndaDocId }
   tab.value = 'targets'
-  // NDA als geprüft markieren, damit es aus "Wartet auf mich" verschwindet
-  if (v.interessentId) {
+  // NDA als geprüft markieren — Eintrag sofort aus UI entfernen + Backend nachziehen
+  if (v.interessentId && ueberblick.value.wartet?.ndaReview) {
+    ueberblick.value.wartet.ndaReview = ueberblick.value.wartet.ndaReview.filter(x => x.interessentId !== v.interessentId)
+    ueberblick.value.totalWartet = Math.max(0, (ueberblick.value.totalWartet || 1) - 1)
     authFetch('/interessent-update', { method: 'POST', data: { id: v.interessentId, ndaReviewed: true } }).catch(() => {})
   }
-  // Übersicht neu laden damit der Eintrag verschwindet
-  setTimeout(loadUeberblick, 1000)
 }
 
 const navItems = [

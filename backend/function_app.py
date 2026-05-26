@@ -183,9 +183,24 @@ def stats_route(req: func.HttpRequest) -> func.HttpResponse:
     if not p:
         return err_("Nicht autorisiert", 401)
     try:
-        t = sum(1 for _ in table_("targets").list_entities())
-        k = sum(1 for _ in table_("kontakte").list_entities())
-        return ok_({"aktiveTargets": t, "offeneNdas": 0, "investorenGesamt": k, "dealsAbgeschlossen": 0})
+        aktiv, verkauft = 0, 0
+        for t in table_("targets").list_entities():
+            s = (t.get("status") or "").lower()
+            if s == "verkauft": verkauft += 1
+            elif s != "abgebrochen": aktiv += 1
+        offene_ndas = 0
+        for i in table_("interessenten").list_entities():
+            if (i.get("ndaStatus") or "") != "unterzeichnet":
+                offene_ndas += 1
+        investoren = 0
+        for k in table_("kontakte").list_entities():
+            if k.get("istInvestor"): investoren += 1
+        return ok_({
+            "aktiveTargets": aktiv,
+            "offeneNdas": offene_ndas,
+            "investorenGesamt": investoren,
+            "dealsAbgeschlossen": verkauft,
+        })
     except Exception:
         return ok_({"aktiveTargets": 0, "offeneNdas": 0, "investorenGesamt": 0, "dealsAbgeschlossen": 0})
 
@@ -4028,8 +4043,8 @@ def dashboard_uebersicht(req: func.HttpRequest) -> func.HttpResponse:
         firma = t.get("verkaueferName", "") or t.get("firma", "")
         try: verlauf = json.loads(t.get("kommunikationJson", "[]") or "[]")
         except Exception: verlauf = []
-        # Feed
-        for e in verlauf[:5]:
+        # Feed — alle Eintraege sammeln, am Ende global nach Datum sortieren + auf 30 begrenzen
+        for e in verlauf:
             feed.append({
                 "targetId": tid, "mbNr": mb_nr, "firma": firma,
                 "id": e.get("id", ""), "typ": e.get("typ", ""),
