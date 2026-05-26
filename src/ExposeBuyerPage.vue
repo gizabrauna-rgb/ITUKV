@@ -1,11 +1,11 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <header>
+    <header class="max-w-3xl mx-auto px-6 pt-6">
       <img src="/e4adade-577b-0f2-5be2-71a313ed1cd2_d023416-88e7-db0f-fedb-6b354cf65_itukv-form.jpg"
         alt="Mike Bergmann · IT-Unternehmen kaufen und verkaufen"
-        class="w-full h-auto block" />
-      <div class="bg-[#161e2a] text-white py-2 px-6 text-center text-xs">
-        Exposé-Bereich · Projektnummer <span class="font-mono font-bold">{{ (data?.mbNr || 'mb-xxx').toUpperCase() }}</span>
+        class="w-full h-auto rounded-2xl block" />
+      <div class="text-center text-xs text-gray-500 mt-3">
+        Exposé-Bereich · Projektnummer <span class="font-mono font-bold text-gray-800">{{ (data?.mbNr || 'mb-xxx').toUpperCase() }}</span>
       </div>
     </header>
 
