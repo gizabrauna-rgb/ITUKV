@@ -145,6 +145,40 @@
         <KaeuferVorschlaege :target-id="targetId" />
       </div>
 
+      <!-- Tab: Suchprofil (nur Kauf-Mandat) -->
+      <div v-else-if="tab === 'suchprofil'">
+        <Suchprofil :target-id="targetId" />
+      </div>
+
+      <!-- Tab: Verträge (read-only Status für Käufer) -->
+      <div v-else-if="tab === 'vertraege'">
+        <h2 class="text-xl font-bold text-gray-900 mb-5 flex items-center gap-2">
+          <FileText class="w-6 h-6 text-[#097e92]" /> Meine Verträge
+        </h2>
+        <div v-if="vertragInfo" class="space-y-3">
+          <!-- Mandatsvertrag-Karte -->
+          <div class="bg-white rounded-xl border border-gray-100 p-5">
+            <div class="flex items-start justify-between mb-3">
+              <div>
+                <h3 class="font-semibold text-gray-900">Mandatsvertrag</h3>
+                <p class="text-xs text-gray-500">Vereinbarung mit mibeca GmbH</p>
+              </div>
+              <span v-if="vertragInfo.gegengezeichnetAm" class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">✅ Vollständig unterschrieben</span>
+              <span v-else-if="vertragInfo.signiertAm" class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">⏳ Wartet auf Gegenzeichnung</span>
+              <span v-else-if="vertragInfo.gesendetAm" class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">📩 Zur Signatur gesendet</span>
+              <span v-else class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Entwurf</span>
+            </div>
+            <a v-if="vertragInfo.signToken" :href="`${apiBaseUrl}/sign-pdf?token=${vertragInfo.signToken}`" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf]">
+              <Download class="w-4 h-4" /> Vertrag herunterladen
+            </a>
+          </div>
+        </div>
+        <div v-else class="bg-white rounded-xl border border-gray-100 p-10 text-center text-sm text-gray-400">
+          <FileText class="w-10 h-10 mx-auto mb-3 text-gray-200" />
+          Noch keine Verträge angelegt. mibeca informiert dich sobald etwas zur Unterschrift bereit liegt.
+        </div>
+      </div>
+
       <!-- Tab: Meine Daten (Mandat-Vorlage) -->
       <div v-else-if="tab === 'mandat'">
         <MandatDaten :target-id="targetId" :read-only="impersonating" />
@@ -354,6 +388,7 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azure
 import MandatDaten from '../components/target/MandatDaten.vue'
 import PressetextFreigabe from '../components/target/PressetextFreigabe.vue'
 import KaeuferVorschlaege from '../components/target/KaeuferVorschlaege.vue'
+import Suchprofil from '../components/admin/Suchprofil.vue'
 import Fragebogen from '../components/target/Fragebogen.vue'
 import Unternehmensbewertung from '../components/target/Unternehmensbewertung.vue'
 import ExposeFreigabe from '../components/target/ExposeFreigabe.vue'
@@ -396,7 +431,9 @@ const navItems = computed(() => {
     base = [
       { tab: 'projekt', label: 'Mein Projekt', icon: Briefcase },
       { tab: 'mandat', label: 'Meine Daten', icon: ClipboardList },
+      { tab: 'suchprofil', label: 'Mein Suchprofil', icon: FileEdit },
       { tab: 'vorschlaege', label: 'Target-Vorschläge', icon: Users },
+      { tab: 'vertraege', label: 'Verträge', icon: FileText },
       { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
     ]
   } else {
