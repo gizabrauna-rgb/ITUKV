@@ -756,99 +756,184 @@ def _lookup_signature_by_token(token):
 
 
 def _render_vertrag_pdf_bytes(form, variante):
-    """Erstellt das PDF mit PyMuPDF aus Vorlage – kein reportlab noetig."""
-    import fitz  # PyMuPDF
-    doc = fitz.open()
-    page = doc.new_page(width=595, height=842)  # A4
-    margin_x = 60
-    y = 60
-    line_h = 14
+    """Erstellt das PDF mit PyMuPDF – misst Zeilenhoehen praezise.
+    Ersetzt Sonderzeichen (geschweifte Anfuehrungszeichen, em-dash) durch
+    Helvetica-kompatible Aequivalente."""
+    import fitz
 
-    def add_para(text, fontsize=10, bold=False, color=(0.1, 0.1, 0.1), space_after=8):
-        nonlocal y, page
+    # Helvetica unterstuetzt keine geschweiften Anfuehrungszeichen oder em-dashes,
+    # darum normalisieren wir den Text auf safe Zeichen.
+    def _safe(s):
+        if not s: return ""
+        return (str(s)
+            .replace("„", '"').replace("“", '"').replace("”", '"')
+            .replace("‚", "'").replace("‘", "'").replace("’", "'")
+            .replace("–", "-").replace("—", "-")
+            .replace("…", "..."))
+
+    doc = fitz.open()
+    page = [doc.new_page(width=595, height=842)]  # A4
+    margin_x = 56
+    page_w = 595
+    text_w = page_w - 2 * margin_x  # 483
+    y = [70]
+    PAGE_BOTTOM = 800
+
+    def _new_page():
+        page[0] = doc.new_page(width=595, height=842)
+        y[0] = 70
+
+    def _measure_lines(text, fontsize, fontname):
+        """Zaehlt wirklich umgebrochene Zeilen via TextWriter / measurement."""
+        # Approximation: Helvetica-Breite ist etwa 0.55x fontsize fuer Durchschnitts-char
+        avg_char_w = fontsize * 0.51
+        chars_per_line = max(20, int(text_w / avg_char_w))
+        lines = 0
+        for paragraph in text.split("\n"):
+            if not paragraph.strip():
+                lines += 1
+                continue
+            words = paragraph.split(" ")
+            cur_len = 0
+            line_count = 1
+            for w in words:
+                wl = len(w) + 1
+                if cur_len + wl > chars_per_line:
+                    line_count += 1
+                    cur_len = wl
+                else:
+                    cur_len += wl
+            lines += line_count
+        return max(1, lines)
+
+    def add_para(text, fontsize=10, bold=False, color=(0.13, 0.13, 0.13),
+                 space_before=0, space_after=8, lh_factor=1.35):
+        text = _safe(text)
         fontname = "hebo" if bold else "helv"
-        # Wenn am Seitenende, neue Seite anlegen
-        if y > 780:
-            page = doc.new_page(width=595, height=842)
-            y = 60
-        # Textbox fuer automatischen Umbruch
-        max_height = 800 - y
-        box = fitz.Rect(margin_x, y, 535, y + max_height)
-        rc = page.insert_textbox(box, text, fontsize=fontsize, fontname=fontname,
-                                  color=color, align=0)
-        # rc < 0 bedeutet: Text passt nicht vollstaendig in die Box
-        # Heuristik: jeden Umbruch zaehlen
-        approx_lines = max(1, int(len(text) / 80) + text.count("\n"))
-        y += approx_lines * line_h + space_after
+        line_h = fontsize * lh_factor
+
+        if space_before:
+            y[0] += space_before
+        # Platz fuer alle Zeilen reservieren – sonst Seitenumbruch
+        n_lines = _measure_lines(text, fontsize, fontname)
+        needed = n_lines * line_h
+        if y[0] + needed > PAGE_BOTTOM:
+            _new_page()
+        box = fitz.Rect(margin_x, y[0], page_w - margin_x, y[0] + needed + 20)
+        page[0].insert_textbox(box, text, fontsize=fontsize, fontname=fontname,
+                               color=color, align=0)
+        y[0] += needed + space_after
 
     def add_heading(text):
-        add_para(text, fontsize=12, bold=True, color=(0.04, 0.49, 0.57), space_after=6)
+        add_para(text, fontsize=12, bold=True, color=(0.04, 0.49, 0.57),
+                 space_before=10, space_after=6, lh_factor=1.25)
 
-    # Titel
-    add_para("Beratungs- und Dienstleistungsvertrag", fontsize=16, bold=True, color=(0.04, 0.49, 0.57), space_after=18)
+    def add_subheading(text):
+        add_para(text, fontsize=10.5, bold=True, color=(0.13, 0.13, 0.13),
+                 space_before=4, space_after=4)
 
-    # Parteien
-    add_para(f"zwischen", fontsize=10, space_after=6)
-    add_para(f"mibeca GmbH, Schillerstraße 1, 29525 Uelzen", bold=True, space_after=2)
+    def add_spacer(h=6):
+        y[0] += h
+
+    # ============ TITEL ============
+    add_para("Beratungs- und Dienstleistungsvertrag",
+             fontsize=18, bold=True, color=(0.04, 0.49, 0.57),
+             space_after=4, lh_factor=1.2)
+    add_para("zwischen mibeca GmbH und dem Auftraggeber",
+             fontsize=10, color=(0.45, 0.45, 0.45), space_after=20)
+
+    # ============ PARTEIEN ============
+    add_subheading("Berater")
+    add_para("mibeca GmbH, Schillerstrasse 1, 29525 Uelzen", space_after=2)
     add_para(f"vertreten durch {form.get('berater','Jennifer Kaplan')}", space_after=2)
-    add_para(f"nachfolgend „Berater“ genannt", space_after=14)
-    add_para(f"und", fontsize=10, space_after=6)
+    add_para('nachfolgend "Berater" genannt', color=(0.5, 0.5, 0.5), space_after=12)
+
+    add_subheading("Auftraggeber")
     add_para(f"{form.get('auftraggeberFirma','')}", bold=True, space_after=2)
     add_para(f"{form.get('auftraggeberStrasse','')}, {form.get('auftraggeberPlzOrt','')}", space_after=2)
     add_para(f"vertreten durch {form.get('auftraggeberGf','')}", space_after=2)
-    add_para(f"nachfolgend „Auftraggeber“ genannt", space_after=16)
+    add_para('nachfolgend "Auftraggeber" genannt', color=(0.5, 0.5, 0.5), space_after=16)
 
+    # ============ §§ ============
     add_heading("§1 Vertragsgegenstand")
-    add_para(f"Der Auftraggeber erteilt hiermit dem Berater den Auftrag, ihn bei folgenden Entscheidungen/Vorhaben zu beraten und zu unterstützen: (Teil-)Veräußerung des Unternehmens {form.get('verkaufsobjekt','')} (im Folgenden „Verkaufsobjekt“ genannt).")
+    add_para(f'Der Auftraggeber erteilt hiermit dem Berater den Auftrag, ihn bei folgenden Entscheidungen/Vorhaben zu beraten und zu unterstuetzen: (Teil-)Veraeusserung des Unternehmens {form.get("verkaufsobjekt","")} (im Folgenden "Verkaufsobjekt" genannt).')
 
     add_heading("§2 Leistungen des Beraters")
-    add_para("Aufbereitung der Daten für das Verkaufsobjekt · Erstellung eines anonymen Kurzexposés · Suche von Interessenten · Unterstützung bei Gesprächen mit Interessenten · Begleitung der Verkaufsverhandlungen · Vermittlung weiterer Berater (Rechtsanwälte, Steuerberater) · Laufende Beratung und Projektbegleitung (persönlich, telefonisch, per Videokonferenz, per E-Mail).", space_after=10)
+    leistungen = [
+        "Aufbereitung der Daten fuer das Verkaufsobjekt",
+        "Erstellung eines anonymen Kurzexposes",
+        "Suche von Interessenten fuer das Verkaufsobjekt",
+        "Unterstuetzung bei Gespraechen mit Interessenten",
+        "Begleitung der Verkaufsverhandlungen",
+        "Vermittlung weiterer Berater (Rechtsanwaelte, Steuerberater)",
+        "Laufende Beratung und Projektbegleitung (persoenlich, telefonisch, per Videokonferenz, per E-Mail)",
+    ]
+    for l in leistungen:
+        add_para(f"  -  {l}", space_after=2)
+    add_spacer(6)
 
     add_heading("§3 Pflichten des Auftraggebers")
-    add_para("Der Auftraggeber stellt alle relevanten Unterlagen (Bilanzen, BWA, Statistiken, Kunden-/Lieferanten-/Mitarbeiterlisten) bereit und sichert deren Vollständigkeit und Richtigkeit zu. Der Berater haftet nicht für die inhaltliche Richtigkeit der gelieferten Informationen.", space_after=10)
+    add_para("Der Auftraggeber stellt alle relevanten Unterlagen (Bilanzen, BWA, Statistiken, Kunden-, Lieferanten-, Mitarbeiterlisten) bereit und sichert deren Vollstaendigkeit und Richtigkeit zu. Der Berater haftet nicht fuer die inhaltliche Richtigkeit der gelieferten Informationen.")
 
     add_heading("§4 Pflichten des Beraters / Vertraulichkeit")
-    add_para("Der Berater ist zum Stillschweigen gegenüber Dritten über sämtliche Inhalte des Verkaufsprozesses sowie über vertrauliche Informationen des Auftraggebers verpflichtet. Diese Verpflichtung gilt auch nach Ende des Vertrages. Unterlagen werden vertraulich aufbewahrt und nach Aufforderung zurückgegeben oder vernichtet.", space_after=10)
+    add_para("Der Berater ist zum Stillschweigen gegenueber Dritten ueber saemtliche Inhalte des Verkaufsprozesses sowie ueber vertrauliche Informationen des Auftraggebers verpflichtet. Diese Verpflichtung gilt auch nach Ende des Vertrages. Unterlagen werden vertraulich aufbewahrt und nach Aufforderung zurueckgegeben oder vernichtet.")
 
-    add_heading("§5 Vergütung")
-    add_para("Alle Vergütungen verstehen sich netto zzgl. 19 % Mehrwertsteuer.", space_after=8)
-    add_para("(1) Eröffnungsvergütung", bold=True, space_after=4)
+    # ============ §5 Verguetung ============
+    add_heading("§5 Verguetung")
+    add_para("Alle Verguetungen verstehen sich netto zzgl. 19 % Mehrwertsteuer.", space_after=8)
+
+    add_subheading("(1) Eroeffnungsverguetung")
     if variante == 'mit_uve':
         modus = form.get('eroeffnungsModus', 'einmalig')
         if modus == 'einmalig':
-            txt = f"Einmalige Eröffnungsvergütung in Höhe von {form.get('eroeffnungsBetrag', 10000):,.0f} € netto für UVE-Coachingprogramm, Datenaufbereitung und Kurzexposé."
+            txt = f"Einmalige Eroeffnungsverguetung in Hoehe von {form.get('eroeffnungsBetrag', 10000):,.0f} EUR netto fuer das UVE-Coachingprogramm, Datenaufbereitung und Kurzexpose."
         else:
-            txt = f"Eröffnungsvergütung: 6 Monatsraten zu je 1.800 € netto für UVE-Coachingprogramm, Datenaufbereitung und Kurzexposé."
+            txt = "Eroeffnungsverguetung: 6 Monatsraten zu je 1.800 EUR netto fuer das UVE-Coachingprogramm, Datenaufbereitung und Kurzexpose."
     elif variante == 'vorhandenes_uve':
-        txt = f"Keine Eröffnungsvergütung – der Auftraggeber hat das UVE-Coaching bereits abgeschlossen und bezahlt (ansonsten 3.490 €). Der Berater übernimmt die Datenaufbereitung sowie die Erstellung des Kurzexposés."
+        txt = "Keine Eroeffnungsverguetung - der Auftraggeber hat das UVE-Coaching bereits abgeschlossen und bezahlt (ansonsten 3.490 EUR). Der Berater uebernimmt die Datenaufbereitung sowie die Erstellung des Kurzexposes."
     else:
-        txt = f"Eröffnungsvergütung: {form.get('eroeffnungsBetrag', 4950):,.0f} € netto für Datenaufbereitung und Erstellung des anonymen Kurzexposés."
+        txt = f"Eroeffnungsverguetung: {form.get('eroeffnungsBetrag', 4950):,.0f} EUR netto fuer Datenaufbereitung und Erstellung des anonymen Kurzexposes."
     add_para(txt.replace(',', '.'), space_after=10)
 
-    add_para("(2) Beratungsvergütung", bold=True, space_after=4)
-    add_para(f"Jennifer Kaplan: {form.get('honorarJennyStunde', 250):,.0f} € pro Stunde bzw. {form.get('honorarJennyTag', 2990):,.0f} € pro Tag vor Ort (zzgl. Reisespesen).".replace(',', '.'), space_after=4)
-    add_para(f"Mike Bergmann: {form.get('honorarMikeStunde', 250):,.0f} € pro Stunde bzw. {form.get('honorarMikeTag', 2990):,.0f} € pro Tag vor Ort (zzgl. Reisespesen).".replace(',', '.'), space_after=4)
-    add_para(f"Team-Mitarbeiter: {form.get('honorarTeamStunde', 150):,.0f} € pro Stunde bzw. {form.get('honorarTeamTag', 1500):,.0f} € pro Tag vor Ort (zzgl. Reisespesen).".replace(',', '.'), space_after=10)
+    add_subheading("(2) Beratungsverguetung")
+    add_para(f"Jennifer Kaplan: {form.get('honorarJennyStunde', 250):,.0f} EUR pro Stunde bzw. {form.get('honorarJennyTag', 2990):,.0f} EUR pro Tag vor Ort (zzgl. Reisespesen).".replace(',', '.'), space_after=4)
+    add_para(f"Mike Bergmann: {form.get('honorarMikeStunde', 250):,.0f} EUR pro Stunde bzw. {form.get('honorarMikeTag', 2990):,.0f} EUR pro Tag vor Ort (zzgl. Reisespesen).".replace(',', '.'), space_after=4)
+    add_para(f"Team-Mitarbeiter: {form.get('honorarTeamStunde', 150):,.0f} EUR pro Stunde bzw. {form.get('honorarTeamTag', 1500):,.0f} EUR pro Tag vor Ort (zzgl. Reisespesen).".replace(',', '.'), space_after=10)
 
-    add_para("(3) Erfolgsvergütung", bold=True, space_after=4)
-    add_para(f"Erfolgsvergütung in Höhe von {form.get('erfolgsProzent', 5)} % des Transaktionsvolumens bei erfolgreichem Vertragsabschluss zwischen Auftraggeber und einem Interessenten. Als Vertragsabschluss gilt jede Form eines Verkaufs-, Kaufs-, Beteiligungs- oder Fusionsvertrages sowie vergleichbare Aktivitäten (z.B. Asset Deals).", space_after=10)
+    add_subheading("(3) Erfolgsverguetung")
+    add_para(f"Erfolgsverguetung in Hoehe von {form.get('erfolgsProzent', 5)} % des Transaktionsvolumens bei erfolgreichem Vertragsabschluss zwischen Auftraggeber und einem Interessenten. Als Vertragsabschluss gilt jede Form eines Verkaufs-, Kaufs-, Beteiligungs- oder Fusionsvertrages sowie vergleichbare Aktivitaeten (z.B. Asset Deals).", space_after=8)
 
     add_heading("§6 Vertragsdauer und Vertragsende")
-    add_para(f"Der Vertrag beginnt mit Vertragsunterzeichnung und wird zunächst für {form.get('laufzeitMonate', 12)} Monate abgeschlossen. Die Laufzeit verlängert sich stillschweigend um jeweils 6 Monate, sofern er nicht mit einer Frist von 2 Monaten schriftlich gekündigt wird. Die Vertragslaufzeit endet automatisch zum Monatsende, sobald der Auftraggeber das Verkaufsobjekt veräußert hat.", space_after=10)
+    add_para(f"Der Vertrag beginnt mit Vertragsunterzeichnung und wird zunaechst fuer {form.get('laufzeitMonate', 12)} Monate abgeschlossen. Die Laufzeit verlaengert sich stillschweigend um jeweils 6 Monate, sofern er nicht mit einer Frist von 2 Monaten schriftlich gekuendigt wird. Die Vertragslaufzeit endet automatisch zum Monatsende, sobald der Auftraggeber das Verkaufsobjekt veraeussert hat.")
 
     add_heading("§7 Haftungsfreistellung")
-    add_para("Der Berater agiert mit der Sorgfalt eines ordentlichen Kaufmannes. Für Schäden aus der Beratung sowie für entgangene Gewinne haftet der Berater nicht. Der Auftraggeber stellt den Berater von jeglicher Haftung frei, die auf Unvollständigkeit oder Unrichtigkeit der gelieferten Informationen beruht.", space_after=10)
+    add_para("Der Berater agiert mit der Sorgfalt eines ordentlichen Kaufmannes. Fuer Schaeden aus der Beratung sowie fuer entgangene Gewinne haftet der Berater nicht. Der Auftraggeber stellt den Berater von jeglicher Haftung frei, die auf Unvollstaendigkeit oder Unrichtigkeit der gelieferten Informationen beruht.")
 
     add_heading("§8 Schlussbestimmungen")
-    add_para("Änderungen bedürfen der Schriftform. Mündliche Nebenabreden bestehen nicht. Sind einzelne Bestimmungen unwirksam, bleibt die Gültigkeit der übrigen unberührt. Es gilt deutsches Recht. Gerichtsstand ist Uelzen.", space_after=14)
+    add_para("Aenderungen beduerfen der Schriftform. Muendliche Nebenabreden bestehen nicht. Sind einzelne Bestimmungen unwirksam, bleibt die Gueltigkeit der uebrigen unberuehrt. Es gilt deutsches Recht. Gerichtsstand ist Uelzen.")
 
     if form.get('notizen'):
         add_heading("§9 Zusatzklauseln / Notizen")
-        add_para(form.get('notizen'), space_after=14)
+        add_para(form.get('notizen'))
 
-    # Signatur-Bereich
-    add_para(f"Datum: {form.get('datum','')}", space_after=30)
-    add_para("Ort, Datum, Unterschrift (mibeca)                                Ort, Datum, Unterschrift (Auftraggeber)", fontsize=9, color=(0.4, 0.4, 0.4))
+    # ============ SIGNATUR ============
+    add_spacer(20)
+    add_para(f"Uelzen, den {form.get('datum','')}", fontsize=10, space_after=40)
+
+    # Signatur-Zeilen
+    p = page[0]
+    line_y = y[0]
+    p.draw_line(fitz.Point(margin_x, line_y), fitz.Point(margin_x + 200, line_y),
+                color=(0.4, 0.4, 0.4), width=0.5)
+    p.draw_line(fitz.Point(page_w - margin_x - 200, line_y),
+                fitz.Point(page_w - margin_x, line_y),
+                color=(0.4, 0.4, 0.4), width=0.5)
+    p.insert_text(fitz.Point(margin_x, line_y + 12),
+                  "Ort, Datum, Unterschrift (mibeca)",
+                  fontsize=9, color=(0.4, 0.4, 0.4))
+    p.insert_text(fitz.Point(page_w - margin_x - 200, line_y + 12),
+                  "Ort, Datum, Unterschrift (Auftraggeber)",
+                  fontsize=9, color=(0.4, 0.4, 0.4))
 
     pdf_bytes = doc.write()
     doc.close()
