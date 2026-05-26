@@ -2,257 +2,186 @@
   <div>
     <div class="flex items-center justify-between mb-4">
       <div>
-        <h3 class="text-lg font-bold text-gray-900">Exposé</h3>
-        <p class="text-xs text-gray-500">Anonymisiertes Kurzexposé für die Marktansprache</p>
+        <h3 class="text-lg font-bold text-gray-900">Unternehmensexposé</h3>
+        <p class="text-xs text-gray-500">Anonymisiertes Exposé · strukturiert in Sektionen · PDF-Export</p>
       </div>
       <div class="flex gap-2">
-        <button @click="generieren" :disabled="!hasFragebogen" class="flex items-center gap-2 px-3 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf] disabled:opacity-50" :title="!hasFragebogen ? 'Erst Fragebogen ausfüllen' : ''">
-          <Wand2 class="w-4 h-4" /> Aus Fragebogen generieren
+        <button @click="generierenAusFragebogen" :disabled="!hasFragebogen" class="flex items-center gap-2 px-3 py-2 bg-amber-500 text-white rounded-xl text-sm font-medium hover:bg-amber-600 disabled:opacity-50">
+          <Sparkles class="w-4 h-4" /> Aus Fragebogen vorbefüllen
         </button>
-        <button @click="downloadText" :disabled="!exposeText" class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 disabled:opacity-50">
-          <Download class="w-4 h-4" /> Text-Datei
-        </button>
-        <button @click="printPdf" :disabled="!exposeText" class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 disabled:opacity-50">
-          <Printer class="w-4 h-4" /> PDF drucken
+        <button @click="openPreview" :disabled="previewLoading" class="flex items-center gap-2 px-3 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf] disabled:opacity-50">
+          <FileText class="w-4 h-4" /> {{ previewLoading ? 'Lade…' : 'Vorschau (PDF)' }}
         </button>
       </div>
     </div>
 
-    <!-- Status / Freigabe-Workflow -->
-    <div class="bg-white rounded-xl border border-gray-100 p-4 mb-4">
+    <!-- Status-Workflow -->
+    <div class="bg-white rounded-xl border border-gray-100 p-4 mb-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div :class="['w-3 h-3 rounded-full', statusColor]"></div>
+        <span class="font-medium text-sm">Status: {{ statusLabel }}</span>
+      </div>
+      <div class="flex gap-2">
+        <button v-if="exposeStatus !== 'in_review'" @click="setStatus('in_review')" class="text-xs px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">Intern prüfen</button>
+        <button v-if="exposeStatus !== 'awaiting_approval'" @click="setStatus('awaiting_approval')" class="text-xs px-3 py-1.5 border border-amber-200 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100">An Kunde zur Freigabe</button>
+        <button v-if="exposeStatus !== 'approved'" @click="setStatus('approved')" class="text-xs px-3 py-1.5 border border-green-200 bg-green-50 text-green-700 rounded-lg hover:bg-green-100">Freigegeben</button>
+      </div>
+    </div>
+
+    <!-- Header-Bereich -->
+    <div class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
+      <h4 class="font-semibold text-gray-800 text-sm mb-3">Kopfbereich</h4>
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="lbl">Projektnummer</label>
+          <input v-model="data.mbNr" readonly class="input bg-gray-50 font-mono" />
+        </div>
+        <div>
+          <label class="lbl">Stand (Datum)</label>
+          <input v-model="data.stand" @blur="save" type="date" class="input" />
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="lbl">Headline</label>
+        <input v-model="data.headline" @blur="save" placeholder="z.B. IT-Dienstleister Systemhaus & Privatkunden bietet Übernahme..." class="input" />
+      </div>
+      <div>
+        <label class="lbl">Sub-Headline</label>
+        <input v-model="data.subheadline" @blur="save" placeholder="z.B. PLZ 91… · 15 Mitarbeiter · gegen Gebot" class="input" />
+      </div>
+    </div>
+
+    <!-- Sektionen -->
+    <div v-for="(sec, idx) in data.sektionen" :key="idx" class="bg-white rounded-xl border border-gray-100 p-5 mb-3">
       <div class="flex items-center justify-between mb-2">
-        <div class="flex items-center gap-3">
-          <div :class="['w-3 h-3 rounded-full', statusColor]"></div>
-          <span class="font-medium text-sm">Status: {{ statusLabel }}</span>
-        </div>
-        <div class="flex gap-2">
-          <button v-if="exposeStatus !== 'in_review'" @click="setStatus('in_review')" class="text-xs px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">Zur Review (Jenny)</button>
-          <button v-if="exposeStatus !== 'awaiting_approval'" @click="setStatus('awaiting_approval')" class="text-xs px-3 py-1.5 border border-amber-200 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100">An Kunde zur Freigabe</button>
-          <button v-if="exposeStatus !== 'approved'" @click="setStatus('approved')" class="text-xs px-3 py-1.5 border border-green-200 bg-green-50 text-green-700 rounded-lg hover:bg-green-100">Freigegeben</button>
-        </div>
+        <h4 class="font-semibold text-gray-800 text-sm">{{ sec.label }}</h4>
       </div>
-      <p class="text-xs text-gray-500">{{ statusHinweis }}</p>
+      <textarea v-model="sec.body" @blur="save" rows="6" :placeholder="placeholderFor(sec.label)" class="input resize-y"></textarea>
     </div>
 
-    <!-- Empty State -->
-    <div v-if="!exposeText && !generating" class="bg-white rounded-xl border border-gray-100 p-10 text-center">
-      <FileText class="w-12 h-12 mx-auto mb-3 text-gray-200" />
-      <h4 class="font-semibold text-gray-700 mb-1">Noch kein Exposé erstellt</h4>
-      <p class="text-sm text-gray-500 mb-4">
-        {{ hasFragebogen ? 'Klicke auf "Aus Fragebogen generieren" um ein Kurzexposé aus den Fragebogen-Daten zu erstellen.'
-                       : 'Der Kunde muss erst den Fragebogen ausfüllen, damit das Exposé automatisch generiert werden kann.' }}
-      </p>
+    <!-- Finanzen (optional) -->
+    <div class="bg-white rounded-xl border border-gray-100 p-5 mb-3">
+      <h4 class="font-semibold text-gray-800 text-sm mb-3">Umsätze, Erträge, finanzielle Situation</h4>
+      <textarea v-model="data.finanzen.einleitung" @blur="save" rows="3" placeholder="Einleitung zur Finanzsituation (frei)" class="input resize-y mb-3"></textarea>
+      <p class="text-xs text-gray-500 mb-2">Optionale Finanz-Tabelle (z.B. mehrere Jahre):</p>
+      <div class="flex gap-2 mb-2">
+        <input v-model="data.finanzen.jahreInput" @blur="parseJahre" placeholder="Jahre (Komma-getrennt), z.B. 2023, 2024, 2025, Plan 2026" class="input flex-1 text-sm" />
+        <button @click="addRow" class="px-3 py-2 bg-gray-100 rounded-lg text-xs whitespace-nowrap">+ Zeile</button>
+      </div>
+      <table v-if="data.finanzen.jahre?.length" class="w-full text-xs">
+        <thead><tr>
+          <th class="text-left py-1.5 w-48">Position</th>
+          <th v-for="j in data.finanzen.jahre" :key="j" class="text-right py-1.5">{{ j }}</th>
+          <th class="w-8"></th>
+        </tr></thead>
+        <tbody>
+          <tr v-for="(row, ri) in data.finanzen.rows" :key="ri" class="border-t border-gray-100">
+            <td class="py-1"><input v-model="row.label" @blur="save" placeholder="z.B. Umsatz" class="w-full px-1.5 py-1 border border-gray-200 rounded text-xs" /></td>
+            <td v-for="(_, ji) in data.finanzen.jahre" :key="ji" class="py-1">
+              <input v-model="row.werte[ji]" @blur="save" placeholder="0" class="w-full px-1.5 py-1 border border-gray-200 rounded text-xs text-right" />
+            </td>
+            <td><button @click="data.finanzen.rows.splice(ri, 1); save()" class="text-red-400 hover:text-red-600 p-1"><X class="w-3 h-3" /></button></td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
-    <div v-else-if="generating" class="bg-white rounded-xl border border-gray-100 p-10 text-center text-gray-400">
-      <Loader2 class="w-8 h-8 mx-auto mb-2 animate-spin text-[#097e92]" />
-      Generiere Exposé aus Fragebogen-Daten…
-    </div>
+    <p class="text-xs text-gray-400 text-center mt-4">Auto-Speichern beim Verlassen jedes Feldes.</p>
 
-    <!-- Editor -->
-    <div v-else>
-      <textarea
-        v-model="exposeText"
-        @blur="save"
-        rows="35"
-        class="w-full px-5 py-4 bg-white border border-gray-200 rounded-xl text-sm leading-relaxed font-mono focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92] whitespace-pre-wrap"
-      ></textarea>
-      <p class="text-xs text-gray-400 mt-2">Auto-Speichern beim Verlassen des Feldes. Bearbeitungen von Jenny werden gespeichert und gehen dann zum Kunden zur Freigabe.</p>
+    <!-- PDF-Vorschau Modal -->
+    <div v-if="previewUrl" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" @click.self="closePreview">
+      <div class="bg-white rounded-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+        <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+          <h3 class="font-bold text-gray-900 flex items-center gap-2"><FileText class="w-5 h-5 text-[#097e92]" /> Exposé-Vorschau</h3>
+          <div class="flex items-center gap-2">
+            <a :href="previewUrl" :download="`Expose_${data.mbNr || 'Entwurf'}.pdf`" class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Herunterladen</a>
+            <button @click="closePreview" class="p-1.5 hover:bg-gray-100 rounded-lg"><X class="w-5 h-5 text-gray-500" /></button>
+          </div>
+        </div>
+        <iframe :src="previewUrl" class="flex-1 w-full" frameborder="0"></iframe>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Wand2, Download, Printer, FileText, Loader2 } from '@lucide/vue'
+import { Sparkles, FileText, X } from '@lucide/vue'
 import { authFetch } from '../../api.js'
 
 const props = defineProps({ targetId: String })
+const apiBase = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
+
+const DEFAULT_SEKTIONEN = [
+  { label: 'Unternehmen / Historie', body: '' },
+  { label: 'Geschäftsfelder', body: '' },
+  { label: 'Mitarbeiter', body: '' },
+  { label: 'Kunden und Kundenstruktur', body: '' },
+  { label: 'Lieferanten und Kooperationspartner', body: '' },
+  { label: 'Wettbewerber & Marketing', body: '' },
+  { label: 'Transaktionsvorhaben und Verkaufsmotiv', body: '' },
+]
 
 const target = ref(null)
-const fragebogen = ref({})
-const exposeText = ref('')
-const exposeStatus = ref('draft')
-const generating = ref(false)
-
-const hasFragebogen = computed(() => target.value?.fragebogenJson)
-
-const statusLabel = computed(() => ({
-  draft: 'Entwurf', in_review: 'In Review (Jenny)',
-  awaiting_approval: 'Beim Kunden zur Freigabe', approved: 'Freigegeben'
-})[exposeStatus.value] || 'Entwurf')
-
-const statusColor = computed(() => ({
-  draft: 'bg-gray-400', in_review: 'bg-blue-500',
-  awaiting_approval: 'bg-amber-500', approved: 'bg-green-500'
-})[exposeStatus.value] || 'bg-gray-400')
-
-const statusHinweis = computed(() => ({
-  draft: 'Exposé wird gerade erstellt oder bearbeitet.',
-  in_review: 'Jenny prüft das Exposé und macht ggf. Anpassungen.',
-  awaiting_approval: 'Der Kunde sieht das Exposé in seinem Portal und kann es freigeben oder Korrekturwünsche äußern.',
-  approved: 'Exposé ist freigegeben — die Ausschreibung kann starten!'
-})[exposeStatus.value] || '')
-
-onMounted(async () => {
-  if (!props.targetId) return
-  try {
-    target.value = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
-    exposeText.value = target.value.exposeText || ''
-    exposeStatus.value = target.value.exposeStatus || 'draft'
-    if (target.value.fragebogenJson) {
-      try { fragebogen.value = JSON.parse(target.value.fragebogenJson) } catch { fragebogen.value = {} }
-    }
-  } catch (e) { console.error(e) }
+const data = ref({
+  mbNr: '',
+  stand: new Date().toISOString().slice(0, 10),
+  headline: '',
+  subheadline: '',
+  sektionen: JSON.parse(JSON.stringify(DEFAULT_SEKTIONEN)),
+  finanzen: { einleitung: '', jahreInput: '', jahre: [], rows: [] },
 })
+const exposeStatus = ref('draft')
 
-function anonPlz(plz) {
-  if (!plz) return 'PLZ XX...'
-  const s = String(plz).trim()
-  if (s.length >= 2) return 'PLZ ' + s.substring(0, 2) + '...'
-  return 'PLZ XX...'
+const hasFragebogen = computed(() => !!target.value?.fragebogenJson)
+
+const statusLabel = computed(() => ({ draft: 'Entwurf', in_review: 'Intern in Prüfung', awaiting_approval: 'Wartet auf Kundenfreigabe', approved: 'Freigegeben' }[exposeStatus.value] || 'Entwurf'))
+const statusColor = computed(() => ({ draft: 'bg-gray-400', in_review: 'bg-blue-500', awaiting_approval: 'bg-amber-500', approved: 'bg-green-500' }[exposeStatus.value]))
+
+function placeholderFor(label) {
+  const m = {
+    'Unternehmen / Historie': 'z.B. Sitz, Gründungsjahr, Mitarbeiterzahl, Geschäftsmodell-Highlights',
+    'Geschäftsfelder': 'z.B. Systemhaus + Privatkundengeschäft, jeweils mit Umsatzanteilen',
+    'Mitarbeiter': 'z.B. Aufteilung in Vollzeit/Teilzeit, Durchschnittsbetriebszugehörigkeit',
+    'Kunden und Kundenstruktur': 'z.B. Anzahl Bestandskunden, Vertragsverteilung, Klumpenrisiko',
+    'Lieferanten und Kooperationspartner': 'z.B. Hauptlieferanten, technologische Schwerpunkte',
+    'Wettbewerber & Marketing': 'z.B. Marktposition, Marketing-Mix',
+    'Transaktionsvorhaben und Verkaufsmotiv': 'z.B. Vollverkauf vs. Teilverkauf, Nachfolge-Hintergrund',
+  }
+  return m[label] || ''
 }
 
-function generieren() {
-  generating.value = true
-  setTimeout(() => {
-    exposeText.value = generateExpose()
+function addRow() {
+  data.value.finanzen.rows.push({ label: '', werte: (data.value.finanzen.jahre || []).map(() => '') })
+}
+
+function parseJahre() {
+  const arr = (data.value.finanzen.jahreInput || '').split(/[,;]/).map(s => s.trim()).filter(Boolean)
+  data.value.finanzen.jahre = arr
+  for (const r of data.value.finanzen.rows) {
+    while (r.werte.length < arr.length) r.werte.push('')
+    r.werte.length = arr.length
+  }
+  save()
+}
+
+async function generierenAusFragebogen() {
+  if (!hasFragebogen.value) return
+  try {
+    const fb = JSON.parse(target.value.fragebogenJson)
+    const t = target.value
+    const ma = ['technikVollzeit','vertriebVollzeit','innendienstVollzeit'].reduce((s, k) => s + (parseInt(fb.personal?.[k]) || 0), 0)
+    data.value.headline = data.value.headline || `${fb.branchenschwerpunkte || 'IT-Systemhaus'} bietet Übernahme · ${t.region || ''}`
+    data.value.subheadline = data.value.subheadline || `PLZ ${(t.plz || '').slice(0,2)}… · ${ma || '?'} Mitarbeiter · gegen Gebot`
+    data.value.sektionen[0].body ||= `Sitz: PLZ-Region ${(t.plz || '').slice(0,2)}xxx. Gründungsjahr: ${fb.gruendungsjahr || 'n.a.'}. Rechtsform: ${fb.gesellschaftsform || 'n.a.'}. Aktuelles Team: ${ma || '?'} Mitarbeiter.`
+    data.value.sektionen[1].body ||= `Schwerpunkt-Lösungen: ${Object.keys(fb.loesungen || {}).join(', ') || fb.branchenschwerpunkte || 'n.a.'}`
+    data.value.sektionen[2].body ||= `Technik: ${fb.personal?.technikVollzeit || 0} Vollzeit + ${fb.personal?.technikAzubis || 0} Azubis. Vertrieb: ${fb.personal?.vertriebVollzeit || 0} Vollzeit. Innendienst: ${fb.personal?.innendienstVollzeit || 0} Vollzeit.`
+    data.value.sektionen[3].body ||= `${fb.aktiveGeschaeftskunden || '?'} aktive Geschäftskunden. ${fb.privatkundenAnteil ? 'Privatkundenanteil: ' + fb.privatkundenAnteil + '%.' : ''} Branchen: ${fb.branchenschwerpunkte || 'gemischt'}.`
+    data.value.sektionen[5].body ||= `Wachstumspotenzial: ${fb.wachstumspotenzial || ''}. Wettbewerb: ${fb.wettbewerbssituation || ''}`
+    const gruende = Object.keys(fb.verkaufsgruende || {}).filter(k => fb.verkaufsgruende[k])
+    data.value.sektionen[6].body ||= `Verkaufsgründe: ${gruende.join('; ') || 'siehe Mandat-Daten'}. Verfügbarkeit nach Übergabe: ${fb.uebergabeVerfuegbarkeit || 'n.a.'}.`
     save()
-    generating.value = false
-  }, 600)
-}
-
-function generateExpose() {
-  const t = target.value || {}
-  const f = fragebogen.value || {}
-  const mbNr = t.mbNr || 'mb-XXX'
-  const branche = t.branche || 'IT-Systemhaus'
-  const region = anonPlz(t.plz || f.plzOrt?.match(/\d{5}/)?.[0])
-  const gj = f.gruendungsjahr || '19XX'
-  const heute = new Date().toLocaleDateString('de-DE')
-
-  // Mitarbeiter zusammenfassen
-  const personal = f.personal || {}
-  const techMA = +(personal.technikVollzeit || 0)
-  const vertriebMA = +(personal.vertriebVollzeit || 0)
-  const innenMA = +(personal.innendienstVollzeit || 0)
-  const totalMA = techMA + vertriebMA + innenMA + (+f.anzahlGf || 0)
-
-  // Zeitaufteilung GF1
-  const z = f.zeitGf?.[1] || {}
-  const zeitText = ['technik','vertrieb','innendienst','geschaeftsfuehrung']
-    .map(k => z[k] ? `${k.charAt(0).toUpperCase()+k.slice(1)} ${z[k]} %` : null)
-    .filter(Boolean).join(', ')
-
-  // Lösungs-Schwerpunkte (Top 3 nach Skala 1-10)
-  const loesungen = f.loesungen || {}
-  const topLoesungen = Object.entries(loesungen)
-    .filter(([k,v]) => v >= 7)
-    .sort((a,b) => b[1] - a[1])
-    .slice(0, 4)
-    .map(([k]) => k)
-
-  // Verkaufsgründe (Top 3)
-  const gruende = f.verkaufsgruende || {}
-  const topGruende = Object.entries(gruende)
-    .filter(([k,v]) => v >= 7)
-    .sort((a,b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([k]) => k)
-
-  // Wartungsumsatz letztes Jahr
-  const wartung = f.wartungUmsatz || {}
-  const letztesJahr = Math.max(...Object.keys(wartung).map(Number).filter(n => !isNaN(n)), 0)
-  const wartungLetzt = letztesJahr && wartung[letztesJahr] ? `ca. ${wartung[letztesJahr]} €` : '—'
-
-  return `UNTERNEHMENSEXPOSÉ
-Projektnummer: ${mbNr}
-Stand: ${heute}
-
-────────────────────────────────────────────
-
-${branche.toUpperCase()} BIETET ÜBERNAHME GEGEN GEBOT
-
-Das hier vorgestellte Unternehmen ist ein etablierter ${branche} mit Sitz im ${region}.
-Auf den folgenden Seiten finden Sie eine anonymisierte Kurzbeschreibung. Bei Interesse
-unterzeichnen Sie bitte zunächst eine Vertraulichkeitsvereinbarung (NDA, siehe letzte Seite).
-
-────────────────────────────────────────────
-
-1. UNTERNEHMEN UND HISTORIE
-
-Das Unternehmen wurde im Jahr ${gj} als ${f.gesellschaftsform || '[Gesellschaftsform]'} gegründet.
-${f.gesellschaftsform === 'GmbH' ? `Das Stammkapital beträgt ${f.stammkapital || '[XX.XXX]'} €.` : ''}
-${f.eigeneImmobilie ? 'Das Unternehmen verfügt über eine eigene, selbst genutzte Immobilie.' : ''}
-${f.besitzgesellschaft ? 'Im Hintergrund existiert eine Besitz-/Verwaltungsgesellschaft.' : ''}
-
-2. GESCHÄFTSFELDER UND GESCHÄFTSMODELL
-
-${topLoesungen.length ? 'Die Leistungsschwerpunkte (gewichtet nach Bedeutung) sind:\n' + topLoesungen.map((l,i) => `  ${i+1}. ${l}`).join('\n') : 'Die genauen Leistungsschwerpunkte werden im Detail-Gespräch erläutert.'}
-
-3. KUNDEN UND KUNDENSTRUKTUR
-
-Aktive Geschäftskunden: ${f.aktiveGeschaeftskunden || '[Anzahl]'}
-${f.privatkundenAnteil ? 'Anteil Privatkunden: ' + f.privatkundenAnteil + ' %' : ''}
-${f.branchenschwerpunkte ? 'Branchenschwerpunkte: ' + f.branchenschwerpunkte : ''}
-${f.typischeArbeitsplaetze ? 'Typische Unternehmensgröße der Kunden: ' + f.typischeArbeitsplaetze : ''}
-${f.kundenRegionen ? 'Hauptregion: ' + f.kundenRegionen : ''}
-
-4. UMSÄTZE, ERTRÄGE, FINANZIELLE SITUATION
-
-Wiederkehrende Umsätze durch Service- und Wartungsverträge im Jahr ${letztesJahr || '[Jahr]'}: ${wartungLetzt}
-
-(Detaillierte Finanzzahlen — Umsatz, EBIT, bereinigtes EBIT — werden nach NDA-Unterzeichnung zur Verfügung gestellt.)
-
-5. MITARBEITER
-
-Gesamt: ${totalMA || '[Anzahl]'} Mitarbeitende
-${techMA ? `· Technik: ${techMA} Vollzeit` : ''}
-${vertriebMA ? `· Vertrieb: ${vertriebMA} Vollzeit` : ''}
-${innenMA ? `· Innendienst/Verwaltung: ${innenMA} Vollzeit` : ''}
-${f.anzahlGf ? `· Geschäftsführung: ${f.anzahlGf}` : ''}
-
-6. MANAGEMENT
-
-${zeitText ? 'Zeitaufteilung des Hauptgeschäftsführers: ' + zeitText : 'Aktive Geschäftsführung mit klar geregelten Verantwortlichkeiten.'}
-
-7. WACHSTUMSPOTENZIAL
-
-${f.wachstumspotenzial || '[Wachstumspotenzial wird in Detailgespräch erläutert]'}
-
-8. WETTBEWERBSSITUATION
-
-${f.wettbewerbssituation || '[Wettbewerbssituation wird in Detailgespräch erläutert]'}
-
-9. FIRMENSITZ
-
-Der Firmensitz liegt im Bereich ${region}.
-
-10. TRANSAKTIONSVORHABEN UND VERKAUFSMOTIV
-
-${topGruende.length ? 'Hauptgründe für den geplanten Verkauf:\n' + topGruende.map((g,i) => `  ${i+1}. ${g}`).join('\n') : 'Die Motivation für den Verkauf wird im persönlichen Gespräch erläutert.'}
-
-${f.verbleibImUnternehmen ? `Der Inhaber ist bereit, im Unternehmen zu verbleiben (Details: ${f.verbleibDetails || 'nach Absprache'}).` : ''}
-${f.uebergabeVerfuegbarkeit ? 'Verfügbarkeit zur Übergabe: ' + f.uebergabeVerfuegbarkeit : ''}
-
-11. CHANCEN UND PERSPEKTIVEN FÜR DEN INVESTOR
-
-Solide Bestandskundenbasis mit wiederkehrenden Umsätzen, etabliertes Geschäftsmodell, geeignet für Buy-and-Build-Strategie oder strategische Erweiterung.
-
-12. VERTRAULICHKEIT
-
-Strenge Vertraulichkeit wird erwartet. Bitte unterzeichnen Sie die NDA, bevor weitere Informationen weitergegeben werden.
-
-────────────────────────────────────────────
-
-KONTAKT FÜR INTERESSENTEN
-
-mibeca GmbH · M&A-Beratung für IT-Unternehmen
-Mike Bergmann · Geschäftsführer
-Hambrocker Str. 47 · 29525 Uelzen
-www.itukv.de · info@mail.itukv.de
-
-────────────────────────────────────────────`
+  } catch (e) { alert('Aus Fragebogen vorbefüllen fehlgeschlagen: ' + e.message) }
 }
 
 let saveTimer = null
@@ -261,32 +190,56 @@ async function save() {
   clearTimeout(saveTimer)
   saveTimer = setTimeout(async () => {
     try {
-      await authFetch('/target-update', { method: 'POST', data: { id: props.targetId,  exposeText: exposeText.value, exposeStatus: exposeStatus.value  } })
+      await authFetch('/target-update', { method: 'POST', data: { id: props.targetId, exposeJson: JSON.stringify({ ...data.value, status: exposeStatus.value }) } })
     } catch (e) { console.error(e) }
-  }, 500)
+  }, 400)
 }
 
-function setStatus(s) {
-  exposeStatus.value = s
-  save()
-}
+async function setStatus(s) { exposeStatus.value = s; save() }
 
-function downloadText() {
-  const blob = new Blob([exposeText.value], { type: 'text/plain;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a'); a.href = url
-  a.download = `Expose_${target.value?.mbNr || 'mandat'}.txt`
-  a.click()
-  URL.revokeObjectURL(url)
+// Preview
+const previewUrl = ref(null)
+const previewLoading = ref(false)
+async function openPreview() {
+  previewLoading.value = true
+  try {
+    const token = sessionStorage.getItem('customerJwt') || sessionStorage.getItem('msalToken') || ''
+    const r = await fetch(`${apiBase}/expose-pdf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify(data.value),
+    })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
+    previewUrl.value = URL.createObjectURL(await r.blob())
+  } catch (e) { alert('Vorschau fehlgeschlagen: ' + e.message) }
+  finally { previewLoading.value = false }
 }
+function closePreview() { if (previewUrl.value) URL.revokeObjectURL(previewUrl.value); previewUrl.value = null }
 
-function printPdf() {
-  const win = window.open('', '_blank')
-  if (!win) return
-  win.document.write(`<html><head><title>Exposé ${target.value?.mbNr}</title><style>
-    body{font-family:Georgia,serif;max-width:720px;margin:40px auto;padding:0 20px;line-height:1.6;color:#161e2a;font-size:14px}
-    pre{white-space:pre-wrap;font-family:inherit}
-  </style></head><body><pre>${exposeText.value.replaceAll('<','&lt;')}</pre><script>window.print()</scr` + `ipt></body></html>`)
-  win.document.close()
-}
+onMounted(async () => {
+  if (!props.targetId) return
+  try {
+    target.value = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
+    if (target.value?.mbNr) data.value.mbNr = target.value.mbNr
+    if (target.value?.exposeJson) {
+      try {
+        const e = JSON.parse(target.value.exposeJson)
+        // Merge: behalte default-sektionen wenn nicht vorhanden
+        if (e.headline !== undefined) data.value.headline = e.headline
+        if (e.subheadline !== undefined) data.value.subheadline = e.subheadline
+        if (e.stand) data.value.stand = e.stand
+        if (Array.isArray(e.sektionen) && e.sektionen.length) data.value.sektionen = e.sektionen
+        if (e.finanzen) Object.assign(data.value.finanzen, e.finanzen)
+        if (e.status) exposeStatus.value = e.status
+      } catch {}
+    }
+  } catch (e) { console.error(e) }
+})
 </script>
+
+<style scoped>
+@reference "tailwindcss";
+.input { @apply w-full px-3 py-2 border-2 border-gray-200 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]; }
+.lbl { @apply block text-xs font-medium text-gray-600 mb-1; }
+</style>

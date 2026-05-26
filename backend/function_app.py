@@ -3056,6 +3056,98 @@ def nda_upload(req: func.HttpRequest) -> func.HttpResponse:
 # DOKUMENTE / DATENRAUM mit Azure Blob Storage
 # =========================================================================
 
+_EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8"><title>Exposé {{ mbNr }}</title>
+<style>
+  @page {
+    size: A4; margin: 24mm 18mm 24mm 18mm;
+    @top-left { content: "Projekt {{ mbNr }} · mibeca GmbH"; font-size: 9pt; color: #888; }
+    @bottom-right { content: "Seite " counter(page) " / " counter(pages); font-size: 9pt; color: #888; }
+  }
+  html, body { font-family: "Helvetica", "Arial", system-ui, sans-serif; font-size: 10.5pt; line-height: 1.55; color: #1f2937; }
+  h1 { font-size: 22pt; font-weight: 700; color: #0e7c92; margin: 0; }
+  .hl-line { color: #6b7280; font-size: 10pt; margin: 4pt 0 18pt 0; padding-bottom: 8pt; border-bottom: 1pt solid #e5e7eb; }
+  .headline-box { background: linear-gradient(to right, #0e7c92, #0a9aaf); color: white; padding: 18pt 22pt; border-radius: 6pt; margin-bottom: 18pt; }
+  .headline-box h2 { font-size: 14pt; margin: 0 0 6pt 0; font-weight: 700; }
+  .headline-box p { margin: 0; opacity: 0.95; font-size: 11pt; }
+  .section { display: flex; gap: 16pt; margin-bottom: 14pt; page-break-inside: avoid; }
+  .section-label { width: 130pt; flex-shrink: 0; font-weight: 700; color: #0e7c92; font-size: 10.5pt; }
+  .section-body { flex: 1; }
+  .section-body p { margin: 0 0 6pt 0; text-align: justify; white-space: pre-wrap; }
+  .section-body ul { margin: 4pt 0; padding-left: 16pt; }
+  table { width: 100%; border-collapse: collapse; margin: 6pt 0; font-size: 9.5pt; }
+  th, td { padding: 4pt 6pt; text-align: left; border-bottom: 1pt solid #e5e7eb; }
+  th { background: #f9fafb; color: #0e7c92; font-weight: 700; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .footer-note { font-size: 9pt; color: #6b7280; margin-top: 18pt; padding-top: 10pt; border-top: 1pt solid #e5e7eb; }
+</style></head><body>
+
+<h1>Unternehmensexposé</h1>
+<p class="hl-line">Projektnummer: <strong>{{ mbNr }}</strong> · Stand: {{ stand }}</p>
+
+<div class="headline-box">
+  <h2>{{ headline }}</h2>
+  <p>{{ subheadline }}</p>
+</div>
+
+{% for s in sektionen %}
+{% if s.body %}
+<div class="section">
+  <div class="section-label">{{ s.label }}</div>
+  <div class="section-body"><p>{{ s.body }}</p></div>
+</div>
+{% endif %}
+{% endfor %}
+
+{% if finanzen %}
+<div class="section">
+  <div class="section-label">Umsätze, Erträge</div>
+  <div class="section-body">
+    <p>{{ finanzen.einleitung or "" }}</p>
+    {% if finanzen.jahre %}
+    <table>
+      <thead>
+        <tr><th>Position</th>{% for j in finanzen.jahre %}<th class="num">{{ j }}</th>{% endfor %}</tr>
+      </thead>
+      <tbody>
+        {% for row in finanzen.rows %}
+        <tr><td>{{ row.label }}</td>{% for v in row.werte %}<td class="num">{{ v }}</td>{% endfor %}</tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<p class="footer-note">Dieses Exposé ist vertraulich und ausschließlich zur Information vorgesehener Empfänger bestimmt. Eine Weitergabe an Dritte ist ohne ausdrückliche Zustimmung der mibeca GmbH untersagt.</p>
+
+</body></html>"""
+
+
+def _render_expose_pdf_bytes(data):
+    from jinja2 import Template
+    from weasyprint import HTML
+    html = Template(_EXPOSE_HTML_TEMPLATE).render(**data)
+    return HTML(string=html, base_url="/").write_pdf()
+
+
+@app.route(route="expose-pdf", methods=["POST", "OPTIONS"])
+def expose_pdf(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    try:
+        pdf_bytes = _render_expose_pdf_bytes(body)
+    except Exception as ex:
+        return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
+    return func.HttpResponse(pdf_bytes, status_code=200, mimetype="application/pdf",
+                             headers={**CORS, "Content-Disposition": f'attachment; filename="Expose_{body.get("mbNr","")}.pdf"'})
+
+
 @app.route(route="dokument-upload-url", methods=["POST", "OPTIONS"])
 def dokument_upload_url(req: func.HttpRequest) -> func.HttpResponse:
     """Generiert SAS-URL fuer direkten Blob-Upload (auch Videos, beliebige Groesse)."""
