@@ -33,6 +33,14 @@
           <option>Kunde</option>
           <option>Ex-Kunde</option>
         </select>
+        <!-- Investor-Sub-Typ: nur sichtbar wenn Investor gewählt -->
+        <select v-if="filterStatus === 'Investor'" v-model="filterTyp" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
+          <option value="">Investor-Typ (alle)</option>
+          <option>PE</option>
+          <option>Systemhausgruppe</option>
+          <option>Strategisch</option>
+          <option>Sonstige</option>
+        </select>
         <div class="flex items-center gap-2 border-l border-gray-200 pl-3">
           <label class="text-xs font-medium text-gray-600">PLZ</label>
           <input v-model="filterCenterPlz" placeholder="z.B. 80331" maxlength="5"
