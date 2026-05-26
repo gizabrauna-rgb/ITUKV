@@ -2194,21 +2194,35 @@ def verlauf_unread_count(req: func.HttpRequest) -> func.HttpResponse:
 
     per_target = {}
     total = 0
+    items = []  # Liste fuer Dropdown
     for tid in target_ids:
         try:
             t = dict(table_("targets").get_entity("target", tid))
             verlauf = json.loads(t.get("kommunikationJson", "[]") or "[]")
         except Exception:
+            t = {}
             verlauf = []
         ls = last_seen.get(tid, "1970-01-01T00:00:00")
-        # Nicht eigene Eintraege zaehlen
-        unread = sum(1 for e in verlauf
-                     if (e.get("datum", "") or "") > ls
-                     and e.get("createdBy", "") != p.get("id", ""))
-        if unread:
-            per_target[tid] = unread
-            total += unread
-    return ok_({"perTarget": per_target, "total": total})
+        unread_entries = [e for e in verlauf
+                          if (e.get("datum", "") or "") > ls
+                          and e.get("createdBy", "") != p.get("id", "")]
+        if unread_entries:
+            per_target[tid] = len(unread_entries)
+            total += len(unread_entries)
+            # Neuesten Eintrag pro Target rausziehen
+            unread_entries.sort(key=lambda x: x.get("datum", ""), reverse=True)
+            top = unread_entries[0]
+            items.append({
+                "targetId": tid,
+                "mbNr": t.get("mbNr", ""),
+                "firma": t.get("verkaueferName", "") or t.get("firma", ""),
+                "unreadCount": len(unread_entries),
+                "lastBetreff": top.get("betreff", ""),
+                "lastDatum": top.get("datum", ""),
+                "lastTyp": top.get("typ", ""),
+            })
+    items.sort(key=lambda x: x.get("lastDatum", ""), reverse=True)
+    return ok_({"perTarget": per_target, "total": total, "items": items[:15]})
 
 
 @app.route(route="verlauf-mark-read", methods=["POST", "OPTIONS"])

@@ -37,13 +37,39 @@
           </div>
         </div>
 
-        <!-- Posteingang / Ungelesen-Badge -->
-        <button @click="tab = 'targets'" class="relative flex items-center gap-1.5 text-xs text-gray-300 hover:text-white" :title="`${unreadTotal} ungelesene Verlauf-Eintraege`">
-          <Bell class="w-4 h-4" />
-          <span v-if="unreadTotal > 0" class="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
-            {{ unreadTotal > 99 ? '99+' : unreadTotal }}
-          </span>
-        </button>
+        <!-- Posteingang / Ungelesen-Badge mit Dropdown -->
+        <div class="relative">
+          <button @click="showBell = !showBell" class="relative flex items-center gap-1.5 text-xs text-gray-300 hover:text-white">
+            <Bell class="w-4 h-4" />
+            <span v-if="unreadTotal > 0" class="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+              {{ unreadTotal > 99 ? '99+' : unreadTotal }}
+            </span>
+          </button>
+          <div v-if="showBell" class="absolute right-0 top-full mt-2 bg-white text-gray-800 rounded-xl shadow-2xl border border-gray-100 w-96 z-50 overflow-hidden">
+            <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <div class="font-semibold text-sm">Ungelesene Nachrichten</div>
+              <button v-if="unreadItems.length" @click="markAllRead" class="text-xs text-gray-500 hover:text-[#097e92]">Alle als gelesen markieren</button>
+            </div>
+            <div class="max-h-96 overflow-y-auto">
+              <div v-if="!unreadItems.length" class="p-6 text-center text-sm text-gray-400">
+                Keine ungelesenen Nachrichten ✓
+              </div>
+              <button v-for="i in unreadItems" :key="i.targetId" @click="openTarget(i)"
+                class="w-full px-4 py-3 hover:bg-gray-50 text-left border-b border-gray-50 last:border-0 flex items-start gap-2">
+                <span :class="['w-2 h-2 rounded-full mt-1.5 flex-shrink-0', typColor(i.lastTyp)]"></span>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">{{ i.mbNr }}</span>
+                    <span class="font-medium text-sm truncate">{{ i.firma }}</span>
+                    <span class="text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold ml-auto">{{ i.unreadCount }}</span>
+                  </div>
+                  <div class="text-xs text-gray-700 mt-0.5 truncate">{{ i.lastBetreff }}</div>
+                  <div class="text-[11px] text-gray-400 mt-0.5">{{ formatRelative(i.lastDatum) }}</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
         <span class="text-sm text-gray-300">{{ userName }}</span>
         <button @click="$emit('logout')" class="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors">
           <LogOut class="w-4 h-4" /> Abmelden
@@ -157,7 +183,7 @@ import {
   Building2, LogOut, LayoutDashboard, Briefcase, GitBranch,
   Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow, Bell, BarChart3
 } from '@lucide/vue'
-import { authFetch, verlaufUnreadCount } from '../api.js'
+import { authFetch, verlaufUnreadCount, verlaufMarkRead } from '../api.js'
 import TargetsTab from '../components/admin/TargetsTab.vue'
 import PipelineTab from '../components/admin/PipelineTab.vue'
 import CrmTab from '../components/admin/CrmTab.vue'
@@ -223,10 +249,42 @@ const checklistProgress = computed(() => {
 const donCount = computed(() => detailCheckliste.value.filter(i => i.done).length)
 
 const unreadTotal = ref(0)
+const unreadItems = ref([])
+const showBell = ref(false)
 async function pollUnread() {
   try {
     const r = await verlaufUnreadCount()
     unreadTotal.value = r?.total || 0
+    unreadItems.value = r?.items || []
+  } catch {}
+}
+function typColor(t) {
+  const m = { mail_in: 'bg-blue-500', mail_out: 'bg-[#097e92]', telefon: 'bg-purple-500', termin: 'bg-amber-500', wichtig: 'bg-red-500', notiz: 'bg-gray-400' }
+  return m[t] || 'bg-gray-400'
+}
+function formatRelative(iso) {
+  if (!iso) return ''
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+  if (diff < 60) return 'gerade eben'
+  if (diff < 3600) return `vor ${Math.floor(diff / 60)} Min`
+  if (diff < 86400) return `vor ${Math.floor(diff / 3600)} Std`
+  if (diff < 7 * 86400) return `vor ${Math.floor(diff / 86400)} Tagen`
+  return new Date(iso).toLocaleDateString('de-DE')
+}
+async function openTarget(item) {
+  showBell.value = false
+  akteTargetId.value = item.targetId
+  tab.value = 'targets'
+  try {
+    await verlaufMarkRead(item.targetId)
+    await pollUnread()
+  } catch {}
+}
+async function markAllRead() {
+  try {
+    await verlaufMarkRead('')
+    await pollUnread()
+    showBell.value = false
   } catch {}
 }
 let unreadTimer = null
