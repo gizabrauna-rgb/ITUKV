@@ -127,16 +127,7 @@
 
       <!-- Dokumente -->
       <div v-else-if="tab === 'dokumente'">
-        <h3 class="font-semibold text-gray-800 mb-4">Standard-Ordnerstruktur</h3>
-        <div class="grid grid-cols-3 gap-3">
-          <div v-for="o in ordnerListe" :key="o" class="bg-white rounded-xl border border-gray-100 p-4 hover:border-[#097e92]/40 hover:shadow-sm transition-all cursor-pointer flex items-center gap-3">
-            <Folder class="w-6 h-6 text-[#097e92]" />
-            <div>
-              <div class="text-sm font-medium text-gray-700">{{ o }}</div>
-              <div class="text-xs text-gray-400">— Dateien</div>
-            </div>
-          </div>
-        </div>
+        <DokumenteAkte :target-id="targetId" />
       </div>
 
       <!-- Exposé -->
@@ -193,6 +184,7 @@ import Suchprofil from './Suchprofil.vue'
 import LongList from './LongList.vue'
 import Erfolgsmeldung from './Erfolgsmeldung.vue'
 import LessonsLearned from './LessonsLearned.vue'
+import DokumenteAkte from './DokumenteAkte.vue'
 import VertragEditor from './VertragEditor.vue'
 import Zwischenstand from './Zwischenstand.vue'
 import Verlauf from './Verlauf.vue'

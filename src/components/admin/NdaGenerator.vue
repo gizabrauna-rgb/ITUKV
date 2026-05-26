@@ -33,6 +33,14 @@
           <input v-model="vars.vertreten" placeholder="z.B. Max Mustermann (Geschäftsführer)" class="input" />
         </div>
         <div>
+          <label class="text-xs font-medium text-gray-600 mb-1 block">Anschrift (Straße + Hausnr.)</label>
+          <input v-model="vars.adresse" placeholder="z.B. Beispielstraße 1" class="input" />
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-600 mb-1 block">PLZ + Ort</label>
+          <input v-model="vars.plzOrt" placeholder="z.B. 80331 München" class="input" />
+        </div>
+        <div>
           <label class="text-xs font-medium text-gray-600 mb-1 block">E-Mail des Unterzeichners *</label>
           <input v-model="vars.email" type="email" placeholder="z.B. max@firma.de" class="input" />
         </div>
@@ -43,6 +51,10 @@
         <div>
           <label class="text-xs font-medium text-gray-600 mb-1 block">Datum</label>
           <input v-model="vars.datum" type="date" class="input" />
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-600 mb-1 block">Gültig bis (Jahr)</label>
+          <input v-model="vars.gueltigBis" type="number" placeholder="2027" class="input" />
         </div>
       </div>
       <button @click="zurSignaturSenden" :disabled="!canSend || sending"
@@ -170,8 +182,10 @@ const target = ref(null)
 
 const vars = ref({
   mbNr: '',
-  firma: '', vertreten: '', email: '', ort: '',
+  firma: '', vertreten: '', adresse: '', plzOrt: '',
+  email: '', ort: '',
   datum: new Date().toISOString().slice(0, 10),
+  gueltigBis: new Date().getFullYear() + 2,
 })
 
 const isKaufMandat = computed(() => /kauf|investor/i.test(target.value?.projekttyp || ''))

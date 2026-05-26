@@ -1367,67 +1367,99 @@ def vertrag_pdf(req: func.HttpRequest) -> func.HttpResponse:
 
 
 _NDA_HTML_TEMPLATE = """<!DOCTYPE html>
-<html lang="de"><head><meta charset="utf-8"><title>NDA</title>
+<html lang="de"><head><meta charset="utf-8"><title>NDA {{ form.mbNr }}</title>
 <style>
-  @page { size: A4; margin: 32mm 18mm 28mm 18mm; @bottom-right { content: "Seite " counter(page) " / " counter(pages); font-size: 9pt; color: #888; } }
-  html, body { font-family: "Helvetica", "Arial", system-ui, sans-serif; font-size: 11pt; line-height: 1.55; color: #1f2937; }
-  h1 { font-size: 20pt; font-weight: 700; color: #0e7c92; margin: 0 0 4pt 0; }
-  .subtitle { color: #6b7280; font-size: 10pt; margin: 0 0 24pt 0; }
-  .meta-grid { display: flex; gap: 16pt; margin-bottom: 20pt; }
-  .meta-box { flex: 1; padding: 10pt 12pt; background: #f9fafb; border-left: 3pt solid #0e7c92; border-radius: 2pt; }
-  .label { font-size: 8.5pt; text-transform: uppercase; letter-spacing: 1pt; color: #6b7280; margin-bottom: 4pt; }
-  .company { font-weight: 700; font-size: 11.5pt; }
-  .small { color: #6b7280; font-size: 10pt; }
-  .role { font-style: italic; color: #9ca3af; font-size: 9.5pt; margin-top: 4pt; }
-  ol { padding-left: 18pt; } ol li { margin-bottom: 8pt; text-align: justify; }
-  ol li strong { color: #0e7c92; }
-  .praeambel { font-style: italic; color: #4b5563; margin: 10pt 0 16pt 0; }
-  .signature-section { page-break-inside: avoid; margin-top: 60pt; }
-  .signature-row { display: flex; justify-content: space-between; gap: 30pt; margin-top: 50pt; }
+  @page {
+    size: A4;
+    margin: 28mm 20mm 28mm 20mm;
+    @top-right { content: "Projekt {{ form.mbNr or '' }}"; font-size: 9pt; color: #666; }
+    @bottom-right { content: "Seite " counter(page) " von " counter(pages); font-size: 9pt; color: #888; }
+    @bottom-left { content: "mibeca GmbH · Schillerstr. 1 · 29525 Uelzen · Gerichtsstand Uelzen"; font-size: 8pt; color: #888; }
+  }
+  html, body { font-family: "Helvetica", "Arial", system-ui, sans-serif; font-size: 10.5pt; line-height: 1.5; color: #1f2937; }
+  h1 { font-size: 16pt; font-weight: 700; color: #0e7c92; margin: 0 0 4pt 0; text-align: center; }
+  .subtitle { color: #1f2937; font-size: 11pt; margin: 0 0 22pt 0; text-align: center; }
+  .parties { background: #f9fafb; padding: 12pt; border-radius: 4pt; margin-bottom: 16pt; }
+  .party-line { margin: 3pt 0; }
+  .party-blank { border-bottom: 1pt solid #6b7280; min-width: 250pt; display: inline-block; padding-bottom: 1pt; }
+  .role-suffix { color: #6b7280; font-style: italic; font-size: 9.5pt; }
+  h2 { font-size: 11pt; font-weight: 700; color: #0e7c92; margin: 14pt 0 5pt 0; }
+  p { margin: 0 0 7pt 0; text-align: justify; }
+  ol { padding-left: 16pt; margin: 4pt 0; } ol li { margin-bottom: 4pt; text-align: justify; }
+  .signature-section { page-break-inside: avoid; margin-top: 30pt; }
+  .signature-section p { margin-top: 6pt; }
+  .signature-row { display: flex; justify-content: space-between; gap: 30pt; margin-top: 40pt; }
   .signature-block { flex: 1; }
-  .signature-line { border-top: 1pt solid #6b7280; height: 1pt; margin-bottom: 6pt; }
+  .signature-line { border-top: 1pt solid #6b7280; height: 1pt; margin-bottom: 4pt; }
   .signature-label { font-size: 9pt; color: #6b7280; }
+  .schluss { font-size: 9.5pt; color: #4b5563; margin-top: 10pt; padding-top: 8pt; border-top: 1pt solid #e5e7eb; }
 </style></head><body>
-<h1>Vertraulichkeitsvereinbarung (NDA)</h1>
-<p class="subtitle">
-  {% if variante == 'kaeufer' %}Käufer-NDA für Kauf-Mandat{% else %}Investor-NDA für Verkaufs-Mandat{% endif %} ·
-  Projekt-Referenz: <strong>{{ form.mbNr or '(noch nicht zugeordnet)' }}</strong> · mibeca GmbH
-</p>
-<div class="meta-grid">
-  <div class="meta-box">
-    <div class="label">{% if variante == 'kaeufer' %}Käufer{% else %}Investor{% endif %}</div>
-    <div class="company">{{ form.firma }}</div>
-    <div class="small">vertreten durch {{ form.vertreten }}</div>
-    <div class="role">– nachfolgend „{% if variante == 'kaeufer' %}Käufer{% else %}Investor{% endif %}" –</div>
-  </div>
-  <div class="meta-box">
-    <div class="label">Transaktionsberater</div>
-    <div class="company">mibeca GmbH</div>
-    <div class="small">Schillerstr. 1 · 29525 Uelzen</div>
-    <div class="small">vertreten durch Jennifer Kaplan</div>
-    <div class="role">– nachfolgend „Transaktionsberater" –</div>
-  </div>
+
+<h1>Vertraulichkeitsvereinbarung – NDA</h1>
+<p class="subtitle">zum Projekt mit der Referenznummer – <strong>{{ form.mbNr or '(noch nicht zugeordnet)' }}</strong></p>
+
+<div class="parties">
+  <div class="party-line"><span class="party-blank">{{ form.firma or "&nbsp;" | safe }}</span></div>
+  <div class="party-line"><span class="party-blank">{{ form.adresse or "&nbsp;" | safe }}</span></div>
+  <div class="party-line"><span class="party-blank">{{ form.plzOrt or "&nbsp;" | safe }}</span></div>
+  <div class="party-line">vertreten durch <span class="party-blank">{{ form.vertreten or "&nbsp;" | safe }}</span></div>
+  <div class="role-suffix" style="margin-top:6pt">nachfolgend gemeinsam „Investor" genannt</div>
 </div>
-<p class="praeambel">Die Parteien beabsichtigen, im Rahmen einer möglichen Transaktion vertrauliche Informationen auszutauschen. Zu diesem Zweck vereinbaren die Parteien Folgendes:</p>
+
+<p style="margin-bottom:12pt"><strong>und der Firma</strong></p>
+
+<div class="parties">
+  <div class="party-line"><strong>mibeca GmbH</strong></div>
+  <div class="party-line">Schillerstr. 1</div>
+  <div class="party-line">29525 Uelzen</div>
+  <div class="party-line">vertreten durch Jennifer Kaplan</div>
+  <div class="role-suffix" style="margin-top:6pt">nachfolgend „Transaktionsberater" genannt</div>
+</div>
+
+<h2>Präambel</h2>
+<p>Der Transaktionsberater unterstützt IT-Unternehmer und deren IT-Unternehmen (nachfolgend „Verkaufsobjekte" genannt) dabei, das eigene Unternehmen zu verkaufen. Der Investor sucht im Rahmen seiner Strategie geeignete Verkaufsobjekte mit dem Ziel des Kaufs dieser Verkaufsobjekte oder einer Beteiligung an diesen (im Folgenden jeweils eine „Transaktion"). Im Hinblick darauf, dass die Parteien über eine mögliche Zusammenarbeit Gespräche führen und/oder die Parteien in diesem Zusammenhang vertrauliche Informationen und Unterlagen über Verkaufsobjekte austauschen wollen und/oder dem Investor vertrauliche Informationen über Verkaufsobjekte zugänglich gemacht werden und die Parteien einen Missbrauch dieser Informationen vermeiden wollen, vereinbaren die Parteien folgendes:</p>
+
+<h2>§1 Projektbeschreibung</h2>
+<p>Der Transaktionsberater beabsichtigt, dem Investor vertrauliche Informationen über ein Verkaufsobjekt mit der oben genannten Referenznummer mitzuteilen. Der Investor bestätigt, bisher noch nicht über ein Verkaufsobjekt in Verhandlungen zu stehen, auf das die bisher erhaltenen Informationen zutrifft (z.B. Region, Anzahl Mitarbeiter etc.).</p>
+
+<h2>§2 Geheimhaltungsvereinbarung</h2>
+<p>Der Investor verpflichtet sich hiermit alle Informationen, die er direkt oder indirekt im Rahmen dieser Zusammenarbeit vom Transaktionsberater erlangt, vertraulich zu behandeln und nur im Zusammenhang mit dem in §1 beschriebenen Projekt zu verwenden. Der Investor sichert dem Transaktionsberater insbesondere zu, diese Informationen außer den in §3 Abs. 3 zugelassenen Personenkreis, weder an Dritte weiter zu geben noch in anderer Form Dritten zugänglich zu machen und alle angemessenen Vorkehrungen zu treffen, um einen Zugriff Dritter auf diese Informationen zu vermeiden.</p>
+
+<h2>§3 Geheimhaltungsumfang und betroffener Personenkreis</h2>
 <ol>
-  <li><strong>Definition vertraulicher Informationen:</strong> Als vertrauliche Informationen gelten sämtliche unter dieser Vereinbarung ausgetauschten Daten, insbesondere Informationen zu M&A-Transaktionen, geschäftliche, technische, finanzielle und personelle Details {% if variante == 'kaeufer' %}der vom Transaktionsberater vorgeschlagenen Zielunternehmen{% else %}des Verkaufsobjekts {% if form.mbNr %}<strong>{{ form.mbNr }}</strong>{% endif %}{% endif %}.</li>
-  <li><strong>Behandlungspflichten:</strong> Die Parteien behandeln die vertraulichen Informationen mit größtmöglicher Sorgfalt, nutzen sie ausschließlich zum vereinbarten Zweck und unterlassen jegliche unbefugte Vervielfältigung oder Weitergabe.</li>
-  <li><strong>Ausnahmen:</strong> Von der Geheimhaltungspflicht ausgenommen sind Informationen, die (a) öffentlich bekannt sind oder werden, (b) der empfangenden Partei bereits durch Dritte zugänglich waren, oder (c) unabhängig entwickelt wurden.</li>
-  <li><strong>Weitergabe bei Rechtspflicht:</strong> Im Falle gesetzlicher oder behördlicher Verpflichtung zur Offenlegung wird die andere Partei unverzüglich informiert.</li>
-  <li><strong>Weitergabe an Angestellte/Berater:</strong> Die Weitergabe an eigene Mitarbeiter, Wirtschaftsprüfer, Rechtsanwälte und sonstige Berater ist zulässig, soweit diese ihrerseits zur Verschwiegenheit verpflichtet sind („need-to-know"-Prinzip).</li>
-  <li><strong>Keine Eigentums- oder Nutzungsrechte:</strong> Aus dem Erhalt vertraulicher Informationen entstehen keinerlei Eigentums-, Nutzungs- oder Lizenzrechte.</li>
-  <li><strong>Laufzeit:</strong> Diese Vereinbarung gilt bis zum <strong>31.12.2027</strong>. Die Nicht-Weitergabe-Verpflichtung besteht darüber hinaus für weitere drei Jahre fort.</li>
-  <li><strong>Schriftform:</strong> Änderungen und Ergänzungen bedürfen der Schriftform. Mündliche Nebenabreden bestehen nicht.</li>
-  <li><strong>Salvatorische Klausel:</strong> Sollten einzelne Bestimmungen unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.</li>
-  <li><strong>Anwendbares Recht und Gerichtsstand:</strong> Es gilt deutsches Recht. Gerichtsstand ist Uelzen.</li>
+  <li>Die Geheimhaltungsvereinbarung bezieht sich auf alle Informationen, die der Investor oder einer seiner Angestellten im Zusammenhang mit dem in §1 beschriebenen Projekt erlangt oder erlangen wird, insbesondere auf Know-how sowie Ergebnisse, die im Rahmen dieses Projektes erzielt oder verwendet werden, die Beschreibung des Projektes, die in Aussicht genommenen Zeitpläne, Ziele und Ideen für die Ausführung des Projektes und andere nicht öffentlich verfügbare Informationen, die der Investor im Rahmen des Projektes über den Mandanten vom Transaktionsberater für die Prüfung der Transaktion erlangt. Der Investor wird die überlassenen vertraulichen Informationen nicht zu anderen Zwecken, insbesondere nicht zu Wettbewerbszwecken verwerten und auch nicht an Dritte weitergeben oder öffentlich bekannt machen.</li>
+  <li>Die Geheimhaltungsvereinbarung erstreckt sich auch auf sämtliche Mitarbeiter und Beauftragte sowie verbundene Unternehmen des Investors, ohne Rücksicht auf die Art und rechtliche Ausgestaltung der Zusammenarbeit. Der Investor verpflichtet sich, diesem Personenkreis entsprechende Geheimhaltungsverpflichtungen aufzuerlegen, soweit dies noch nicht geschehen ist und diese dem Transaktionsberater auf dessen Verlangen hin nachzuweisen.</li>
+  <li>Ausgenommen sind solche Personen, wie Steuerberater, Wirtschaftsprüfer und Rechtsanwälte, die aufgrund des Berufsrechts zur Verschwiegenheit verpflichtet sind.</li>
 </ol>
+
+<h2>§4 Zeitraum</h2>
+<ol>
+  <li>Die Geheimhaltungsverpflichtungen nach diesem Vertrag gelten bis zum <strong>31.12.{{ form.gueltigBis or "2027" }}</strong>.</li>
+  <li>Die Geheimhaltungsverpflichtungen nach diesem Vertrag bestehen nicht bzw. nicht mehr, wenn die betreffenden Informationen nachweislich allgemein bekannt sind bzw. geworden sind oder ohne Verschulden des Investors allgemein bekannt werden oder rechtmäßig von einem Dritten erlangt wurden oder bei dem Investor bereits vorhanden sind.</li>
+</ol>
+
+<h2>§5 Strafbarkeit und Schadensersatz</h2>
+<p>Dem Investor ist bekannt, dass die Verletzung von Betriebs- und Geschäftsgeheimnissen nach den §§ 17, 18 UWG strafbar ist und mit Freiheitsstrafe bis zu 5 Jahren geahndet werden kann, und derjenige, der Geschäfts- und Betriebsgeheimnisse verletzt, zum Ersatz des daraus entstandenen Schadens nach § 19 UWG verpflichtet ist.</p>
+
+<h2>Schlussbestimmungen</h2>
+<p class="schluss">Die Vertraulichkeitsvereinbarung beginnt mit beidseitiger Unterzeichnung. Änderungen und/oder Ergänzungen dieser Vereinbarung bedürfen zu ihrer Wirksamkeit der Schriftform, ebenso eine etwaige Aufhebung dieser Schriftformklausel. Sollten sich einzelne Bestimmungen dieser Vereinbarung als unwirksam erweisen, so wird die Wirksamkeit der übrigen Bestimmungen hiervon nicht berührt. An die Stelle der unwirksamen Bestimmung tritt eine Regelung, die dem gewollten Zweck am nächsten kommt. Für das Vertragsverhältnis und die sich hieraus ergebenden Ansprüche gilt ausschließlich deutsches Recht. Erfüllungsort und Gerichtsstand ist Uelzen, der Sitz des Unternehmens des Transaktionsberaters.</p>
+
+<p class="schluss" style="margin-top:6pt">Ich, der oben näher spezifizierte Investor, habe diese Vereinbarung zur Kenntnis genommen und bestätige, dass ich berechtigt bin, diese rechtsverbindlich zu unterzeichnen. Ich stimme zu, dass meine Angaben und Daten zur Beantwortung meiner Anfrage elektronisch erhoben und gespeichert werden.</p>
+
 <div class="signature-section">
-  <p style="margin: 18pt 0 6pt 0; font-size: 10.5pt">{{ form.ort }}, den {{ form.datum }}</p>
+  <p>{{ form.ort or "Uelzen" }}, den {{ form.datum }}</p>
   <div class="signature-row">
-    <div class="signature-block"><div class="signature-line"></div><div class="signature-label">Unterschrift ({% if variante == 'kaeufer' %}Käufer{% else %}Investor{% endif %})</div></div>
-    <div class="signature-block"><div class="signature-line"></div><div class="signature-label">Unterschrift (mibeca)</div></div>
+    <div class="signature-block">
+      <div class="signature-line"></div>
+      <div class="signature-label">Unterschrift Investor</div>
+    </div>
+    <div class="signature-block">
+      <div class="signature-line"></div>
+      <div class="signature-label">Unterschrift Transaktionsberater (Jennifer Kaplan)</div>
+    </div>
   </div>
 </div>
+
 </body></html>"""
 
 
