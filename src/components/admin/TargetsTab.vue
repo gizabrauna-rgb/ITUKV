@@ -20,13 +20,19 @@
         <option value="in_verhandlung">In Verhandlung</option>
         <option value="verkauft">Verkauft</option>
       </select>
+      <select v-model="filterRichtung" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
+        <option value="">Alle Mandate</option>
+        <option value="verkauf">Verkauf-Mandate</option>
+        <option value="kauf">Kauf-Mandate</option>
+      </select>
       <select v-model="filterTyp" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
-        <option value="">Alle Typen</option>
+        <option value="">Alle Projekttypen</option>
         <option>UVE Target</option>
         <option>Projekt Target</option>
         <option>MC Target</option>
         <option>Projekt Investoren</option>
         <option>MC Investoren</option>
+        <option>Kauf-Mandat</option>
       </select>
       <span class="text-sm text-gray-400 self-center">{{ filtered.length }} / {{ targets.length }}</span>
     </div>
@@ -96,11 +102,16 @@
           <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">Projekttyp *</label>
             <select v-model="form.projekttyp" class="input">
-              <option>UVE Target</option>
-              <option>Projekt Target</option>
-              <option>MC Target</option>
-              <option>Projekt Investoren</option>
-              <option>MC Investoren</option>
+              <optgroup label="Verkauf-Mandate (Target sucht Käufer)">
+                <option>UVE Target</option>
+                <option>Projekt Target</option>
+                <option>MC Target</option>
+                <option>Projekt Investoren</option>
+                <option>MC Investoren</option>
+              </optgroup>
+              <optgroup label="Kauf-Mandate (Käufer sucht Targets)">
+                <option>Kauf-Mandat</option>
+              </optgroup>
             </select>
           </div>
           <div class="col-span-2">
@@ -153,12 +164,15 @@ const targets = ref([])
 const search = ref('')
 const filterStatus = ref('')
 const filterTyp = ref('')
+const filterRichtung = ref('')
 const loading = ref(true)
 
 const filtered = computed(() => {
   let r = targets.value
   if (filterStatus.value) r = r.filter(t => t.status === filterStatus.value)
   if (filterTyp.value) r = r.filter(t => t.projekttyp === filterTyp.value)
+  if (filterRichtung.value === 'kauf') r = r.filter(t => (t.projekttyp || '').toLowerCase().includes('kauf'))
+  if (filterRichtung.value === 'verkauf') r = r.filter(t => !(t.projekttyp || '').toLowerCase().includes('kauf'))
   if (search.value) {
     const q = search.value.toLowerCase()
     r = r.filter(t =>

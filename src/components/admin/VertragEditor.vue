@@ -259,9 +259,10 @@ const saving = ref(false)
 const sending = ref(false)
 
 const varianten = [
-  { key: 'standard', titel: 'Standard', beschreibung: 'Kunde ohne UVE, kommt frisch zu mibeca', preis: 'Eröffnung: 4.950 €' },
-  { key: 'mit_uve', titel: 'Mit UVE', beschreibung: 'UVE-Coaching wird im Rahmen des Mandats erstellt', preis: 'Eröffnung: 10.000 € oder 6× 1.800 €' },
-  { key: 'vorhandenes_uve', titel: 'Vorhandenes UVE', beschreibung: 'Kunde hat UVE bereits abgeschlossen und bezahlt', preis: 'Eröffnung: 0 € (statt 3.490 €)' },
+  { key: 'standard', titel: 'Verkauf · Standard', beschreibung: 'Kunde ohne UVE, kommt frisch zu mibeca', preis: 'Eröffnung: 4.950 €', richtung: 'verkauf' },
+  { key: 'mit_uve', titel: 'Verkauf · Mit UVE', beschreibung: 'UVE-Coaching wird im Rahmen des Mandats erstellt', preis: 'Eröffnung: 10.000 € oder 6× 1.800 €', richtung: 'verkauf' },
+  { key: 'vorhandenes_uve', titel: 'Verkauf · Vorhandenes UVE', beschreibung: 'Kunde hat UVE bereits abgeschlossen und bezahlt', preis: 'Eröffnung: 0 € (statt 3.490 €)', richtung: 'verkauf' },
+  { key: 'kauf_mandat', titel: 'Kauf-Mandat', beschreibung: 'Käufer beauftragt mibeca, ein passendes Zielunternehmen zu finden', preis: 'Eröffnung: 4.950 € + Erfolgsprov.', richtung: 'kauf' },
 ]
 
 const form = ref({

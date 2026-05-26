@@ -92,6 +92,16 @@
         <Fragebogen :target-id="targetId" />
       </div>
 
+      <!-- Suchprofil (nur bei Kauf-Mandat) -->
+      <div v-else-if="tab === 'suchprofil'">
+        <Suchprofil :target-id="targetId" />
+      </div>
+
+      <!-- Long-List / Short-List (nur bei Kauf-Mandat) -->
+      <div v-else-if="tab === 'longlist'">
+        <LongList :target-id="targetId" />
+      </div>
+
       <!-- Bewertung (Score-System auf Basis der 33 Fragen) -->
       <div v-else-if="tab === 'bewertung'">
         <Unternehmensbewertung :target-id="targetId" />
@@ -169,6 +179,8 @@ import PhasenProzessEingebettet from './PhasenProzess.vue'
 import MandatDaten from '../target/MandatDaten.vue'
 import Fragebogen from '../target/Fragebogen.vue'
 import Unternehmensbewertung from '../target/Unternehmensbewertung.vue'
+import Suchprofil from './Suchprofil.vue'
+import LongList from './LongList.vue'
 import VertragEditor from './VertragEditor.vue'
 import Zwischenstand from './Zwischenstand.vue'
 import Verlauf from './Verlauf.vue'
@@ -183,20 +195,39 @@ const target = ref(null)
 const tab = ref('uebersicht')
 const vertragSubTab = ref('mandat')
 
-const tabs = [
-  { tab: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard },
-  { tab: 'prozess', label: 'Master-Prozess', icon: Workflow },
-  { tab: 'fragebogen', label: 'Fragebogen', icon: FileEdit },
-  { tab: 'bewertung', label: 'Bewertung', icon: TrendingUp },
-  { tab: 'mandat', label: 'Mandat-Daten', icon: ClipboardList },
-  { tab: 'expose', label: 'Exposé', icon: FileText },
-  { tab: 'nda', label: 'Verträge', icon: ShieldCheck },
-  { tab: 'interessenten', label: 'Interessenten', icon: Users },
-  { tab: 'dokumente', label: 'Dokumente', icon: Folder },
-  { tab: 'zwischenstand', label: 'Zwischenstand', icon: FileEdit },
-  { tab: 'verlauf', label: 'Verlauf', icon: MessageSquare },
-  { tab: 'zeit', label: 'Zeiterfassung', icon: Clock },
-]
+const isKaufMandat = computed(() => (target.value?.projekttyp || '').toLowerCase().includes('kauf'))
+
+const tabs = computed(() => {
+  if (isKaufMandat.value) {
+    // Kauf-Mandat: Suchprofil statt Fragebogen, Long-List statt Interessenten
+    return [
+      { tab: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard },
+      { tab: 'prozess', label: 'Master-Prozess', icon: Workflow },
+      { tab: 'suchprofil', label: 'Suchprofil', icon: FileEdit },
+      { tab: 'mandat', label: 'Mandat-Daten', icon: ClipboardList },
+      { tab: 'nda', label: 'Verträge', icon: ShieldCheck },
+      { tab: 'longlist', label: 'Long-/Short-List', icon: Users },
+      { tab: 'dokumente', label: 'Dokumente', icon: Folder },
+      { tab: 'zwischenstand', label: 'Zwischenstand', icon: FileEdit },
+      { tab: 'verlauf', label: 'Verlauf', icon: MessageSquare },
+      { tab: 'zeit', label: 'Zeiterfassung', icon: Clock },
+    ]
+  }
+  return [
+    { tab: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard },
+    { tab: 'prozess', label: 'Master-Prozess', icon: Workflow },
+    { tab: 'fragebogen', label: 'Fragebogen', icon: FileEdit },
+    { tab: 'bewertung', label: 'Bewertung', icon: TrendingUp },
+    { tab: 'mandat', label: 'Mandat-Daten', icon: ClipboardList },
+    { tab: 'expose', label: 'Exposé', icon: FileText },
+    { tab: 'nda', label: 'Verträge', icon: ShieldCheck },
+    { tab: 'interessenten', label: 'Interessenten', icon: Users },
+    { tab: 'dokumente', label: 'Dokumente', icon: Folder },
+    { tab: 'zwischenstand', label: 'Zwischenstand', icon: FileEdit },
+    { tab: 'verlauf', label: 'Verlauf', icon: MessageSquare },
+    { tab: 'zeit', label: 'Zeiterfassung', icon: Clock },
+  ]
+})
 
 const ordnerListe = ['Verträge', 'Datenraum', 'NDA', 'Exposé', 'Vertragsverhandlungen', 'Videoprotokoll']
 

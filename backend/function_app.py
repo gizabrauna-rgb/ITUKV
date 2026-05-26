@@ -205,23 +205,38 @@ def targets_route(req: func.HttpRequest) -> func.HttpResponse:
     tid = str(uuid.uuid4())
     # Minimale Phasen-Vorlage (15 Master-Phasen, ohne Aufgabenliste – die
     # detaillierte Liste setzt PhasenProzess.vue beim ersten Oeffnen)
-    phasen_titel = [
-        "UVE Start – Vorbereitungs-Checkliste",
-        "UVE Abschluss – Verkaufsmandat-Eroeffnung",
-        "Marktansprache – Interessenten anschreiben",
-        "NDA von Interessenten abholen",
-        "Erstes Kennenlernen – Interessent Verkaeufer",
-        "Datenraum / Kommunikationsraum in Element",
-        "Austausch von Unterlagen",
-        "Indikatives Angebot",
-        "Verhandlungen",
-        "Letter of Intent (LOI)",
-        "Due Diligence",
-        "Vertragsgestaltung",
-        "Notartermin & Closing",
-        "Post-Closing – Uebergabe & Kommunikation",
-        "Erfolgsmeldung & Abrechnung",
-    ]
+    projekttyp = body.get("projekttyp", "Projekt Target")
+    if "Kauf" in projekttyp:
+        phasen_titel = [
+            "Suchprofil definieren",
+            "Markt-Screening (mibeca)",
+            "Long-List Uebergabe",
+            "Short-List Kaeufer-Auswahl",
+            "Anonyme Ansprache durch mibeca",
+            "NDA-Austausch",
+            "Erstes Kennenlernen",
+            "LOI / Indikatives Angebot",
+            "Due Diligence",
+            "Vertrag & Closing",
+        ]
+    else:
+        phasen_titel = [
+            "UVE Start – Vorbereitungs-Checkliste",
+            "UVE Abschluss – Verkaufsmandat-Eroeffnung",
+            "Marktansprache – Interessenten anschreiben",
+            "NDA von Interessenten abholen",
+            "Erstes Kennenlernen – Interessent Verkaeufer",
+            "Datenraum / Kommunikationsraum in Element",
+            "Austausch von Unterlagen",
+            "Indikatives Angebot",
+            "Verhandlungen",
+            "Letter of Intent (LOI)",
+            "Due Diligence",
+            "Vertragsgestaltung",
+            "Notartermin & Closing",
+            "Post-Closing – Uebergabe & Kommunikation",
+            "Erfolgsmeldung & Abrechnung",
+        ]
     init_phasen = [{"id": i+1, "titel": f"{i+1}. {t}", "notiz": "", "aufgaben": []} for i, t in enumerate(phasen_titel)]
     entity = {
         "PartitionKey": "target", "RowKey": tid,
@@ -938,8 +953,8 @@ _VERTRAG_HTML_TEMPLATE = """<!DOCTYPE html>
 </head>
 <body>
 
-<h1>Beratungs- und Dienstleistungsvertrag</h1>
-<p class="subtitle">Mandatsvertrag zwischen mibeca GmbH und dem Auftraggeber</p>
+<h1>{% if variante == 'kauf_mandat' %}Beratungsvertrag · Unternehmens-Zukauf{% else %}Beratungs- und Dienstleistungsvertrag{% endif %}</h1>
+<p class="subtitle">{% if variante == 'kauf_mandat' %}Kauf-Mandat zwischen mibeca GmbH und dem Auftraggeber{% else %}Mandatsvertrag zwischen mibeca GmbH und dem Auftraggeber{% endif %}</p>
 
 <div class="meta-grid">
   <div class="meta-box">
@@ -949,13 +964,32 @@ _VERTRAG_HTML_TEMPLATE = """<!DOCTYPE html>
     <div class="small">vertreten durch {{ form.berater or "Jennifer Kaplan" }}</div>
   </div>
   <div class="meta-box">
-    <div class="label">Auftraggeber</div>
+    <div class="label">Auftraggeber (Käufer)</div>
     <div class="company">{{ form.auftraggeberFirma }}</div>
     <div class="small">{{ form.auftraggeberStrasse }} · {{ form.auftraggeberPlzOrt }}</div>
     <div class="small">vertreten durch {{ form.auftraggeberGf }}</div>
   </div>
 </div>
 
+{% if variante == 'kauf_mandat' %}
+<h2>§1 Vertragsgegenstand</h2>
+<p>Der Auftraggeber erteilt hiermit dem Berater den Auftrag, ihn beim Erwerb eines geeigneten IT-Unternehmens (im Folgenden „Zielunternehmen") zu beraten und zu unterstützen. Suchprofil und Auswahlkriterien werden im Rahmen des Mandats gemeinsam definiert.</p>
+
+<h2>§2 Leistungen des Beraters</h2>
+<ul>
+  <li>Erstellung und Schärfung des Suchprofils gemeinsam mit dem Auftraggeber</li>
+  <li>Markt-Screening und Identifikation passender Zielunternehmen (Long-List)</li>
+  <li>Anonyme Ansprache der Verkaufsbereitschaft potenzieller Zielunternehmen</li>
+  <li>NDA-Abwicklung mit Zielunternehmen</li>
+  <li>Vorbereitung und Begleitung der Erstgespräche</li>
+  <li>Unterstützung bei Indikativ-Angebot und LOI</li>
+  <li>Begleitung der Due Diligence und Verhandlung</li>
+  <li>Vermittlung weiterer Berater (Rechtsanwälte, Steuerberater, M&A-Experten)</li>
+</ul>
+
+<h2>§3 Pflichten des Auftraggebers</h2>
+<p>Der Auftraggeber stellt Suchkriterien, Budget-Rahmen und Entscheidungsbefugnisse zur Verfügung. Er meldet zeitnah zurück, welche von mibeca vorgeschlagenen Zielunternehmen weiter verfolgt werden sollen. Vertraulichkeit der bereitgestellten Informationen ist beidseitig zu wahren.</p>
+{% else %}
 <h2>§1 Vertragsgegenstand</h2>
 <p>Der Auftraggeber erteilt hiermit dem Berater den Auftrag, ihn bei folgenden Entscheidungen / Vorhaben zu beraten und zu unterstützen: (Teil-)Veräußerung des Unternehmens <strong>{{ form.verkaufsobjekt }}</strong> (im Folgenden „Verkaufsobjekt" genannt).</p>
 
@@ -972,6 +1006,7 @@ _VERTRAG_HTML_TEMPLATE = """<!DOCTYPE html>
 
 <h2>§3 Pflichten des Auftraggebers</h2>
 <p>Der Auftraggeber stellt alle relevanten Unterlagen (Bilanzen, BWA, Statistiken, Kunden-, Lieferanten- und Mitarbeiterlisten) bereit und sichert deren Vollständigkeit und Richtigkeit zu. Der Berater haftet nicht für die inhaltliche Richtigkeit der gelieferten Informationen.</p>
+{% endif %}
 
 <h2>§4 Pflichten des Beraters / Vertraulichkeit</h2>
 <p>Der Berater ist zum Stillschweigen gegenüber Dritten über sämtliche Inhalte des Verkaufsprozesses sowie über vertrauliche Informationen des Auftraggebers verpflichtet. Diese Verpflichtung gilt auch nach Ende des Vertrages. Unterlagen werden vertraulich aufbewahrt und nach Aufforderung an den Auftraggeber zurückgegeben oder vernichtet.</p>
@@ -989,6 +1024,8 @@ _VERTRAG_HTML_TEMPLATE = """<!DOCTYPE html>
     {% endif %}
   {% elif variante == 'vorhandenes_uve' %}
     <p>Keine Eröffnungsvergütung – der Auftraggeber hat das UVE-Coaching bereits abgeschlossen und bezahlt (ansonsten 3.490 €). Der Berater übernimmt die Datenaufbereitung sowie die Erstellung des Kurzexposés.</p>
+  {% elif variante == 'kauf_mandat' %}
+    <p>Eröffnungsvergütung: <strong>{{ "{:,.0f}".format(form.eroeffnungsBetrag or 4950).replace(",", ".") }} €</strong> netto für die Erstellung des Suchprofils und das initiale Markt-Screening (Long-List). Anschließend folgt eine monatliche Retainer-Pauschale, sofern unter Notizen vereinbart.</p>
   {% else %}
     <p>Eröffnungsvergütung: <strong>{{ "{:,.0f}".format(form.eroeffnungsBetrag or 4950).replace(",", ".") }} €</strong> netto für Datenaufbereitung und Erstellung des anonymen Kurzexposés.</p>
   {% endif %}
