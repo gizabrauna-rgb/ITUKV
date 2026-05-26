@@ -1958,6 +1958,26 @@ def vertrag_countersign(req: func.HttpRequest) -> func.HttpResponse:
     sig["final_pdf_blob"] = final_blob_name
     tc.update_entity(sig)
 
+    # Final unterzeichneten Vertrag auch in den Verträge-Ordner des Targets ablegen
+    try:
+        target_id = sig.get("targetId", "")
+        variante = sig.get("variante", "vertrag")
+        # Verträge-Ordner Datenraum
+        doc_blob_name = f"{target_id}/Verträge/Mandatsvertrag_{variante}_{datetime.utcnow().strftime('%Y%m%d')}.pdf".replace(" ", "_")
+        _blob_container_lazy("datenraum").upload_blob(doc_blob_name, final_bytes, overwrite=True)
+        doc_id = "vertrag-" + sig["RowKey"]
+        table_("dokumente").upsert_entity({
+            "PartitionKey": target_id, "RowKey": doc_id,
+            "name": f"Mandatsvertrag_{variante}_unterzeichnet.pdf",
+            "ordner": "Verträge", "blob": doc_blob_name, "container": "datenraum",
+            "groesse": len(final_bytes), "mimeType": "application/pdf",
+            "uploadedAt": signed_at_admin,
+            "uploadedBy": p.get("email", ""),
+            "quelle": "Mandatsvertrag-Gegenzeichnung",
+        })
+    except Exception as ex:
+        logging.warning(f"Vertrag als Target-Dokument speichern fehlgeschlagen: {ex}")
+
     # Target-Akte aktualisieren
     try:
         targets = table_("targets")

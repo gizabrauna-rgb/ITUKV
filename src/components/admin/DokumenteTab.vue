@@ -117,7 +117,7 @@ const selectedOrdner = ref(null)
 const dokumente = ref([])
 const uploading = ref(false)
 
-const ordnerListe = ['Unterlagen Ausschreibung', 'Exposé', 'Protokoll', 'NDA', 'Gesprächsnotizen', 'Datenraum', 'Beratervertrag', 'Diverses']
+const ordnerListe = ['Verträge', 'NDA', 'Exposé', 'Bilanzen & Finanzen', 'Vertragsverhandlungen', 'Videoprotokolle', 'Sonstiges']
 
 onMounted(async () => { targets.value = await getTargets() })
 
