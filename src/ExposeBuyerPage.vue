@@ -221,48 +221,92 @@
       </div>
     </div>
 
-    <!-- ============ SIGN-MODAL ============ -->
+    <!-- ============ SIGN-MODAL (2-Schritt mit Code) ============ -->
     <div v-if="showSignModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[95vh] flex flex-col overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <h3 class="font-bold text-gray-900 flex items-center gap-2"><PenTool class="w-5 h-5 text-[#FF6F00]" /> NDA online unterschreiben</h3>
           <button @click="closeSignModal" class="p-1.5 hover:bg-gray-100 rounded-lg"><X class="w-5 h-5 text-gray-500" /></button>
         </div>
+
+        <!-- Schritt-Anzeige -->
+        <div class="px-6 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-3 text-xs">
+          <div :class="['flex items-center gap-1.5', signStep === 1 ? 'text-[#FF6F00] font-semibold' : 'text-gray-400']">
+            <span :class="['w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold', signStep === 1 ? 'bg-[#FF6F00] text-white' : 'bg-gray-200 text-gray-500']">1</span>
+            Unterschrift zeichnen
+          </div>
+          <div class="flex-1 h-px bg-gray-200"></div>
+          <div :class="['flex items-center gap-1.5', signStep === 2 ? 'text-[#FF6F00] font-semibold' : 'text-gray-400']">
+            <span :class="['w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold', signStep === 2 ? 'bg-[#FF6F00] text-white' : 'bg-gray-200 text-gray-500']">2</span>
+            Bestätigungscode
+          </div>
+        </div>
+
         <div class="p-6 overflow-y-auto flex-1">
-          <p class="text-sm text-gray-600 mb-4">
-            Schreibe Deine Unterschrift mit der Maus oder dem Finger in das Feld unten.
-            Mit Klick auf „NDA unterschreiben" bestätigst Du die Vereinbarung digital
-            (einfache elektronische Signatur gemäß eIDAS Art. 25 Abs. 1).
-          </p>
+          <!-- ===== Schritt 1: Unterschrift ===== -->
+          <template v-if="signStep === 1">
+            <p class="text-sm text-gray-600 mb-4">
+              Schreibe Deine Unterschrift mit der Maus oder dem Finger in das Feld unten.
+              Mit Klick auf „Weiter" bestätigst Du die Vereinbarung digital
+              (einfache elektronische Signatur gemäß eIDAS Art. 25 Abs. 1).
+            </p>
 
-          <div class="mb-3 flex items-center justify-between">
-            <a :href="ndaDownloadUrl" target="_blank" class="text-xs text-[#0088ba] hover:underline flex items-center gap-1">
-              <FileText class="w-3 h-3" /> NDA-Text als PDF einsehen
-            </a>
-          </div>
+            <div class="mb-3 flex items-center justify-between">
+              <button @click="openPreview('nda')" class="text-xs text-[#0088ba] hover:underline flex items-center gap-1">
+                <Eye class="w-3 h-3" /> NDA-Text vor Unterzeichnung ansehen
+              </button>
+            </div>
 
-          <div class="bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl p-2 mb-3">
-            <canvas ref="canvasEl" width="600" height="180" class="bg-white rounded-lg w-full touch-none cursor-crosshair"
-              @mousedown="startDraw" @mousemove="draw" @mouseup="endDraw" @mouseleave="endDraw"
-              @touchstart="startDrawTouch" @touchmove="drawTouch" @touchend="endDraw"></canvas>
-          </div>
-          <div class="flex items-center justify-between mb-4">
-            <span class="text-xs text-gray-500">Unterschrift hier zeichnen</span>
-            <button @click="clearCanvas" class="text-xs text-gray-500 hover:text-gray-700 underline">Zurücksetzen</button>
-          </div>
+            <div class="bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl p-2 mb-3">
+              <canvas ref="canvasEl" width="600" height="180" class="bg-white rounded-lg w-full touch-none cursor-crosshair"
+                @mousedown="startDraw" @mousemove="draw" @mouseup="endDraw" @mouseleave="endDraw"
+                @touchstart="startDrawTouch" @touchmove="drawTouch" @touchend="endDraw"></canvas>
+            </div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="text-xs text-gray-500">Unterschrift hier zeichnen</span>
+              <button @click="clearCanvas" class="text-xs text-gray-500 hover:text-gray-700 underline">Zurücksetzen</button>
+            </div>
 
-          <label class="flex items-start gap-2 text-xs text-gray-600 mb-4">
-            <input type="checkbox" v-model="zustimmung" class="mt-0.5" />
-            <span>Ich, <strong>{{ data?.name || data?.firma }}</strong>, bestätige, dass ich berechtigt bin, diese Vereinbarung für <strong>{{ data?.firma || '(Firma)' }}</strong> rechtsverbindlich zu unterzeichnen.</span>
-          </label>
+            <label class="flex items-start gap-2 text-xs text-gray-600 mb-4">
+              <input type="checkbox" v-model="zustimmung" class="mt-0.5" />
+              <span>Ich, <strong>{{ data?.name || data?.firma }}</strong>, bestätige, dass ich berechtigt bin, diese Vereinbarung für <strong>{{ data?.firma || '(Firma)' }}</strong> rechtsverbindlich zu unterzeichnen.</span>
+            </label>
 
-          <div class="flex gap-3">
-            <button @click="closeSignModal" class="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm">Abbrechen</button>
-            <button @click="submitSign" :disabled="!zustimmung || !canvasDirty || signing"
-              class="flex-1 px-4 py-3 bg-[#FF6F00] text-white rounded-xl text-sm font-semibold hover:bg-[#e56500] disabled:opacity-50">
-              {{ signing ? 'Wird signiert…' : 'NDA unterschreiben' }}
+            <div class="flex gap-3">
+              <button @click="closeSignModal" class="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm">Abbrechen</button>
+              <button @click="requestCode" :disabled="!zustimmung || !canvasDirty || codeSending"
+                class="flex-1 px-4 py-3 bg-[#FF6F00] text-white rounded-xl text-sm font-semibold hover:bg-[#e56500] disabled:opacity-50">
+                {{ codeSending ? 'Sende Code…' : 'Weiter – Code anfordern' }}
+              </button>
+            </div>
+          </template>
+
+          <!-- ===== Schritt 2: Code-Eingabe ===== -->
+          <template v-else>
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+              <p class="text-sm text-amber-900">
+                Wir haben einen 6-stelligen Code an <strong>{{ data?.email }}</strong> geschickt.
+                Bitte gib ihn unten ein, um die Signatur abzuschließen.
+              </p>
+              <p class="text-xs text-amber-700 mt-1">Code ist 30 Minuten gültig. Mail kommt evtl. in den Spam-Ordner.</p>
+            </div>
+
+            <label class="block text-xs font-medium text-gray-600 mb-1">Bestätigungscode</label>
+            <input v-model="codeInput" type="text" inputmode="numeric" maxlength="6" placeholder="123456"
+              class="w-full px-3 py-3 border-2 border-gray-200 rounded-xl text-center text-2xl font-mono tracking-[0.5em] focus:outline-none focus:border-[#FF6F00]" />
+
+            <button @click="requestCode" :disabled="codeSending" class="text-xs text-gray-500 hover:text-[#0088ba] mt-2">
+              Code erneut senden
             </button>
-          </div>
+
+            <div class="flex gap-3 mt-5">
+              <button @click="signStep = 1" class="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm">← Zurück</button>
+              <button @click="submitSign" :disabled="codeInput.length !== 6 || signing"
+                class="flex-1 px-4 py-3 bg-[#FF6F00] text-white rounded-xl text-sm font-semibold hover:bg-[#e56500] disabled:opacity-50">
+                {{ signing ? 'Wird signiert…' : 'NDA unterschreiben' }}
+              </button>
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -272,6 +316,7 @@
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { FileText, Download, Upload, CheckCircle2, Calendar, Copy, PenTool, X, Eye } from '@lucide/vue'
+import { ndaPublicSendCode } from './api.js'
 
 const token = (() => {
   const m = window.location.pathname.match(/^\/expose-[^\/]+\/([^\/?#]+)/i)
@@ -288,6 +333,9 @@ const signing = ref(false)
 const zustimmung = ref(false)
 const canvasEl = ref(null)
 const canvasDirty = ref(false)
+const signStep = ref(1)         // 1 = Unterschrift, 2 = Code-Eingabe
+const codeSending = ref(false)
+const codeInput = ref('')
 
 const ndaUnterzeichnet = computed(() => data.value?.ndaStatus === 'unterzeichnet')
 
@@ -381,23 +429,35 @@ function closeSignModal() {
   showSignModal.value = false
   zustimmung.value = false
   canvasDirty.value = false
+  signStep.value = 1
+  codeInput.value = ''
+}
+
+async function requestCode() {
+  codeSending.value = true
+  try {
+    await ndaPublicSendCode(token)
+    signStep.value = 2
+  } catch (e) {
+    alert('Code-Versand fehlgeschlagen: ' + e.message)
+  } finally { codeSending.value = false }
 }
 
 async function submitSign() {
-  if (!canvasDirty.value || !zustimmung.value) return
+  if (!canvasDirty.value || !zustimmung.value || codeInput.value.length !== 6) return
   signing.value = true
   try {
     const dataUrl = canvasEl.value.toDataURL('image/png')
     const res = await fetch(`${apiBase}/nda-public-sign`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, signatureDataUrl: dataUrl }),
+      body: JSON.stringify({ token, signatureDataUrl: dataUrl, code: codeInput.value }),
     })
     if (!res.ok) {
       const d = await res.json().catch(() => ({}))
       throw new Error(d.error || `HTTP ${res.status}`)
     }
-    showSignModal.value = false
+    closeSignModal()
     await load()
     window.scrollTo({ top: 0, behavior: 'smooth' })
   } catch (e) {

@@ -113,6 +113,11 @@ export const verlaufAddEntry = (data) => authFetch('/verlauf-add', { method: 'PO
 export const verlaufUnreadCount = () => authFetch('/verlauf-unread-count')
 export const verlaufMarkRead = (targetId) => authFetch('/verlauf-mark-read', { method: 'POST', data: { targetId } })
 
+// === NDA Online-Signatur (Public, Token-Auth) ===
+export const ndaPublicSendCode = (token) => fetch(`${API_BASE}/nda-public-send-code`, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }),
+}).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'HTTP ' + r.status); return d })
+
 // === E-Mail-Vorlagen ===
 export const getMailvorlagen = () => authFetch('/mailvorlagen-list')
 export const saveMailvorlage = (data) => authFetch('/mailvorlage-save', { method: 'POST', data })

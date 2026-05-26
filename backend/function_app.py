@@ -3072,6 +3072,22 @@ def nda_upload(req: func.HttpRequest) -> func.HttpResponse:
         _blob_container_lazy("vertraege").upload_blob(blob_name, pdf_bytes, overwrite=True)
     except Exception as ex:
         return err_(f"Upload fehlgeschlagen: {ex}", 500)
+    # Auch im NDA-Ordner des Targets (Datenraum) ablegen
+    try:
+        doc_blob_name = f"{target_id}/NDA/NDA_{i.get('firma') or i.get('name','interessent')}_{datetime.utcnow().strftime('%Y%m%d')}.pdf".replace(" ", "_")
+        _blob_container_lazy("datenraum").upload_blob(doc_blob_name, pdf_bytes, overwrite=True)
+        doc_id = "nda-" + i["RowKey"]
+        table_("dokumente").upsert_entity({
+            "PartitionKey": target_id, "RowKey": doc_id,
+            "name": f"NDA_{i.get('firma') or i.get('name','interessent')}_signiert.pdf",
+            "ordner": "NDA", "blob": doc_blob_name, "container": "datenraum",
+            "groesse": len(pdf_bytes), "mimeType": "application/pdf",
+            "uploadedAt": datetime.utcnow().isoformat(),
+            "uploadedBy": i.get("email", ""),
+            "quelle": "Upload Interessent",
+        })
+    except Exception as ex:
+        logging.warning(f"NDA als Target-Dokument speichern fehlgeschlagen: {ex}")
     # Update Interessent
     i["ndaStatus"] = "unterzeichnet"
     i["ndaUploadedAt"] = datetime.utcnow().isoformat()
@@ -3120,17 +3136,24 @@ def nda_upload(req: func.HttpRequest) -> func.HttpResponse:
 <p>Wir freuen uns auf den Austausch!</p>
 <p>Herzliche Grüße<br/>Dein M&amp;A-Team der Mike Bergmann Akademie</p>
 </body></html>"""
+            nda_attachment = {
+                "name": f"NDA_{t.get('mbNr','')}_unterzeichnet.pdf",
+                "contentType": "application/pdf",
+                "contentInBase64": base64.b64encode(pdf_bytes).decode(),
+            }
             client.begin_send({
                 "senderAddress": ACS_SENDER,
                 "recipients": {"to": [{"address": i.get("email", "")}]},
-                "content": {"subject": f"NDA erhalten – naechste Schritte zu {t.get('mbNr','')}", "plainText": f"NDA bestätigt. Termin buchen: {termin_url}", "html": html},
+                "content": {"subject": f"NDA erhalten – nächste Schritte zu {t.get('mbNr','')}", "plainText": f"NDA bestätigt. Termin buchen: {termin_url}", "html": html},
+                "attachments": [nda_attachment],
             })
             # Notification an Jenny
             mibeca_mail = os.environ.get("MIBECA_NOTIFY_EMAIL", "jk@mike-bergmann.de")
             client.begin_send({
                 "senderAddress": ACS_SENDER,
                 "recipients": {"to": [{"address": mibeca_mail}]},
-                "content": {"subject": f"[ITUKV] NDA erhalten zu {t.get('mbNr','')}", "plainText": f"{i.get('firma') or i.get('name')} hat NDA hochgeladen.", "html": f"<p><strong>NDA erhalten</strong> – Interessent kann jetzt Termin buchen.</p><p>Projekt: {t.get('mbNr','')}</p><p>Interessent: {i.get('firma','')} / {i.get('name','')} / {i.get('email','')}</p>"},
+                "content": {"subject": f"[ITUKV] NDA erhalten zu {t.get('mbNr','')}", "plainText": f"{i.get('firma') or i.get('name')} hat NDA hochgeladen.", "html": f"<p><strong>NDA erhalten</strong> – Interessent kann jetzt Termin buchen.</p><p>Projekt: {t.get('mbNr','')}</p><p>Interessent: {i.get('firma','')} / {i.get('name','')} / {i.get('email','')}</p><p>Das unterschriebene NDA liegt im NDA-Ordner der Projekt-Akte und ist im Anhang.</p>"},
+                "attachments": [nda_attachment],
             })
         except Exception as ex:
             logging.warning(f"NDA-Mail fehlgeschlagen: {ex}") if 'logging' in globals() else None
@@ -3327,21 +3350,87 @@ def expose_public_pdf(req: func.HttpRequest) -> func.HttpResponse:
                              headers={**CORS, "Content-Disposition": f'attachment; filename="Expose_{t.get("mbNr","")}.pdf"'})
 
 
+@app.route(route="nda-public-send-code", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def nda_public_send_code(req: func.HttpRequest) -> func.HttpResponse:
+    """Public: 6-stelligen Bestätigungscode an die hinterlegte E-Mail schicken (vor Online-Signatur)."""
+    if req.method == "OPTIONS":
+        return opt_()
+    body = req.get_json() or {}
+    token = (body.get("token") or "").strip()
+    if not token:
+        return err_("token erforderlich", 400)
+    items = list(table_("interessenten").query_entities(f"exposeToken eq '{token}'"))
+    if not items:
+        return err_("Token ungültig", 404)
+    i = dict(items[0])
+    if i.get("ndaStatus") == "unterzeichnet":
+        return err_("NDA bereits unterzeichnet", 400)
+    # Code + Salt + Hash + Timestamp am Interessent speichern
+    code = f"{secrets.randbelow(1000000):06d}"
+    salt = i.get("ndaCodeSalt") or secrets.token_hex(16)
+    i["ndaCodeSalt"] = salt
+    i["ndaCodeHash"] = _hash_code_sig(code, salt)
+    i["ndaCodeSentAt"] = datetime.utcnow().isoformat()
+    try: table_("interessenten").update_entity(i)
+    except Exception as ex: return err_(f"Speichern fehlgeschlagen: {ex}", 500)
+    if not ACS_CONN:
+        return err_("E-Mail-Service nicht konfiguriert", 500)
+    try:
+        from azure.communication.email import EmailClient
+        client = EmailClient.from_connection_string(ACS_CONN)
+        try:
+            t = dict(table_("targets").get_entity("target", i.get("targetId", "")))
+            mb_nr = t.get("mbNr", "")
+        except Exception:
+            mb_nr = ""
+        html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a">
+<p>Hallo {i.get('name') or i.get('firma') or ''},</p>
+<p>Dein Bestätigungscode für die Online-Unterzeichnung des NDAs zu Projekt <strong>{mb_nr}</strong> lautet:</p>
+<p style="font-size:28px;font-weight:700;letter-spacing:6px;background:#fff7ed;padding:14px 22px;border-radius:10px;display:inline-block;color:#FF6F00">{code}</p>
+<p>Der Code ist {SIGNATURE_CODE_EXPIRY_MIN} Minuten gültig.</p>
+<p>Bitte gib ihn im Browser ein, um Deine elektronische Signatur abzuschließen.</p>
+<p style="color:#666;font-size:11px;margin-top:18px">Wenn Du diese Anfrage nicht gestartet hast, ignoriere diese E-Mail.</p>
+</body></html>"""
+        client.begin_send({
+            "senderAddress": ACS_SENDER,
+            "recipients": {"to": [{"address": i.get("email", "")}]},
+            "content": {"subject": f"Bestätigungscode für NDA-Unterzeichnung – Projekt {mb_nr}", "plainText": f"Code: {code}", "html": html},
+        })
+    except Exception as ex:
+        return err_(f"Mailversand fehlgeschlagen: {ex}", 500)
+    return ok_({"ok": True, "email": i.get("email", "")})
+
+
 @app.route(route="nda-public-sign", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def nda_public_sign(req: func.HttpRequest) -> func.HttpResponse:
     """Public: Interessent signiert NDA online via Canvas.
-    Body: { token, signatureDataUrl }"""
+    Body: { token, signatureDataUrl, code }"""
     if req.method == "OPTIONS":
         return opt_()
     body = req.get_json() or {}
     token = (body.get("token") or "").strip()
     sig_data = body.get("signatureDataUrl", "")
-    if not (token and sig_data):
-        return err_("token + signatureDataUrl erforderlich", 400)
+    code = (body.get("code") or "").strip()
+    if not (token and sig_data and code):
+        return err_("token, signatureDataUrl und code erforderlich", 400)
     items = list(table_("interessenten").query_entities(f"exposeToken eq '{token}'"))
     if not items:
-        return err_("Token ungueltig", 404)
+        return err_("Token ungültig", 404)
     i = dict(items[0])
+    # Code prüfen (Salt + Hash + Ablaufzeit)
+    salt = i.get("ndaCodeSalt", "")
+    expected = i.get("ndaCodeHash", "")
+    sent_at = i.get("ndaCodeSentAt", "")
+    if not (salt and expected and sent_at):
+        return err_("Bitte zuerst einen Bestätigungscode anfordern.", 400)
+    if _hash_code_sig(code, salt) != expected:
+        return err_("Code falsch", 400)
+    try:
+        sent_dt = datetime.fromisoformat(sent_at)
+        if (datetime.utcnow() - sent_dt).total_seconds() > SIGNATURE_CODE_EXPIRY_MIN * 60:
+            return err_("Code abgelaufen – bitte neuen anfordern", 400)
+    except Exception:
+        return err_("Code-Validierung fehlgeschlagen", 400)
     target_id = i.get("targetId", "")
     try:
         t = dict(table_("targets").get_entity("target", target_id))
@@ -3367,18 +3456,42 @@ def nda_public_sign(req: func.HttpRequest) -> func.HttpResponse:
         "signed_at": datetime.utcnow().isoformat(),
         "ip": ip,
         "user_agent": req.headers.get("User-Agent", "")[:200],
+        "code_hash": expected,  # Code-Verifizierung im Audit-Trail
     }
     try:
         signed_pdf = _embed_signature_in_pdf(unsigned_pdf, sig_bytes, i.get("name") or i.get("firma", ""), audit,
                                               anchor_keywords=["Unterschrift Investor", "Unterschrift"])
     except Exception as ex:
         return err_(f"Signatur-Embedding fehlgeschlagen: {ex}", 500)
-    # Blob speichern
+    # Code invalidieren nach erfolgreicher Signatur
+    i["ndaCodeHash"] = ""
+    i["ndaCodeSalt"] = ""
+    # Blob speichern (vertraege-Container + zusaetzlich als Dokument im Target-Datenraum)
     blob_name = f"nda-interessent-{i['RowKey']}-signed.pdf"
     try:
         _blob_container_lazy("vertraege").upload_blob(blob_name, signed_pdf, overwrite=True)
     except Exception as ex:
         return err_(f"Upload fehlgeschlagen: {ex}", 500)
+    # Auch in den NDA-Ordner des Targets ablegen (sichtbar in Akte → Dokumente → NDA)
+    try:
+        doc_blob_name = f"{target_id}/NDA/NDA_{i.get('firma') or i.get('name','interessent')}_{datetime.utcnow().strftime('%Y%m%d')}.pdf".replace(" ", "_")
+        _blob_container_lazy("datenraum").upload_blob(doc_blob_name, signed_pdf, overwrite=True)
+        doc_id = "nda-" + i["RowKey"]
+        table_("dokumente").upsert_entity({
+            "PartitionKey": target_id,
+            "RowKey": doc_id,
+            "name": f"NDA_{i.get('firma') or i.get('name','interessent')}_signiert.pdf",
+            "ordner": "NDA",
+            "blob": doc_blob_name,
+            "container": "datenraum",
+            "groesse": len(signed_pdf),
+            "mimeType": "application/pdf",
+            "uploadedAt": datetime.utcnow().isoformat(),
+            "uploadedBy": i.get("email", ""),
+            "quelle": "Online-Signatur Interessent",
+        })
+    except Exception as ex:
+        logging.warning(f"NDA als Target-Dokument speichern fehlgeschlagen: {ex}")
     # Interessent aktualisieren
     i["ndaStatus"] = "unterzeichnet"
     i["ndaUploadedAt"] = audit["signed_at"]
@@ -3414,16 +3527,23 @@ def nda_public_sign(req: func.HttpRequest) -> func.HttpResponse:
 <p style="margin:24px 0"><a href="{termin_url}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Termin jetzt buchen</a></p>
 <p>Herzliche Grüße<br/>Dein M&amp;A-Team der Mike Bergmann Akademie</p>
 </body></html>"""
+            nda_attachment = {
+                "name": f"NDA_{t.get('mbNr','')}_unterzeichnet.pdf",
+                "contentType": "application/pdf",
+                "contentInBase64": base64.b64encode(signed_pdf).decode(),
+            }
             client.begin_send({
                 "senderAddress": ACS_SENDER,
                 "recipients": {"to": [{"address": i.get("email", "")}]},
-                "content": {"subject": f"NDA bestätigt – Termin mit Jennifer Kaplan buchen, Projekt {t.get('mbNr','')}", "plainText": f"Termin buchen: {termin_url}", "html": html},
+                "content": {"subject": f"Dein unterschriebenes NDA – Projekt {t.get('mbNr','')}", "plainText": f"NDA siehe Anhang. Termin buchen: {termin_url}", "html": html},
+                "attachments": [nda_attachment],
             })
             mibeca_mail = os.environ.get("MIBECA_NOTIFY_EMAIL", "jk@mike-bergmann.de")
             client.begin_send({
                 "senderAddress": ACS_SENDER,
                 "recipients": {"to": [{"address": mibeca_mail}]},
-                "content": {"subject": f"[ITUKV] NDA online signiert zu {t.get('mbNr','')}", "plainText": f"{i.get('firma') or i.get('name')} hat NDA online unterschrieben.", "html": f"<p><strong>NDA online signiert</strong></p><p>Projekt: {t.get('mbNr','')}</p><p>Interessent: {i.get('firma','')} / {i.get('name','')} / {i.get('email','')}</p>"},
+                "content": {"subject": f"[ITUKV] NDA online signiert zu {t.get('mbNr','')}", "plainText": f"{i.get('firma') or i.get('name')} hat NDA online unterschrieben.", "html": f"<p><strong>NDA online signiert</strong></p><p>Projekt: {t.get('mbNr','')}</p><p>Interessent: {i.get('firma','')} / {i.get('name','')} / {i.get('email','')}</p><p>Das unterschriebene NDA liegt im NDA-Ordner der Projekt-Akte und ist im Anhang.</p>"},
+                "attachments": [nda_attachment],
             })
         except Exception as ex:
             logging.warning(f"NDA-Sign-Mail fehlgeschlagen: {ex}")
