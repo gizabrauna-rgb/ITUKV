@@ -127,6 +127,36 @@
       </div>
     </div>
 
+    <!-- Reset-Passwort Modal -->
+    <div v-if="resetUser" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4" @click.self="resetUser = null">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-md">
+        <h3 class="font-bold text-gray-900 mb-1">Passwort zurücksetzen</h3>
+        <p class="text-xs text-gray-500 mb-4">Für: <strong>{{ resetUser.email }}</strong></p>
+        <div class="space-y-2">
+          <label class="flex items-start gap-2 p-3 border-2 rounded-xl cursor-pointer hover:bg-gray-50" :class="resetMode === 'random' ? 'border-[#097e92] bg-[#097e92]/5' : 'border-gray-200'">
+            <input type="radio" v-model="resetMode" value="random" class="mt-1" />
+            <div>
+              <div class="text-sm font-medium text-gray-800">🎲 Zufalls-Passwort generieren</div>
+              <div class="text-xs text-gray-500">Wird automatisch per E-Mail an den Nutzer geschickt.</div>
+            </div>
+          </label>
+          <label class="flex items-start gap-2 p-3 border-2 rounded-xl cursor-pointer hover:bg-gray-50" :class="resetMode === 'custom' ? 'border-[#097e92] bg-[#097e92]/5' : 'border-gray-200'">
+            <input type="radio" v-model="resetMode" value="custom" class="mt-1" />
+            <div class="flex-1">
+              <div class="text-sm font-medium text-gray-800">✏️ Eigenes Passwort setzen</div>
+              <div class="text-xs text-gray-500 mb-2">Z.B. für telefonische Absprache.</div>
+              <input v-if="resetMode === 'custom'" v-model="resetCustomPw" type="text" placeholder="Neues Passwort (min. 6 Zeichen)"
+                class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 font-mono" />
+            </div>
+          </label>
+        </div>
+        <div class="flex gap-3 mt-5">
+          <button @click="resetUser = null" class="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50">Abbrechen</button>
+          <button @click="doReset" class="flex-1 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium">Passwort setzen + Mail senden</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Passwort-Anzeige Modal -->
     <div v-if="passwordReveal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] px-4">
       <div class="bg-white rounded-2xl p-6 w-full max-w-md">
@@ -281,13 +311,34 @@ async function save() {
   } finally { saving.value = false }
 }
 
-async function resetPwd(u) {
-  if (!confirm(`Passwort für ${u.email} zurücksetzen?`)) return
+// Passwort-Reset Modal
+const resetUser = ref(null)
+const resetMode = ref('random')  // 'random' | 'custom'
+const resetCustomPw = ref('')
+function resetPwd(u) {
+  resetUser.value = u
+  resetMode.value = 'random'
+  resetCustomPw.value = ''
+}
+async function doReset() {
+  if (!resetUser.value) return
+  const u = resetUser.value
+  const data = {}
+  if (resetMode.value === 'custom') {
+    if (!resetCustomPw.value || resetCustomPw.value.length < 6) { alert('Passwort min. 6 Zeichen'); return }
+    data.password = resetCustomPw.value
+  }
+  data.sendMail = true
   try {
-    const result = await resetUserPassword(u.RowKey)
-    passwordReveal.value = { title: 'Neues Passwort generiert', email: result.email, password: result.newPassword }
+    const result = await resetUserPassword(u.RowKey, data)
+    resetUser.value = null
+    passwordReveal.value = {
+      title: result.mailSent ? '✅ Passwort neu gesetzt + Mail verschickt' : '⚠️ Passwort neu gesetzt (Mail-Versand fehlgeschlagen)',
+      email: result.email,
+      password: result.newPassword,
+    }
   } catch (e) {
-    alert('Fehler: ' + e.message)
+    alert('Fehler: ' + (e.response?.data?.error || e.message))
   }
 }
 

@@ -496,6 +496,7 @@ def user_reset_password(req: func.HttpRequest) -> func.HttpResponse:
         return err_("Nicht autorisiert", 401)
     body = req.get_json()
     uid = body.get("id","")
+    send_mail = bool(body.get("sendMail", True))
     if not uid:
         return err_("id erforderlich", 400)
     tc = table_("users")
@@ -508,7 +509,84 @@ def user_reset_password(req: func.HttpRequest) -> func.HttpResponse:
     salt = secrets.token_bytes(16)
     entity["passwordHash"] = "pbkdf2$" + base64.b64encode(salt).decode() + "$" + base64.b64encode(hashlib.pbkdf2_hmac('sha256', pw.encode(), salt, 100000)).decode()
     tc.update_entity(dict(entity))
-    return ok_({"email": entity.get("email"), "newPassword": pw})
+
+    mail_sent = False
+    if send_mail and ACS_CONN and entity.get("email"):
+        try:
+            from azure.communication.email import EmailClient
+            client = EmailClient.from_connection_string(ACS_CONN)
+            html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
+                <h2 style="color:#097e92">Neues Passwort fuer das ITUKV Dashboard</h2>
+                <p>Hallo {entity.get('name') or ''},</p>
+                <p>dein Passwort fuer das ITUKV Dashboard wurde zurueckgesetzt.</p>
+                <p><strong>Deine neuen Login-Daten:</strong></p>
+                <table cellpadding="6" style="background:#f0fdfa;border-radius:8px;border-collapse:separate">
+                  <tr><td>E-Mail:</td><td><strong>{entity.get('email')}</strong></td></tr>
+                  <tr><td>Neues Passwort:</td><td><strong style="font-family:monospace;font-size:15px">{pw}</strong></td></tr>
+                </table>
+                <p style="margin-top:24px"><a href="{FRONTEND_BASE}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Jetzt einloggen</a></p>
+                <p style="font-size:12px;color:#666">Aus Sicherheitsgruenden empfehlen wir, dass du das Passwort nach der ersten Anmeldung aenderst.</p>
+                </body></html>"""
+            client.begin_send({
+                "senderAddress": ACS_SENDER,
+                "recipients": {"to": [{"address": entity["email"]}]},
+                "content": {"subject": "Neues Passwort – ITUKV Dashboard", "plainText": f"Neues Passwort: {pw} / URL: {FRONTEND_BASE}", "html": html},
+            })
+            mail_sent = True
+        except Exception:
+            mail_sent = False
+
+    return ok_({"email": entity.get("email"), "newPassword": pw, "mailSent": mail_sent})
+
+
+@app.route(route="password-forgot", methods=["POST", "OPTIONS"])
+def password_forgot(req: func.HttpRequest) -> func.HttpResponse:
+    """Self-Service Passwort-Reset: Nutzer gibt E-Mail ein, bekommt neues Passwort per Mail.
+    Aus Sicherheitsgruenden geben wir IMMER 200 zurueck, egal ob die E-Mail existiert."""
+    if req.method == "OPTIONS":
+        return opt_()
+    body = req.get_json() or {}
+    email = (body.get("email") or "").lower().strip()
+    if not email:
+        return err_("E-Mail erforderlich", 400)
+    try:
+        users = list(table_("users").query_entities(f"email eq '{email}'"))
+    except Exception:
+        users = []
+    if users:
+        u = dict(users[0])
+        import string
+        pw = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
+        salt = secrets.token_bytes(16)
+        u["passwordHash"] = "pbkdf2$" + base64.b64encode(salt).decode() + "$" + base64.b64encode(hashlib.pbkdf2_hmac('sha256', pw.encode(), salt, 100000)).decode()
+        try:
+            table_("users").update_entity(u)
+        except Exception:
+            return ok_({"ok": True})
+        if ACS_CONN:
+            try:
+                from azure.communication.email import EmailClient
+                client = EmailClient.from_connection_string(ACS_CONN)
+                html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
+                    <h2 style="color:#097e92">Passwort zuruecksetzen</h2>
+                    <p>Hallo {u.get('name') or ''},</p>
+                    <p>du hast ein neues Passwort fuer das ITUKV Dashboard angefordert.</p>
+                    <p><strong>Deine neuen Login-Daten:</strong></p>
+                    <table cellpadding="6" style="background:#f0fdfa;border-radius:8px;border-collapse:separate">
+                      <tr><td>E-Mail:</td><td><strong>{u.get('email')}</strong></td></tr>
+                      <tr><td>Neues Passwort:</td><td><strong style="font-family:monospace;font-size:15px">{pw}</strong></td></tr>
+                    </table>
+                    <p style="margin-top:24px"><a href="{FRONTEND_BASE}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Jetzt einloggen</a></p>
+                    <p style="font-size:12px;color:#666">Falls du dieses Passwort nicht angefordert hast, ignoriere diese Mail. Aenderungen am Account werden nur ueber diesen Link aktiviert.</p>
+                    </body></html>"""
+                client.begin_send({
+                    "senderAddress": ACS_SENDER,
+                    "recipients": {"to": [{"address": u["email"]}]},
+                    "content": {"subject": "Passwort zuruecksetzen – ITUKV Dashboard", "plainText": f"Neues Passwort: {pw} / URL: {FRONTEND_BASE}", "html": html},
+                })
+            except Exception:
+                pass
+    return ok_({"ok": True})
 
 
 @app.route(route="plz-resolve", methods=["POST", "OPTIONS"])

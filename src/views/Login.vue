@@ -69,7 +69,29 @@
             <LogIn v-else class="w-4 h-4" />
             {{ loading && loginType === 'customer' ? 'Anmelden…' : 'Anmelden' }}
           </button>
+          <button type="button" @click="forgotPassword" class="w-full text-center text-xs text-gray-500 hover:text-[#097e92] mt-2">
+            Passwort vergessen?
+          </button>
         </form>
+      </div>
+
+      <!-- Passwort-Vergessen Modal -->
+      <div v-if="showForgotModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4" @click.self="showForgotModal = false">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md">
+          <h3 class="font-bold text-gray-900 mb-2">Passwort zurücksetzen</h3>
+          <p class="text-xs text-gray-500 mb-4">Gib deine E-Mail ein – wir schicken dir ein neues Passwort.</p>
+          <input v-model="forgotEmail" type="email" placeholder="ihre@email.de"
+            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+          <div v-if="forgotMsg" :class="['text-xs mt-3 p-2 rounded', forgotMsgOk ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700']">
+            {{ forgotMsg }}
+          </div>
+          <div class="flex gap-3 mt-4">
+            <button @click="showForgotModal = false" class="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50">Schließen</button>
+            <button @click="sendForgot" :disabled="forgotSending || !forgotEmail" class="flex-1 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium disabled:opacity-50">
+              {{ forgotSending ? 'Sende…' : 'Neues Passwort anfordern' }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <p class="text-center text-xs text-gray-500 mt-6">
@@ -83,7 +105,7 @@
 import { ref, defineComponent, h } from 'vue'
 import { Building2, LogIn, AlertCircle, Loader2 } from '@lucide/vue'
 import { msalInstance, loginRequest } from '../authConfig.js'
-import { loginCustomer } from '../api.js'
+import { loginCustomer, passwordForgot } from '../api.js'
 
 const emit = defineEmits(['logged-in'])
 
@@ -118,6 +140,30 @@ async function loginMicrosoft() {
     loading.value = false
     loginType.value = ''
   }
+}
+
+// Passwort vergessen
+const showForgotModal = ref(false)
+const forgotEmail = ref('')
+const forgotSending = ref(false)
+const forgotMsg = ref('')
+const forgotMsgOk = ref(false)
+function forgotPassword() {
+  forgotEmail.value = email.value
+  forgotMsg.value = ''
+  showForgotModal.value = true
+}
+async function sendForgot() {
+  forgotSending.value = true
+  forgotMsg.value = ''
+  try {
+    await passwordForgot(forgotEmail.value)
+    forgotMsgOk.value = true
+    forgotMsg.value = 'Wenn die E-Mail bei uns hinterlegt ist, bekommst du in wenigen Augenblicken ein neues Passwort.'
+  } catch (e) {
+    forgotMsgOk.value = false
+    forgotMsg.value = 'Etwas ist schiefgegangen. Bitte später erneut versuchen.'
+  } finally { forgotSending.value = false }
 }
 
 async function loginKunde() {
