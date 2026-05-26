@@ -211,8 +211,8 @@ def targets_route(req: func.HttpRequest) -> func.HttpResponse:
         phasen_titel = [
             "Suchprofil definieren",
             "Markt-Screening (mibeca)",
-            "Long-List Uebergabe",
-            "Short-List Kaeufer-Auswahl",
+            "Long-List Übergabe",
+            "Short-List Käufer-Auswahl",
             "Anonyme Ansprache durch mibeca",
             "NDA-Austausch",
             "Erstes Kennenlernen",
@@ -223,10 +223,10 @@ def targets_route(req: func.HttpRequest) -> func.HttpResponse:
     else:
         phasen_titel = [
             "UVE Start – Vorbereitungs-Checkliste",
-            "UVE Abschluss – Verkaufsmandat-Eroeffnung",
+            "UVE Abschluss – Verkaufsmandat-Eröffnung",
             "Marktansprache – Interessenten anschreiben",
             "NDA von Interessenten abholen",
-            "Erstes Kennenlernen – Interessent Verkaeufer",
+            "Erstes Kennenlernen – Interessent Verkäufer",
             "Datenraum / Kommunikationsraum in Element",
             "Austausch von Unterlagen",
             "Indikatives Angebot",
@@ -235,7 +235,7 @@ def targets_route(req: func.HttpRequest) -> func.HttpResponse:
             "Due Diligence",
             "Vertragsgestaltung",
             "Notartermin & Closing",
-            "Post-Closing – Uebergabe & Kommunikation",
+            "Post-Closing – Übergabe & Kommunikation",
             "Erfolgsmeldung & Abrechnung",
         ]
     init_phasen = [{"id": i+1, "titel": f"{i+1}. {t}", "notiz": "", "aufgaben": []} for i, t in enumerate(phasen_titel)]
@@ -427,14 +427,14 @@ def user_create(req: func.HttpRequest) -> func.HttpResponse:
             html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
                 <h2 style="color:#097e92">Willkommen im ITUKV Dashboard</h2>
                 <p>Hallo {entity.get('name') or ''},</p>
-                <p>fuer dich wurde ein Zugang zum ITUKV Dashboard angelegt.</p>
+                <p>für dich wurde ein Zugang zum ITUKV Dashboard angelegt.</p>
                 <p><strong>Deine Login-Daten:</strong></p>
                 <table cellpadding="6" style="background:#f0fdfa;border-radius:8px;border-collapse:separate">
                   <tr><td>E-Mail:</td><td><strong>{email}</strong></td></tr>
                   <tr><td>Initial-Passwort:</td><td><strong style="font-family:monospace;font-size:15px">{pw}</strong></td></tr>
                 </table>
                 <p style="margin-top:24px"><a href="{frontend}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Jetzt einloggen</a></p>
-                <p style="font-size:12px;color:#666">Aus Sicherheitsgruenden empfehlen wir, das Passwort nach der ersten Anmeldung zu aendern.</p>
+                <p style="font-size:12px;color:#666">Aus Sicherheitsgründen empfehlen wir, das Passwort nach der ersten Anmeldung zu aendern.</p>
                 <p>Bei Fragen melde dich bei deinem mibeca-Ansprechpartner.</p>
                 </body></html>"""
             client.begin_send({
@@ -450,7 +450,7 @@ def user_create(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="login", methods=["POST", "OPTIONS"])
 def login_password(req: func.HttpRequest) -> func.HttpResponse:
-    """Login mit E-Mail + Passwort (fuer Kunden ohne Microsoft-Konto)."""
+    """Login mit E-Mail + Passwort (für Kunden ohne Microsoft-Konto)."""
     if req.method == "OPTIONS":
         return opt_()
     body = req.get_json() or {}
@@ -465,7 +465,7 @@ def login_password(req: func.HttpRequest) -> func.HttpResponse:
     u = dict(users[0])
     stored = u.get("passwordHash", "") or ""
     if not stored.startswith("pbkdf2$"):
-        return err_("Kein Passwort-Login fuer diese E-Mail. Bitte ueber Microsoft anmelden.", 401)
+        return err_("Kein Passwort-Login für diese E-Mail. Bitte über Microsoft anmelden.", 401)
     try:
         _, salt_b64, hash_b64 = stored.split("$")
         salt = base64.b64decode(salt_b64)
@@ -532,16 +532,16 @@ def user_reset_password(req: func.HttpRequest) -> func.HttpResponse:
             from azure.communication.email import EmailClient
             client = EmailClient.from_connection_string(ACS_CONN)
             html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
-                <h2 style="color:#097e92">Neues Passwort fuer das ITUKV Dashboard</h2>
+                <h2 style="color:#097e92">Neues Passwort für das ITUKV Dashboard</h2>
                 <p>Hallo {entity.get('name') or ''},</p>
-                <p>dein Passwort fuer das ITUKV Dashboard wurde zurueckgesetzt.</p>
+                <p>dein Passwort für das ITUKV Dashboard wurde zurückgesetzt.</p>
                 <p><strong>Deine neuen Login-Daten:</strong></p>
                 <table cellpadding="6" style="background:#f0fdfa;border-radius:8px;border-collapse:separate">
                   <tr><td>E-Mail:</td><td><strong>{entity.get('email')}</strong></td></tr>
                   <tr><td>Neues Passwort:</td><td><strong style="font-family:monospace;font-size:15px">{pw}</strong></td></tr>
                 </table>
                 <p style="margin-top:24px"><a href="{FRONTEND_BASE}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Jetzt einloggen</a></p>
-                <p style="font-size:12px;color:#666">Aus Sicherheitsgruenden empfehlen wir, dass du das Passwort nach der ersten Anmeldung aenderst.</p>
+                <p style="font-size:12px;color:#666">Aus Sicherheitsgründen empfehlen wir, dass du das Passwort nach der ersten Anmeldung aenderst.</p>
                 </body></html>"""
             client.begin_send({
                 "senderAddress": ACS_SENDER,
@@ -558,7 +558,7 @@ def user_reset_password(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="password-forgot", methods=["POST", "OPTIONS"])
 def password_forgot(req: func.HttpRequest) -> func.HttpResponse:
     """Self-Service Passwort-Reset: Nutzer gibt E-Mail ein, bekommt neues Passwort per Mail.
-    Aus Sicherheitsgruenden geben wir IMMER 200 zurueck, egal ob die E-Mail existiert."""
+    Aus Sicherheitsgründen geben wir IMMER 200 zurück, egal ob die E-Mail existiert."""
     if req.method == "OPTIONS":
         return opt_()
     body = req.get_json() or {}
@@ -584,21 +584,21 @@ def password_forgot(req: func.HttpRequest) -> func.HttpResponse:
                 from azure.communication.email import EmailClient
                 client = EmailClient.from_connection_string(ACS_CONN)
                 html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
-                    <h2 style="color:#097e92">Passwort zuruecksetzen</h2>
+                    <h2 style="color:#097e92">Passwort zurücksetzen</h2>
                     <p>Hallo {u.get('name') or ''},</p>
-                    <p>du hast ein neues Passwort fuer das ITUKV Dashboard angefordert.</p>
+                    <p>du hast ein neues Passwort für das ITUKV Dashboard angefordert.</p>
                     <p><strong>Deine neuen Login-Daten:</strong></p>
                     <table cellpadding="6" style="background:#f0fdfa;border-radius:8px;border-collapse:separate">
                       <tr><td>E-Mail:</td><td><strong>{u.get('email')}</strong></td></tr>
                       <tr><td>Neues Passwort:</td><td><strong style="font-family:monospace;font-size:15px">{pw}</strong></td></tr>
                     </table>
                     <p style="margin-top:24px"><a href="{FRONTEND_BASE}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Jetzt einloggen</a></p>
-                    <p style="font-size:12px;color:#666">Falls du dieses Passwort nicht angefordert hast, ignoriere diese Mail. Aenderungen am Account werden nur ueber diesen Link aktiviert.</p>
+                    <p style="font-size:12px;color:#666">Falls du dieses Passwort nicht angefordert hast, ignoriere diese Mail. Änderungen am Account werden nur über diesen Link aktiviert.</p>
                     </body></html>"""
                 client.begin_send({
                     "senderAddress": ACS_SENDER,
                     "recipients": {"to": [{"address": u["email"]}]},
-                    "content": {"subject": "Passwort zuruecksetzen – ITUKV Dashboard", "plainText": f"Neues Passwort: {pw} / URL: {FRONTEND_BASE}", "html": html},
+                    "content": {"subject": "Passwort zurücksetzen – ITUKV Dashboard", "plainText": f"Neues Passwort: {pw} / URL: {FRONTEND_BASE}", "html": html},
                 })
             except Exception:
                 pass
@@ -779,7 +779,7 @@ def ausschreibung_delete(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="interessenten", methods=["POST", "OPTIONS"])
 def interessenten_list(req: func.HttpRequest) -> func.HttpResponse:
-    """POST {targetId: "..."} → Liste der Interessenten fuer dieses Target."""
+    """POST {targetId: "..."} → Liste der Interessenten für dieses Target."""
     if req.method == "OPTIONS":
         return opt_()
     p = auth_user(req)
@@ -1088,7 +1088,7 @@ _VERTRAG_HTML_TEMPLATE = """<!DOCTYPE html>
 
 def _render_vertrag_pdf_bytes(form, variante):
     """Erzeugt das PDF aus dem Jinja2/HTML-Template mit WeasyPrint.
-    Vorteile: echte CSS-Typografie, page-break-inside fuer Signaturen,
+    Vorteile: echte CSS-Typografie, page-break-inside für Signaturen,
     professioneller Look wie DocuSign/PandaDoc."""
     from jinja2 import Template
     from weasyprint import HTML
@@ -1125,7 +1125,7 @@ def _render_vertrag_pdf_bytes_fallback(form, variante):
 
     def _measure_lines(text, fontsize, fontname):
         """Zaehlt wirklich umgebrochene Zeilen via TextWriter / measurement."""
-        # Approximation: Helvetica-Breite ist etwa 0.55x fontsize fuer Durchschnitts-char
+        # Approximation: Helvetica-Breite ist etwa 0.55x fontsize für Durchschnitts-char
         avg_char_w = fontsize * 0.51
         chars_per_line = max(20, int(text_w / avg_char_w))
         lines = 0
@@ -1154,7 +1154,7 @@ def _render_vertrag_pdf_bytes_fallback(form, variante):
 
         if space_before:
             y[0] += space_before
-        # Platz fuer alle Zeilen reservieren – sonst Seitenumbruch
+        # Platz für alle Zeilen reservieren – sonst Seitenumbruch
         n_lines = _measure_lines(text, fontsize, fontname)
         needed = n_lines * line_h
         if y[0] + needed > PAGE_BOTTOM:
@@ -1200,23 +1200,23 @@ def _render_vertrag_pdf_bytes_fallback(form, variante):
 
     add_heading("§2 Leistungen des Beraters")
     leistungen = [
-        "Aufbereitung der Daten fuer das Verkaufsobjekt",
+        "Aufbereitung der Daten für das Verkaufsobjekt",
         "Erstellung eines anonymen Kurzexposes",
-        "Suche von Interessenten fuer das Verkaufsobjekt",
-        "Unterstuetzung bei Gespraechen mit Interessenten",
+        "Suche von Interessenten für das Verkaufsobjekt",
+        "Unterstuetzung bei Gesprächen mit Interessenten",
         "Begleitung der Verkaufsverhandlungen",
         "Vermittlung weiterer Berater (Rechtsanwaelte, Steuerberater)",
-        "Laufende Beratung und Projektbegleitung (persoenlich, telefonisch, per Videokonferenz, per E-Mail)",
+        "Laufende Beratung und Projektbegleitung (persönlich, telefonisch, per Videokonferenz, per E-Mail)",
     ]
     for l in leistungen:
         add_para(f"  -  {l}", space_after=2)
     add_spacer(6)
 
     add_heading("§3 Pflichten des Auftraggebers")
-    add_para("Der Auftraggeber stellt alle relevanten Unterlagen (Bilanzen, BWA, Statistiken, Kunden-, Lieferanten-, Mitarbeiterlisten) bereit und sichert deren Vollstaendigkeit und Richtigkeit zu. Der Berater haftet nicht fuer die inhaltliche Richtigkeit der gelieferten Informationen.")
+    add_para("Der Auftraggeber stellt alle relevanten Unterlagen (Bilanzen, BWA, Statistiken, Kunden-, Lieferanten-, Mitarbeiterlisten) bereit und sichert deren Vollständigkeit und Richtigkeit zu. Der Berater haftet nicht für die inhaltliche Richtigkeit der gelieferten Informationen.")
 
     add_heading("§4 Pflichten des Beraters / Vertraulichkeit")
-    add_para("Der Berater ist zum Stillschweigen gegenueber Dritten ueber saemtliche Inhalte des Verkaufsprozesses sowie ueber vertrauliche Informationen des Auftraggebers verpflichtet. Diese Verpflichtung gilt auch nach Ende des Vertrages. Unterlagen werden vertraulich aufbewahrt und nach Aufforderung zurueckgegeben oder vernichtet.")
+    add_para("Der Berater ist zum Stillschweigen gegenüber Dritten über sämtliche Inhalte des Verkaufsprozesses sowie über vertrauliche Informationen des Auftraggebers verpflichtet. Diese Verpflichtung gilt auch nach Ende des Vertrages. Unterlagen werden vertraulich aufbewahrt und nach Aufforderung zurückgegeben oder vernichtet.")
 
     # ============ §5 Verguetung ============
     add_heading("§5 Verguetung")
@@ -1226,13 +1226,13 @@ def _render_vertrag_pdf_bytes_fallback(form, variante):
     if variante == 'mit_uve':
         modus = form.get('eroeffnungsModus', 'einmalig')
         if modus == 'einmalig':
-            txt = f"Einmalige Eroeffnungsverguetung in Hoehe von {form.get('eroeffnungsBetrag', 10000):,.0f} EUR netto fuer das UVE-Coachingprogramm, Datenaufbereitung und Kurzexpose."
+            txt = f"Einmalige Eroeffnungsverguetung in Hoehe von {form.get('eroeffnungsBetrag', 10000):,.0f} EUR netto für das UVE-Coachingprogramm, Datenaufbereitung und Kurzexpose."
         else:
-            txt = "Eroeffnungsverguetung: 6 Monatsraten zu je 1.800 EUR netto fuer das UVE-Coachingprogramm, Datenaufbereitung und Kurzexpose."
+            txt = "Eroeffnungsverguetung: 6 Monatsraten zu je 1.800 EUR netto für das UVE-Coachingprogramm, Datenaufbereitung und Kurzexpose."
     elif variante == 'vorhandenes_uve':
-        txt = "Keine Eroeffnungsverguetung - der Auftraggeber hat das UVE-Coaching bereits abgeschlossen und bezahlt (ansonsten 3.490 EUR). Der Berater uebernimmt die Datenaufbereitung sowie die Erstellung des Kurzexposes."
+        txt = "Keine Eroeffnungsverguetung - der Auftraggeber hat das UVE-Coaching bereits abgeschlossen und bezahlt (ansonsten 3.490 EUR). Der Berater übernimmt die Datenaufbereitung sowie die Erstellung des Kurzexposes."
     else:
-        txt = f"Eroeffnungsverguetung: {form.get('eroeffnungsBetrag', 4950):,.0f} EUR netto fuer Datenaufbereitung und Erstellung des anonymen Kurzexposes."
+        txt = f"Eroeffnungsverguetung: {form.get('eroeffnungsBetrag', 4950):,.0f} EUR netto für Datenaufbereitung und Erstellung des anonymen Kurzexposes."
     add_para(txt.replace(',', '.'), space_after=10)
 
     add_subheading("(2) Beratungsverguetung")
@@ -1244,13 +1244,13 @@ def _render_vertrag_pdf_bytes_fallback(form, variante):
     add_para(f"Erfolgsverguetung in Hoehe von {form.get('erfolgsProzent', 5)} % des Transaktionsvolumens bei erfolgreichem Vertragsabschluss zwischen Auftraggeber und einem Interessenten. Als Vertragsabschluss gilt jede Form eines Verkaufs-, Kaufs-, Beteiligungs- oder Fusionsvertrages sowie vergleichbare Aktivitaeten (z.B. Asset Deals).", space_after=8)
 
     add_heading("§6 Vertragsdauer und Vertragsende")
-    add_para(f"Der Vertrag beginnt mit Vertragsunterzeichnung und wird zunaechst fuer {form.get('laufzeitMonate', 12)} Monate abgeschlossen. Die Laufzeit verlaengert sich stillschweigend um jeweils 6 Monate, sofern er nicht mit einer Frist von 2 Monaten schriftlich gekuendigt wird. Die Vertragslaufzeit endet automatisch zum Monatsende, sobald der Auftraggeber das Verkaufsobjekt veraeussert hat.")
+    add_para(f"Der Vertrag beginnt mit Vertragsunterzeichnung und wird zunaechst für {form.get('laufzeitMonate', 12)} Monate abgeschlossen. Die Laufzeit verlaengert sich stillschweigend um jeweils 6 Monate, sofern er nicht mit einer Frist von 2 Monaten schriftlich gekündigt wird. Die Vertragslaufzeit endet automatisch zum Monatsende, sobald der Auftraggeber das Verkaufsobjekt veraeussert hat.")
 
     add_heading("§7 Haftungsfreistellung")
-    add_para("Der Berater agiert mit der Sorgfalt eines ordentlichen Kaufmannes. Fuer Schaeden aus der Beratung sowie fuer entgangene Gewinne haftet der Berater nicht. Der Auftraggeber stellt den Berater von jeglicher Haftung frei, die auf Unvollstaendigkeit oder Unrichtigkeit der gelieferten Informationen beruht.")
+    add_para("Der Berater agiert mit der Sorgfalt eines ordentlichen Kaufmannes. Für Schäden aus der Beratung sowie für entgangene Gewinne haftet der Berater nicht. Der Auftraggeber stellt den Berater von jeglicher Haftung frei, die auf Unvollständigkeit oder Unrichtigkeit der gelieferten Informationen beruht.")
 
     add_heading("§8 Schlussbestimmungen")
-    add_para("Aenderungen beduerfen der Schriftform. Muendliche Nebenabreden bestehen nicht. Sind einzelne Bestimmungen unwirksam, bleibt die Gueltigkeit der uebrigen unberuehrt. Es gilt deutsches Recht. Gerichtsstand ist Uelzen.")
+    add_para("Änderungen beduerfen der Schriftform. Muendliche Nebenabreden bestehen nicht. Sind einzelne Bestimmungen unwirksam, bleibt die Gueltigkeit der uebrigen unberuehrt. Es gilt deutsches Recht. Gerichtsstand ist Uelzen.")
 
     if form.get('notizen'):
         add_heading("§9 Zusatzklauseln / Notizen")
@@ -1494,7 +1494,7 @@ def nda_pdf(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="nda-zur-signatur", methods=["POST", "OPTIONS"])
 def nda_zur_signatur(req: func.HttpRequest) -> func.HttpResponse:
-    """NDA-Sign-Link an Investor/Kaeufer per Mail."""
+    """NDA-Sign-Link an Investor/Käufer per Mail."""
     if req.method == "OPTIONS":
         return opt_()
     p = auth_user(req)
@@ -1541,7 +1541,7 @@ def nda_zur_signatur(req: func.HttpRequest) -> func.HttpResponse:
                 <p>Hallo {form.get('vertreten','')},</p>
                 <p>im Rahmen unserer Zusammenarbeit als M&A-Berater bitten wir Sie um Unterzeichnung der beiliegenden Vertraulichkeitsvereinbarung (NDA).</p>
                 <p style="margin:24px 0"><a href="{sign_url}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">NDA ansehen &amp; unterschreiben</a></p>
-                <p style="font-size:12px;color:#666">Der Link ist {SIGNATURE_LINK_EXPIRY_DAYS} Tage gueltig.</p>
+                <p style="font-size:12px;color:#666">Der Link ist {SIGNATURE_LINK_EXPIRY_DAYS} Tage gültig.</p>
                 </body></html>"""
             client.begin_send({
                 "senderAddress": ACS_SENDER,
@@ -1578,7 +1578,7 @@ def vertrag_zur_signatur(req: func.HttpRequest) -> func.HttpResponse:
 
     target_users = list(table_("users").query_entities(f"targetId eq '{target_id}'"))
     if not target_users:
-        return err_("Kein Target-Login angelegt. Bitte zuerst Benutzer fuer dieses Target erstellen.", 400)
+        return err_("Kein Target-Login angelegt. Bitte zuerst Benutzer für dieses Target erstellen.", 400)
     target_email = target_users[0].get("email", "")
     target_name = target_users[0].get("name", "")
     if not target_email:
@@ -1654,11 +1654,11 @@ def vertrag_zur_signatur(req: func.HttpRequest) -> func.HttpResponse:
             html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
                 <h2 style="color:#097e92">Dein Mandatsvertrag liegt zur Unterschrift bereit</h2>
                 <p>Hallo {target_name or ''},</p>
-                <p>der Mandatsvertrag fuer dein Verkaufsprojekt ist fertig vorbereitet.
+                <p>der Mandatsvertrag für dein Verkaufsprojekt ist fertig vorbereitet.
                 Du kannst ihn online ansehen und mit wenigen Klicks unterschreiben.</p>
                 <p style="margin:24px 0"><a href="{sign_url}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Vertrag ansehen &amp; unterschreiben</a></p>
-                <p style="font-size:12px;color:#666">Der Link ist {SIGNATURE_LINK_EXPIRY_DAYS} Tage gueltig.</p>
-                <p>Viele Gruesse<br/>Dein mibeca-Team</p>
+                <p style="font-size:12px;color:#666">Der Link ist {SIGNATURE_LINK_EXPIRY_DAYS} Tage gültig.</p>
+                <p>Viele Grüße<br/>Dein mibeca-Team</p>
                 </body></html>"""
             client.begin_send({
                 "senderAddress": ACS_SENDER,
@@ -1713,7 +1713,7 @@ def sign_pdf_public(req: func.HttpRequest) -> func.HttpResponse:
         data = _blob_container_lazy("vertraege").download_blob(blob_name).readall()
     except Exception as ex:
         return err_(f"PDF nicht abrufbar: {ex}", 500)
-    # WICHTIG: kein 'Content-Type' aus CORS mitschicken, sonst ueberschreibt das mimetype
+    # WICHTIG: kein 'Content-Type' aus CORS mitschicken, sonst überschreibt das mimetype
     pdf_headers = {k: v for k, v in CORS.items() if k.lower() != "content-type"}
     pdf_headers["Content-Type"] = "application/pdf"
     pdf_headers["Content-Disposition"] = 'inline; filename="vertrag.pdf"'
@@ -1745,14 +1745,14 @@ def sign_send_code(req: func.HttpRequest) -> func.HttpResponse:
         from azure.communication.email import EmailClient
         client = EmailClient.from_connection_string(ACS_CONN)
         html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a">
-            <p>Dein Bestaetigungscode fuer die Unterschrift lautet:</p>
+            <p>Dein Bestätigungscode für die Unterschrift lautet:</p>
             <p style="font-size:28px;font-weight:700;letter-spacing:6px;background:#f0fdfa;padding:14px 22px;border-radius:10px;display:inline-block;color:#097e92">{code}</p>
-            <p>Der Code ist {SIGNATURE_CODE_EXPIRY_MIN} Minuten gueltig.</p>
+            <p>Der Code ist {SIGNATURE_CODE_EXPIRY_MIN} Minuten gültig.</p>
             </body></html>"""
         client.begin_send({
             "senderAddress": ACS_SENDER,
             "recipients": {"to": [{"address": sig["lead_email"]}]},
-            "content": {"subject": "Bestaetigungscode Mandatsvertrag", "plainText": f"Code: {code}", "html": html},
+            "content": {"subject": "Bestätigungscode Mandatsvertrag", "plainText": f"Code: {code}", "html": html},
         })
     except Exception as ex:
         return err_(f"Mailversand fehlgeschlagen: {ex}", 500)
@@ -1859,7 +1859,7 @@ def sign_submit(req: func.HttpRequest) -> func.HttpResponse:
             "typ": "wichtig",
             "datum": signed_at,
             "autor": sig_name,
-            "betreff": "Mandatsvertrag vom Verkaeufer unterschrieben",
+            "betreff": "Mandatsvertrag vom Verkäufer unterschrieben",
             "beschreibung": f"{sig_name} hat den Vertrag elektronisch signiert. Wartet auf Gegenzeichnung durch mibeca.",
             "beteiligte": sig.get("lead_email", ""),
         })
@@ -1877,11 +1877,11 @@ def sign_submit(req: func.HttpRequest) -> func.HttpResponse:
             html = f"""<html><body style="font-family:Arial,sans-serif">
                 <p><strong>Vertrag zur Gegenzeichnung bereit</strong></p>
                 <p>{sig_name} ({sig.get('lead_email','')}) hat den Mandatsvertrag unterschrieben.</p>
-                <p>Bitte oeffne die Akte im Dashboard und zeichne gegen.</p></body></html>"""
+                <p>Bitte öffne die Akte im Dashboard und zeichne gegen.</p></body></html>"""
             client.begin_send({
                 "senderAddress": ACS_SENDER,
                 "recipients": {"to": [{"address": mibeca_mail}]},
-                "content": {"subject": f"Vertrag {sig.get('lead_name','')} – Gegenzeichnung benoetigt", "plainText": "Vertrag wartet auf Gegenzeichnung im Dashboard.", "html": html},
+                "content": {"subject": f"Vertrag {sig.get('lead_name','')} – Gegenzeichnung benötigt", "plainText": "Vertrag wartet auf Gegenzeichnung im Dashboard.", "html": html},
             })
         except Exception:
             pass
@@ -2000,12 +2000,12 @@ def vertrag_countersign(req: func.HttpRequest) -> func.HttpResponse:
             client = EmailClient.from_connection_string(ACS_CONN)
             download_url = f"{FRONTEND_BASE}/sign/{sig.get('token','')}"
             html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
-                <h2 style="color:#097e92">Dein Mandatsvertrag ist vollstaendig unterschrieben</h2>
+                <h2 style="color:#097e92">Dein Mandatsvertrag ist vollständig unterschrieben</h2>
                 <p>Hallo {sig.get('lead_name','')},</p>
-                <p>{sig_name} hat den Vertrag fuer mibeca gegengezeichnet. Der Vertrag ist damit final unterzeichnet und liegt fuer dich zum Download bereit.</p>
+                <p>{sig_name} hat den Vertrag für mibeca gegengezeichnet. Der Vertrag ist damit final unterzeichnet und liegt für dich zum Download bereit.</p>
                 <p style="margin:24px 0"><a href="{download_url}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Mein Exemplar herunterladen</a></p>
                 <p>Du findest den Vertrag ausserdem jederzeit in deinem Dashboard unter Vertraege.</p>
-                <p>Viele Gruesse<br/>Dein mibeca-Team</p>
+                <p>Viele Grüße<br/>Dein mibeca-Team</p>
                 </body></html>"""
             client.begin_send({
                 "senderAddress": ACS_SENDER,
@@ -2088,7 +2088,7 @@ def _notify_new_entry(target_id, entry, sender_user_id=None):
                 <p><strong>Projekt:</strong> {mb}</p>
                 <p><strong>Betreff:</strong> {betreff}</p>
                 <p style="background:#f8f9fa;border-left:3px solid #097e92;padding:12px;white-space:pre-wrap">{beschr}</p>
-                <p style="margin-top:24px"><a href="{link}" style="background:#097e92;color:white;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600">Im Dashboard oeffnen</a></p>
+                <p style="margin-top:24px"><a href="{link}" style="background:#097e92;color:white;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600">Im Dashboard öffnen</a></p>
                 </body></html>"""
             client.begin_send({
                 "senderAddress": ACS_SENDER,
@@ -2208,7 +2208,7 @@ def verlauf_add(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="verlauf-unread-count", methods=["GET", "OPTIONS"])
 def verlauf_unread_count(req: func.HttpRequest) -> func.HttpResponse:
-    """Liefert pro Target die Anzahl ungelesener Verlauf-Eintraege fuer den aktuellen User."""
+    """Liefert pro Target die Anzahl ungelesener Verlauf-Eintraege für den aktuellen User."""
     if req.method == "OPTIONS":
         return opt_()
     p = auth_user(req)
@@ -2235,7 +2235,7 @@ def verlauf_unread_count(req: func.HttpRequest) -> func.HttpResponse:
 
     per_target = {}
     total = 0
-    items = []  # Liste fuer Dropdown
+    items = []  # Liste für Dropdown
     for tid in target_ids:
         try:
             t = dict(table_("targets").get_entity("target", tid))
@@ -2268,7 +2268,7 @@ def verlauf_unread_count(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="verlauf-mark-read", methods=["POST", "OPTIONS"])
 def verlauf_mark_read(req: func.HttpRequest) -> func.HttpResponse:
-    """Markiert alle Verlauf-Eintraege fuer den User als gelesen.
+    """Markiert alle Verlauf-Eintraege für den User als gelesen.
     Body: { targetId } – wenn fehlt: alle Targets."""
     if req.method == "OPTIONS":
         return opt_()
@@ -2385,13 +2385,13 @@ def _generate_press_text(data):
     if aoai_endpoint and aoai_key:
         try:
             import urllib.request
-            prompt = f"""Agiere wie ein erfahrener Presseredakteur fuer eine IT-Fachzeitschrift.
+            prompt = f"""Agiere wie ein erfahrener Presseredakteur für eine IT-Fachzeitschrift.
 
 Erstelle eine Pressemeldung (max. 450 Woerter) zu folgendem Unternehmenskauf, den die mibeca GmbH (Mike Bergmann Akademie) begleitet hat:
 
 - Begleitete Seite: {data.get('seite','Verkaeuferseite')}
-- Kaeufer-Firma: {data.get('kaeuferFirma','')}, Sitz: {data.get('kaeuferOrt','')}
-- Verkaeufer-Firma: {data.get('verkaeuferFirma','')}, Sitz: {data.get('verkaeuferOrt','')}
+- Käufer-Firma: {data.get('kaeuferFirma','')}, Sitz: {data.get('kaeuferOrt','')}
+- Verkäufer-Firma: {data.get('verkaeuferFirma','')}, Sitz: {data.get('verkaeuferOrt','')}
 - Branche/Schwerpunkt: {data.get('schwerpunkt','IT-Systemhaus')}
 - Besonderheiten der Transaktion: {data.get('besonderheiten','')}
 - Synergien nach Transaktion: {data.get('synergien','')}
@@ -2399,7 +2399,7 @@ Erstelle eine Pressemeldung (max. 450 Woerter) zu folgendem Unternehmenskauf, de
 Format:
 - Knackige Headline + Sub-Headline
 - 3-4 inhaltliche Absaetze
-- Drei Zitate: Jennifer Kaplan (mibeca), Mike Bergmann (mibeca), Verkaeufer/Kaeufer (je nach Begleitung)
+- Drei Zitate: Jennifer Kaplan (mibeca), Mike Bergmann (mibeca), Verkäufer/Käufer (je nach Begleitung)
 - Neutrale, professionelle Sprache
 - Hebt die Kompetenz von mibeca im M&A-Bereich subtil hervor
 
@@ -2421,20 +2421,20 @@ Schreibe direkt den fertigen Pressetext, ohne weitere Erklaerung."""
     schw = data.get("schwerpunkt", "IT-Systemhaus")
     bes = data.get("besonderheiten", "")
     syn = data.get("synergien", "")
-    return f"""IT-Systemhaus-Transaktion: {kf} uebernimmt {vf}
+    return f"""IT-Systemhaus-Transaktion: {kf} übernimmt {vf}
 
-In der IT-Branche wurde eine bedeutsame Transaktion abgeschlossen: Die {kf} aus {ko} hat das {schw} {vf} aus {vo} uebernommen. Die mibeca GmbH (Mike Bergmann Akademie) hat den Prozess als M&A-Berater begleitet.
+In der IT-Branche wurde eine bedeutsame Transaktion abgeschlossen: Die {kf} aus {ko} hat das {schw} {vf} aus {vo} übernommen. Die mibeca GmbH (Mike Bergmann Akademie) hat den Prozess als M&A-Berater begleitet.
 
 {bes}
 
-"Diese Transaktion zeigt, wie wichtig eine strukturierte Begleitung im M&A-Prozess fuer IT-Unternehmen ist", erklaert Jennifer Kaplan, Transaktionsberaterin der mibeca GmbH. "Beide Seiten konnten wir ueber den gesamten Prozess hinweg sicher zum Abschluss fuehren."
+"Diese Transaktion zeigt, wie wichtig eine strukturierte Begleitung im M&A-Prozess für IT-Unternehmen ist", erklaert Jennifer Kaplan, Transaktionsberaterin der mibeca GmbH. "Beide Seiten konnten wir über den gesamten Prozess hinweg sicher zum Abschluss fuehren."
 
 Strategischer Hintergrund und Synergien: {syn}
 
-"Im IT-Markt sehen wir gerade enorme Konsolidierung – und {kf} positioniert sich damit aktiv fuer weiteres Wachstum", ergaenzt Mike Bergmann, Gruender der Mike Bergmann Akademie. "Die Verbindung von gewachsener Mittelstands-Erfahrung und der strategischen Synergiepotenzialen ist genau der Treiber, den der IT-Markt braucht."
+"Im IT-Markt sehen wir gerade enorme Konsolidierung – und {kf} positioniert sich damit aktiv für weiteres Wachstum", ergaenzt Mike Bergmann, Gruender der Mike Bergmann Akademie. "Die Verbindung von gewachsener Mittelstands-Erfahrung und der strategischen Synergiepotenzialen ist genau der Treiber, den der IT-Markt braucht."
 
-Ueber die mibeca GmbH:
-Die mibeca GmbH ist als Mike Bergmann Akademie spezialisiert auf M&A-Beratung fuer IT-Unternehmen im deutschsprachigen Raum. Sie begleitet Verkaeufer wie Kaeufer professionell durch den gesamten Transaktionsprozess.
+Über die mibeca GmbH:
+Die mibeca GmbH ist als Mike Bergmann Akademie spezialisiert auf M&A-Beratung für IT-Unternehmen im deutschsprachigen Raum. Sie begleitet Verkäufer wie Käufer professionell durch den gesamten Transaktionsprozess.
 """
 
 
@@ -2519,7 +2519,7 @@ def pr_versand(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="pr-zur-freigabe", methods=["POST", "OPTIONS"])
 def pr_zur_freigabe(req: func.HttpRequest) -> func.HttpResponse:
-    """Schickt den Pressetext an den Verkaeufer/Kaeufer zur Freigabe."""
+    """Schickt den Pressetext an den Verkäufer/Käufer zur Freigabe."""
     if req.method == "OPTIONS":
         return opt_()
     p = auth_user(req)
@@ -2532,7 +2532,7 @@ def pr_zur_freigabe(req: func.HttpRequest) -> func.HttpResponse:
         return err_("targetId und text erforderlich", 400)
     target_users = list(table_("users").query_entities(f"targetId eq '{target_id}'"))
     if not target_users:
-        return err_("Kein Target-Login fuer dieses Target", 400)
+        return err_("Kein Target-Login für dieses Target", 400)
     target_email = target_users[0].get("email", "")
     target_name = target_users[0].get("name", "")
     try:
@@ -2557,7 +2557,7 @@ def pr_zur_freigabe(req: func.HttpRequest) -> func.HttpResponse:
                 <h2 style="color:#097e92">Pressemitteilung zur Freigabe</h2>
                 <p>Hallo {target_name or ''},</p>
                 <p>wir haben einen Pressetext zu Deinem Unternehmensverkauf vorbereitet. Bitte gib ihn frei
-                oder kommentiere gewuenschte Aenderungen direkt im Dashboard.</p>
+                oder kommentiere gewuenschte Änderungen direkt im Dashboard.</p>
                 <p style="margin:24px 0"><a href="{link}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Pressetext ansehen &amp; freigeben</a></p>
                 </body></html>"""
             client.begin_send({
@@ -2615,7 +2615,7 @@ def pr_feedback(req: func.HttpRequest) -> func.HttpResponse:
         "datum": datetime.utcnow().isoformat(),
         "autor": p.get("name", ""),
         "betreff": "Pressetext freigegeben" if freigabe else "Aenderungswunsch zum Pressetext",
-        "beschreibung": kommentar or ("Pressetext wurde freigegeben." if freigabe else "Kunde wuenscht Aenderungen."),
+        "beschreibung": kommentar or ("Pressetext wurde freigegeben." if freigabe else "Kunde wuenscht Änderungen."),
         "beteiligte": p.get("email", ""),
     })
     if ACS_CONN:
@@ -2659,7 +2659,7 @@ def presse_kontakte(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="controlling-stats", methods=["GET", "OPTIONS"])
 def controlling_stats(req: func.HttpRequest) -> func.HttpResponse:
-    """Aggregierte KPIs aus allen Targets / Mandanten fuer das Controlling-Dashboard."""
+    """Aggregierte KPIs aus allen Targets / Mandanten für das Controlling-Dashboard."""
     if req.method == "OPTIONS":
         return opt_()
     p = auth_user(req)
@@ -2751,7 +2751,7 @@ def controlling_stats(req: func.HttpRequest) -> func.HttpResponse:
     # Erfolgsquote
     success_rate = round(100 * len(closed) / len(filtered)) if filtered else 0
 
-    # Monthly-Series fuer Chart
+    # Monthly-Series für Chart
     by_month = {}
     for t in filtered:
         d = get_closed(t) or get_created(t)
@@ -2786,7 +2786,7 @@ def controlling_stats(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="lessons-learned", methods=["GET", "OPTIONS"])
 def lessons_learned_aggregat(req: func.HttpRequest) -> func.HttpResponse:
-    """Aggregiert Lessons Learned aller Targets fuer Wissensdatenbank."""
+    """Aggregiert Lessons Learned aller Targets für Wissensdatenbank."""
     if req.method == "OPTIONS":
         return opt_()
     p = auth_user(req)
@@ -2820,7 +2820,7 @@ def lessons_learned_aggregat(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="landing-public", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def landing_public(req: func.HttpRequest) -> func.HttpResponse:
-    """Public: liefert Landing-Page-Daten fuer eine mb-Nr."""
+    """Public: liefert Landing-Page-Daten für eine mb-Nr."""
     if req.method == "OPTIONS":
         return opt_()
     mb_nr = (req.params.get("mbNr") or "").strip().lower()
@@ -2853,7 +2853,7 @@ def landing_public(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="landing-anfrage", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
-    """Public: ein Interessent registriert sich fuer mb-XXX."""
+    """Public: ein Interessent registriert sich für mb-XXX."""
     if req.method == "OPTIONS":
         return opt_()
     body = req.get_json() or {}
@@ -2899,7 +2899,7 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
         "email": email, "telefon": body.get("telefon", ""), "website": website,
         "plz": plz, "ort": ort,
         "ndaStatus": "ausstehend",
-        "exposeToken": token,  # fuer expose-mb-XXX/:token Zugriff
+        "exposeToken": token,  # für expose-mb-XXX/:token Zugriff
         "rating": 0, "veto": False, "freigegebenFuerKontakt": False,
         "kommentar": body.get("kommentar", ""),
         "createdAt": datetime.utcnow().isoformat(),
@@ -2970,7 +2970,7 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
         "datum": datetime.utcnow().isoformat(),
         "autor": "Landing-Page",
         "betreff": f"Neue Anfrage von {firma or name}",
-        "beschreibung": f"Interessent hat sich ueber die Landing-Page {mb_nr} eingetragen. E-Mail: {email}",
+        "beschreibung": f"Interessent hat sich über die Landing-Page {mb_nr} eingetragen. E-Mail: {email}",
         "beteiligte": email,
     })
 
@@ -2984,10 +2984,10 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
             html_int = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
                 <h2 style="color:#097e92">Willkommen bei mibeca · Projekt {mb_nr.upper()}</h2>
                 <p>Hallo {name or firma},</p>
-                <p>vielen Dank fuer Dein Interesse am Projekt <strong>{mb_nr}</strong>. Hier geht's zu Deinem Exposé-Bereich (Exposé + NDA herunterladen, signiertes NDA hochladen):</p>
+                <p>vielen Dank für Dein Interesse am Projekt <strong>{mb_nr}</strong>. Hier geht's zu Deinem Exposé-Bereich (Exposé + NDA herunterladen, signiertes NDA hochladen):</p>
                 <p style="margin:24px 0"><a href="{expose_url}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Zum Exposé-Bereich</a></p>
                 <p>Nach Eingang Deines unterschriebenen NDAs schalten wir die Termin-Buchung mit unserer M&amp;A-Beraterin Jennifer Kaplan frei.</p>
-                <p>Viele Gruesse<br/>Dein mibeca-Team</p>
+                <p>Viele Grüße<br/>Dein mibeca-Team</p>
                 </body></html>"""
             client.begin_send({
                 "senderAddress": ACS_SENDER,
@@ -3003,7 +3003,7 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
                 client.begin_send({
                     "senderAddress": ACS_SENDER,
                     "recipients": {"to": [{"address": rcpt}]},
-                    "content": {"subject": f"[ITUKV] Neue Anfrage zu {mb_nr.upper()}", "plainText": f"{firma or name} ({email}) interessiert sich fuer {mb_nr}.", "html": f"<p><strong>Neue Anfrage zu {mb_nr.upper()}</strong></p><p>Firma: {firma}</p><p>Name: {name}</p><p>E-Mail: {email}</p>"},
+                    "content": {"subject": f"[ITUKV] Neue Anfrage zu {mb_nr.upper()}", "plainText": f"{firma or name} ({email}) interessiert sich für {mb_nr}.", "html": f"<p><strong>Neue Anfrage zu {mb_nr.upper()}</strong></p><p>Firma: {firma}</p><p>Name: {name}</p><p>E-Mail: {email}</p>"},
                 })
         except Exception as ex:
             logging.warning(f"Anfrage-Mail fehlgeschlagen: {ex}") if 'logging' in globals() else None
@@ -3103,27 +3103,27 @@ def nda_upload(req: func.HttpRequest) -> func.HttpResponse:
             client = EmailClient.from_connection_string(ACS_CONN)
             html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
 <p>Hallo {i.get('name') or i.get('firma') or ''},</p>
-<p>vielen Dank fuer Dein unterschriebenes NDA zur Projektnummer <strong>{t.get('mbNr','')}</strong> &ndash; damit hast Du den ersten wichtigen Schritt gemacht!</p>
+<p>vielen Dank für Dein unterschriebenes NDA zur Projektnummer <strong>{t.get('mbNr','')}</strong> &ndash; damit hast Du den ersten wichtigen Schritt gemacht!</p>
 <h3 style="color:#097e92">Wie geht es jetzt weiter?</h3>
-<p>Du hast nun Zugang zum Exposé, das Dir einen ersten Ueberblick ueber das Unternehmen gibt. Fuer tiefergehende Informationen und Zahlen ist ein persoenliches Gespraech erforderlich.</p>
+<p>Du hast nun Zugang zum Exposé, das Dir einen ersten Überblick über das Unternehmen gibt. Für tiefergehende Informationen und Zahlen ist ein persönliches Gespräch erforderlich.</p>
 <p>Buche hier Deinen Termin mit unserer M&amp;A-Beraterin Jennifer Kaplan:</p>
 {(('<p style="margin:24px 0"><a href="' + termin_url + '" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Termin jetzt buchen</a></p>') if termin_url else '<p><em>Termin-Link wird in Kuerze nachgereicht.</em></p>')}
-<p>In diesem ca. 15-minuetigen Gespraech klaert Ihr:</p>
+<p>In diesem ca. 15-minuetigen Gespräch klaert Ihr:</p>
 <ul>
   <li>Ob das Unternehmen zu Deiner Zukaufstrategie passt</li>
   <li>Deine konkreten Zukaufsvisionen &ndash; damit wir diese mit dem Profil abgleichen koennen</li>
   <li>Den weiteren Ablauf des Prozesses</li>
   <li>Wie die Rolle unserer M&amp;A-Beraterin Dich durch den gesamten Transaktionsprozess begleitet</li>
-  <li>Ob ggf. ein Folgegespraech direkt mit dem Verkaeufer sinnvoll ist</li>
+  <li>Ob ggf. ein Folgegespraech direkt mit dem Verkäufer sinnvoll ist</li>
 </ul>
-<p><strong>Wichtig:</strong> Nur wenn die ersten Parameter nach dem Gespraech uebereinstimmen, senden wir Dir im Anschluss weitere Unterlagen &ndash; z.B. detaillierte Unternehmenskennzahlen.</p>
+<p><strong>Wichtig:</strong> Nur wenn die ersten Parameter nach dem Gespräch übereinstimmen, senden wir Dir im Anschluss weitere Unterlagen &ndash; z.B. detaillierte Unternehmenskennzahlen.</p>
 <p>Wir freuen uns auf den Austausch!</p>
-<p>Herzliche Gruesse<br/>Dein M&amp;A-Team der Mike Bergmann Akademie</p>
+<p>Herzliche Grüße<br/>Dein M&amp;A-Team der Mike Bergmann Akademie</p>
 </body></html>"""
             client.begin_send({
                 "senderAddress": ACS_SENDER,
                 "recipients": {"to": [{"address": i.get("email", "")}]},
-                "content": {"subject": f"NDA erhalten – naechste Schritte zu {t.get('mbNr','')}", "plainText": f"NDA bestaetigt. Termin buchen: {termin_url}", "html": html},
+                "content": {"subject": f"NDA erhalten – naechste Schritte zu {t.get('mbNr','')}", "plainText": f"NDA bestätigt. Termin buchen: {termin_url}", "html": html},
             })
             # Notification an Jenny
             mibeca_mail = os.environ.get("MIBECA_NOTIFY_EMAIL", "jk@mike-bergmann.de")
@@ -3142,7 +3142,7 @@ def nda_upload(req: func.HttpRequest) -> func.HttpResponse:
 # =========================================================================
 
 _IMPRESSUM_PATHS = ["/impressum", "/impressum.html", "/impressum/", "/legal/impressum",
-                    "/de/impressum", "/kontakt", "/ueber-uns", "/about", "/legal"]
+                    "/de/impressum", "/kontakt", "/über-uns", "/about", "/legal"]
 _PRIVATE_DOMAINS = {"gmail.com", "googlemail.com", "gmx.de", "gmx.net", "gmx.com", "web.de",
                     "hotmail.com", "hotmail.de", "outlook.com", "outlook.de", "live.com",
                     "yahoo.com", "yahoo.de", "icloud.com", "t-online.de", "aol.com",
@@ -3201,17 +3201,17 @@ def _fetch_impressum(domain: str):
 
 _ENRICH_PROMPT = """Du analysierst den Text einer deutschen Firmen-Impressum-Seite.
 Extrahiere folgende Felder als JSON. Wenn ein Feld nicht gefunden wird, setze es auf null.
-Gib NUR das JSON zurueck, keinen anderen Text, keine Erklaerungen, kein Markdown.
+Gib NUR das JSON zurück, keinen anderen Text, keine Erklaerungen, kein Markdown.
 
 Felder:
-- firmenname: Vollstaendiger Firmenname inkl. Rechtsform (z.B. "Muster GmbH")
-- geschaeftsfuehrer: Geschaeftsfuehrer als Liste (z.B. ["Max Mustermann"])
+- firmenname: Vollständiger Firmenname inkl. Rechtsform (z.B. "Muster GmbH")
+- geschaeftsfuehrer: Geschäftsführer als Liste (z.B. ["Max Mustermann"])
 - strasse: Strasse und Hausnummer
 - postleitzahl: PLZ
 - ort: Stadt/Ort
 - land: Land
 - umsatzsteuer_id: USt-ID (z.B. "DE123456789")
-- telefon: Festnetz-Telefonnummer (im internationalen Format wenn moeglich)
+- telefon: Festnetz-Telefonnummer (im internationalen Format wenn möglich)
 - email_impressum: Kontakt-E-Mail aus dem Impressum
 
 Impressum-Text:
@@ -3409,15 +3409,15 @@ def nda_public_sign(req: func.HttpRequest) -> func.HttpResponse:
             client = EmailClient.from_connection_string(ACS_CONN)
             html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
 <p>Hallo {i.get('name') or i.get('firma') or ''},</p>
-<p>vielen Dank fuer Dein unterschriebenes NDA zur Projektnummer <strong>{t.get('mbNr','')}</strong> &ndash; damit hast Du den ersten wichtigen Schritt gemacht!</p>
+<p>vielen Dank für Dein unterschriebenes NDA zur Projektnummer <strong>{t.get('mbNr','')}</strong> &ndash; damit hast Du den ersten wichtigen Schritt gemacht!</p>
 <p>Du hast nun Zugang zum Exposé und kannst direkt einen Termin mit unserer M&amp;A-Beraterin Jennifer Kaplan buchen:</p>
 <p style="margin:24px 0"><a href="{termin_url}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Termin jetzt buchen</a></p>
-<p>Herzliche Gruesse<br/>Dein M&amp;A-Team der Mike Bergmann Akademie</p>
+<p>Herzliche Grüße<br/>Dein M&amp;A-Team der Mike Bergmann Akademie</p>
 </body></html>"""
             client.begin_send({
                 "senderAddress": ACS_SENDER,
                 "recipients": {"to": [{"address": i.get("email", "")}]},
-                "content": {"subject": f"NDA bestaetigt – Termin mit Jennifer Kaplan buchen, Projekt {t.get('mbNr','')}", "plainText": f"Termin buchen: {termin_url}", "html": html},
+                "content": {"subject": f"NDA bestätigt – Termin mit Jennifer Kaplan buchen, Projekt {t.get('mbNr','')}", "plainText": f"Termin buchen: {termin_url}", "html": html},
             })
             mibeca_mail = os.environ.get("MIBECA_NOTIFY_EMAIL", "jk@mike-bergmann.de")
             client.begin_send({
@@ -3602,7 +3602,7 @@ def expose_pdf(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="dokument-upload-url", methods=["POST", "OPTIONS"])
 def dokument_upload_url(req: func.HttpRequest) -> func.HttpResponse:
-    """Generiert SAS-URL fuer direkten Blob-Upload (auch Videos, beliebige Groesse)."""
+    """Generiert SAS-URL für direkten Blob-Upload (auch Videos, beliebige Groesse)."""
     if req.method == "OPTIONS":
         return opt_()
     p = auth_user(req)
@@ -3829,9 +3829,9 @@ def dokument_move(req: func.HttpRequest) -> func.HttpResponse:
 # DASHBOARD-ÜBERSICHT: Aktivität + "Wartet auf mich"
 # =========================================================================
 
-@app.route(route="dashboard-uebersicht", methods=["GET", "OPTIONS"])
+@app.route(route="dashboard-übersicht", methods=["GET", "OPTIONS"])
 def dashboard_uebersicht(req: func.HttpRequest) -> func.HttpResponse:
-    """Liefert Aktivitaets-Feed + 'Wartet auf mich' fuer Admin-Uebersicht."""
+    """Liefert Aktivitaets-Feed + 'Wartet auf mich' für Admin-Übersicht."""
     if req.method == "OPTIONS":
         return opt_()
     p = auth_user(req)
@@ -3842,15 +3842,15 @@ def dashboard_uebersicht(req: func.HttpRequest) -> func.HttpResponse:
     try: last_seen_map = json.loads(user.get("lastSeenVerlauf", "{}") or "{}")
     except Exception: last_seen_map = {}
 
-    feed = []  # alle Verlauf-Eintraege ueber alle Targets
+    feed = []  # alle Verlauf-Eintraege über alle Targets
     wartet = {
         "vertragsGegenzeichnung": [],   # Vertraege wo Target signiert hat
         "ndaReview": [],                # Interessenten mit NDA-Upload
         "ungelesen": [],                # Targets mit ungelesenen Eintraegen
-        "wiedervorlage": [],            # Targets mit faelliger Wiedervorlage heute/ueberfaellig
+        "wiedervorlage": [],            # Targets mit faelliger Wiedervorlage heute/überfaellig
         "pressefreigabe": [],           # Pressetext wartet auf Kunden-Freigabe oder mibeca-Aktion
-        "fragebogenZuPruefen": [],      # Verkaeufer hat Fragebogen abgegeben, mibeca muss auswerten
-        "exposeKorrekturwunsch": [],    # Verkaeufer hat Korrekturwunsch zum Exposé
+        "fragebogenZuPruefen": [],      # Verkäufer hat Fragebogen abgegeben, mibeca muss auswerten
+        "exposeKorrekturwunsch": [],    # Verkäufer hat Korrekturwunsch zum Exposé
         "exposeFreigabeAusstehend": [], # Exposé wurde an Kunden gesendet, wartet auf seine Freigabe
     }
 
@@ -4083,7 +4083,7 @@ _SEED_VORLAGEN = [
         "body": "rot = ggf. anpassen\n\nSehr geehrter Interessent,\n\n(ggf. Duzen, wie z.B “Hallo Thomas”),\n\nbis vor einiger Zeit hatten wir uns intensiv über Dein Kauinteresse für das IT-Unternehmen mit der Projektnr. {{mbNr}} unterhalten. In den letzten Wochen habe ich von Dir nichts mehr bezüglich dieser Transaktion gehört, weshalb ich davon ausgehe, dass Dein Interesse am Kauf mittlerweile erloschen ist.\n\nDa wir zur Zeit in konkreten Verhandlungen mit anderen Interessenten stehen, bitte ich Dich, gemäß NDA alle über das Unternehmen erhaltenen vertraulichen Information zu löschen und mich über die erfolgte Löschung zu informieren.\n\nSollte allerdings weiterhin konkretes und kurzfristiges Interesse an einer Transaktion über {{mbNr}} von Deiner Seite bestehen, so bitte ich Dich, umgehend mit uns in Kontakt zu treten. Unterbreite und dann die nächsten konkreten Angebote und Vorschläge für diese Transaktion, damit wir Dich im Verhandlungsprozess noch weiterhin berücksichtigen können.\n\nVielen Dank.",
     },
     {
-        "RowKey": "jenny-eroeffnung-erstgespraech",
+        "RowKey": "jenny-eröffnung-erstgespraech",
         "name": "Eröffnungsmail nach Erstgespräch",
         "kategorie": "Verkäufer-Akquise",
         "betreff": "Nach unserem Gespräch - Fragebogen und BWAs",
@@ -4128,7 +4128,7 @@ def _seed_vorlagen_if_empty():
 
 def _ensure_seed_vorlagen():
     """Idempotent: legt nur Vorlagen an, die noch nicht existieren (per RowKey).
-    Editierte Versionen werden NICHT ueberschrieben."""
+    Editierte Versionen werden NICHT überschrieben."""
     added = 0
     try:
         existing_keys = {v.get("RowKey") for v in table_("mailvorlagen").list_entities()}
@@ -4148,7 +4148,7 @@ def _ensure_seed_vorlagen():
 
 @app.route(route="mailvorlagen-reseed", methods=["POST", "OPTIONS"])
 def mailvorlagen_reseed(req: func.HttpRequest) -> func.HttpResponse:
-    """Fuegt Jenny-Vorlagen hinzu, die noch fehlen. Vorhandene werden NICHT ueberschrieben."""
+    """Fuegt Jenny-Vorlagen hinzu, die noch fehlen. Vorhandene werden NICHT überschrieben."""
     if req.method == "OPTIONS":
         return opt_()
     p = auth_user(req)
