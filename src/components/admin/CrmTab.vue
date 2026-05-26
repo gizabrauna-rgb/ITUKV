@@ -108,7 +108,15 @@
             <td class="px-4 py-3 text-sm font-medium text-gray-800">{{ k.firma }}</td>
             <td class="px-4 py-3 text-sm text-gray-600">{{ k.name }}</td>
             <td class="px-4 py-3">
-              <span :class="typClass(k.typ)" class="text-xs px-2 py-0.5 rounded-full font-medium">{{ k.typ }}</span>
+              <div class="flex flex-wrap gap-1">
+                <span v-if="k.istTarget" class="text-xs px-2 py-0.5 rounded-full font-medium bg-orange-100 text-orange-700">Target</span>
+                <span v-if="k.istInvestor" class="text-xs px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-700">
+                  Investor<span v-if="k.investorTyp || (k.typ && ['PE','Systemhausgruppe','Strategisch','Sonstige'].includes(k.typ))"> · {{ k.investorTyp || k.typ }}</span>
+                </span>
+                <span v-if="k.istKunde" class="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700">Kunde</span>
+                <span v-if="k.istExKunde" class="text-xs px-2 py-0.5 rounded-full font-medium bg-slate-200 text-slate-700">Ex-Kunde</span>
+                <span v-if="!k.istTarget && !k.istInvestor && !k.istKunde && !k.istExKunde && k.typ" :class="typClass(k.typ)" class="text-xs px-2 py-0.5 rounded-full font-medium">{{ k.typ }}</span>
+              </div>
             </td>
             <td class="px-4 py-3 text-sm text-gray-500">{{ k.plz }} {{ k.ort }}</td>
             <td class="px-4 py-3">
@@ -263,16 +271,39 @@
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div class="col-span-2"><label class="field-label">Firma</label><input v-model="form.firma" class="input" /></div>
-          <div><label class="field-label">Name</label><input v-model="form.name" class="input" /></div>
-          <div><label class="field-label">Typ</label>
-            <select v-model="form.typ" class="input">
+          <div><label class="field-label">Name (Ansprechpartner)</label><input v-model="form.name" class="input" /></div>
+          <div><label class="field-label">E-Mail</label><input v-model="form.email" type="email" class="input" /></div>
+          <div><label class="field-label">Telefon</label><input v-model="form.telefon" class="input" /></div>
+          <div><label class="field-label">Website</label><input v-model="form.website" class="input" /></div>
+          <div><label class="field-label">PLZ</label><input v-model="form.plz" class="input" /></div>
+          <div><label class="field-label">Ort</label><input v-model="form.ort" class="input" /></div>
+
+          <!-- Multi-Rollen Checkboxen -->
+          <div class="col-span-2">
+            <label class="field-label">Rollen (mehrere möglich)</label>
+            <div class="flex flex-wrap gap-3 mt-1">
+              <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+                <input type="checkbox" v-model="form.istKunde" class="rounded text-[#097e92]" /> Kunde
+              </label>
+              <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+                <input type="checkbox" v-model="form.istExKunde" class="rounded text-[#097e92]" /> Ex-Kunde
+              </label>
+              <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+                <input type="checkbox" v-model="form.istInvestor" class="rounded text-[#097e92]" /> Investor
+              </label>
+              <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+                <input type="checkbox" v-model="form.istTarget" class="rounded text-[#097e92]" /> Target
+              </label>
+            </div>
+          </div>
+          <div v-if="form.istInvestor" class="col-span-2">
+            <label class="field-label">Investor-Typ</label>
+            <select v-model="form.investorTyp" class="input">
+              <option value="">— wählen —</option>
               <option>PE</option><option>Systemhausgruppe</option><option>Strategisch</option><option>Sonstige</option>
             </select>
           </div>
-          <div><label class="field-label">E-Mail</label><input v-model="form.email" type="email" class="input" /></div>
-          <div><label class="field-label">Telefon</label><input v-model="form.telefon" class="input" /></div>
-          <div><label class="field-label">PLZ</label><input v-model="form.plz" class="input" /></div>
-          <div><label class="field-label">Ort</label><input v-model="form.ort" class="input" /></div>
+
           <div class="col-span-2"><label class="field-label">Sucht</label><input v-model="form.sucht" class="input" /></div>
           <div class="col-span-2"><label class="field-label">Bietet</label><input v-model="form.bietet" class="input" /></div>
           <div class="col-span-2"><label class="field-label">Kommentar</label><textarea v-model="form.kommentar" rows="2" class="input resize-none"></textarea></div>
@@ -355,7 +386,16 @@ const visibleList = computed(() => {
   // Typ-Filter
   if (filterTyp.value) r = r.filter(k => k.typ === filterTyp.value)
   // Status-Filter
-  if (filterStatus.value) r = r.filter(k => k.kundenstatus === filterStatus.value || k.typ === filterStatus.value)
+  if (filterStatus.value) r = r.filter(k => {
+    if (filterStatus.value === 'Kunde') return k.istKunde === true || k.kundenstatus === 'Kunde'
+    if (filterStatus.value === 'Ex-Kunde') return k.istExKunde === true || k.kundenstatus === 'Ex-Kunde'
+    if (filterStatus.value === 'Investor') return k.istInvestor === true || k.kundenstatus === 'Investor' || ['PE','Systemhausgruppe','Strategisch','Sonstige'].includes(k.typ)
+    if (filterStatus.value === 'Target') return k.istTarget === true || k.kundenstatus === 'Target'
+    return true
+  })
+  if (filterTyp.value && filterStatus.value === 'Investor') {
+    r = r.filter(k => (k.investorTyp || k.typ) === filterTyp.value)
+  }
   // PLZ-Mitte + Umkreis
   if (filterCenterPlz.value && filterRadiusKm.value && centerCoords.value) {
     r = r.filter(k => k.lat && k.lon && distanceKm(centerCoords.value.lat, centerCoords.value.lon, k.lat, k.lon) <= filterRadiusKm.value)
@@ -546,7 +586,13 @@ const editKontakt = ref(null)
 const importJson = ref('')
 const importing = ref(false)
 const saving = ref(false)
-const form = ref({ firma: '', name: '', email: '', telefon: '', plz: '', ort: '', typ: 'Sonstige', sucht: '', bietet: '', kommentar: '' })
+const form = ref({
+  firma: '', name: '', email: '', telefon: '', website: '',
+  plz: '', ort: '', sucht: '', bietet: '', kommentar: '',
+  istKunde: false, istExKunde: false, istInvestor: false, istTarget: false,
+  investorTyp: '',
+  typ: '',  // backward compat
+})
 
 // Beim Mount: BEIDES laden (Liste + Map-Daten mit Koordinaten)
 onMounted(async () => {

@@ -46,10 +46,10 @@ export const createInteressent = (data) => authFetch('/interessent-create', { me
 export const updateInteressent = (id, data) => authFetch('/interessent-update', { method: 'POST', data: { id, ...data } })
 export const deleteInteressent = (id) => authFetch('/interessent-delete', { method: 'POST', data: { id } })
 
-// CRM / Kontakte
+// CRM / Kontakte (kontakt-create dedupt automatisch nach firma)
 export const getKontakte = (params) => authFetch('/kontakte', { params })
-export const createKontakt = (data) => authFetch('/kontakte', { method: 'POST', data })
-export const updateKontakt = (id, data) => authFetch(`/kontakte/${id}`, { method: 'PATCH', data })
+export const createKontakt = (data) => authFetch('/kontakt-create', { method: 'POST', data })
+export const updateKontakt = (id, data) => authFetch('/kontakt-create', { method: 'POST', data: { ...data, id } })
 export const importKontakte = (data) => authFetch('/kontakte/import', { method: 'POST', data })
 export const exportKontakte = (params) => authFetch('/kontakte/export', { params })
 

@@ -283,6 +283,69 @@ def target_update(req: func.HttpRequest) -> func.HttpResponse:
     return ok_(dict(entity))
 
 
+@app.route(route="kontakt-create", methods=["POST", "OPTIONS"])
+def kontakt_create(req: func.HttpRequest) -> func.HttpResponse:
+    """Anlegen + Update von Kontakten mit Dedup-Check auf firma."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    firma = (body.get("firma") or "").strip()
+    if not firma:
+        return err_("Firma erforderlich", 400)
+    tc = table_("kontakte")
+    # Dedup-Check: existiert Firma schon (case-insensitive)?
+    existing = None
+    try:
+        items = list(tc.list_entities())
+        for it in items:
+            if (it.get("firma") or "").strip().lower() == firma.lower():
+                existing = dict(it)
+                break
+    except Exception:
+        pass
+    entity = {
+        "PartitionKey": "kontakt",
+        "RowKey": (existing or {}).get("RowKey") or str(uuid.uuid4()),
+        "firma": firma,
+        "name": body.get("name", ""),
+        "email": body.get("email", ""),
+        "telefon": body.get("telefon", ""),
+        "website": body.get("website", ""),
+        "plz": body.get("plz", ""),
+        "ort": body.get("ort", ""),
+        "sucht": body.get("sucht", ""),
+        "bietet": body.get("bietet", ""),
+        "kommentar": body.get("kommentar", ""),
+        "istKunde": bool(body.get("istKunde", False)),
+        "istExKunde": bool(body.get("istExKunde", False)),
+        "istInvestor": bool(body.get("istInvestor", False)),
+        "istTarget": bool(body.get("istTarget", False)),
+        "investorTyp": body.get("investorTyp", ""),
+        "typ": body.get("investorTyp", "") if body.get("istInvestor") else "",
+        "kundenstatus": "Kunde" if body.get("istKunde") else (
+            "Ex-Kunde" if body.get("istExKunde") else (
+            "Investor" if body.get("istInvestor") else (
+            "Target" if body.get("istTarget") else ""))),
+        "updatedAt": datetime.utcnow().isoformat(),
+    }
+    if existing:
+        entity["createdAt"] = existing.get("createdAt", datetime.utcnow().isoformat())
+        try:
+            tc.update_entity(entity, mode="replace")
+            return ok_({"updated": True, "id": entity["RowKey"]})
+        except Exception as ex:
+            return err_(f"Update fehlgeschlagen: {ex}", 500)
+    entity["createdAt"] = datetime.utcnow().isoformat()
+    try:
+        tc.create_entity(entity)
+        return ok_({"created": True, "id": entity["RowKey"]}, 201)
+    except Exception as ex:
+        return err_(f"Anlegen fehlgeschlagen: {ex}", 500)
+
+
 @app.route(route="kontakte", methods=["GET", "OPTIONS"])
 def kontakte_route(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
