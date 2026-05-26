@@ -80,6 +80,24 @@
                 <div class="text-sm text-gray-800">{{ kontakt.bietet }}</div>
               </div>
             </div>
+            <div v-if="weitereAnsprechpartner.length" class="border border-gray-100 rounded-xl p-4">
+              <div class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Weitere Ansprechpartner</div>
+              <ul class="space-y-2">
+                <li v-for="(a, i) in weitereAnsprechpartner" :key="i" class="flex items-start gap-3 text-sm">
+                  <div class="w-8 h-8 rounded-full bg-[#097e92]/10 text-[#097e92] flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                    {{ (a.name || '?').slice(0, 1).toUpperCase() }}
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="font-medium text-gray-800">{{ a.name || '—' }}<span v-if="a.position" class="text-xs text-gray-500 font-normal"> · {{ a.position }}</span></div>
+                    <div class="text-xs text-gray-500 flex flex-wrap gap-x-3">
+                      <a v-if="a.email" :href="`mailto:${a.email}`" class="text-[#097e92] hover:underline">{{ a.email }}</a>
+                      <a v-if="a.telefon" :href="`tel:${a.telefon}`" class="text-[#097e92] hover:underline">{{ a.telefon }}</a>
+                    </div>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
             <div v-if="kontakt.kommentar" class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm">
               <div class="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Notiz</div>
               <p class="text-amber-900 whitespace-pre-line">{{ kontakt.kommentar }}</p>
@@ -269,6 +287,13 @@ const produktListe = [
 ]
 
 const produkteGekauft = computed(() => produktListe.filter(p => props.kontakt?.[p.key]).length)
+
+const weitereAnsprechpartner = computed(() => {
+  try {
+    const a = JSON.parse(props.kontakt?.ansprechpartnerJson || '[]')
+    return Array.isArray(a) ? a.filter(x => x.name || x.email || x.telefon) : []
+  } catch { return [] }
+})
 
 const verknuepfteProjekte = computed(() => {
   if (!props.kontakt) return []

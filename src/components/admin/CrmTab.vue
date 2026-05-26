@@ -309,6 +309,28 @@
           <div class="col-span-2"><label class="field-label">Sucht</label><input v-model="form.sucht" class="input" /></div>
           <div class="col-span-2"><label class="field-label">Bietet</label><input v-model="form.bietet" class="input" /></div>
           <div class="col-span-2"><label class="field-label">Kommentar</label><textarea v-model="form.kommentar" rows="2" class="input resize-none"></textarea></div>
+
+          <!-- Weitere Ansprechpartner -->
+          <div class="col-span-2 border-t border-gray-100 pt-4 mt-2">
+            <div class="flex items-center justify-between mb-2">
+              <label class="field-label">Weitere Ansprechpartner</label>
+              <button type="button" @click="addAnsprechpartner" class="text-xs text-[#097e92] hover:text-[#0a9aaf] flex items-center gap-1">
+                <Plus class="w-3 h-3" /> Hinzufügen
+              </button>
+            </div>
+            <div v-if="!ansprechpartner.length" class="text-xs text-gray-400 italic">Noch keine weiteren Ansprechpartner.</div>
+            <div v-else class="space-y-2">
+              <div v-for="(a, i) in ansprechpartner" :key="i" class="grid grid-cols-2 gap-2 p-2 bg-gray-50 rounded-lg relative">
+                <input v-model="a.name" placeholder="Name" class="input text-xs" />
+                <input v-model="a.position" placeholder="Position (z.B. GF, Buchhaltung)" class="input text-xs" />
+                <input v-model="a.email" type="email" placeholder="E-Mail" class="input text-xs" />
+                <input v-model="a.telefon" placeholder="Telefon" class="input text-xs" />
+                <button type="button" @click="removeAnsprechpartner(i)" class="absolute top-1 right-1 text-gray-400 hover:text-red-500">
+                  <X class="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="flex gap-3 mt-5">
           <button @click="closeModal" class="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50">Abbrechen</button>
@@ -331,7 +353,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { Map, List, Download, Upload, UserPlus, Search, Mail, Pencil, X, CheckCircle, Megaphone, Send, Filter } from '@lucide/vue'
+import { Map, List, Download, Upload, UserPlus, Search, Mail, Pencil, X, CheckCircle, Megaphone, Send, Filter, Plus } from '@lucide/vue'
 import { getKontakte, createKontakt, updateKontakt, importKontakte, exportKontakte } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 import { authFetch } from '../../api.js'
@@ -393,7 +415,7 @@ const visibleList = computed(() => {
   // Such-Filter
   if (search.value) {
     const q = search.value.toLowerCase()
-    r = r.filter(k => ((k.firma||'') + ' ' + (k.name||'') + ' ' + (k.email||'') + ' ' + (k.telefon||'') + ' ' + (k.ort||'') + ' ' + (k.plz||'') + ' ' + (k.sucht||'') + ' ' + (k.bietet||'') + ' ' + (k.kommentar||'') + ' ' + (k.notizenJson||'')).toLowerCase().includes(q))
+    r = r.filter(k => ((k.firma||'') + ' ' + (k.name||'') + ' ' + (k.email||'') + ' ' + (k.telefon||'') + ' ' + (k.ort||'') + ' ' + (k.plz||'') + ' ' + (k.sucht||'') + ' ' + (k.bietet||'') + ' ' + (k.kommentar||'') + ' ' + (k.notizenJson||'') + ' ' + (k.ansprechpartnerJson||'')).toLowerCase().includes(q))
   }
   // Typ-Filter
   if (filterTyp.value) r = r.filter(k => k.typ === filterTyp.value)
@@ -660,16 +682,34 @@ async function doImport() {
   finally { importing.value = false }
 }
 
-function openEdit(k) { editKontakt.value = k; form.value = { ...k }; showNewModal.value = true }
-function closeModal() { showNewModal.value = false; editKontakt.value = null; form.value = { firma:'',name:'',email:'',telefon:'',plz:'',ort:'',typ:'Sonstige',sucht:'',bietet:'',kommentar:'' } }
+const ansprechpartner = ref([])
+function parseAnsprechpartner(json) {
+  try { const a = JSON.parse(json || '[]'); return Array.isArray(a) ? a : [] } catch { return [] }
+}
+function addAnsprechpartner() { ansprechpartner.value.push({ name: '', position: '', email: '', telefon: '' }) }
+function removeAnsprechpartner(i) { ansprechpartner.value.splice(i, 1) }
+
+function openEdit(k) {
+  editKontakt.value = k
+  form.value = { ...k }
+  ansprechpartner.value = parseAnsprechpartner(k.ansprechpartnerJson)
+  showNewModal.value = true
+}
+function closeModal() {
+  showNewModal.value = false
+  editKontakt.value = null
+  form.value = { firma:'',name:'',email:'',telefon:'',plz:'',ort:'',typ:'Sonstige',sucht:'',bietet:'',kommentar:'' }
+  ansprechpartner.value = []
+}
 
 async function saveKontakt() {
   saving.value = true
   try {
+    const payload = { ...form.value, ansprechpartnerJson: JSON.stringify(ansprechpartner.value.filter(a => a.name || a.email || a.telefon)) }
     if (editKontakt.value) {
-      await updateKontakt(editKontakt.value.RowKey, form.value)
+      await updateKontakt(editKontakt.value.RowKey, payload)
     } else {
-      await createKontakt(form.value)
+      await createKontakt(payload)
     }
     allKontakte.value = await getKontakte()
     applyFilters()
