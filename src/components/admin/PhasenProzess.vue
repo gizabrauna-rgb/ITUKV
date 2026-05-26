@@ -212,6 +212,57 @@ const PHASEN_VORLAGE = () => ([
   ]},
 ])
 
+// Kauf-Mandat-Phasen (Käufer sucht Targets)
+const PHASEN_KAUF = () => ([
+  { id: 1, titel: '1. Suchprofil definieren', notiz: '', aufgaben: [
+    { id: 'k1', label: 'Suchkriterien mit Käufer erarbeitet (Region, Branche, Größe)', done: false, verantwortlich: 'Jenny', datum: '', notiz: '' },
+    { id: 'k2', label: 'Suchprofil im Dashboard hinterlegt und vom Käufer freigegeben', done: false, verantwortlich: 'Jenny', datum: '', notiz: '', auto: 'suchprofilFreigegeben' },
+    { id: 'k3', label: 'Budget-Rahmen + Strategische Ziele dokumentiert', done: false, verantwortlich: 'Jenny', datum: '', notiz: '' },
+  ]},
+  { id: 2, titel: '2. Markt-Screening (mibeca)', notiz: '', aufgaben: [
+    { id: 'k1', label: 'Kandidaten-Suche im eigenen CRM', done: false, verantwortlich: 'Jenny', datum: '', notiz: '' },
+    { id: 'k2', label: 'Externe Quellen ausgewertet (LinkedIn, Branchenverbände)', done: false, verantwortlich: 'Jenny', datum: '', notiz: '' },
+    { id: 'k3', label: 'In-House-Matching mit unseren Verkaufs-Targets', done: false, verantwortlich: '', datum: '', notiz: '' },
+  ]},
+  { id: 3, titel: '3. Long-List erstellt', notiz: '', aufgaben: [
+    { id: 'k1', label: 'Mindestens 1 Kandidat in der Long-List', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'longListHatEintraege' },
+    { id: 'k2', label: 'Long-List dem Käufer präsentiert', done: false, verantwortlich: 'Jenny', datum: '', notiz: '' },
+  ]},
+  { id: 4, titel: '4. Short-List / Käufer-Auswahl', notiz: '', aufgaben: [
+    { id: 'k1', label: 'Käufer hat Feedback zu Kandidaten gegeben (Interesse/Rückfrage/Kein Interesse)', done: false, verantwortlich: 'Käufer', datum: '', notiz: '', auto: 'kaeuferFeedbackVorhanden' },
+    { id: 'k2', label: 'Top-Kandidaten festgelegt', done: false, verantwortlich: '', datum: '', notiz: '' },
+  ]},
+  { id: 5, titel: '5. Anonyme Ansprache', notiz: '', aufgaben: [
+    { id: 'k1', label: 'Erstkontakt zu Top-Kandidaten (anonym)', done: false, verantwortlich: 'Jenny', datum: '', notiz: '' },
+    { id: 'k2', label: 'Interesse abgefragt + erste Gespräche', done: false, verantwortlich: 'Jenny', datum: '', notiz: '' },
+  ]},
+  { id: 6, titel: '6. NDA-Austausch', notiz: '', aufgaben: [
+    { id: 'k1', label: 'NDA mit interessiertem Kandidat ausgetauscht', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 'k2', label: 'Anonymität aufgelöst', done: false, verantwortlich: '', datum: '', notiz: '' },
+  ]},
+  { id: 7, titel: '7. Erstes Kennenlernen', notiz: '', aufgaben: [
+    { id: 'k1', label: 'Termin zwischen Käufer und Verkäufer-Kandidat', done: false, verantwortlich: 'Jenny', datum: '', notiz: '' },
+    { id: 'k2', label: 'Gespräch durchgeführt + Bewertung', done: false, verantwortlich: '', datum: '', notiz: '' },
+  ]},
+  { id: 8, titel: '8. LOI / Indikatives Angebot', notiz: '', aufgaben: [
+    { id: 'k1', label: 'LOI mit Verkäufer-Kandidat verhandelt', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'loiGestartet' },
+    { id: 'k2', label: 'LOI vollständig final', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'loiFinal' },
+  ]},
+  { id: 9, titel: '9. Due Diligence', notiz: '', aufgaben: [
+    { id: 'k1', label: 'DD-Datenraum vom Verkäufer erhalten', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 'k2', label: 'Rechtliche DD durchgeführt', done: false, verantwortlich: 'Anwalt', datum: '', notiz: '' },
+    { id: 'k3', label: 'Financial DD durchgeführt', done: false, verantwortlich: 'Steuerberater', datum: '', notiz: '' },
+    { id: 'k4', label: 'Business/Technologische DD durchgeführt', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 'k5', label: 'DD-Bericht erstellt + Risiken identifiziert', done: false, verantwortlich: '', datum: '', notiz: '' },
+  ]},
+  { id: 10, titel: '10. Vertrag & Closing', notiz: '', aufgaben: [
+    { id: 'k1', label: 'Kaufvertrag (SPA/Asset Deal) verhandelt', done: false, verantwortlich: 'Anwalt', datum: '', notiz: '' },
+    { id: 'k2', label: 'Mandatsvertrag mit mibeca unterzeichnet', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'mandatGegengezeichnet' },
+    { id: 'k3', label: 'Notartermin und Closing', done: false, verantwortlich: 'Notar', datum: '', notiz: '' },
+    { id: 'k4', label: 'Erfolgshonorar abgerechnet', done: false, verantwortlich: 'Claudia', datum: '', notiz: '' },
+  ]},
+])
+
 const props = defineProps({ targetId: { type: String, default: '' } })
 const embedded = computed(() => !!props.targetId)
 const targets = ref([])
@@ -237,6 +288,10 @@ onMounted(async () => {
   }
 })
 
+function vorlageFuer(target) {
+  return /kauf|investor/i.test(target?.projekttyp || '') ? PHASEN_KAUF() : PHASEN_VORLAGE()
+}
+
 async function loadTarget() {
   if (!selectedTargetId.value) return
   try {
@@ -245,13 +300,23 @@ async function loadTarget() {
     // Interessenten parallel für ndaErhalten-Auto-Check
     try { interessentenList.value = await authFetch('/interessenten', { method: 'POST', data: { targetId: selectedTargetId.value } }) }
     catch { interessentenList.value = [] }
+    const defaultVorlage = vorlageFuer(target)
     if (target.phasenJson) {
-      try { phasen.value = JSON.parse(target.phasenJson) }
-      catch { phasen.value = PHASEN_VORLAGE() }
+      try {
+        const stored = JSON.parse(target.phasenJson)
+        // Wenn gespeicherte Phasen keine Aufgaben haben (Backend-Init), nutze Vorlage
+        const hatAufgaben = Array.isArray(stored) && stored.some(p => Array.isArray(p.aufgaben) && p.aufgaben.length > 0)
+        if (!hatAufgaben) {
+          phasen.value = defaultVorlage
+          await authFetch('/target-update', { method: 'POST', data: { id: selectedTargetId.value, phasenJson: JSON.stringify(phasen.value) } })
+        } else {
+          phasen.value = stored
+        }
+      } catch { phasen.value = defaultVorlage }
     } else {
       // Erstmaliges Oeffnen: Standard-Phasen anlegen + sofort speichern,
       // damit die Uebersicht/Target-Dashboard die Phasen kennen
-      phasen.value = PHASEN_VORLAGE()
+      phasen.value = defaultVorlage
       try {
         await authFetch('/target-update', { method: 'POST', data: { id: selectedTargetId.value, phasenJson: JSON.stringify(phasen.value) } })
       } catch (e) { console.error('Auto-init Phasen fehlgeschlagen', e) }
@@ -278,26 +343,35 @@ async function save() {
 // System-Ereignisse die Aufgaben automatisch als erledigt markieren
 const autoChecks = computed(() => {
   const t = currentTarget.value || {}
-  let vertrag = {}, expose = {}, landing = {}, presse = {}, loi = {}
+  let vertrag = {}, expose = {}, landing = {}, presse = {}, loi = {}, suchprofil = {}, longlist = [], kaeuferFb = {}
   try { vertrag = JSON.parse(t.vertragJson || '{}') } catch {}
   try { expose = JSON.parse(t.exposeJson || '{}') } catch {}
   try { landing = JSON.parse(t.landingJson || '{}') } catch {}
   try { presse = JSON.parse(t.presseJson || '{}') } catch {}
   try { loi = JSON.parse(t.loiJson || '{}') } catch {}
+  try { suchprofil = JSON.parse(t.suchprofilJson || '{}') } catch {}
+  try { longlist = JSON.parse(t.longlistJson || '[]') } catch {}
+  try { kaeuferFb = JSON.parse(t.kaeuferFeedbackJson || '{}') } catch {}
   const ndas = (interessentenList.value || []).filter(i => i.ndaStatus === 'unterzeichnet')
   const loiPunkte = loi.punkte || []
   return {
+    // Verkauf
     fragebogenAbgegeben: t.fragebogenStatus === 'abgegeben',
     mandatGegengezeichnet: !!vertrag.gegengezeichnetAm,
     landingPublished: landing.status === 'published',
     ndaErhalten: ndas.length > 0,
     ndaInDatenraum: ndas.length > 0,
     exposeApproved: expose.status === 'approved',
-    loiGestartet: loiPunkte.some(p => p.einigung || p.angebotKaeufer || p.angebotVerkaeufer),
-    loiFinal: loiPunkte.length > 0 && loiPunkte.every(p => p.final),
     pressetextErstellt: !!presse.text,
     pressetextFreigegeben: presse.freigabeStatus === 'freigegeben',
     presseVersand: !!presse.versendetAm,
+    // Kauf
+    suchprofilFreigegeben: !!suchprofil.freigegeben || (suchprofil.kriterien && Object.keys(suchprofil.kriterien).length > 0),
+    longListHatEintraege: Array.isArray(longlist) && longlist.length > 0,
+    kaeuferFeedbackVorhanden: Object.keys(kaeuferFb).length > 0,
+    // Beide
+    loiGestartet: loiPunkte.some(p => p.einigung || p.angebotKaeufer || p.angebotVerkaeufer),
+    loiFinal: loiPunkte.length > 0 && loiPunkte.every(p => p.final),
   }
 })
 

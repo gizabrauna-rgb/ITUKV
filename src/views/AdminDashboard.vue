@@ -127,7 +127,7 @@
               </div>
               <div v-if="!ueberblick.totalWartet" class="text-sm text-gray-400 py-3 text-center">Nichts dringend ✓</div>
               <div v-else class="space-y-2">
-                <button v-for="v in ueberblick.wartet.vertragsGegenzeichnung || []" :key="'sig'+v.targetId" @click="openAkte({ RowKey: v.targetId })"
+                <button v-for="v in ueberblick.wartet.vertragsGegenzeichnung || []" :key="'sig'+v.targetId" @click="openAkteWithTab(v.targetId, 'nda')"
                   class="w-full text-left flex items-center gap-2 p-2 hover:bg-amber-50 rounded-lg text-xs">
                   <span class="w-1.5 h-1.5 rounded-full bg-yellow-500 flex-shrink-0"></span>
                   <span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ v.mbNr }}</span>
@@ -149,34 +149,34 @@
                   <span class="font-medium truncate flex-1">{{ v.firma }}</span>
                   <span class="text-red-600">Wiedervorlage</span>
                 </button>
-                <button v-for="v in ueberblick.wartet.pressefreigabe || []" :key="'pr'+v.targetId" @click="openAkte({ RowKey: v.targetId })"
+                <button v-for="v in ueberblick.wartet.pressefreigabe || []" :key="'pr'+v.targetId" @click="openAkteWithTab(v.targetId, 'erfolg')"
                   class="w-full text-left flex items-center gap-2 p-2 hover:bg-amber-50 rounded-lg text-xs">
                   <span class="w-1.5 h-1.5 rounded-full bg-orange-500 flex-shrink-0"></span>
                   <span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ v.mbNr }}</span>
                   <span class="font-medium truncate flex-1">Pressetext: Änderungswunsch</span>
                 </button>
-                <button v-for="v in ueberblick.wartet.ungelesen || []" :key="'unr'+v.targetId" @click="openAkte({ RowKey: v.targetId })"
+                <button v-for="v in ueberblick.wartet.ungelesen || []" :key="'unr'+v.targetId" @click="openAkteWithTab(v.targetId, 'verlauf')"
                   class="w-full text-left flex items-center gap-2 p-2 hover:bg-amber-50 rounded-lg text-xs">
                   <span class="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0"></span>
                   <span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ v.mbNr }}</span>
                   <span class="font-medium truncate flex-1">{{ v.firma }}</span>
                   <span class="text-red-600">{{ v.anzahl }} ungelesen</span>
                 </button>
-                <button v-for="v in ueberblick.wartet.fragebogenZuPruefen || []" :key="'fb'+v.targetId" @click="openAkte({ RowKey: v.targetId })"
+                <button v-for="v in ueberblick.wartet.fragebogenZuPruefen || []" :key="'fb'+v.targetId" @click="openAkteWithTab(v.targetId, 'fragebogen')"
                   class="w-full text-left flex items-center gap-2 p-2 hover:bg-amber-50 rounded-lg text-xs">
                   <span class="w-1.5 h-1.5 rounded-full bg-purple-500 flex-shrink-0"></span>
                   <span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ v.mbNr }}</span>
                   <span class="font-medium truncate flex-1">{{ v.firma }}</span>
                   <span class="text-purple-700">Fragebogen abgegeben — auswerten</span>
                 </button>
-                <button v-for="v in ueberblick.wartet.exposeKorrekturwunsch || []" :key="'ek'+v.targetId" @click="openAkte({ RowKey: v.targetId })"
+                <button v-for="v in ueberblick.wartet.exposeKorrekturwunsch || []" :key="'ek'+v.targetId" @click="openAkteWithTab(v.targetId, 'expose')"
                   class="w-full text-left flex items-center gap-2 p-2 hover:bg-amber-50 rounded-lg text-xs">
                   <span class="w-1.5 h-1.5 rounded-full bg-orange-500 flex-shrink-0"></span>
                   <span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ v.mbNr }}</span>
                   <span class="font-medium truncate flex-1">{{ v.firma }}</span>
                   <span class="text-orange-700">Exposé-Korrekturwunsch</span>
                 </button>
-                <button v-for="v in ueberblick.wartet.exposeFreigabeAusstehend || []" :key="'ef'+v.targetId" @click="openAkte({ RowKey: v.targetId })"
+                <button v-for="v in ueberblick.wartet.exposeFreigabeAusstehend || []" :key="'ef'+v.targetId" @click="openAkteWithTab(v.targetId, 'expose')"
                   class="w-full text-left flex items-center gap-2 p-2 hover:bg-amber-50 rounded-lg text-xs">
                   <span class="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0"></span>
                   <span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ v.mbNr }}</span>
@@ -193,7 +193,7 @@
               </h3>
               <div v-if="!ueberblick.feed?.length" class="text-sm text-gray-400 py-3 text-center">Noch keine Aktivitäten</div>
               <div v-else class="space-y-2 max-h-80 overflow-y-auto">
-                <button v-for="e in ueberblick.feed" :key="e.id" @click="openAkte({ RowKey: e.targetId })"
+                <button v-for="e in ueberblick.feed" :key="e.id" @click="openAkteWithTab(e.targetId, 'verlauf')"
                   class="w-full text-left p-2 hover:bg-gray-50 rounded-lg">
                   <div class="flex items-center gap-2 text-xs mb-0.5">
                     <span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ e.mbNr }}</span>
@@ -312,6 +312,13 @@ const akteInitialDoc = ref(null)
 function openAkte(target) {
   akteTargetId.value = target.RowKey
   akteInitialTab.value = ''
+  akteInitialDoc.value = null
+  tab.value = 'targets'
+}
+
+function openAkteWithTab(targetId, initialTab) {
+  akteTargetId.value = targetId
+  akteInitialTab.value = initialTab
   akteInitialDoc.value = null
   tab.value = 'targets'
 }

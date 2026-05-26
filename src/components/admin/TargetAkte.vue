@@ -195,7 +195,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, defineComponent, h } from 'vue'
+import { ref, computed, onMounted, watch, defineComponent, h } from 'vue'
 import {
   ArrowLeft, MapPin, Tag, Users, Euro, Hash, Mail,
   Sparkles, Circle, Folder, FileText, MessageSquare,
@@ -232,6 +232,13 @@ defineEmits(['close'])
 
 const target = ref(null)
 const tab = ref(props.initialTab || 'uebersicht')
+
+// Falls initialTab im aktuellen Projekttyp nicht existiert, fallback auf Übersicht
+watch(() => tabs.value, (newTabs) => {
+  if (newTabs.length && !newTabs.some(x => x.tab === tab.value)) {
+    tab.value = 'uebersicht'
+  }
+}, { immediate: false })
 const vertragSubTab = ref('mandat')
 
 const isKaufMandat = computed(() => /kauf|investor/i.test(target.value?.projekttyp || ''))
