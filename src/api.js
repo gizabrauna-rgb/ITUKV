@@ -112,3 +112,8 @@ export const verlaufSendMail = (data) => authFetch('/verlauf-send-mail', { metho
 export const verlaufAddEntry = (data) => authFetch('/verlauf-add', { method: 'POST', data })
 export const verlaufUnreadCount = () => authFetch('/verlauf-unread-count')
 export const verlaufMarkRead = (targetId) => authFetch('/verlauf-mark-read', { method: 'POST', data: { targetId } })
+
+// === E-Mail-Vorlagen ===
+export const getMailvorlagen = () => authFetch('/mailvorlagen-list')
+export const saveMailvorlage = (data) => authFetch('/mailvorlage-save', { method: 'POST', data })
+export const deleteMailvorlage = (RowKey) => authFetch('/mailvorlage-delete', { method: 'POST', data: { RowKey } })

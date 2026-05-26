@@ -226,6 +226,10 @@
 
         <!-- Benutzer -->
         <!-- Controlling -->
+        <div v-else-if="tab === 'mailvorlagen'">
+          <MailvorlagenTab />
+        </div>
+
         <div v-else-if="tab === 'controlling'">
           <Controlling />
         </div>
@@ -249,7 +253,7 @@
 import { ref, computed, onMounted } from 'vue'
 import {
   Building2, LogOut, LayoutDashboard, Briefcase, GitBranch,
-  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow, Bell, BarChart3, AlertCircle, Activity
+  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow, Bell, BarChart3, AlertCircle, Activity, Mail
 } from '@lucide/vue'
 import { authFetch, verlaufUnreadCount, verlaufMarkRead } from '../api.js'
 import TargetsTab from '../components/admin/TargetsTab.vue'
@@ -261,6 +265,7 @@ import BenutzerTab from '../components/admin/BenutzerTab.vue'
 import EinstellungenTab from '../components/admin/EinstellungenTab.vue'
 import Controlling from '../components/admin/Controlling.vue'
 import TargetAkte from '../components/admin/TargetAkte.vue'
+import MailvorlagenTab from '../components/admin/MailvorlagenTab.vue'
 
 const props = defineProps({ userName: String })
 const emit = defineEmits(['logout', 'switch-view'])
@@ -292,6 +297,7 @@ const navItems = [
   { tab: 'crm', label: 'Kundenstamm', icon: Users },
   { tab: 'ausschreibungen', label: 'Ausschreibungen', icon: Megaphone },
   { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
+  { tab: 'mailvorlagen', label: 'E-Mail-Vorlagen', icon: Mail },
   { tab: 'controlling', label: 'Controlling', icon: BarChart3 },
   { tab: 'benutzer', label: 'Benutzer', icon: UserCog },
   { tab: 'einstellungen', label: 'Einstellungen', icon: Settings },

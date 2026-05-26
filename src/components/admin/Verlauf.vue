@@ -22,6 +22,15 @@
           </div>
           <p class="text-xs text-gray-500 mb-3">Geht direkt an den Empfänger – Antworten erscheinen automatisch hier im Verlauf.</p>
           <div class="space-y-3">
+            <div v-if="vorlagen.length">
+              <label class="text-xs font-medium text-gray-600 mb-1 block">Vorlage einfügen</label>
+              <select @change="onVorlageChange($event)" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30">
+                <option value="">— Vorlage wählen —</option>
+                <optgroup v-for="kat in vorlagenKategorien" :key="kat" :label="kat">
+                  <option v-for="v in vorlagen.filter(x => (x.kategorie || 'Allgemein') === kat)" :key="v.RowKey" :value="v.RowKey">{{ v.name }}</option>
+                </optgroup>
+              </select>
+            </div>
             <div>
               <label class="text-xs font-medium text-gray-600 mb-1 block">An (E-Mail)</label>
               <input v-model="mailForm.empfaengerEmail" placeholder="z.B. kunde@example.de" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
@@ -152,10 +161,41 @@ import {
   Mail, Phone, Calendar, MessageSquare, FileText, AlertCircle,
   Plus, Pencil, Trash2, X, Users
 } from '@lucide/vue'
-import { authFetch, verlaufSendMail, verlaufMarkRead } from '../../api.js'
+import { authFetch, verlaufSendMail, verlaufMarkRead, getMailvorlagen } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 
 const props = defineProps({ targetId: String })
+
+// Vorlagen
+const vorlagen = ref([])
+const vorlagenKategorien = computed(() => [...new Set(vorlagen.value.map(v => v.kategorie || 'Allgemein'))])
+async function loadVorlagen() {
+  try { vorlagen.value = await getMailvorlagen() } catch {}
+}
+
+function applyVorlage(v) {
+  const target = currentTarget.value || {}
+  const vars = {
+    firma: target.firma || target.verkaueferName || '',
+    name: target.verkaueferName || '',
+    mbNr: target.mbNr || '',
+    absender: sessionStorage.getItem('userName') || 'mibeca',
+    datum: new Date().toLocaleDateString('de-DE'),
+    verkaueferName: target.verkaueferName || '',
+  }
+  function sub(s) { return (s || '').replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] || '') }
+  mailForm.value.betreff = sub(v.betreff)
+  mailForm.value.body = sub(v.body)
+}
+function onVorlageChange(e) {
+  const rk = e.target.value
+  if (!rk) return
+  const v = vorlagen.value.find(x => x.RowKey === rk)
+  if (v) applyVorlage(v)
+  e.target.value = ''
+}
+
+const currentTarget = ref(null)
 
 // Mail-Dialog
 const showMailModal = ref(false)
@@ -234,6 +274,7 @@ async function loadEntries() {
   loading.value = true
   try {
     const target = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
+    currentTarget.value = target
     if (target.kommunikationJson) {
       try { entries.value = JSON.parse(target.kommunikationJson) } catch { entries.value = [] }
     } else {
@@ -244,7 +285,7 @@ async function loadEntries() {
   } finally { loading.value = false }
 }
 
-onMounted(loadEntries)
+onMounted(() => { loadEntries(); loadVorlagen() })
 
 function openNew() {
   editing.value = null

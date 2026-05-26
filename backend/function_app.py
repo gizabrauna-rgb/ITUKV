@@ -1,5 +1,6 @@
 import azure.functions as func
 import json
+import logging
 import os
 import uuid
 import hmac
@@ -3459,3 +3460,125 @@ def dashboard_uebersicht(req: func.HttpRequest) -> func.HttpResponse:
         "wartet": wartet,
         "totalWartet": sum(len(v) for v in wartet.values()),
     })
+
+
+# ============================================================
+# E-Mail-Vorlagen
+# ============================================================
+
+_SEED_VORLAGEN = [
+    {
+        "RowKey": "seed-erstkontakt-target",
+        "name": "Erstkontakt Target",
+        "kategorie": "Akquise",
+        "betreff": "Verkauf Ihres Unternehmens – mibeca M&A",
+        "body": "Sehr geehrte/r {{name}},\n\nwir sind auf Ihr Unternehmen {{firma}} aufmerksam geworden und würden gerne unverbindlich mit Ihnen besprechen, welche Möglichkeiten ein Unternehmensverkauf bieten könnte.\n\nmibeca ist auf den Verkauf von IT-Unternehmen spezialisiert. Wir arbeiten diskret, persönlich und auf Erfolgsbasis.\n\nHaben Sie Interesse an einem kurzen ersten Gespräch?\n\nViele Grüße\n{{absender}}\nmibeca GmbH",
+    },
+    {
+        "RowKey": "seed-absage-kaeufer",
+        "name": "Absage Käufer",
+        "kategorie": "Mandat",
+        "betreff": "Ihr Interesse an {{mbNr}}",
+        "body": "Sehr geehrte/r {{name}},\n\nvielen Dank für Ihr Interesse an unserem Mandat {{mbNr}}.\n\nNach interner Abstimmung mit dem Verkäufer müssen wir Ihnen leider mitteilen, dass wir Sie in diesem Fall nicht in den weiteren Prozess aufnehmen können.\n\nWir behalten Ihre Suchkriterien gerne für künftige Mandate vor und melden uns, sobald ein passendes Target verfügbar ist.\n\nViele Grüße\n{{absender}}\nmibeca GmbH",
+    },
+    {
+        "RowKey": "seed-nda-erinnerung",
+        "name": "NDA-Erinnerung",
+        "kategorie": "Mandat",
+        "betreff": "Erinnerung: NDA für {{mbNr}}",
+        "body": "Sehr geehrte/r {{name}},\n\nwir möchten Sie freundlich daran erinnern, dass das NDA für unser Mandat {{mbNr}} noch nicht unterzeichnet bei uns eingegangen ist.\n\nSobald das NDA vorliegt, senden wir Ihnen das vollständige Exposé inklusive aller Finanzkennzahlen zu.\n\nBitte unterzeichnen und retournieren Sie das NDA an diese Adresse.\n\nViele Grüße\n{{absender}}\nmibeca GmbH",
+    },
+    {
+        "RowKey": "seed-wiedervorlage",
+        "name": "Wiedervorlage / Nachfass",
+        "kategorie": "Akquise",
+        "betreff": "Kurzer Nachfass – {{firma}}",
+        "body": "Sehr geehrte/r {{name}},\n\nich melde mich nochmal kurz zu unserem letzten Austausch. Gibt es bei Ihnen einen aktuellen Stand zum Thema Unternehmensverkauf?\n\nFalls es noch zu früh ist, melde ich mich gerne in einigen Monaten wieder.\n\nViele Grüße\n{{absender}}\nmibeca GmbH",
+    },
+    {
+        "RowKey": "seed-erfolg",
+        "name": "Glückwunsch zum Abschluss",
+        "kategorie": "Abschluss",
+        "betreff": "Herzlichen Glückwunsch zum erfolgreichen Verkauf!",
+        "body": "Sehr geehrte/r {{name}},\n\nherzlichen Glückwunsch zum erfolgreichen Verkauf von {{firma}}!\n\nEs war uns eine große Freude, Sie bei diesem wichtigen Schritt zu begleiten. Wir wünschen Ihnen für den nächsten Lebensabschnitt alles Gute.\n\nGerne dürfen Sie uns weiterempfehlen, sollten Sie in Ihrem Netzwerk Unternehmer kennen, die ebenfalls über einen Verkauf nachdenken.\n\nViele Grüße\n{{absender}}\nmibeca GmbH",
+    },
+]
+
+
+def _seed_vorlagen_if_empty():
+    """Beim ersten Aufruf: Default-Vorlagen anlegen, falls Tabelle leer."""
+    try:
+        existing = list(table_("mailvorlagen").list_entities())
+        if existing:
+            return
+        for v in _SEED_VORLAGEN:
+            ent = {"PartitionKey": "vorlage", **v}
+            table_("mailvorlagen").create_entity(ent)
+    except Exception as e:
+        logging.exception("seed_vorlagen failed: %s", e)
+
+
+@app.route(route="mailvorlagen-list", methods=["GET", "OPTIONS"])
+def mailvorlagen_list(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    _seed_vorlagen_if_empty()
+    try:
+        items = [dict(v) for v in table_("mailvorlagen").list_entities()]
+    except Exception:
+        items = []
+    items.sort(key=lambda x: (x.get("kategorie", ""), x.get("name", "")))
+    return ok_(items)
+
+
+@app.route(route="mailvorlage-save", methods=["POST", "OPTIONS"])
+def mailvorlage_save(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    try:
+        body = req.get_json()
+    except Exception:
+        return err_("Ungueltiger Body")
+    rk = body.get("RowKey") or f"vorlage-{int(datetime.utcnow().timestamp() * 1000)}"
+    ent = {
+        "PartitionKey": "vorlage",
+        "RowKey": rk,
+        "name": body.get("name", "").strip(),
+        "kategorie": body.get("kategorie", "Allgemein").strip(),
+        "betreff": body.get("betreff", ""),
+        "body": body.get("body", ""),
+    }
+    if not ent["name"]:
+        return err_("Name fehlt")
+    try:
+        table_("mailvorlagen").upsert_entity(ent)
+    except Exception as e:
+        return err_(f"Speichern fehlgeschlagen: {e}", 500)
+    return ok_(ent)
+
+
+@app.route(route="mailvorlage-delete", methods=["POST", "OPTIONS"])
+def mailvorlage_delete(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    try:
+        body = req.get_json()
+        rk = body.get("RowKey")
+    except Exception:
+        return err_("Ungueltiger Body")
+    if not rk:
+        return err_("RowKey fehlt")
+    try:
+        table_("mailvorlagen").delete_entity("vorlage", rk)
+    except Exception as e:
+        return err_(f"Loeschen fehlgeschlagen: {e}", 500)
+    return ok_({"deleted": rk})
