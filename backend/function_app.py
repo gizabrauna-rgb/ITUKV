@@ -941,8 +941,10 @@ def vertrag_pdf(req: func.HttpRequest) -> func.HttpResponse:
         pdf_bytes = _render_vertrag_pdf_bytes(body.get("form", {}), body.get("variante", "standard"))
     except Exception as ex:
         return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
-    return func.HttpResponse(pdf_bytes, status_code=200, mimetype="application/pdf",
-                             headers={**CORS, "Content-Disposition": 'attachment; filename="Mandatsvertrag.pdf"'})
+    pdf_headers = {k: v for k, v in CORS.items() if k.lower() != "content-type"}
+    pdf_headers["Content-Type"] = "application/pdf"
+    pdf_headers["Content-Disposition"] = 'attachment; filename="Mandatsvertrag.pdf"'
+    return func.HttpResponse(pdf_bytes, status_code=200, headers=pdf_headers)
 
 
 @app.route(route="vertrag-zur-signatur", methods=["POST", "OPTIONS"])
@@ -1096,8 +1098,11 @@ def sign_pdf_public(req: func.HttpRequest) -> func.HttpResponse:
         data = _blob_container_lazy("vertraege").download_blob(blob_name).readall()
     except Exception as ex:
         return err_(f"PDF nicht abrufbar: {ex}", 500)
-    return func.HttpResponse(data, status_code=200, mimetype="application/pdf",
-                             headers={**CORS, "Content-Disposition": 'inline; filename="vertrag.pdf"'})
+    # WICHTIG: kein 'Content-Type' aus CORS mitschicken, sonst ueberschreibt das mimetype
+    pdf_headers = {k: v for k, v in CORS.items() if k.lower() != "content-type"}
+    pdf_headers["Content-Type"] = "application/pdf"
+    pdf_headers["Content-Disposition"] = 'inline; filename="vertrag.pdf"'
+    return func.HttpResponse(data, status_code=200, headers=pdf_headers)
 
 
 @app.route(route="sign-send-code", methods=["POST", "OPTIONS"])
