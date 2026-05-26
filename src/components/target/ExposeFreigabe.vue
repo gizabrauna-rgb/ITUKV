@@ -63,6 +63,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { FileText, CheckCircle, MessageSquare, AlertCircle, Loader2 } from '@lucide/vue'
 import { authFetch } from '../../api.js'
+import { toast } from '../../composables/useToast.js'
 
 const props = defineProps({ targetId: String })
 
@@ -136,7 +137,7 @@ async function sendKorrektur() {
     await authFetch('/target-update', { method: 'POST', data: { id: props.targetId,  kommunikationJson: JSON.stringify(existing), exposeStatus: 'in_review'  } })
     exposeStatus.value = 'in_review'
     showKorrektur.value = false
-    alert('Korrekturwunsch wurde an Jenny gesendet — sie passt das Exposé an und gibt es dann erneut frei.')
-  } catch (e) { console.error(e); alert('Fehler beim Senden') }
+    toast.success('Korrekturwunsch wurde an Jenny gesendet — sie passt das Exposé an und gibt es dann erneut frei.')
+  } catch (e) { console.error(e); toast.error('Fehler beim Senden') }
 }
 </script>

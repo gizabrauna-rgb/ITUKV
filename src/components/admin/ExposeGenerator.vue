@@ -108,6 +108,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { Sparkles, FileText, X } from '@lucide/vue'
 import { authFetch } from '../../api.js'
+import { toast } from '../../composables/useToast.js'
 
 const props = defineProps({ targetId: String })
 const apiBase = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
@@ -181,7 +182,7 @@ async function generierenAusFragebogen() {
     const gruende = Object.keys(fb.verkaufsgruende || {}).filter(k => fb.verkaufsgruende[k])
     data.value.sektionen[6].body ||= `Verkaufsgründe: ${gruende.join('; ') || 'siehe Mandat-Daten'}. Verfügbarkeit nach Übergabe: ${fb.uebergabeVerfuegbarkeit || 'n.a.'}.`
     save()
-  } catch (e) { alert('Aus Fragebogen vorbefüllen fehlgeschlagen: ' + e.message) }
+  } catch (e) { toast.error('Aus Fragebogen vorbefüllen fehlgeschlagen: ' + e.message) }
 }
 
 let saveTimer = null
@@ -212,7 +213,7 @@ async function openPreview() {
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
     if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
     previewUrl.value = URL.createObjectURL(await r.blob())
-  } catch (e) { alert('Vorschau fehlgeschlagen: ' + e.message) }
+  } catch (e) { toast.error('Vorschau fehlgeschlagen: ' + e.message) }
   finally { previewLoading.value = false }
 }
 function closePreview() { if (previewUrl.value) URL.revokeObjectURL(previewUrl.value); previewUrl.value = null }

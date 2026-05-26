@@ -191,6 +191,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { UserPlus, X, Pencil, Trash2, KeyRound, Copy, Check } from '@lucide/vue'
 import { getUsers, createUser, updateUser, deleteUser, resetUserPassword, getTargets } from '../../api.js'
+import { toast } from '../../composables/useToast.js'
 
 const users = ref([])
 const targets = ref([])
@@ -307,7 +308,7 @@ async function save() {
       }
     }
   } catch (e) {
-    alert('Fehler: ' + (e.response?.data?.error || e.message))
+    toast.error('Fehler: ' + (e.response?.data?.error || e.message))
   } finally { saving.value = false }
 }
 
@@ -325,7 +326,7 @@ async function doReset() {
   const u = resetUser.value
   const data = {}
   if (resetMode.value === 'custom') {
-    if (!resetCustomPw.value || resetCustomPw.value.length < 6) { alert('Passwort min. 6 Zeichen'); return }
+    if (!resetCustomPw.value || resetCustomPw.value.length < 6) { toast.warn('Passwort min. 6 Zeichen'); return }
     data.password = resetCustomPw.value
   }
   data.sendMail = true
@@ -338,7 +339,7 @@ async function doReset() {
       password: result.newPassword,
     }
   } catch (e) {
-    alert('Fehler: ' + (e.response?.data?.error || e.message))
+    toast.error('Fehler: ' + (e.response?.data?.error || e.message))
   }
 }
 

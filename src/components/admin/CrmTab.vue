@@ -323,6 +323,7 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { Map, List, Download, Upload, UserPlus, Search, Mail, Pencil, X, CheckCircle, Megaphone, Send, Filter } from '@lucide/vue'
 import { getKontakte, createKontakt, updateKontakt, importKontakte, exportKontakte } from '../../api.js'
+import { toast } from '../../composables/useToast.js'
 import { authFetch } from '../../api.js'
 import KundenMap from '../KundenMap.vue'
 
@@ -578,7 +579,7 @@ function downloadCsv() {
 }
 
 async function sendAcs() {
-  alert('ACS-Versand wird aktiviert, sobald die DNS-Records bei 1blu für mail.itukv.de gesetzt und verifiziert sind. Solange bitte "E-Mail-App öffnen" oder "CSV für Serien-Mail" nutzen.')
+  toast.warn('ACS-Versand wird aktiviert, sobald die DNS-Records bei 1blu für mail.itukv.de gesetzt und verifiziert sind. Solange bitte "E-Mail-App öffnen" oder "CSV für Serien-Mail" nutzen.')
 }
 const showImport = ref(false)
 const showNewModal = ref(false)
@@ -626,7 +627,7 @@ async function exportCsv() {
     const a = document.createElement('a'); a.href = url; a.download = 'kontakte.csv'; a.click()
     URL.revokeObjectURL(url)
   } catch {
-    alert('Export fehlgeschlagen')
+    toast.error('Export fehlgeschlagen')
   }
 }
 
@@ -639,8 +640,8 @@ async function doImport() {
     applyFilters()
     showImport.value = false
     importJson.value = ''
-    alert(`${result.imported} Kontakte importiert.`)
-  } catch { alert('Import fehlgeschlagen – bitte JSON prüfen.') }
+    toast.success(`${result.imported} Kontakte importiert.`)
+  } catch { toast.error('Import fehlgeschlagen – bitte JSON prüfen.') }
   finally { importing.value = false }
 }
 

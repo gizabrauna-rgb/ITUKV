@@ -97,6 +97,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { FolderOpen, Folder, ChevronLeft, Upload, FileText, Download, Trash2, Search } from '@lucide/vue'
 import { getTargets, getDokumente, uploadDokument } from '../../api.js'
+import { toast } from '../../composables/useToast.js'
 import { authFetch } from '../../api.js'
 
 const targets = ref([])
@@ -150,7 +151,7 @@ async function uploadFile(e) {
       { method: 'POST', data: file, headers: { 'Content-Type': file.type } }
     )
     dokumente.value.push(result)
-  } catch { alert('Upload fehlgeschlagen') }
+  } catch { toast.error('Upload fehlgeschlagen') }
   finally { uploading.value = false; e.target.value = '' }
 }
 
@@ -158,7 +159,7 @@ async function downloadFile(dok) {
   try {
     const result = await authFetch(`/targets/${selectedTarget.value.RowKey}/dokumente/${dok.RowKey}/download`)
     window.open(result.url, '_blank')
-  } catch { alert('Download fehlgeschlagen') }
+  } catch { toast.error('Download fehlgeschlagen') }
 }
 
 async function deleteFile(dok) {

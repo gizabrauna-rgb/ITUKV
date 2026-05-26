@@ -176,6 +176,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { FileText, Send, X } from '@lucide/vue'
 import { authFetch } from '../../api.js'
+import { toast } from '../../composables/useToast.js'
 
 const props = defineProps({ targetId: String })
 const target = ref(null)
@@ -213,7 +214,7 @@ async function openPreview() {
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
     if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
     previewUrl.value = URL.createObjectURL(await r.blob())
-  } catch (e) { alert('Vorschau fehlgeschlagen: ' + e.message) }
+  } catch (e) { toast.error('Vorschau fehlgeschlagen: ' + e.message) }
   finally { previewLoading.value = false }
 }
 function closePreview() {
@@ -229,8 +230,8 @@ async function zurSignaturSenden() {
     await authFetch('/nda-zur-signatur', { method: 'POST', data: {
       targetId: props.targetId, form: vars.value, variante: docVariante.value, empfaengerEmail: vars.value.email
     }})
-    alert('NDA wurde an ' + vars.value.email + ' versendet. ✅')
-  } catch (e) { alert('Versand fehlgeschlagen: ' + (e?.response?.data?.error || e.message)) }
+    toast.success('NDA wurde an ' + vars.value.email + ' versendet. ✅')
+  } catch (e) { toast.error('Versand fehlgeschlagen: ' + (e?.response?.data?.error || e.message)) }
   finally { sending.value = false }
 }
 

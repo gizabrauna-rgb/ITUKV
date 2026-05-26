@@ -153,6 +153,7 @@ import {
   Plus, Pencil, Trash2, X, Users
 } from '@lucide/vue'
 import { authFetch, verlaufSendMail, verlaufMarkRead } from '../../api.js'
+import { toast } from '../../composables/useToast.js'
 
 const props = defineProps({ targetId: String })
 
@@ -170,7 +171,7 @@ async function sendMail() {
     const r = await verlaufSendMail({ targetId: props.targetId, ...mailForm.value })
     if (r?.entry) entries.value.unshift(r.entry)
     showMailModal.value = false
-  } catch (e) { alert('E-Mail-Versand fehlgeschlagen: ' + (e?.response?.data?.error || e.message)) }
+  } catch (e) { toast.error('E-Mail-Versand fehlgeschlagen: ' + (e?.response?.data?.error || e.message)) }
   finally { mailSending.value = false }
 }
 

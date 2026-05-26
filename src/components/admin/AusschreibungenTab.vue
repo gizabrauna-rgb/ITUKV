@@ -102,6 +102,7 @@
 import { ref, onMounted } from 'vue'
 import { Plus, Users, X } from '@lucide/vue'
 import { getAusschreibungen, createAusschreibung, updateAusschreibung, getTargets, getInteressenten } from '../../api.js'
+import { toast } from '../../composables/useToast.js'
 
 const items = ref([])
 const targets = ref([])
@@ -130,7 +131,7 @@ async function create() {
     items.value.push(a)
     showModal.value = false
     form.value = { targetId: '', mbNr: '', titel: '', region: '', branche: '', mitarbeiter: '', umsatz: '', kurzprofil: '' }
-  } catch (e) { alert('Anlegen fehlgeschlagen') }
+  } catch (e) { toast.error('Anlegen fehlgeschlagen') }
   finally { saving.value = false }
 }
 

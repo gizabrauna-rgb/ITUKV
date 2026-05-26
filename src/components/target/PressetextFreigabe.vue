@@ -41,6 +41,7 @@
 import { ref, onMounted } from 'vue'
 import { FileText, CheckCircle2, AlertCircle } from '@lucide/vue'
 import { authFetch } from '../../api.js'
+import { toast } from '../../composables/useToast.js'
 
 const props = defineProps({ targetId: String })
 const text = ref('')
@@ -59,8 +60,8 @@ async function freigeben(istFreigabe) {
     status.value = istFreigabe ? 'freigegeben' : 'aenderung_gewuenscht'
     kommentarVor.value = kommentar.value
     kommentar.value = ''
-    alert(istFreigabe ? 'Vielen Dank für die Freigabe! Wir werden den Text zeitnah veröffentlichen.' : 'Vielen Dank für dein Feedback. mibeca passt den Text an.')
-  } catch (e) { alert('Fehler: ' + (e?.response?.data?.error || e.message)) }
+    toast.success(istFreigabe ? 'Vielen Dank für die Freigabe! Wir werden den Text zeitnah veröffentlichen.' : 'Vielen Dank für dein Feedback. mibeca passt den Text an.')
+  } catch (e) { toast.error('Fehler: ' + (e?.response?.data?.error || e.message)) }
   finally { sending.value = false }
 }
 

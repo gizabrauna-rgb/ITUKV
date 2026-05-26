@@ -111,6 +111,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { Folder, Upload, FileText, Download, Trash2, Eye, X, Image as ImageIcon, Video, Music, FileType2 } from '@lucide/vue'
 import { authFetch } from '../../api.js'
+import { toast } from '../../composables/useToast.js'
 
 const props = defineProps({ targetId: String, readOnly: { type: Boolean, default: false } })
 const ordnerListe = ['Verträge', 'NDA', 'Exposé', 'Bilanzen & Finanzen', 'Vertragsverhandlungen', 'Videoprotokolle', 'Sonstiges']
@@ -167,7 +168,7 @@ async function handleFiles(fileList) {
         uploadedAt: created.uploadedAt, uploadedBy: created.uploadedBy,
       })
       uploadedCount.value++
-    } catch (e) { console.error(e); alert(`Upload fehlgeschlagen: ${f.name}\n${e?.response?.data?.error || e.message}`) }
+    } catch (e) { console.error(e); toast.error(`Upload fehlgeschlagen: ${f.name}\n${e?.response?.data?.error || e.message}`) }
   }
   uploading.value = false
   uploadedCount.value = 0
@@ -221,7 +222,7 @@ async function previewFile(f) {
       const blob = await r.blob()
       previewUrl.value = URL.createObjectURL(blob)
     }
-  } catch (e) { alert('Vorschau fehlgeschlagen: ' + e.message) }
+  } catch (e) { toast.error('Vorschau fehlgeschlagen: ' + e.message) }
   finally { previewLoading.value = false }
 }
 
@@ -246,16 +247,16 @@ async function downloadFile(f) {
     const a = document.createElement('a')
     a.href = url; a.download = f.fileName; a.click()
     URL.revokeObjectURL(url)
-  } catch (e) { alert('Download fehlgeschlagen: ' + e.message) }
+  } catch (e) { toast.error('Download fehlgeschlagen: ' + e.message) }
 }
 
 async function deleteFile(f) {
-  if (props.readOnly) { alert('Du darfst keine Dateien löschen.'); return }
+  if (props.readOnly) { toast.info('Du darfst keine Dateien löschen.'); return }
   if (!confirm(`Datei '${f.fileName}' wirklich löschen?`)) return
   try {
     await authFetch('/dokument-delete', { method: 'POST', data: { targetId: props.targetId, id: f.RowKey } })
     dokumente.value = dokumente.value.filter(d => d.RowKey !== f.RowKey)
-  } catch (e) { alert('Löschen fehlgeschlagen: ' + (e?.response?.data?.error || e.message)) }
+  } catch (e) { toast.error('Löschen fehlgeschlagen: ' + (e?.response?.data?.error || e.message)) }
 }
 
 async function moveFile(f, neuerOrdner) {
@@ -263,7 +264,7 @@ async function moveFile(f, neuerOrdner) {
   try {
     await authFetch('/dokument-move', { method: 'POST', data: { targetId: props.targetId, id: f.RowKey, ordner: neuerOrdner } })
     f.ordner = neuerOrdner
-  } catch (e) { alert('Verschieben fehlgeschlagen: ' + (e?.response?.data?.error || e.message)) }
+  } catch (e) { toast.error('Verschieben fehlgeschlagen: ' + (e?.response?.data?.error || e.message)) }
 }
 
 function formatSize(b) { if (!b) return '0 B'; if (b < 1024) return b + ' B'; if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB'; return (b/1024/1024).toFixed(1) + ' MB' }

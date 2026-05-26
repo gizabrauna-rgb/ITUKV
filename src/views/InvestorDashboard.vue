@@ -174,6 +174,7 @@ import {
   FileText, Clock, Download, Check, CheckCircle, X
 } from '@lucide/vue'
 import { getAusschreibungen, requestExpose, getInteressenten } from '../api.js'
+import { toast } from '../composables/useToast.js'
 import { authFetch } from '../api.js'
 
 const props = defineProps({ userName: String })
@@ -253,7 +254,7 @@ async function sendNda() {
     await requestExpose(ndaModal.value.RowKey, ndaForm.value)
     ndaStatusMap.value[ndaModal.value.RowKey] = 'gesendet'
     ndaSent.value = true
-  } catch { alert('Fehler beim Senden des NDA. Bitte erneut versuchen.') }
+  } catch { toast.error('Fehler beim Senden des NDA. Bitte erneut versuchen.') }
   finally { sendingNda.value = false }
 }
 
@@ -264,9 +265,9 @@ async function downloadExpose(a) {
       const r = await authFetch(`/targets/${a.targetId}/dokumente/${docs[0].RowKey}/download`)
       window.open(r.url, '_blank')
     } else {
-      alert('Exposé noch nicht hinterlegt. Bitte kontaktieren Sie mibeca.')
+      toast.error('Exposé noch nicht hinterlegt. Bitte kontaktieren Sie mibeca.')
     }
-  } catch { alert('Fehler beim Abrufen des Exposés.') }
+  } catch { toast.error('Fehler beim Abrufen des Exposés.') }
 }
 
 async function saveNotizen(i) {

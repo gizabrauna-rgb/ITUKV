@@ -177,6 +177,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { Trophy, CheckCircle2, FileText, Users, Sparkles, Send, Link as LinkIcon, X, UserCheck, Clock, AlertCircle } from '@lucide/vue'
 import { authFetch } from '../../api.js'
+import { toast } from '../../composables/useToast.js'
 
 const props = defineProps({ targetId: String })
 
@@ -204,8 +205,8 @@ async function zurFreigabeSenden() {
     await authFetch('/pr-zur-freigabe', { method: 'POST', data: { targetId: props.targetId, text: text.value } })
     freigabeStatus.value = 'pending'
     freigabeAngefragtAm.value = new Date().toISOString()
-    alert('Pressetext zur Freigabe an Kunde gesendet. Du bekommst Bescheid sobald geantwortet wurde.')
-  } catch (e) { alert('Fehler: ' + (e?.response?.data?.error || e.message)) }
+    toast.success('Pressetext zur Freigabe an Kunde gesendet. Du bekommst Bescheid sobald geantwortet wurde.')
+  } catch (e) { toast.error('Fehler: ' + (e?.response?.data?.error || e.message)) }
   finally { freigabeSending.value = false }
 }
 
@@ -231,7 +232,7 @@ async function generieren() {
     const r = await authFetch('/pr-erstellen', { method: 'POST', data: { targetId: props.targetId, ...deal.value } })
     text.value = r.text
     save()
-  } catch (e) { alert('KI-Generierung fehlgeschlagen: ' + (e?.response?.data?.error || e.message)) }
+  } catch (e) { toast.error('KI-Generierung fehlgeschlagen: ' + (e?.response?.data?.error || e.message)) }
   finally { generating.value = false }
 }
 
@@ -245,8 +246,8 @@ async function versenden() {
     versendetAm.value = new Date().toISOString()
     versendetEmpfaenger.value = r.gesendet
     save()
-    alert(`Pressemitteilung an ${r.count} Empfänger gesendet ✅`)
-  } catch (e) { alert('Versand fehlgeschlagen: ' + (e?.response?.data?.error || e.message)) }
+    toast.success(`Pressemitteilung an ${r.count} Empfänger gesendet ✅`)
+  } catch (e) { toast.error('Versand fehlgeschlagen: ' + (e?.response?.data?.error || e.message)) }
   finally { sending.value = false }
 }
 

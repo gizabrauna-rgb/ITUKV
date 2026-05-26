@@ -161,6 +161,7 @@ import { ref, computed, onMounted, reactive } from 'vue'
 import { ChevronDown, Calculator, Lightbulb, Filter, Save } from '@lucide/vue'
 import fragenData from '../../data/bewertungFragen.json'
 import { authFetch } from '../../api.js'
+import { toast } from '../../composables/useToast.js'
 
 const props = defineProps({ targetId: String, readOnly: { type: Boolean, default: false } })
 
@@ -338,7 +339,7 @@ async function save() {
     }
     await authFetch('/target-update', { method: 'POST', data: { id: props.targetId, bewertungJson: JSON.stringify(payload) } })
     lastSaved.value = payload.stand
-  } catch (e) { console.error(e); alert('Speichern fehlgeschlagen') }
+  } catch (e) { console.error(e); toast.error('Speichern fehlgeschlagen') }
   finally { saving.value = false }
 }
 </script>

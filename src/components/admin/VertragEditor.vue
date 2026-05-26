@@ -249,6 +249,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { Check, X, FileEdit, Save, Download, Send, CheckCircle2, Clock, FileText, AlertTriangle, PenTool } from '@lucide/vue'
 import { authFetch } from '../../api.js'
+import { toast } from '../../composables/useToast.js'
 
 const apiBase = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
 
@@ -336,8 +337,8 @@ function clearCanvas() {
 }
 
 async function countersign() {
-  if (!canvasDirty) { alert('Bitte zuerst deine Unterschrift zeichnen.'); return }
-  if (!vertrag.value?.signId) { alert('Keine offene Signatur gefunden.'); return }
+  if (!canvasDirty) { toast.warn('Bitte zuerst deine Unterschrift zeichnen.'); return }
+  if (!vertrag.value?.signId) { toast.info('Keine offene Signatur gefunden.'); return }
   countersigning.value = true
   try {
     const data = sigCanvas.value.toDataURL('image/png')
@@ -347,8 +348,8 @@ async function countersign() {
       signature_name: adminSigName.value.trim(),
     }})
     await load()
-    alert('Vertrag erfolgreich gegengezeichnet. Der Target wurde per Mail informiert.')
-  } catch (e) { alert('Gegenzeichnung fehlgeschlagen: ' + (e?.response?.data?.error || e.message)) }
+    toast.success('Vertrag erfolgreich gegengezeichnet. Der Target wurde per Mail informiert.')
+  } catch (e) { toast.error('Gegenzeichnung fehlgeschlagen: ' + (e?.response?.data?.error || e.message)) }
   finally { countersigning.value = false }
 }
 
@@ -410,7 +411,7 @@ async function speichern() {
     }
     await authFetch('/target-update', { method: 'POST', data: { id: props.targetId, vertragJson: JSON.stringify(payload) } })
     vertrag.value = payload
-  } catch (e) { console.error(e); alert('Speichern fehlgeschlagen') }
+  } catch (e) { console.error(e); toast.error('Speichern fehlgeschlagen') }
   finally { saving.value = false }
 }
 
@@ -422,7 +423,7 @@ const previewUrl = ref(null)
 const previewLoading = ref(false)
 async function openPreview() {
   if (!props.targetId || !variante.value) {
-    alert('Bitte zuerst Variante wählen und speichern.')
+    toast.warn('Bitte zuerst Variante wählen und speichern.')
     return
   }
   previewLoading.value = true
@@ -440,7 +441,7 @@ async function openPreview() {
     // Alte URL freigeben
     if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
     previewUrl.value = URL.createObjectURL(blob)
-  } catch (e) { alert('PDF-Vorschau fehlgeschlagen: ' + _backendError(e)) }
+  } catch (e) { toast.error('PDF-Vorschau fehlgeschlagen: ' + _backendError(e)) }
   finally { previewLoading.value = false }
 }
 function closePreview() {
@@ -469,8 +470,8 @@ async function zurSignaturSenden() {
       gegengezeichnetVon: null,
     }
     await speichern()
-    alert(isResend ? 'Vertrag wurde erneut an den Target gesendet.' : 'Vertrag wurde an den Target gesendet.')
-  } catch (e) { alert('Versand fehlgeschlagen: ' + _backendError(e)) }
+    toast.success(isResend ? 'Vertrag wurde erneut an den Target gesendet.' : 'Vertrag wurde an den Target gesendet.')
+  } catch (e) { toast.error('Versand fehlgeschlagen: ' + _backendError(e)) }
   finally { sending.value = false }
 }
 
