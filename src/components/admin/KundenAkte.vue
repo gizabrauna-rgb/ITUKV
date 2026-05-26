@@ -133,6 +133,56 @@
             </ul>
           </section>
 
+          <!-- Verlauf (alle Projekte zusammen) -->
+          <section v-else-if="tab === 'verlauf'">
+            <div v-if="verlaufItems.length === 0" class="text-center py-12 text-gray-400 text-sm">
+              <Mail class="w-10 h-10 mx-auto mb-2 text-gray-300" />
+              Kein Kommunikations-Verlauf.
+              <div class="text-xs mt-1">Verlauf entsteht im jeweiligen Projekt-Tab "Verlauf".</div>
+            </div>
+            <ol v-else class="relative border-l-2 border-gray-100 ml-2 space-y-4">
+              <li v-for="(e, i) in verlaufItems" :key="i" class="pl-4 relative">
+                <span :class="['absolute -left-[7px] top-1.5 w-3 h-3 rounded-full border-2 border-white', verlaufDotColor(e.typ)]"></span>
+                <div class="flex items-center gap-2 text-xs text-gray-500 flex-wrap">
+                  <span :class="['px-2 py-0.5 rounded-full font-medium', verlaufBadge(e.typ)]">{{ verlaufLabel(e.typ) }}</span>
+                  <span class="font-mono text-[10px] bg-blue-50 text-blue-800 px-1.5 py-0.5 rounded">{{ e._mbNr }}</span>
+                  <span>·</span>
+                  <span>{{ formatDate(e.datum) }}</span>
+                  <span v-if="e.autor">· {{ e.autor }}</span>
+                </div>
+                <div v-if="e.betreff" class="font-semibold text-sm text-gray-900 mt-1">{{ e.betreff }}</div>
+                <p v-if="e.beschreibung" class="text-sm text-gray-700 mt-1 whitespace-pre-line">{{ e.beschreibung }}</p>
+              </li>
+            </ol>
+          </section>
+
+          <!-- Dokumente (aller verknuepften Projekte) -->
+          <section v-else-if="tab === 'dokumente'">
+            <div v-if="dokumenteLoading" class="text-center py-12 text-gray-400 text-sm">Lade Dokumente…</div>
+            <div v-else-if="dokumenteGruppen.length === 0" class="text-center py-12 text-gray-400 text-sm">
+              <FileText class="w-10 h-10 mx-auto mb-2 text-gray-300" />
+              Keine Dokumente in verknüpften Projekten.
+            </div>
+            <div v-else class="space-y-5">
+              <div v-for="g in dokumenteGruppen" :key="g.target.RowKey">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="font-mono text-xs bg-blue-50 text-blue-800 px-2 py-0.5 rounded">{{ g.target.mbNr }}</span>
+                  <span class="text-sm font-medium text-gray-700">{{ g.target.firma || g.target.verkaueferName }}</span>
+                  <span class="text-xs text-gray-400">· {{ g.dateien.length }} Datei{{ g.dateien.length === 1 ? '' : 'en' }}</span>
+                </div>
+                <ul class="space-y-1.5">
+                  <li v-for="d in g.dateien" :key="d.RowKey"
+                    class="flex items-center gap-2 p-2 rounded-lg border border-gray-100 hover:border-[#097e92]/40 hover:bg-[#097e92]/5 text-sm">
+                    <FileText class="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <span class="flex-1 truncate">{{ d.name }}</span>
+                    <span class="text-[11px] text-gray-400 capitalize">{{ d.ordner }}</span>
+                    <span class="text-[11px] text-gray-400">{{ formatDate(d.uploadedAt) }}</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
           <!-- Notizen-Timeline -->
           <section v-else-if="tab === 'notizen'" class="space-y-4">
             <div class="flex gap-2">
@@ -168,8 +218,9 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { X, Pencil, CheckCircle2, Briefcase, StickyNote, FileText, Package, ScrollText } from '@lucide/vue'
+import { X, Pencil, CheckCircle2, Briefcase, StickyNote, FileText, Package, ScrollText, Mail, History } from '@lucide/vue'
 import { updateKontakt } from '../../api.js'
+import { authFetch } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 
 const props = defineProps({
@@ -182,7 +233,27 @@ const tab = ref('uebersicht')
 const newNote = ref('')
 const savingNote = ref(false)
 
-watch(() => props.kontakt?.RowKey, () => { tab.value = 'uebersicht'; newNote.value = '' })
+const dokumenteLoading = ref(false)
+const dokumenteGruppen = ref([])
+
+watch(() => props.kontakt?.RowKey, () => { tab.value = 'uebersicht'; newNote.value = ''; dokumenteGruppen.value = [] })
+
+watch(tab, async (t) => {
+  if (t === 'dokumente' && dokumenteGruppen.value.length === 0 && verknuepfteProjekte.value.length > 0) {
+    dokumenteLoading.value = true
+    try {
+      const results = []
+      for (const p of verknuepfteProjekte.value) {
+        try {
+          const list = await authFetch('/dokument-list', { method: 'POST', data: { targetId: p.RowKey } })
+          const arr = Array.isArray(list) ? list : (list?.items || [])
+          if (arr.length) results.push({ target: p, dateien: arr })
+        } catch (e) { console.error('dokument-list', p.mbNr, e) }
+      }
+      dokumenteGruppen.value = results
+    } finally { dokumenteLoading.value = false }
+  }
+})
 
 const produktListe = [
   { key: 'hatUC', label: 'UC', full: 'Unternehmer-Coaching', color: 'bg-red-500' },
@@ -219,12 +290,43 @@ const notizen = computed(() => {
   } catch { return [] }
 })
 
+const verlaufItems = computed(() => {
+  const all = []
+  for (const p of verknuepfteProjekte.value) {
+    if (!p.kommunikationJson) continue
+    try {
+      const arr = JSON.parse(p.kommunikationJson)
+      if (Array.isArray(arr)) arr.forEach(e => all.push({ ...e, _mbNr: p.mbNr }))
+    } catch {}
+  }
+  return all.sort((a, b) => (b.datum || '').localeCompare(a.datum || ''))
+})
+
 const tabs = computed(() => [
   { key: 'uebersicht', label: 'Übersicht', icon: FileText },
   { key: 'produkte', label: 'Produkte', icon: Package, count: produkteGekauft.value },
   { key: 'projekte', label: 'Projekte', icon: Briefcase, count: verknuepfteProjekte.value.length },
+  { key: 'verlauf', label: 'Verlauf', icon: History, count: verlaufItems.value.length },
+  { key: 'dokumente', label: 'Dokumente', icon: FileText },
   { key: 'notizen', label: 'Notizen', icon: ScrollText, count: notizen.value.length },
 ])
+
+function verlaufLabel(t) {
+  const map = { mail: 'E-Mail', telefon: 'Telefon', termin: 'Termin', notiz: 'Notiz' }
+  return map[t] || (t || 'Eintrag')
+}
+function verlaufBadge(t) {
+  if (t === 'mail') return 'bg-blue-100 text-blue-700'
+  if (t === 'telefon') return 'bg-green-100 text-green-700'
+  if (t === 'termin') return 'bg-purple-100 text-purple-700'
+  return 'bg-gray-100 text-gray-600'
+}
+function verlaufDotColor(t) {
+  if (t === 'mail') return 'bg-blue-500'
+  if (t === 'telefon') return 'bg-green-500'
+  if (t === 'termin') return 'bg-purple-500'
+  return 'bg-gray-400'
+}
 
 async function addNote() {
   if (!newNote.value.trim() || !props.kontakt) return

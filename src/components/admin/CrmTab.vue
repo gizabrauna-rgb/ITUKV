@@ -393,7 +393,7 @@ const visibleList = computed(() => {
   // Such-Filter
   if (search.value) {
     const q = search.value.toLowerCase()
-    r = r.filter(k => ((k.firma||'') + (k.name||'') + (k.email||'')).toLowerCase().includes(q))
+    r = r.filter(k => ((k.firma||'') + ' ' + (k.name||'') + ' ' + (k.email||'') + ' ' + (k.telefon||'') + ' ' + (k.ort||'') + ' ' + (k.plz||'') + ' ' + (k.sucht||'') + ' ' + (k.bietet||'') + ' ' + (k.kommentar||'') + ' ' + (k.notizenJson||'')).toLowerCase().includes(q))
   }
   // Typ-Filter
   if (filterTyp.value) r = r.filter(k => k.typ === filterTyp.value)
