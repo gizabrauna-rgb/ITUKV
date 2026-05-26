@@ -105,7 +105,9 @@
               <input type="checkbox" :checked="selectedIds.has(k.id || k.RowKey)" @change="toggleSelect(k)"
                 class="rounded border-gray-300 text-[#097e92] focus:ring-[#097e92]/30" />
             </td>
-            <td class="px-4 py-3 text-sm font-medium text-gray-800">{{ k.firma }}</td>
+            <td class="px-4 py-3 text-sm font-medium text-gray-800">
+              <button @click="openAkte(k)" class="text-left hover:text-[#097e92] hover:underline">{{ k.firma }}</button>
+            </td>
             <td class="px-4 py-3 text-sm text-gray-600">{{ k.name }}</td>
             <td class="px-4 py-3">
               <div class="flex flex-wrap gap-1">
@@ -316,6 +318,14 @@
         </div>
       </div>
     </div>
+
+    <!-- Kundenakte Slide-Over -->
+    <KundenAkte
+      :kontakt="akteKontakt"
+      :targets="mapData.targets || []"
+      @close="closeAkte"
+      @edit="onAkteEdit"
+      @updated="loadData" />
   </div>
 </template>
 
@@ -326,6 +336,7 @@ import { getKontakte, createKontakt, updateKontakt, importKontakte, exportKontak
 import { toast } from '../../composables/useToast.js'
 import { authFetch } from '../../api.js'
 import KundenMap from '../KundenMap.vue'
+import KundenAkte from './KundenAkte.vue'
 
 const allKontakte = ref([])
 const filtered = ref([])
@@ -584,6 +595,10 @@ async function sendAcs() {
 const showImport = ref(false)
 const showNewModal = ref(false)
 const editKontakt = ref(null)
+const akteKontakt = ref(null)
+function openAkte(k) { akteKontakt.value = k }
+function closeAkte() { akteKontakt.value = null }
+function onAkteEdit(k) { akteKontakt.value = null; openEdit(k) }
 const importJson = ref('')
 const importing = ref(false)
 const saving = ref(false)
@@ -595,10 +610,8 @@ const form = ref({
   typ: '',  // backward compat
 })
 
-// Beim Mount: BEIDES laden (Liste + Map-Daten mit Koordinaten)
-onMounted(async () => {
+async function loadData() {
   try {
-    // Lade direkt die Map-Daten - die enthalten ALLES was wir brauchen (mit Koordinaten)
     mapData.value = await authFetch('/kontakte/locations')
     allKontakte.value = mapData.value.kontakte || []
   } catch (e) {
@@ -606,7 +619,9 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(loadData)
 
 function typClass(t) {
   if (t === 'PE') return 'bg-purple-100 text-purple-700'
