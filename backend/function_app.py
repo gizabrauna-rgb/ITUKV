@@ -3056,6 +3056,72 @@ def nda_upload(req: func.HttpRequest) -> func.HttpResponse:
 # DOKUMENTE / DATENRAUM mit Azure Blob Storage
 # =========================================================================
 
+@app.route(route="dokument-upload-url", methods=["POST", "OPTIONS"])
+def dokument_upload_url(req: func.HttpRequest) -> func.HttpResponse:
+    """Generiert SAS-URL fuer direkten Blob-Upload (auch Videos, beliebige Groesse)."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    target_id = body.get("targetId", "")
+    ordner = (body.get("ordner") or "Sonstiges").strip()
+    file_name = (body.get("fileName") or "datei").strip()
+    content_type = body.get("contentType", "application/octet-stream")
+    if not target_id:
+        return err_("targetId erforderlich", 400)
+    if p.get("role") == "target":
+        if p.get("targetId") and p.get("targetId") != target_id:
+            return err_("Nicht autorisiert", 403)
+    from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
+    svc = BlobServiceClient.from_connection_string(TABLE_CONN)
+    try: svc.create_container("datenraum")
+    except Exception: pass
+    blob_name = f"{target_id}/{ordner}/{uuid.uuid4()}_{file_name}"
+    sas = generate_blob_sas(
+        account_name=svc.account_name, container_name="datenraum", blob_name=blob_name,
+        account_key=svc.credential.account_key,
+        permission=BlobSasPermissions(create=True, write=True),
+        expiry=datetime.utcnow() + timedelta(minutes=120),
+    )
+    return ok_({
+        "uploadUrl": f"https://{svc.account_name}.blob.core.windows.net/datenraum/{blob_name}?{sas}",
+        "blobName": blob_name,
+    })
+
+
+@app.route(route="dokument-register", methods=["POST", "OPTIONS"])
+def dokument_register(req: func.HttpRequest) -> func.HttpResponse:
+    """Nach SAS-Upload: Metadaten in Tabelle anlegen."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    target_id = body.get("targetId", "")
+    if not (target_id and body.get("blobName") and body.get("fileName")):
+        return err_("targetId, blobName, fileName erforderlich", 400)
+    if p.get("role") == "target":
+        if p.get("targetId") and p.get("targetId") != target_id:
+            return err_("Nicht autorisiert", 403)
+    doc_id = str(uuid.uuid4())
+    entity = {
+        "PartitionKey": target_id, "RowKey": doc_id,
+        "ordner": body.get("ordner", "Sonstiges"),
+        "fileName": body.get("fileName"),
+        "blobName": body.get("blobName"),
+        "contentType": body.get("contentType", "application/octet-stream"),
+        "size": int(body.get("size") or 0),
+        "uploadedBy": p.get("name", "") or p.get("email", ""),
+        "uploadedByRole": p.get("role", ""),
+        "uploadedAt": datetime.utcnow().isoformat(),
+    }
+    table_("dokumente").create_entity(entity)
+    return ok_({"id": doc_id, "fileName": entity["fileName"], "ordner": entity["ordner"], "size": entity["size"], "uploadedAt": entity["uploadedAt"], "uploadedBy": entity["uploadedBy"]}, 201)
+
+
 @app.route(route="dokument-upload", methods=["POST", "OPTIONS"])
 def dokument_upload(req: func.HttpRequest) -> func.HttpResponse:
     """Upload einer Datei in den Datenraum eines Targets.

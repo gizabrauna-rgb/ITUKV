@@ -101,16 +101,23 @@ async function handleFiles(fileList) {
   uploading.value = true
   for (const f of files) {
     try {
-      if (f.size > 50 * 1024 * 1024) { alert(`'${f.name}' ist größer als 50 MB.`); continue }
-      const dataUrl = await new Promise((resolve, reject) => {
-        const r = new FileReader()
-        r.onload = () => resolve(r.result)
-        r.onerror = reject
-        r.readAsDataURL(f)
-      })
-      const created = await authFetch('/dokument-upload', { method: 'POST', data: {
+      // 1. SAS-URL anfordern
+      const sas = await authFetch('/dokument-upload-url', { method: 'POST', data: {
         targetId: props.targetId, ordner: selectedFolder.value,
-        fileName: f.name, fileData: dataUrl, contentType: f.type || 'application/octet-stream'
+        fileName: f.name, contentType: f.type || 'application/octet-stream',
+      }})
+      // 2. Direkt zu Blob Storage hochladen (umgeht Function-Limits, schnell, auch fuer Videos)
+      const putRes = await fetch(sas.uploadUrl, {
+        method: 'PUT',
+        headers: { 'x-ms-blob-type': 'BlockBlob', 'Content-Type': f.type || 'application/octet-stream' },
+        body: f,
+      })
+      if (!putRes.ok) throw new Error(`Blob-Upload HTTP ${putRes.status}`)
+      // 3. Metadaten registrieren
+      const created = await authFetch('/dokument-register', { method: 'POST', data: {
+        targetId: props.targetId, ordner: selectedFolder.value,
+        fileName: f.name, blobName: sas.blobName,
+        contentType: f.type || 'application/octet-stream', size: f.size,
       }})
       dokumente.value.unshift({
         RowKey: created.id, PartitionKey: props.targetId,
