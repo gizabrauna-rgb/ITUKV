@@ -18,99 +18,155 @@
 
       <template v-else>
         <h1 class="text-2xl font-bold text-gray-900 mb-1">Hallo {{ data.name || data.firma }},</h1>
-        <p class="text-base text-gray-600 mb-6">{{ data.headline || `Dein Exposé-Bereich zu Projekt ${data.mbNr.toUpperCase()}` }}</p>
+        <p class="text-base text-gray-600 mb-8">Projekt <strong>{{ data.mbNr.toUpperCase() }}</strong>{{ data.headline ? ' · ' + data.headline : '' }}</p>
 
-        <!-- Schritt 1: NDA -->
-        <section :class="['rounded-2xl border-2 p-6 mb-4', ndaUnterzeichnet ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50']">
-          <div class="flex items-start gap-3 mb-3">
-            <component :is="ndaUnterzeichnet ? CheckCircle2 : FileText" :class="['w-7 h-7 flex-shrink-0', ndaUnterzeichnet ? 'text-green-600' : 'text-amber-600']" />
-            <div class="flex-1">
-              <h2 class="text-lg font-bold mb-1" :class="ndaUnterzeichnet ? 'text-green-900' : 'text-amber-900'">
-                Schritt 1: Vertraulichkeitsvereinbarung (NDA)
-              </h2>
-              <p v-if="ndaUnterzeichnet" class="text-sm text-green-800">
-                NDA wurde erfolgreich hochgeladen am {{ formatDate(data.ndaUploadedAt) }}. Du hast jetzt vollen Zugriff.
-              </p>
-              <p v-else class="text-sm text-amber-800">
-                Wichtig: Weitere Informationen zum Unternehmen erhältst Du erst nach Upload des unterschriebenen NDA.
+        <!-- =========== ZUSTAND: VOR NDA-UPLOAD =========== -->
+        <template v-if="!ndaUnterzeichnet">
+          <!-- Erklär-Text-Block -->
+          <section class="bg-white rounded-2xl border border-gray-100 p-7 mb-5">
+            <h2 class="text-xl font-bold text-gray-900 mb-3">Das Unternehmen hat Dein Interesse geweckt – Wie geht es jetzt weiter?</h2>
+            <p class="text-sm text-gray-700 leading-relaxed mb-4">
+              Bevor wir Dir nähere Informationen zum Unternehmen geben können, benötigen wir Dein unterschriebenes NDA.
+              Lade Dir die <strong>Vertraulichkeitsvereinbarung (NDA)</strong> unten herunter, unterschreibe sie und lade sie direkt hier wieder hoch.
+            </p>
+
+            <div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded mb-4">
+              <p class="text-sm text-amber-900">
+                <strong>Wichtig:</strong> Das Exposé und die Termin-Buchung mit Jennifer Kaplan werden erst freigeschaltet, sobald das unterschriebene NDA bei uns eingegangen ist.
               </p>
             </div>
-          </div>
 
-          <div v-if="!ndaUnterzeichnet" class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-            <a v-if="data.ndaTemplateUrl" :href="data.ndaTemplateUrl" target="_blank" class="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-amber-300 text-amber-900 rounded-xl text-sm font-medium hover:bg-amber-100">
-              <Download class="w-4 h-4" /> NDA herunterladen
+            <p class="text-sm text-gray-700 leading-relaxed mb-5">
+              Wenn das vorgestellte IT-Unternehmen Dein Interesse geweckt hat, lade das unterzeichnete NDA bitte
+              <strong>schnellstmöglich</strong> hoch.
+            </p>
+
+            <h3 class="text-lg font-bold text-gray-900 mt-6 mb-2">Nächster Schritt: Terminbuchung</h3>
+            <p class="text-sm text-gray-700 leading-relaxed mb-4">
+              Sobald das NDA bei uns eingegangen ist, erhältst Du die Möglichkeit, direkt einen
+              <strong>Termin mit unserer M&amp;A-Beraterin Jennifer Kaplan</strong> zu buchen. In diesem Gespräch besprechen wir den weiteren Ablauf sowie alle offenen Fragen.
+            </p>
+
+            <h3 class="text-lg font-bold text-gray-900 mt-6 mb-2">Transparenz im Prozess</h3>
+            <p class="text-sm text-gray-700 leading-relaxed mb-4">
+              Wenn sich im Gespräch herausstellt, dass die Rahmenbedingungen passen, prüfen wir die nächsten Schritte mit dem Verkäufer.
+              Nach finaler Freigabe erhältst Du die Kontaktdaten des Zielunternehmens.
+            </p>
+
+            <p class="text-sm text-gray-700 leading-relaxed mb-4">
+              Bei Rückfragen erreichst Du Jennifer Kaplan unter
+              <a href="mailto:jk@mike-bergmann.de" class="text-[#097e92] hover:underline font-medium">jk@mike-bergmann.de</a>.
+              Bitte beachte, dass Rückfragen <strong>nur nach Erhalt des unterschriebenen NDA</strong> beantwortet werden können.
+            </p>
+
+            <p class="text-sm text-gray-700 leading-relaxed mt-5">Wir freuen uns auf die Zusammenarbeit!</p>
+            <p class="text-sm text-gray-700 leading-relaxed">Dein M&amp;A Team der <strong>Mike Bergmann Akademie</strong></p>
+          </section>
+
+          <!-- NDA-Aktionen -->
+          <section class="bg-white rounded-2xl border-2 border-[#097e92]/30 p-7 mb-5">
+            <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <FileText class="w-5 h-5 text-[#097e92]" /> NDA herunterladen, unterschreiben, hochladen
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <a v-if="data.ndaTemplateUrl" :href="data.ndaTemplateUrl" target="_blank"
+                class="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-200 text-gray-800 rounded-xl text-sm font-medium hover:bg-gray-50">
+                <Download class="w-4 h-4" /> NDA herunterladen
+              </a>
+              <div v-else class="flex items-center justify-center px-4 py-3 bg-gray-50 border border-gray-200 text-gray-400 rounded-xl text-sm italic">
+                NDA-Vorlage folgt per E-Mail
+              </div>
+
+              <label class="flex items-center justify-center gap-2 px-4 py-3 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf] cursor-pointer">
+                <Upload class="w-4 h-4" /> Unterschriebenes NDA hochladen
+                <input type="file" accept="application/pdf,image/*" @change="onFileChange" class="hidden" :disabled="uploading" />
+              </label>
+            </div>
+            <p v-if="uploading" class="text-xs text-amber-700 mt-3 text-center">Lade NDA hoch…</p>
+          </section>
+        </template>
+
+        <!-- =========== ZUSTAND: NACH NDA-UPLOAD =========== -->
+        <template v-else>
+          <section class="bg-green-50 border-2 border-green-200 rounded-2xl p-6 mb-5">
+            <div class="flex items-start gap-3">
+              <CheckCircle2 class="w-7 h-7 text-green-600 flex-shrink-0" />
+              <div>
+                <h2 class="text-lg font-bold text-green-900 mb-1">NDA erfolgreich hochgeladen</h2>
+                <p class="text-sm text-green-800">
+                  Vielen Dank für Dein unterschriebenes NDA zu Projekt <strong>{{ data.mbNr.toUpperCase() }}</strong>.
+                  Du hast jetzt Zugang zum Exposé und kannst direkt einen Termin mit Jennifer Kaplan buchen.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <!-- Exposé-Download -->
+          <section class="bg-white rounded-2xl border border-gray-100 p-7 mb-5">
+            <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+              <FileText class="w-5 h-5 text-[#097e92]" /> Exposé zum Unternehmen
+            </h2>
+            <p class="text-sm text-gray-600 mb-4">Das vollständige anonymisierte Exposé mit allen relevanten Informationen.</p>
+            <a v-if="data.exposeUrl" :href="data.exposeUrl" target="_blank"
+              class="flex items-center justify-center gap-2 px-4 py-3 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf]">
+              <Download class="w-5 h-5" /> Exposé jetzt herunterladen
             </a>
-            <label class="flex items-center justify-center gap-2 px-4 py-3 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf] cursor-pointer">
-              <Upload class="w-4 h-4" /> Unterschriebenes NDA hochladen
-              <input type="file" accept="application/pdf,image/*" @change="onFileChange" class="hidden" :disabled="uploading" />
-            </label>
-          </div>
-          <p v-if="uploading" class="text-xs text-amber-700 mt-2 text-center">Lade NDA hoch…</p>
-        </section>
+            <p v-else class="text-sm text-gray-500 italic text-center py-3">Das Exposé wird in Kürze hier verfügbar sein.</p>
+          </section>
 
-        <!-- Schritt 2: Exposé (erst nach NDA) -->
-        <section v-if="ndaUnterzeichnet" class="bg-white rounded-2xl border border-gray-100 p-6 mb-4">
-          <div class="flex items-start gap-3 mb-3">
-            <FileText class="w-7 h-7 text-[#097e92] flex-shrink-0" />
-            <div class="flex-1">
-              <h2 class="text-lg font-bold text-gray-900 mb-1">Schritt 2: Exposé herunterladen</h2>
-              <p class="text-sm text-gray-600">Das vollständige Exposé mit allen relevanten Informationen.</p>
+          <!-- Termin-Buchung -->
+          <section v-if="data.terminBookingUrl" class="bg-white rounded-2xl border-2 border-[#097e92]/30 p-7 mb-5">
+            <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+              <Calendar class="w-5 h-5 text-[#097e92]" /> Termin mit Jennifer Kaplan buchen
+            </h2>
+            <p class="text-sm text-gray-700 mb-4">
+              In einem ca. 15-minütigen Gespräch klären wir den weiteren Ablauf und alle offenen Fragen rund um Projekt
+              <strong>{{ data.mbNr.toUpperCase() }}</strong>.
+            </p>
+
+            <!-- Projektnummer-Hinweis -->
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 flex items-center justify-between gap-3">
+              <div class="text-sm">
+                <strong class="text-amber-900">Wichtig:</strong>
+                <span class="text-amber-800"> Bei der Buchung als Anlass die Projektnummer </span>
+                <code class="font-mono font-bold bg-white border border-amber-300 px-2 py-0.5 rounded mx-1">{{ data.mbNr.toUpperCase() }}</code>
+                <span class="text-amber-800">angeben.</span>
+              </div>
+              <button @click="copyMbNr" class="text-xs flex items-center gap-1 px-2 py-1 bg-white border border-amber-300 text-amber-900 rounded hover:bg-amber-100 flex-shrink-0">
+                <Copy class="w-3 h-3" /> {{ copied ? 'Kopiert' : 'Kopieren' }}
+              </button>
+            </div>
+
+            <a :href="data.terminBookingUrl" target="_blank"
+              class="flex items-center justify-center gap-2 px-4 py-3 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf]">
+              <Calendar class="w-5 h-5" /> Jetzt Termin buchen
+            </a>
+
+            <ul class="text-xs text-gray-500 mt-5 space-y-1">
+              <li>· Ob das Unternehmen zu Deiner Zukauf-Strategie passt</li>
+              <li>· Deine konkreten Zukauf-Visionen — damit wir diese mit dem Profil abgleichen können</li>
+              <li>· Den weiteren Ablauf des Prozesses</li>
+              <li>· Ob ein Folgegespräch direkt mit dem Verkäufer sinnvoll ist</li>
+            </ul>
+          </section>
+        </template>
+
+        <!-- Team-Photos -->
+        <section class="bg-white rounded-2xl border border-gray-100 p-7 mt-6">
+          <h3 class="font-bold text-gray-900 mb-5 text-center">Dein M&A-Team der Mike Bergmann Akademie</h3>
+          <div class="grid grid-cols-2 gap-6">
+            <div class="text-center">
+              <img src="/Jenny Kaplan.jpeg" alt="Jenny Kaplan" class="w-32 h-32 rounded-full object-cover mx-auto mb-3 border-4 border-gray-100" />
+              <div class="font-semibold text-gray-900">Jennifer Kaplan</div>
+              <div class="text-xs text-gray-500">M&A-Beraterin</div>
+              <a href="mailto:jk@mike-bergmann.de" class="text-xs text-[#097e92] hover:underline mt-1 inline-block">jk@mike-bergmann.de</a>
+            </div>
+            <div class="text-center">
+              <img src="/Mike Bergmann.jpeg" alt="Mike Bergmann" class="w-32 h-32 rounded-full object-cover mx-auto mb-3 border-4 border-gray-100" />
+              <div class="font-semibold text-gray-900">Mike Bergmann</div>
+              <div class="text-xs text-gray-500">Gründer · M&A-Spezialist</div>
             </div>
           </div>
-          <a v-if="data.exposeUrl" :href="data.exposeUrl" target="_blank" class="flex items-center justify-center gap-2 px-4 py-3 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf]">
-            <Download class="w-4 h-4" /> Exposé herunterladen
-          </a>
-          <p v-else class="text-sm text-gray-500 italic">Das Exposé wird in Kürze hier verfügbar sein.</p>
-        </section>
-
-        <!-- Schritt 3: Termin buchen (erst nach NDA) -->
-        <section v-if="ndaUnterzeichnet && data.terminBookingUrl" class="bg-white rounded-2xl border border-gray-100 p-6 mb-4">
-          <div class="flex items-start gap-3 mb-3">
-            <Calendar class="w-7 h-7 text-[#097e92] flex-shrink-0" />
-            <div class="flex-1">
-              <h2 class="text-lg font-bold text-gray-900 mb-1">Schritt 3: Termin mit Jennifer Kaplan buchen</h2>
-              <p class="text-sm text-gray-600">In ca. 15 Minuten klären wir den weiteren Ablauf und alle offenen Fragen.</p>
-            </div>
-          </div>
-
-          <!-- Projektnummer-Hinweis -->
-          <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 flex items-center justify-between gap-3">
-            <div class="text-sm">
-              <strong class="text-amber-900">Wichtig:</strong>
-              <span class="text-amber-800"> Bitte gib bei der Buchung als Anlass die Projektnummer </span>
-              <code class="font-mono font-bold bg-white border border-amber-300 px-2 py-0.5 rounded mx-1">{{ data.mbNr.toUpperCase() }}</code>
-              <span class="text-amber-800">an.</span>
-            </div>
-            <button @click="copyMbNr" class="text-xs flex items-center gap-1 px-2 py-1 bg-white border border-amber-300 text-amber-900 rounded hover:bg-amber-100 flex-shrink-0">
-              <Copy class="w-3 h-3" /> {{ copied ? 'Kopiert' : 'Kopieren' }}
-            </button>
-          </div>
-
-          <a :href="data.terminBookingUrl" target="_blank" class="flex items-center justify-center gap-2 px-4 py-3 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf]">
-            <Calendar class="w-4 h-4" /> Termin jetzt buchen
-          </a>
-
-          <ul class="text-xs text-gray-500 mt-4 space-y-1">
-            <li>· Ob das Unternehmen zu Deiner Zukauf-Strategie passt</li>
-            <li>· Deine konkreten Zukauf-Visionen — damit wir diese mit dem Profil abgleichen können</li>
-            <li>· Den weiteren Ablauf des Prozesses</li>
-            <li>· Ob ein Folgegespräch direkt mit dem Verkäufer sinnvoll ist</li>
-          </ul>
-        </section>
-
-        <!-- Hinweis-Text wenn noch kein NDA -->
-        <section v-if="!ndaUnterzeichnet" class="bg-white rounded-2xl border border-gray-100 p-6">
-          <h3 class="font-semibold text-gray-800 mb-2">Wie geht es weiter?</h3>
-          <p class="text-sm text-gray-600 leading-relaxed">
-            Sobald das NDA bei uns eingegangen ist, hast Du die Möglichkeit, das vollständige Exposé herunterzuladen und
-            direkt einen Termin mit unserer M&amp;A-Beraterin <strong>Jennifer Kaplan</strong> zu buchen.
-            In diesem Gespräch besprechen wir den weiteren Ablauf sowie alle offenen Fragen.
-          </p>
-          <p class="text-xs text-gray-500 mt-3">
-            Bei Rückfragen erreichst Du Jennifer Kaplan unter <a href="mailto:jk@mike-bergmann.de" class="text-[#097e92] hover:underline">jk@mike-bergmann.de</a> —
-            bitte beachte, dass tiefergehende Fragen erst nach Erhalt des unterschriebenen NDA beantwortet werden.
-          </p>
         </section>
       </template>
     </main>
@@ -148,11 +204,6 @@ async function load() {
 }
 onMounted(load)
 
-function formatDate(iso) {
-  if (!iso) return ''
-  return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
-
 function copyMbNr() {
   navigator.clipboard.writeText(data.value.mbNr.toUpperCase())
   copied.value = true
@@ -177,6 +228,8 @@ async function onFileChange(e) {
           throw new Error(d.error || `HTTP ${res.status}`)
         }
         await load()
+        // Nach erfolgreichem Upload: nach oben scrollen, damit der Erfolg-Block sichtbar ist
+        window.scrollTo({ top: 0, behavior: 'smooth' })
       } catch (err) {
         alert('Upload fehlgeschlagen: ' + err.message)
       } finally { uploading.value = false }
