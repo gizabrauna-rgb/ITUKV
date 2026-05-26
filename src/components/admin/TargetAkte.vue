@@ -107,6 +107,11 @@
         <Erfolgsmeldung :target-id="targetId" />
       </div>
 
+      <!-- Lessons Learned -->
+      <div v-else-if="tab === 'lessons'">
+        <LessonsLearned :target-id="targetId" />
+      </div>
+
       <!-- Bewertung (Score-System auf Basis der 33 Fragen) -->
       <div v-else-if="tab === 'bewertung'">
         <Unternehmensbewertung :target-id="targetId" />
@@ -177,7 +182,7 @@ import { ref, computed, onMounted, defineComponent, h } from 'vue'
 import {
   ArrowLeft, MapPin, Tag, Users, Euro, Hash, Mail,
   Sparkles, Circle, Folder, FileText, MessageSquare,
-  LayoutDashboard, Workflow, ClipboardList, FileEdit, ShieldCheck, Clock, TrendingUp, Trophy
+  LayoutDashboard, Workflow, ClipboardList, FileEdit, ShieldCheck, Clock, TrendingUp, Trophy, BookOpen
 } from '@lucide/vue'
 import { authFetch } from '../../api.js'
 import PhasenProzessEingebettet from './PhasenProzess.vue'
@@ -187,6 +192,7 @@ import Unternehmensbewertung from '../target/Unternehmensbewertung.vue'
 import Suchprofil from './Suchprofil.vue'
 import LongList from './LongList.vue'
 import Erfolgsmeldung from './Erfolgsmeldung.vue'
+import LessonsLearned from './LessonsLearned.vue'
 import VertragEditor from './VertragEditor.vue'
 import Zwischenstand from './Zwischenstand.vue'
 import Verlauf from './Verlauf.vue'
@@ -215,6 +221,7 @@ const tabs = computed(() => {
       { tab: 'dokumente', label: 'Dokumente', icon: Folder },
       { tab: 'zwischenstand', label: 'Zwischenstand', icon: FileEdit },
       { tab: 'erfolg', label: 'Erfolgsmeldung', icon: Trophy },
+      { tab: 'lessons', label: 'Lessons Learned', icon: BookOpen },
       { tab: 'verlauf', label: 'Verlauf', icon: MessageSquare },
       { tab: 'zeit', label: 'Zeiterfassung', icon: Clock },
     ]
@@ -231,6 +238,7 @@ const tabs = computed(() => {
     { tab: 'dokumente', label: 'Dokumente', icon: Folder },
     { tab: 'zwischenstand', label: 'Zwischenstand', icon: FileEdit },
     { tab: 'erfolg', label: 'Erfolgsmeldung', icon: Trophy },
+    { tab: 'lessons', label: 'Lessons Learned', icon: BookOpen },
     { tab: 'verlauf', label: 'Verlauf', icon: MessageSquare },
     { tab: 'zeit', label: 'Zeiterfassung', icon: Clock },
   ]

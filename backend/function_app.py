@@ -2441,3 +2441,164 @@ def presse_kontakte(req: func.HttpRequest) -> func.HttpResponse:
     except Exception:
         pass
     return ok_(items)
+
+
+# =========================================================================
+# CONTROLLING / JAHRES-AUSWERTUNG
+# =========================================================================
+
+@app.route(route="controlling-stats", methods=["GET", "OPTIONS"])
+def controlling_stats(req: func.HttpRequest) -> func.HttpResponse:
+    """Aggregierte KPIs aus allen Targets / Mandanten fuer das Controlling-Dashboard."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    year = req.params.get("year", "")
+    try:
+        year_int = int(year) if year else None
+    except Exception:
+        year_int = None
+
+    targets = []
+    try:
+        targets = [dict(t) for t in table_("targets").list_entities()]
+    except Exception:
+        targets = []
+
+    def get_created(t):
+        try: return datetime.fromisoformat((t.get("createdAt") or "").replace("Z",""))
+        except: return None
+    def get_closed(t):
+        try:
+            v = json.loads(t.get("vertragJson", "{}") or "{}")
+            if v.get("gegengezeichnetAm"):
+                return datetime.fromisoformat(v["gegengezeichnetAm"].replace("Z",""))
+        except: pass
+        # fallback: status=verkauft
+        if t.get("status") == "verkauft":
+            return get_created(t)
+        return None
+    def get_current_phase(t):
+        try:
+            phasen = json.loads(t.get("phasenJson", "[]") or "[]")
+            for i, ph in enumerate(phasen):
+                aufgaben = ph.get("aufgaben") or []
+                if not aufgaben or not all(a.get("done") for a in aufgaben):
+                    return i + 1
+            return len(phasen) or 0
+        except: return 0
+    def has_press(t):
+        try:
+            p_ = json.loads(t.get("presseJson", "{}") or "{}")
+            return bool(p_.get("versendetAm"))
+        except: return False
+
+    # Year-Filter
+    in_year = lambda t: True if not year_int else ((get_created(t) and get_created(t).year == year_int) or (get_closed(t) and get_closed(t).year == year_int))
+    filtered = [t for t in targets if in_year(t)]
+
+    closed = [t for t in filtered if get_closed(t)]
+    open_ = [t for t in filtered if not get_closed(t)]
+
+    # Deal-Dauer in Tagen (nur abgeschlossene)
+    durations = []
+    for t in closed:
+        c = get_created(t); d = get_closed(t)
+        if c and d and d > c:
+            durations.append((d - c).days)
+    avg_duration = round(sum(durations) / len(durations)) if durations else 0
+
+    # Pipeline-Funnel: aktuelle Phase pro offenes Mandat
+    phase_buckets = {"1-3": 0, "4-6": 0, "7-9": 0, "10-12": 0, "13-15": 0}
+    for t in open_:
+        ph = get_current_phase(t)
+        if 1 <= ph <= 3: phase_buckets["1-3"] += 1
+        elif 4 <= ph <= 6: phase_buckets["4-6"] += 1
+        elif 7 <= ph <= 9: phase_buckets["7-9"] += 1
+        elif 10 <= ph <= 12: phase_buckets["10-12"] += 1
+        elif ph >= 13: phase_buckets["13-15"] += 1
+
+    # Dauer pro Variante / Projekttyp
+    by_typ = {}
+    for t in closed:
+        c = get_created(t); d = get_closed(t)
+        if c and d:
+            typ = t.get("projekttyp", "Andere")
+            by_typ.setdefault(typ, []).append((d - c).days)
+    dauer_pro_typ = {typ: round(sum(v)/len(v)) for typ, v in by_typ.items() if v}
+
+    # Verkaufs- vs Kauf-Mandate
+    is_kauf = lambda t: any(k in (t.get("projekttyp","") or "") for k in ("Kauf", "Investor"))
+    kauf_anzahl = sum(1 for t in filtered if is_kauf(t))
+    verkauf_anzahl = len(filtered) - kauf_anzahl
+
+    # PR-Anteil bei abgeschlossenen Deals
+    pr_count = sum(1 for t in closed if has_press(t))
+    pr_quote = round(100 * pr_count / len(closed)) if closed else 0
+
+    # Erfolgsquote
+    success_rate = round(100 * len(closed) / len(filtered)) if filtered else 0
+
+    # Monthly-Series fuer Chart
+    by_month = {}
+    for t in filtered:
+        d = get_closed(t) or get_created(t)
+        if not d: continue
+        key = d.strftime("%Y-%m")
+        by_month.setdefault(key, {"created": 0, "closed": 0})
+        if get_created(t): by_month[key]["created"] += 1 if get_created(t).strftime("%Y-%m") == key else 0
+        if get_closed(t) and get_closed(t).strftime("%Y-%m") == key:
+            by_month[key]["closed"] += 1
+    monthly = [{"month": k, **v} for k, v in sorted(by_month.items())]
+
+    return ok_({
+        "year": year_int,
+        "total": len(filtered),
+        "open": len(open_),
+        "closed": len(closed),
+        "successRate": success_rate,
+        "avgDurationDays": avg_duration,
+        "pipelineFunnel": phase_buckets,
+        "dauerProTyp": dauer_pro_typ,
+        "kaufAnzahl": kauf_anzahl,
+        "verkaufAnzahl": verkauf_anzahl,
+        "prCount": pr_count,
+        "prQuote": pr_quote,
+        "monthly": monthly,
+        "yearsAvailable": sorted({
+            (get_created(t) or get_closed(t)).year for t in targets
+            if (get_created(t) or get_closed(t))
+        }, reverse=True),
+    })
+
+
+@app.route(route="lessons-learned", methods=["GET", "OPTIONS"])
+def lessons_learned_aggregat(req: func.HttpRequest) -> func.HttpResponse:
+    """Aggregiert Lessons Learned aller Targets fuer Wissensdatenbank."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    items = []
+    try:
+        for t in table_("targets").list_entities():
+            ll = t.get("lessonsLearnedJson", "")
+            if not ll: continue
+            try:
+                d = json.loads(ll)
+                if any([d.get("pro"), d.get("contra"), d.get("anders"), d.get("keyLearning")]):
+                    items.append({
+                        "targetId": t.get("RowKey"),
+                        "mbNr": t.get("mbNr", ""),
+                        "verkaueferName": t.get("verkaueferName", ""),
+                        "projekttyp": t.get("projekttyp", ""),
+                        **d,
+                    })
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return ok_({"items": items})
