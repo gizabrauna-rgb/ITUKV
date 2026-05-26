@@ -1,16 +1,23 @@
 <template>
   <div class="flex gap-6 h-full">
     <!-- Linke Spalte: Target auswählen -->
-    <div class="w-56 flex-shrink-0">
-      <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Target wählen</h3>
-      <div class="space-y-1">
+    <div class="w-64 flex-shrink-0 flex flex-col" style="max-height: calc(100vh - 140px)">
+      <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Target wählen</h3>
+      <div class="relative mb-2">
+        <input v-model="search" placeholder="Suche mb-Nr, Name, Firma…"
+          class="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+        <Search class="w-4 h-4 text-gray-400 absolute left-2.5 top-2.5" />
+      </div>
+      <div class="text-xs text-gray-400 mb-2">{{ filteredTargets.length }} / {{ targets.length }}</div>
+      <div class="space-y-1 overflow-y-auto pr-1 flex-1">
         <button
-          v-for="t in targets" :key="t.RowKey"
+          v-for="t in filteredTargets" :key="t.RowKey"
           @click="selectTarget(t)"
           :class="['w-full text-left px-3 py-2 rounded-xl text-sm transition-colors', selectedTarget?.RowKey === t.RowKey ? 'bg-[#097e92] text-white' : 'hover:bg-gray-100 text-gray-700']"
         >
           <div class="font-mono text-xs opacity-70">{{ t.mbNr }}</div>
           <div class="truncate">{{ t.verkaueferName }}</div>
+          <div v-if="t.firma" class="truncate text-xs opacity-60">{{ t.firma }}</div>
         </button>
       </div>
     </div>
@@ -88,11 +95,22 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { FolderOpen, Folder, ChevronLeft, Upload, FileText, Download, Trash2 } from '@lucide/vue'
+import { FolderOpen, Folder, ChevronLeft, Upload, FileText, Download, Trash2, Search } from '@lucide/vue'
 import { getTargets, getDokumente, uploadDokument } from '../../api.js'
 import { authFetch } from '../../api.js'
 
 const targets = ref([])
+const search = ref('')
+const filteredTargets = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  if (!q) return targets.value
+  return targets.value.filter(t =>
+    (t.mbNr || '').toLowerCase().includes(q) ||
+    (t.verkaueferName || '').toLowerCase().includes(q) ||
+    (t.firma || '').toLowerCase().includes(q) ||
+    (t.region || '').toLowerCase().includes(q)
+  )
+})
 const selectedTarget = ref(null)
 const selectedOrdner = ref(null)
 const dokumente = ref([])

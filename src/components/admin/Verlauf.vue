@@ -3,7 +3,6 @@
     <div class="flex items-center justify-between mb-4">
       <div>
         <h3 class="text-lg font-bold text-gray-900">Kommunikations-Verlauf</h3>
-        <p class="text-xs text-gray-500">Alle Interaktionen mit diesem Mandanten – zentral statt verteilt auf Element/Teams/Asana</p>
       </div>
       <div class="flex items-center gap-2">
         <button @click="openMail" class="flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf]">
