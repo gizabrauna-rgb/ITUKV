@@ -206,7 +206,7 @@ def targets_route(req: func.HttpRequest) -> func.HttpResponse:
     # Minimale Phasen-Vorlage (15 Master-Phasen, ohne Aufgabenliste – die
     # detaillierte Liste setzt PhasenProzess.vue beim ersten Oeffnen)
     projekttyp = body.get("projekttyp", "Projekt Target")
-    if "Kauf" in projekttyp:
+    if "Kauf" in projekttyp or "Investor" in projekttyp:
         phasen_titel = [
             "Suchprofil definieren",
             "Markt-Screening (mibeca)",

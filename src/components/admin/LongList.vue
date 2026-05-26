@@ -33,7 +33,9 @@
     </div>
 
     <div v-else class="space-y-2">
-      <div v-for="k in visibleItems" :key="k.id || k.RowKey" class="bg-white rounded-xl border border-gray-100 p-4 flex items-start gap-3">
+      <div v-for="k in visibleItems" :key="k.id || k.RowKey"
+        :class="['rounded-xl border p-4 flex items-start gap-3',
+                 k.istInternesTarget ? 'bg-orange-50 border-orange-200' : 'bg-white border-gray-100']">
         <!-- Score-Kreis -->
         <div :class="['w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0',
                        k.score >= 70 ? 'bg-green-100 text-green-700' : k.score >= 40 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500']">
@@ -42,7 +44,9 @@
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="font-medium text-gray-900">{{ k.firma }}</span>
-            <span v-if="k.istKunde" class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">Kunde</span>
+            <span v-if="k.istInternesTarget" class="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded-full font-bold uppercase tracking-wide">🎯 In-House Match</span>
+            <span v-if="k.istInternesTarget && k.mbNr" class="text-[10px] font-mono bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">{{ k.mbNr }}</span>
+            <span v-if="k.istKunde && !k.istInternesTarget" class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">Kunde</span>
             <span v-if="k.istExKunde" class="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded-full font-semibold">Ex-Kunde</span>
           </div>
           <div class="text-xs text-gray-500 mt-0.5">
@@ -69,7 +73,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Users, RefreshCw, Check, X } from '@lucide/vue'
-import { authFetch, getKontakte } from '../../api.js'
+import { authFetch, getKontakte, getTargets } from '../../api.js'
 
 const props = defineProps({ targetId: String })
 
@@ -134,19 +138,46 @@ async function refreshList() {
   try {
     const t = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
     const suchprofil = t.suchprofilJson ? JSON.parse(t.suchprofilJson) : {}
+
+    // 1. CRM-Kontakte matchen
     const kontakte = await getKontakte()
-    const ranked = (kontakte || [])
-      .map(k => {
-        const { score, reasons, dislikes } = scoreFor(k, suchprofil)
+    const crmMatches = (kontakte || []).map(k => {
+      const { score, reasons, dislikes } = scoreFor(k, suchprofil)
+      return { ...k, id: k.RowKey || k.id, score, matchGruende: reasons, ablehnGruende: dislikes, _quelle: 'crm' }
+    })
+
+    // 2. Eigene Verkaufs-Mandate (interne Targets) matchen – starke Prioritaet!
+    const targets = await getTargets()
+    const internalMatches = (targets || [])
+      .filter(tt => tt.RowKey !== props.targetId && !/kauf|investor/i.test(tt.projekttyp || ''))
+      .map(tt => {
+        // Target-Felder auf Kontakt-Schema abbilden
+        const asKontakt = {
+          firma: tt.verkaueferName || tt.firma || tt.mbNr,
+          plz: tt.plz, ort: tt.region || tt.ort,
+          mitarbeiter: tt.mitarbeiter, umsatz: tt.umsatz,
+          bietet: tt.branche, istKunde: true,  // intern bekanntes Target
+        }
+        const { score, reasons, dislikes } = scoreFor(asKontakt, suchprofil)
         return {
-          ...k, id: k.RowKey || k.id, score,
-          matchGruende: reasons, ablehnGruende: dislikes,
+          id: 'target-' + tt.RowKey,
+          firma: asKontakt.firma,
+          plz: asKontakt.plz, ort: asKontakt.ort,
+          mitarbeiter: asKontakt.mitarbeiter, umsatz: asKontakt.umsatz,
+          score: score + 15,  // Bonus fuer interne Targets ("wir kennen sie schon")
+          matchGruende: ['🎯 INTERNER TARGET (' + tt.mbNr + ')', ...reasons],
+          ablehnGruende: dislikes,
+          istInternesTarget: true,
+          mbNr: tt.mbNr,
+          targetRowKey: tt.RowKey,
+          _quelle: 'target',
         }
       })
+
+    const all = [...internalMatches, ...crmMatches]
       .filter(k => k.score >= 30)
       .sort((a, b) => b.score - a.score)
-    items.value = ranked
-    // Decisions aus target laden
+    items.value = all
     try { decisions.value = JSON.parse(t.longListDecisionsJson || '{}') } catch { decisions.value = {} }
   } catch (e) { console.error(e) }
   finally { loading.value = false }

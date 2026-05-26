@@ -195,7 +195,7 @@ const target = ref(null)
 const tab = ref('uebersicht')
 const vertragSubTab = ref('mandat')
 
-const isKaufMandat = computed(() => (target.value?.projekttyp || '').toLowerCase().includes('kauf'))
+const isKaufMandat = computed(() => /kauf|investor/i.test(target.value?.projekttyp || ''))
 
 const tabs = computed(() => {
   if (isKaufMandat.value) {

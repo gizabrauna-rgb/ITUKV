@@ -106,11 +106,11 @@
                 <option>UVE Target</option>
                 <option>Projekt Target</option>
                 <option>MC Target</option>
-                <option>Projekt Investoren</option>
-                <option>MC Investoren</option>
               </optgroup>
               <optgroup label="Kauf-Mandate (Käufer sucht Targets)">
                 <option>Kauf-Mandat</option>
+                <option>Projekt Investoren</option>
+                <option>MC Investoren</option>
               </optgroup>
             </select>
           </div>
@@ -171,8 +171,8 @@ const filtered = computed(() => {
   let r = targets.value
   if (filterStatus.value) r = r.filter(t => t.status === filterStatus.value)
   if (filterTyp.value) r = r.filter(t => t.projekttyp === filterTyp.value)
-  if (filterRichtung.value === 'kauf') r = r.filter(t => (t.projekttyp || '').toLowerCase().includes('kauf'))
-  if (filterRichtung.value === 'verkauf') r = r.filter(t => !(t.projekttyp || '').toLowerCase().includes('kauf'))
+  if (filterRichtung.value === 'kauf') r = r.filter(t => /kauf|investor/i.test(t.projekttyp || ''))
+  if (filterRichtung.value === 'verkauf') r = r.filter(t => !/kauf|investor/i.test(t.projekttyp || ''))
   if (search.value) {
     const q = search.value.toLowerCase()
     r = r.filter(t =>
