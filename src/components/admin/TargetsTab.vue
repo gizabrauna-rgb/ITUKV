@@ -72,9 +72,17 @@
             <td class="px-4 py-3 text-sm text-gray-600">{{ t.projekttyp }}</td>
             <td class="px-4 py-3" @click.stop>
               <select v-model="t.status" @change="updateStatus(t)" :class="['text-xs border rounded-lg px-2 py-1 focus:outline-none', statusSelectClass(t.status)]">
-                <option value="verfuegbar">Verfügbar</option>
-                <option value="in_verhandlung">In Verhandlung</option>
-                <option value="verkauft">Verkauft</option>
+                <template v-if="istKaufMandat(t)">
+                  <option value="verfuegbar">Aktive Suche</option>
+                  <option value="in_verhandlung">In Verhandlung</option>
+                  <option value="verkauft">Erfolgreich abgeschlossen</option>
+                  <option value="abgebrochen">Mandat beendet</option>
+                </template>
+                <template v-else>
+                  <option value="verfuegbar">Verfügbar</option>
+                  <option value="in_verhandlung">In Verhandlung</option>
+                  <option value="verkauft">Verkauft</option>
+                </template>
               </select>
             </td>
             <td class="px-4 py-3" @click.stop>
@@ -289,6 +297,10 @@ function wvInputClass(dateStr) {
   if (d === 0) return 'border-yellow-300 bg-yellow-50 text-yellow-700 font-medium'
   if (d <= 7) return 'border-blue-200 bg-blue-50 text-blue-700'
   return 'border-gray-200 text-gray-600'
+}
+
+function istKaufMandat(t) {
+  return /kauf|investor/i.test(t.projekttyp || '')
 }
 
 function statusSelectClass(s) {
