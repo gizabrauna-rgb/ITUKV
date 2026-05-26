@@ -2,7 +2,7 @@
   <div>
     <div class="flex items-center justify-between mb-6">
       <h2 class="text-xl font-bold text-gray-900">Ausschreibungen</h2>
-      <button @click="showModal = true" class="flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf]">
+      <button @click="showModal = true" class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8]">
         <Plus class="w-4 h-4" /> Neue Ausschreibung
       </button>
     </div>
@@ -89,7 +89,7 @@
         </div>
         <div class="flex gap-3 mt-5">
           <button @click="showModal = false" class="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50">Abbrechen</button>
-          <button @click="create" :disabled="saving" class="flex-1 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium disabled:opacity-50">
+          <button @click="create" :disabled="saving" class="flex-1 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium disabled:opacity-50">
             {{ saving ? 'Erstelle…' : 'Ausschreibung erstellen' }}
           </button>
         </div>
@@ -158,6 +158,6 @@ function ndaLabel(s) {
 
 <style scoped>
 @reference "tailwindcss";
-.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]; }
+.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
 .field-label { @apply block text-xs font-medium text-gray-600 mb-1; }
 </style>

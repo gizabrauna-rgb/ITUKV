@@ -5,7 +5,7 @@
       <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Target wählen</h3>
       <div class="relative mb-2">
         <input v-model="search" placeholder="Suche mb-Nr, Name, Firma…"
-          class="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+          class="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30" />
         <Search class="w-4 h-4 text-gray-400 absolute left-2.5 top-2.5" />
       </div>
       <div class="text-xs text-gray-400 mb-2">{{ filteredTargets.length }} / {{ targets.length }}</div>
@@ -13,7 +13,7 @@
         <button
           v-for="t in filteredTargets" :key="t.RowKey"
           @click="selectTarget(t)"
-          :class="['w-full text-left px-3 py-2 rounded-xl text-sm transition-colors', selectedTarget?.RowKey === t.RowKey ? 'bg-[#097e92] text-white' : 'hover:bg-gray-100 text-gray-700']"
+          :class="['w-full text-left px-3 py-2 rounded-xl text-sm transition-colors', selectedTarget?.RowKey === t.RowKey ? 'bg-[#0088ba] text-white' : 'hover:bg-gray-100 text-gray-700']"
         >
           <div class="font-mono text-xs opacity-70">{{ t.mbNr }}</div>
           <div class="truncate">{{ t.verkaueferName }}</div>
@@ -32,7 +32,7 @@
       <div v-else>
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-bold text-gray-900">{{ selectedTarget.mbNr }} – Dokumente</h2>
-          <span v-if="selectedOrdner" class="text-sm text-[#097e92] font-medium">{{ selectedOrdner }}</span>
+          <span v-if="selectedOrdner" class="text-sm text-[#0088ba] font-medium">{{ selectedOrdner }}</span>
         </div>
 
         <!-- Ordner-Grid -->
@@ -40,9 +40,9 @@
           <button
             v-for="ordner in ordnerListe" :key="ordner"
             @click="openOrdner(ordner)"
-            class="bg-white rounded-xl border border-gray-100 p-4 text-left hover:border-[#097e92]/40 hover:shadow-sm transition-all"
+            class="bg-white rounded-xl border border-gray-100 p-4 text-left hover:border-[#0088ba]/40 hover:shadow-sm transition-all"
           >
-            <Folder class="w-8 h-8 text-[#097e92] mb-2" />
+            <Folder class="w-8 h-8 text-[#0088ba] mb-2" />
             <div class="text-xs font-medium text-gray-700 leading-tight">{{ ordner }}</div>
             <div class="text-xs text-gray-400 mt-0.5">{{ countInOrdner(ordner) }} Dateien</div>
           </button>
@@ -58,7 +58,7 @@
             <!-- Upload-Zeile -->
             <div class="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
               <span class="text-sm font-medium text-gray-700">{{ selectedOrdner }}</span>
-              <label class="flex items-center gap-2 px-3 py-1.5 bg-[#097e92] text-white rounded-lg text-xs cursor-pointer hover:bg-[#0a9aaf]">
+              <label class="flex items-center gap-2 px-3 py-1.5 bg-[#0088ba] text-white rounded-lg text-xs cursor-pointer hover:bg-[#00a0d8]">
                 <Upload class="w-3.5 h-3.5" />
                 Datei hochladen
                 <input type="file" class="hidden" @change="uploadFile" :disabled="uploading" />
@@ -78,7 +78,7 @@
                 </div>
               </div>
               <div class="flex items-center gap-2">
-                <button @click="downloadFile(dok)" class="flex items-center gap-1 text-xs text-[#097e92] hover:text-[#0a9aaf]">
+                <button @click="downloadFile(dok)" class="flex items-center gap-1 text-xs text-[#0088ba] hover:text-[#00a0d8]">
                   <Download class="w-3.5 h-3.5" /> Herunterladen
                 </button>
                 <button @click="deleteFile(dok)" class="text-xs text-red-400 hover:text-red-600">

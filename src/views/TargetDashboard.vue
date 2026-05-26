@@ -26,7 +26,7 @@
     <div class="max-w-7xl mx-auto px-6 py-8">
       <!-- Projekttyp-Label -->
       <div v-if="projekttyp" class="mb-3">
-        <span class="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#097e92]/10 text-[#097e92] px-2.5 py-1 rounded-full">
+        <span class="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#0088ba]/10 text-[#0088ba] px-2.5 py-1 rounded-full">
           <Briefcase class="w-3 h-3" />
           {{ projekttyp }}
         </span>
@@ -35,7 +35,7 @@
       <!-- Tab Nav -->
       <div class="flex gap-1 mb-6 bg-white rounded-xl border border-gray-100 p-1 w-fit">
         <button v-for="item in visibleNavItems" :key="item.tab" @click="tab = item.tab"
-          :class="['flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors', tab === item.tab ? 'bg-[#097e92] text-white' : 'text-gray-600 hover:bg-gray-50']">
+          :class="['flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors', tab === item.tab ? 'bg-[#0088ba] text-white' : 'text-gray-600 hover:bg-gray-50']">
           <component :is="item.icon" class="w-4 h-4" />
           {{ item.label }}
         </button>
@@ -56,7 +56,7 @@
               <p class="font-semibold text-green-900 text-sm">Mandatsvertrag vollständig unterschrieben</p>
               <p class="text-xs text-green-700">Gegengezeichnet am {{ formatDate(vertragInfo.gegengezeichnetAm) }} durch {{ vertragInfo.gegengezeichnetVon }}.</p>
             </div>
-            <a v-if="vertragInfo.signToken" :href="`${apiBaseUrl}/sign-pdf?token=${vertragInfo.signToken}`" target="_blank" rel="noopener" class="px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf] flex items-center gap-2">
+            <a v-if="vertragInfo.signToken" :href="`${apiBaseUrl}/sign-pdf?token=${vertragInfo.signToken}`" target="_blank" rel="noopener" class="px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8] flex items-center gap-2">
               <Download class="w-4 h-4" /> Mein Exemplar herunterladen
             </a>
           </div>
@@ -70,7 +70,7 @@
         </div>
 
         <!-- Master-Prozess: Aktuelle Phase -->
-        <div v-if="phasen.length" class="bg-gradient-to-br from-[#097e92] to-[#0a9aaf] rounded-xl p-5 mb-4 text-white">
+        <div v-if="phasen.length" class="bg-gradient-to-br from-[#0088ba] to-[#00a0d8] rounded-xl p-5 mb-4 text-white">
           <div class="text-xs uppercase tracking-wide opacity-80 mb-1">Aktuelle Phase</div>
           <div class="text-xl font-bold mb-3">Phase {{ currentPhase }} von {{ phasen.length }}: {{ currentPhaseTitle }}</div>
           <div class="w-full bg-white/20 rounded-full h-2 mb-1">
@@ -87,7 +87,7 @@
           <h3 class="text-sm font-semibold text-gray-700 mb-3">Alle Phasen</h3>
           <ul class="space-y-2">
             <li v-for="(p, idx) in phasen" :key="p.id" class="flex items-center gap-3 text-sm">
-              <div :class="['w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0', phasenStatus(p) === 'done' ? 'bg-green-100 text-green-700' : phasenStatus(p) === 'current' ? 'bg-[#097e92] text-white' : 'bg-gray-100 text-gray-400']">
+              <div :class="['w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0', phasenStatus(p) === 'done' ? 'bg-green-100 text-green-700' : phasenStatus(p) === 'current' ? 'bg-[#0088ba] text-white' : 'bg-gray-100 text-gray-400']">
                 <Check v-if="phasenStatus(p) === 'done'" class="w-3.5 h-3.5" />
                 <span v-else>{{ idx + 1 }}</span>
               </div>
@@ -101,10 +101,10 @@
         <div class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
           <div class="flex items-center justify-between mb-2">
             <span class="text-sm font-medium text-gray-700">Gesamtfortschritt</span>
-            <span class="text-sm font-bold text-[#097e92]">{{ doneCount }} / {{ checkliste.length }} erledigt</span>
+            <span class="text-sm font-bold text-[#0088ba]">{{ doneCount }} / {{ checkliste.length }} erledigt</span>
           </div>
           <div class="w-full bg-gray-100 rounded-full h-2">
-            <div class="bg-[#097e92] h-2 rounded-full transition-all" :style="`width: ${progress}%`"></div>
+            <div class="bg-[#0088ba] h-2 rounded-full transition-all" :style="`width: ${progress}%`"></div>
           </div>
           <div class="text-xs text-gray-400 mt-1">{{ progress }}% abgeschlossen</div>
         </div>
@@ -119,7 +119,7 @@
             <li v-for="item in checkliste" :key="item.id"
               class="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 cursor-pointer"
               @click="toggleItem(item)">
-              <div :class="['w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors', item.done ? 'bg-[#097e92] border-[#097e92]' : 'border-gray-300 hover:border-[#097e92]']">
+              <div :class="['w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors', item.done ? 'bg-[#0088ba] border-[#0088ba]' : 'border-gray-300 hover:border-[#0088ba]']">
                 <Check v-if="item.done" class="w-3 h-3 text-white" />
               </div>
               <span :class="['text-sm', item.done ? 'line-through text-gray-400' : 'text-gray-700']">{{ item.label }}</span>
@@ -153,7 +153,7 @@
       <!-- Tab: Verträge (read-only Status für Käufer) -->
       <div v-else-if="tab === 'vertraege'">
         <h2 class="text-xl font-bold text-gray-900 mb-5 flex items-center gap-2">
-          <FileText class="w-6 h-6 text-[#097e92]" /> Meine Verträge
+          <FileText class="w-6 h-6 text-[#0088ba]" /> Meine Verträge
         </h2>
         <div v-if="vertragInfo" class="space-y-3">
           <!-- Mandatsvertrag-Karte -->
@@ -168,7 +168,7 @@
               <span v-else-if="vertragInfo.gesendetAm" class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">📩 Zur Signatur gesendet</span>
               <span v-else class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Entwurf</span>
             </div>
-            <a v-if="vertragInfo.signToken" :href="`${apiBaseUrl}/sign-pdf?token=${vertragInfo.signToken}`" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf]">
+            <a v-if="vertragInfo.signToken" :href="`${apiBaseUrl}/sign-pdf?token=${vertragInfo.signToken}`" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8]">
               <Download class="w-4 h-4" /> Vertrag herunterladen
             </a>
           </div>
@@ -253,7 +253,7 @@
       <div v-else-if="tab === 'links'">
         <div class="flex items-center justify-between mb-5">
           <h2 class="text-xl font-bold text-gray-900">Wichtige Links</h2>
-          <button @click="showLinkModal = true" class="flex items-center gap-2 px-3 py-2 bg-[#097e92] text-white rounded-xl text-sm hover:bg-[#0a9aaf]">
+          <button @click="showLinkModal = true" class="flex items-center gap-2 px-3 py-2 bg-[#0088ba] text-white rounded-xl text-sm hover:bg-[#00a0d8]">
             <Plus class="w-4 h-4" /> Link hinzufügen
           </button>
         </div>
@@ -263,12 +263,12 @@
         </div>
         <div v-else class="space-y-3">
           <div v-for="l in links" :key="l.RowKey || l.id" class="bg-white rounded-xl border border-gray-100 p-4 flex items-start gap-3">
-            <div class="w-10 h-10 bg-[#097e92]/10 rounded-lg flex items-center justify-center flex-shrink-0">
-              <LinkIcon class="w-5 h-5 text-[#097e92]" />
+            <div class="w-10 h-10 bg-[#0088ba]/10 rounded-lg flex items-center justify-center flex-shrink-0">
+              <LinkIcon class="w-5 h-5 text-[#0088ba]" />
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
-                <a :href="l.url" target="_blank" rel="noopener" class="font-medium text-gray-900 hover:text-[#097e92] truncate">{{ l.titel }}</a>
+                <a :href="l.url" target="_blank" rel="noopener" class="font-medium text-gray-900 hover:text-[#0088ba] truncate">{{ l.titel }}</a>
                 <span v-if="l.kategorie" class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{{ l.kategorie }}</span>
                 <span v-if="l.system" class="text-[10px] uppercase tracking-wide bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-semibold">System</span>
               </div>
@@ -290,11 +290,11 @@
           <div class="space-y-3">
             <div>
               <label class="block text-xs font-medium text-gray-600 mb-1">Titel *</label>
-              <input v-model="linkForm.titel" placeholder="z.B. Datenraum" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+              <input v-model="linkForm.titel" placeholder="z.B. Datenraum" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30" />
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-600 mb-1">URL *</label>
-              <input v-model="linkForm.url" placeholder="https://…" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+              <input v-model="linkForm.url" placeholder="https://…" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30" />
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-600 mb-1">Kategorie</label>
@@ -304,12 +304,12 @@
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-600 mb-1">Beschreibung</label>
-              <textarea v-model="linkForm.beschreibung" rows="2" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 resize-none"></textarea>
+              <textarea v-model="linkForm.beschreibung" rows="2" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 resize-none"></textarea>
             </div>
           </div>
           <div class="flex gap-3 mt-5">
             <button @click="showLinkModal = false" class="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-xl">Abbrechen</button>
-            <button @click="createLink" class="flex-1 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium">Speichern</button>
+            <button @click="createLink" class="flex-1 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium">Speichern</button>
           </div>
         </div>
       </div>

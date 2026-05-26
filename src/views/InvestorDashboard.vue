@@ -21,7 +21,7 @@
       <!-- Tab Nav -->
       <div class="flex gap-1 mb-6 bg-white rounded-xl border border-gray-100 p-1 w-fit">
         <button v-for="item in navItems" :key="item.tab" @click="tab = item.tab"
-          :class="['flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors', tab === item.tab ? 'bg-[#097e92] text-white' : 'text-gray-600 hover:bg-gray-50']">
+          :class="['flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors', tab === item.tab ? 'bg-[#0088ba] text-white' : 'text-gray-600 hover:bg-gray-50']">
           <component :is="item.icon" class="w-4 h-4" />
           {{ item.label }}
         </button>
@@ -37,11 +37,11 @@
           Aktuell keine aktiven Ausschreibungen.
         </div>
         <div v-else class="space-y-4">
-          <div v-for="a in ausschreibungen" :key="a.RowKey" class="bg-white rounded-xl border border-gray-100 p-5 hover:border-[#097e92]/30 transition-all">
+          <div v-for="a in ausschreibungen" :key="a.RowKey" class="bg-white rounded-xl border border-gray-100 p-5 hover:border-[#0088ba]/30 transition-all">
             <div class="flex items-start justify-between gap-4">
               <div class="flex-1">
                 <div class="flex items-center gap-2 mb-1">
-                  <span class="font-mono text-xs bg-[#097e92]/10 text-[#097e92] px-2 py-0.5 rounded font-semibold">{{ a.mbNr }}</span>
+                  <span class="font-mono text-xs bg-[#0088ba]/10 text-[#0088ba] px-2 py-0.5 rounded font-semibold">{{ a.mbNr }}</span>
                   <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">verfügbar</span>
                 </div>
                 <h3 class="font-semibold text-gray-900">{{ a.titel }}</h3>
@@ -51,7 +51,7 @@
               <div class="flex-shrink-0">
                 <!-- Status-abhängiger Button -->
                 <button v-if="!getNdaStatus(a.RowKey)" @click="openNdaModal(a)"
-                  class="flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf] transition-colors">
+                  class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8] transition-colors">
                   <FileText class="w-4 h-4" /> Exposé anfordern
                 </button>
                 <div v-else-if="getNdaStatus(a.RowKey) === 'gesendet'" class="flex items-center gap-2 px-4 py-2 bg-yellow-50 text-yellow-700 rounded-xl text-sm border border-yellow-200">
@@ -78,7 +78,7 @@
           <div v-for="i in meineInteressenten" :key="i.RowKey" class="bg-white rounded-xl border border-gray-100 p-5">
             <div class="flex items-center justify-between mb-3">
               <div>
-                <span class="font-mono text-xs bg-[#097e92]/10 text-[#097e92] px-2 py-0.5 rounded font-semibold mr-2">{{ i.mbNr || '—' }}</span>
+                <span class="font-mono text-xs bg-[#0088ba]/10 text-[#0088ba] px-2 py-0.5 rounded font-semibold mr-2">{{ i.mbNr || '—' }}</span>
                 <span class="font-medium text-gray-800">Verkaufsprozess</span>
               </div>
               <span :class="ndaClass(i.ndaStatus)" class="text-xs px-2 py-0.5 rounded-full font-medium">{{ ndaLabel(i.ndaStatus) }}</span>
@@ -86,17 +86,17 @@
             <!-- Status-Timeline -->
             <div class="flex items-center gap-0 mb-3 overflow-x-auto">
               <div v-for="(step, idx) in pipeline" :key="step.status" class="flex items-center">
-                <div :class="['flex flex-col items-center px-2', isActiveOrPast(i.pipelineStatus, step.status) ? 'text-[#097e92]' : 'text-gray-300']">
-                  <div :class="['w-3 h-3 rounded-full', isActive(i.pipelineStatus, step.status) ? 'bg-[#097e92] ring-2 ring-[#097e92]/30' : isActiveOrPast(i.pipelineStatus, step.status) ? 'bg-[#097e92]' : 'bg-gray-200']"></div>
+                <div :class="['flex flex-col items-center px-2', isActiveOrPast(i.pipelineStatus, step.status) ? 'text-[#0088ba]' : 'text-gray-300']">
+                  <div :class="['w-3 h-3 rounded-full', isActive(i.pipelineStatus, step.status) ? 'bg-[#0088ba] ring-2 ring-[#0088ba]/30' : isActiveOrPast(i.pipelineStatus, step.status) ? 'bg-[#0088ba]' : 'bg-gray-200']"></div>
                   <span class="text-xs mt-1 whitespace-nowrap">{{ step.label }}</span>
                 </div>
-                <div v-if="idx < pipeline.length - 1" :class="['h-0.5 w-6 flex-shrink-0', isActiveOrPast(i.pipelineStatus, pipeline[idx+1].status) ? 'bg-[#097e92]' : 'bg-gray-200']"></div>
+                <div v-if="idx < pipeline.length - 1" :class="['h-0.5 w-6 flex-shrink-0', isActiveOrPast(i.pipelineStatus, pipeline[idx+1].status) ? 'bg-[#0088ba]' : 'bg-gray-200']"></div>
               </div>
             </div>
             <!-- Notizen -->
             <div>
               <label class="text-xs text-gray-400 mb-1 block">Meine Notizen</label>
-              <textarea v-model="i.notizen" @blur="saveNotizen(i)" rows="2" class="w-full border border-gray-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#097e92]/30 resize-none bg-gray-50"></textarea>
+              <textarea v-model="i.notizen" @blur="saveNotizen(i)" rows="2" class="w-full border border-gray-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#0088ba]/30 resize-none bg-gray-50"></textarea>
             </div>
           </div>
         </div>
@@ -110,7 +110,7 @@
             <li v-for="item in checkliste" :key="item.id"
               class="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 cursor-pointer"
               @click="item.done = !item.done">
-              <div :class="['w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors', item.done ? 'bg-[#097e92] border-[#097e92]' : 'border-gray-300 hover:border-[#097e92]']">
+              <div :class="['w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors', item.done ? 'bg-[#0088ba] border-[#0088ba]' : 'border-gray-300 hover:border-[#0088ba]']">
                 <Check v-if="item.done" class="w-3 h-3 text-white" />
               </div>
               <div class="flex-1">
@@ -150,7 +150,7 @@
           <div class="flex gap-3">
             <button @click="ndaModal = null" class="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-xl">Abbrechen</button>
             <button @click="sendNda" :disabled="!ndaAccepted || sendingNda"
-              class="flex-1 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium disabled:opacity-50">
+              class="flex-1 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium disabled:opacity-50">
               {{ sendingNda ? 'Sende…' : 'NDA senden & Exposé anfordern' }}
             </button>
           </div>
@@ -160,7 +160,7 @@
           <CheckCircle class="w-12 h-12 text-green-500 mx-auto mb-3" />
           <h4 class="font-semibold text-gray-900 mb-2">NDA erfolgreich gesendet</h4>
           <p class="text-sm text-gray-500">Sie erhalten in Kürze eine E-Mail mit dem NDA-Dokument zur Unterzeichnung. Nach Ihrer Unterschrift wird das Exposé für Sie freigeschaltet.</p>
-          <button @click="ndaModal = null; ndaSent = false" class="mt-4 px-5 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium">Verstanden</button>
+          <button @click="ndaModal = null; ndaSent = false" class="mt-4 px-5 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium">Verstanden</button>
         </div>
       </div>
     </div>
@@ -277,5 +277,5 @@ async function saveNotizen(i) {
 
 <style scoped>
 @reference "tailwindcss";
-.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]; }
+.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
 </style>

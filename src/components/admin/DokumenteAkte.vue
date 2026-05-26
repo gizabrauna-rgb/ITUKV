@@ -11,8 +11,8 @@
     <div class="grid grid-cols-3 gap-3 mb-5">
       <button v-for="o in ordnerListe" :key="o" @click="selectedFolder = o"
         :class="['rounded-xl border-2 p-4 transition-all flex items-center gap-3 text-left',
-                 selectedFolder === o ? 'border-[#097e92] bg-[#097e92]/5' : 'border-gray-100 hover:border-gray-200 bg-white']">
-        <Folder class="w-6 h-6 text-[#097e92] flex-shrink-0" />
+                 selectedFolder === o ? 'border-[#0088ba] bg-[#0088ba]/5' : 'border-gray-100 hover:border-gray-200 bg-white']">
+        <Folder class="w-6 h-6 text-[#0088ba] flex-shrink-0" />
         <div class="flex-1 min-w-0">
           <div class="text-sm font-medium text-gray-800">{{ o }}</div>
           <div class="text-xs text-gray-400">{{ countInOrdner(o) }} {{ countInOrdner(o) === 1 ? 'Datei' : 'Dateien' }}</div>
@@ -27,20 +27,20 @@
         @dragleave.prevent="dragOver = false"
         @drop.prevent="onDrop"
         :class="['rounded-xl p-8 mb-4 border-2 border-dashed text-center transition-colors',
-                 dragOver ? 'bg-[#097e92]/10 border-[#097e92]' : 'bg-gray-50 border-gray-300']">
-        <Upload class="w-10 h-10 mx-auto mb-2" :class="dragOver ? 'text-[#097e92]' : 'text-gray-400'" />
+                 dragOver ? 'bg-[#0088ba]/10 border-[#0088ba]' : 'bg-gray-50 border-gray-300']">
+        <Upload class="w-10 h-10 mx-auto mb-2" :class="dragOver ? 'text-[#0088ba]' : 'text-gray-400'" />
         <p class="text-sm text-gray-700 font-medium mb-1">Datei(en) hier ablegen für „{{ selectedFolder }}"</p>
-        <label class="inline-flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf] cursor-pointer mt-2">
+        <label class="inline-flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8] cursor-pointer mt-2">
           <Upload class="w-4 h-4" /> Datei wählen
           <input type="file" multiple class="hidden" @change="onSelect" />
         </label>
-        <p v-if="uploading" class="text-xs text-[#097e92] mt-3">Lade hoch ({{ uploadedCount }}/{{ totalCount }})…</p>
+        <p v-if="uploading" class="text-xs text-[#0088ba] mt-3">Lade hoch ({{ uploadedCount }}/{{ totalCount }})…</p>
       </div>
 
       <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
         <div v-if="!filesInFolder.length" class="p-6 text-center text-sm text-gray-400">Noch keine Dateien in „{{ selectedFolder }}".</div>
         <div v-for="f in filesInFolder" :key="f.RowKey" class="flex items-center gap-3 px-4 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 cursor-pointer" @click="previewFile(f)">
-          <component :is="fileIcon(f)" class="w-5 h-5 text-[#097e92] flex-shrink-0" />
+          <component :is="fileIcon(f)" class="w-5 h-5 text-[#0088ba] flex-shrink-0" />
           <div class="flex-1 min-w-0">
             <div class="text-sm font-medium text-gray-800 truncate">{{ f.fileName }}</div>
             <div class="text-xs text-gray-400">
@@ -53,8 +53,8 @@
           <select :value="f.ordner" @change.stop="moveFile(f, $event.target.value)" @click.stop class="text-xs border border-gray-200 rounded-lg px-2 py-1">
             <option v-for="o in ordnerListe" :key="o" :value="o">{{ o }}</option>
           </select>
-          <button @click.stop="previewFile(f)" class="text-gray-500 hover:text-[#097e92] p-1.5" title="Anzeigen"><Eye class="w-4 h-4" /></button>
-          <button @click.stop="downloadFile(f)" class="text-gray-500 hover:text-[#097e92] p-1.5" title="Download"><Download class="w-4 h-4" /></button>
+          <button @click.stop="previewFile(f)" class="text-gray-500 hover:text-[#0088ba] p-1.5" title="Anzeigen"><Eye class="w-4 h-4" /></button>
+          <button @click.stop="downloadFile(f)" class="text-gray-500 hover:text-[#0088ba] p-1.5" title="Download"><Download class="w-4 h-4" /></button>
           <button v-if="!readOnly" @click.stop="deleteFile(f)" class="text-gray-400 hover:text-red-500 p-1.5" title="Löschen"><Trash2 class="w-4 h-4" /></button>
         </div>
       </div>
@@ -97,7 +97,7 @@
           <div v-else class="h-full flex flex-col items-center justify-center text-gray-500 p-8">
             <FileText class="w-16 h-16 text-gray-300 mb-3" />
             <p class="text-sm mb-4">Keine Inline-Vorschau für diesen Dateityp möglich.</p>
-            <button @click="downloadFile(previewFile_)" class="px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium flex items-center gap-2">
+            <button @click="downloadFile(previewFile_)" class="px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium flex items-center gap-2">
               <Download class="w-4 h-4" /> Datei herunterladen
             </button>
           </div>

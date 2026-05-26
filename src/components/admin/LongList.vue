@@ -6,7 +6,7 @@
         <p class="text-sm text-gray-500 mt-1">Targets, die für diesen Käufer in Frage kommen. Score zeigt, wie gut sie zum Suchprofil passen.</p>
       </div>
       <button @click="refreshList" :disabled="loading"
-        class="flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf] disabled:opacity-50">
+        class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8] disabled:opacity-50">
         <RefreshCw :class="['w-4 h-4', loading ? 'animate-spin' : '']" />
         {{ loading ? 'Lade…' : 'Kandidaten neu suchen' }}
       </button>
@@ -14,19 +14,19 @@
 
     <!-- Filter + Manuell hinzufügen -->
     <div class="flex gap-2 mb-3 flex-wrap">
-      <button @click="filter = 'long'" :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'long' ? 'bg-[#097e92] text-white' : 'bg-white border border-gray-200']">
+      <button @click="filter = 'long'" :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'long' ? 'bg-[#0088ba] text-white' : 'bg-white border border-gray-200']">
         <Lightbulb class="w-3.5 h-3.5" /> Vorschläge ({{ vorschlagCount }})
       </button>
-      <button @click="filter = 'short'" :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'short' ? 'bg-[#097e92] text-white' : 'bg-white border border-gray-200']">
+      <button @click="filter = 'short'" :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'short' ? 'bg-[#0088ba] text-white' : 'bg-white border border-gray-200']">
         <Star class="w-3.5 h-3.5" /> Favoriten ({{ shortListCount }})
       </button>
       <button @click="filter = 'fuerKaeufer'" :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'fuerKaeufer' ? 'bg-purple-600 text-white' : 'bg-white border border-gray-200']">
         <Eye class="w-3.5 h-3.5" /> Für Käufer freigegeben ({{ fuerKaeuferCount }})
       </button>
-      <button @click="filter = 'abgesagt'" :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'abgesagt' ? 'bg-[#097e92] text-white' : 'bg-white border border-gray-200']">
+      <button @click="filter = 'abgesagt'" :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'abgesagt' ? 'bg-[#0088ba] text-white' : 'bg-white border border-gray-200']">
         <Ban class="w-3.5 h-3.5" /> Abgelehnt ({{ abgesagtCount }})
       </button>
-      <button @click="showAddModal = true" class="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-dashed border-gray-300 text-gray-600 hover:border-[#097e92] hover:text-[#097e92]">
+      <button @click="showAddModal = true" class="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-dashed border-gray-300 text-gray-600 hover:border-[#0088ba] hover:text-[#0088ba]">
         <Plus class="w-3.5 h-3.5" /> Kandidat manuell hinzufügen
       </button>
     </div>
@@ -44,7 +44,7 @@
           <button @click="showAddModal = false"><X class="w-5 h-5 text-gray-400" /></button>
         </div>
         <p class="text-xs text-gray-500 mb-3">Suche einen Kontakt aus dem CRM oder lege einen neuen Eintrag an.</p>
-        <input v-model="addSearch" placeholder="Firma oder Name suchen…" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+        <input v-model="addSearch" placeholder="Firma oder Name suchen…" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30" />
         <div class="max-h-80 overflow-y-auto border border-gray-100 rounded-xl">
           <div v-if="!addCandidates.length" class="p-4 text-sm text-gray-400 text-center">
             <span v-if="!addSearch">Bitte Suchbegriff eingeben.</span>
@@ -56,7 +56,7 @@
               <div class="text-sm font-medium text-gray-800">{{ k.firma }}</div>
               <div class="text-xs text-gray-500">{{ k.name }} · {{ k.plz }} {{ k.ort }}</div>
             </div>
-            <Plus class="w-4 h-4 text-[#097e92] flex-shrink-0 mt-1" />
+            <Plus class="w-4 h-4 text-[#0088ba] flex-shrink-0 mt-1" />
           </button>
         </div>
       </div>
@@ -92,7 +92,7 @@
             {{ k.plz }} {{ k.ort }} · {{ k.mitarbeiter || '?' }} MA · {{ k.umsatz || '?' }} Umsatz
           </div>
           <div v-if="k.matchGruende?.length" class="flex flex-wrap gap-1 mt-2">
-            <span v-for="g in cleanGruende(k.matchGruende)" :key="g" class="text-[10px] bg-[#097e92]/10 text-[#097e92] px-2 py-0.5 rounded-full">{{ g }}</span>
+            <span v-for="g in cleanGruende(k.matchGruende)" :key="g" class="text-[10px] bg-[#0088ba]/10 text-[#0088ba] px-2 py-0.5 rounded-full">{{ g }}</span>
           </div>
           <div v-if="k.ablehnGruende?.length" class="flex flex-wrap gap-1 mt-1">
             <span v-for="g in k.ablehnGruende" :key="g" class="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded-full">{{ g }}</span>

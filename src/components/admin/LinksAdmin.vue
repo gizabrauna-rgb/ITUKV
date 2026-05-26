@@ -5,7 +5,7 @@
         <h3 class="text-lg font-bold text-gray-900">Links für den Kunden</h3>
         <p class="text-xs text-gray-500">Hier hinterlegst du Links die der Kunde im Portal sehen kann (Kajabi-Videos, Live-Calls, externe Dokumente).</p>
       </div>
-      <button @click="openNew" class="flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf]">
+      <button @click="openNew" class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8]">
         <Plus class="w-4 h-4" /> Link hinzufügen
       </button>
     </div>
@@ -20,18 +20,18 @@
       <div v-for="kat in kategorien" :key="kat.value">
         <div v-if="byCategory(kat.value).length">
           <div class="flex items-center gap-2 mb-2">
-            <component :is="kat.icon" class="w-4 h-4 text-[#097e92]" />
+            <component :is="kat.icon" class="w-4 h-4 text-[#0088ba]" />
             <span class="font-semibold text-sm text-gray-800">{{ kat.label }}</span>
             <span class="text-xs text-gray-400">({{ byCategory(kat.value).length }})</span>
           </div>
           <div class="space-y-2">
             <div v-for="l in byCategory(kat.value)" :key="l.id" class="bg-white rounded-xl border border-gray-100 p-4 flex items-start gap-3">
-              <div class="w-10 h-10 bg-[#097e92]/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                <component :is="kat.icon" class="w-5 h-5 text-[#097e92]" />
+              <div class="w-10 h-10 bg-[#0088ba]/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                <component :is="kat.icon" class="w-5 h-5 text-[#0088ba]" />
               </div>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2">
-                  <a :href="l.url" target="_blank" rel="noopener" class="font-medium text-gray-900 hover:text-[#097e92] truncate">{{ l.titel }}</a>
+                  <a :href="l.url" target="_blank" rel="noopener" class="font-medium text-gray-900 hover:text-[#0088ba] truncate">{{ l.titel }}</a>
                   <ExternalLink class="w-3 h-3 text-gray-400" />
                 </div>
                 <div v-if="l.beschreibung" class="text-sm text-gray-600 mt-1">{{ l.beschreibung }}</div>
@@ -79,7 +79,7 @@
         </div>
         <div class="flex gap-3 mt-5">
           <button @click="closeModal" class="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-xl">Abbrechen</button>
-          <button @click="saveLink" :disabled="!form.titel || !form.url" class="flex-1 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium disabled:opacity-50">Speichern</button>
+          <button @click="saveLink" :disabled="!form.titel || !form.url" class="flex-1 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium disabled:opacity-50">Speichern</button>
         </div>
       </div>
     </div>
@@ -189,5 +189,5 @@ async function persist() {
 
 <style scoped>
 @reference "tailwindcss";
-.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]; }
+.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
 </style>

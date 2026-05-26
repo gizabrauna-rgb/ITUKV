@@ -24,7 +24,7 @@
 
     <!-- Kommentar -->
     <label class="text-xs text-gray-600 mb-1 block">Kommentar / Änderungswunsch (optional)</label>
-    <textarea v-model="kommentar" rows="3" placeholder="z.B. 'Im 3. Absatz bitte unsere Tochterfirma X auch erwähnen.'" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 resize-y mb-3"></textarea>
+    <textarea v-model="kommentar" rows="3" placeholder="z.B. 'Im 3. Absatz bitte unsere Tochterfirma X auch erwähnen.'" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 resize-y mb-3"></textarea>
 
     <div class="flex gap-2">
       <button @click="freigeben(false)" :disabled="sending" class="flex-1 px-4 py-2.5 border border-orange-200 text-orange-700 rounded-xl text-sm font-medium hover:bg-orange-50 disabled:opacity-50">

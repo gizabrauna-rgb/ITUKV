@@ -2,7 +2,7 @@
   <div>
     <div class="mb-5">
       <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
-        <Users class="w-6 h-6 text-[#097e92]" /> Vorschläge von mibeca
+        <Users class="w-6 h-6 text-[#0088ba]" /> Vorschläge von mibeca
       </h2>
       <p class="text-sm text-gray-500 mt-1">Hier siehst du die Target-Vorschläge, die mibeca für dich freigegeben hat. Bitte gib pro Vorschlag dein Feedback.</p>
     </div>
@@ -60,7 +60,7 @@
         <div v-if="feedback[k.id]?.interesse" class="mt-3">
           <textarea v-model="feedback[k.id].kommentar" @blur="save" rows="2"
             placeholder="Kommentar an mibeca (optional, z.B. Begründung oder Rückfrage)"
-            class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 resize-y"></textarea>
+            class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 resize-y"></textarea>
         </div>
       </div>
     </div>

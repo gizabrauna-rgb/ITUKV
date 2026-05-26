@@ -9,10 +9,10 @@
     <div class="bg-white rounded-xl border border-gray-100 p-4 mb-4">
       <div class="flex items-center justify-between mb-2">
         <span class="text-sm font-medium text-gray-700">Gesamtfortschritt</span>
-        <span class="text-sm font-bold text-[#097e92]">{{ filledCount }} / {{ totalFields }} ({{ progress }}%)</span>
+        <span class="text-sm font-bold text-[#0088ba]">{{ filledCount }} / {{ totalFields }} ({{ progress }}%)</span>
       </div>
       <div class="w-full bg-gray-100 rounded-full h-2">
-        <div class="bg-[#097e92] h-2 rounded-full transition-all" :style="`width: ${progress}%`"></div>
+        <div class="bg-[#0088ba] h-2 rounded-full transition-all" :style="`width: ${progress}%`"></div>
       </div>
     </div>
 
@@ -20,7 +20,7 @@
     <div class="flex flex-wrap gap-1 mb-4 bg-white rounded-xl border border-gray-100 p-1">
       <button v-for="(s, i) in sections" :key="i" @click="activeSection = i"
         :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                activeSection === i ? 'bg-[#097e92] text-white' : 'text-gray-600 hover:bg-gray-50']">
+                activeSection === i ? 'bg-[#0088ba] text-white' : 'text-gray-600 hover:bg-gray-50']">
         <span class="text-[10px] opacity-70">{{ i + 1 }}</span>
         {{ s.kurz }}
         <Check v-if="sectionDone(i)" class="w-3 h-3" />
@@ -147,7 +147,7 @@
           <div class="col-span-5"><input v-model="p.bemerkung" @blur="save" placeholder="Bemerkungen" class="input text-sm" /></div>
           <button @click="data.partner.splice(pi, 1); save()" class="text-red-400 hover:text-red-600 text-xs p-2"><X class="w-4 h-4" /></button>
         </div>
-        <button @click="data.partner.push({name:'',status:'',bemerkung:''}); save()" class="w-full border border-dashed border-gray-300 text-xs py-2 rounded-lg text-gray-500 hover:text-[#097e92] hover:border-[#097e92] flex items-center justify-center gap-1.5">
+        <button @click="data.partner.push({name:'',status:'',bemerkung:''}); save()" class="w-full border border-dashed border-gray-300 text-xs py-2 rounded-lg text-gray-500 hover:text-[#0088ba] hover:border-[#0088ba] flex items-center justify-center gap-1.5">
           <Plus class="w-3.5 h-3.5" /> Partner hinzufügen
         </button>
       </div>
@@ -177,14 +177,14 @@
       </button>
       <div class="text-xs text-gray-400">Auto-Speichern aktiv</div>
       <button @click="activeSection = Math.min(sections.length - 1, activeSection + 1)" :disabled="activeSection === sections.length - 1"
-        class="flex items-center gap-1.5 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm hover:bg-[#0a9aaf] disabled:opacity-40">
+        class="flex items-center gap-1.5 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm hover:bg-[#00a0d8] disabled:opacity-40">
         Weiter <ChevronRight class="w-4 h-4" />
       </button>
     </div>
 
     <!-- Abschluss-Karte -->
     <div class="mt-6 bg-white rounded-xl border-2 p-5"
-      :class="fragebogenStatus === 'abgegeben' ? 'border-green-200 bg-green-50' : 'border-[#097e92]/30'">
+      :class="fragebogenStatus === 'abgegeben' ? 'border-green-200 bg-green-50' : 'border-[#0088ba]/30'">
       <div v-if="fragebogenStatus === 'abgegeben'" class="flex items-start gap-3">
         <CheckCircle class="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
         <div class="flex-1">
@@ -197,7 +197,7 @@
         <h3 class="font-bold text-gray-900 mb-1">Fragebogen abgeben</h3>
         <p class="text-sm text-gray-600 mb-3">Wenn du soweit alles ausgefüllt hast, gib den Fragebogen ab. Unser Team kann dann mit der Auswertung starten und das Exposé erstellen.</p>
         <p v-if="progress < 60" class="text-xs text-amber-700 mb-3">Hinweis: Aktuell sind erst {{ progress }}% ausgefüllt — du kannst trotzdem abgeben, aber je vollständiger desto besser.</p>
-        <button @click="abgeben" :disabled="abgebenSending" class="px-5 py-2.5 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf] disabled:opacity-50">
+        <button @click="abgeben" :disabled="abgebenSending" class="px-5 py-2.5 bg-[#0088ba] text-white rounded-xl text-sm font-semibold hover:bg-[#00a0d8] disabled:opacity-50">
           {{ abgebenSending ? 'Wird gesendet…' : 'Fragebogen abgeben' }}
         </button>
       </div>
@@ -399,7 +399,7 @@ onMounted(async () => {
 })
 
 // Mini-Komponenten
-const INPUT_CLASSES = 'w-full px-3 py-2 border-2 border-gray-200 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92] hover:border-gray-300 transition-colors'
+const INPUT_CLASSES = 'w-full px-3 py-2 border-2 border-gray-200 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba] hover:border-gray-300 transition-colors'
 const LABEL_CLASSES = 'block text-xs font-medium text-gray-700 mb-1'
 
 const Feld = defineComponent({
@@ -447,7 +447,7 @@ const ToggleFeld = defineComponent({
         type: 'checkbox',
         checked: props.modelValue,
         onChange: e => { emit('update:modelValue', e.target.checked); emit('blur') },
-        class: 'rounded border-gray-300 text-[#097e92] focus:ring-[#097e92]/30'
+        class: 'rounded border-gray-300 text-[#0088ba] focus:ring-[#0088ba]/30'
       }),
       h('span', { class: 'text-gray-700' }, props.label)
     ])
@@ -465,7 +465,7 @@ const SkalaFeld = defineComponent({
           h('button', {
             type: 'button',
             onClick: () => { emit('update:modelValue', n); emit('blur') },
-            class: `w-7 h-7 rounded text-xs font-medium ${props.modelValue >= n ? 'bg-[#097e92] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`
+            class: `w-7 h-7 rounded text-xs font-medium ${props.modelValue >= n ? 'bg-[#0088ba] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`
           }, n)
         )
       )
@@ -477,5 +477,5 @@ const SkalaFeld = defineComponent({
 <style scoped>
 @reference "tailwindcss";
 .lbl { @apply block text-xs font-medium text-gray-600 mb-1; }
-.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]; }
+.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
 </style>

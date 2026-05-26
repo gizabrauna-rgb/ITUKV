@@ -23,11 +23,11 @@
         <!-- Exposé-Download (immer sichtbar) -->
         <section class="bg-white rounded-2xl border border-gray-100 p-7 mb-5">
           <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-            <FileText class="w-5 h-5 text-[#097e92]" /> Anonymisiertes Exposé
+            <FileText class="w-5 h-5 text-[#0088ba]" /> Anonymisiertes Exposé
           </h2>
           <p class="text-sm text-gray-600 mb-4">Lade hier das anonymisierte Kurz-Exposé zum Unternehmen herunter.</p>
           <a :href="exposeDownloadUrl" target="_blank"
-            class="flex items-center justify-center gap-2 px-4 py-3 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf]">
+            class="flex items-center justify-center gap-2 px-4 py-3 bg-[#0088ba] text-white rounded-xl text-sm font-semibold hover:bg-[#00a0d8]">
             <Download class="w-5 h-5" /> Exposé jetzt herunterladen
           </a>
         </section>
@@ -69,7 +69,7 @@
 
             <p class="text-sm text-gray-700 leading-relaxed mb-4">
               Bei Rückfragen erreichst Du Jennifer Kaplan unter
-              <a href="mailto:jk@mike-bergmann.de" class="text-[#097e92] hover:underline font-medium">jk@mike-bergmann.de</a>.
+              <a href="mailto:jk@mike-bergmann.de" class="text-[#0088ba] hover:underline font-medium">jk@mike-bergmann.de</a>.
               Bitte beachte, dass tiefergehende Fragen <strong>erst nach Erhalt des unterschriebenen NDA</strong> beantwortet werden können.
             </p>
 
@@ -78,15 +78,15 @@
           </section>
 
           <!-- NDA-Aktionen -->
-          <section class="bg-white rounded-2xl border-2 border-[#097e92]/30 p-7 mb-5">
+          <section class="bg-white rounded-2xl border-2 border-[#0088ba]/30 p-7 mb-5">
             <h2 class="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
-              <FileText class="w-5 h-5 text-[#097e92]" /> NDA unterschreiben
+              <FileText class="w-5 h-5 text-[#0088ba]" /> NDA unterschreiben
             </h2>
             <p class="text-sm text-gray-600 mb-5">Wähle den Weg, der für Dich am bequemsten ist:</p>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               <button @click="showSignModal = true"
-                class="flex items-center justify-center gap-2 px-4 py-4 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf]">
+                class="flex items-center justify-center gap-2 px-4 py-4 bg-[#0088ba] text-white rounded-xl text-sm font-semibold hover:bg-[#00a0d8]">
                 <PenTool class="w-5 h-5" /> Jetzt online unterschreiben
               </button>
               <a :href="ndaDownloadUrl" target="_blank"
@@ -122,9 +122,9 @@
           </section>
 
           <!-- Termin-Buchung -->
-          <section v-if="data.terminBookingUrl" class="bg-white rounded-2xl border-2 border-[#097e92]/30 p-7 mb-5">
+          <section v-if="data.terminBookingUrl" class="bg-white rounded-2xl border-2 border-[#0088ba]/30 p-7 mb-5">
             <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-              <Calendar class="w-5 h-5 text-[#097e92]" /> Termin mit Jennifer Kaplan buchen
+              <Calendar class="w-5 h-5 text-[#0088ba]" /> Termin mit Jennifer Kaplan buchen
             </h2>
             <p class="text-sm text-gray-700 mb-4">
               In einem ca. 15-minütigen Gespräch klären wir den weiteren Ablauf und alle offenen Fragen rund um Projekt
@@ -144,7 +144,7 @@
             </div>
 
             <a :href="data.terminBookingUrl" target="_blank"
-              class="flex items-center justify-center gap-2 px-4 py-3 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf]">
+              class="flex items-center justify-center gap-2 px-4 py-3 bg-[#0088ba] text-white rounded-xl text-sm font-semibold hover:bg-[#00a0d8]">
               <Calendar class="w-5 h-5" /> Jetzt Termin buchen
             </a>
 
@@ -165,7 +165,7 @@
               <img src="/Jenny Kaplan.jpeg" alt="Jenny Kaplan" class="w-32 h-32 rounded-full object-cover mx-auto mb-3 border-4 border-gray-100" />
               <div class="font-semibold text-gray-900">Jennifer Kaplan</div>
               <div class="text-xs text-gray-500">M&A-Beraterin</div>
-              <a href="mailto:jk@mike-bergmann.de" class="text-xs text-[#097e92] hover:underline mt-1 inline-block">jk@mike-bergmann.de</a>
+              <a href="mailto:jk@mike-bergmann.de" class="text-xs text-[#0088ba] hover:underline mt-1 inline-block">jk@mike-bergmann.de</a>
             </div>
             <div class="text-center">
               <img src="/Mike Bergmann.jpeg" alt="Mike Bergmann" class="w-32 h-32 rounded-full object-cover mx-auto mb-3 border-4 border-gray-100" />
@@ -185,7 +185,7 @@
     <div v-if="showSignModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[95vh] flex flex-col overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h3 class="font-bold text-gray-900 flex items-center gap-2"><PenTool class="w-5 h-5 text-[#097e92]" /> NDA online unterschreiben</h3>
+          <h3 class="font-bold text-gray-900 flex items-center gap-2"><PenTool class="w-5 h-5 text-[#0088ba]" /> NDA online unterschreiben</h3>
           <button @click="closeSignModal" class="p-1.5 hover:bg-gray-100 rounded-lg"><X class="w-5 h-5 text-gray-500" /></button>
         </div>
         <div class="p-6 overflow-y-auto flex-1">
@@ -196,7 +196,7 @@
           </p>
 
           <div class="mb-3 flex items-center justify-between">
-            <a :href="ndaDownloadUrl" target="_blank" class="text-xs text-[#097e92] hover:underline flex items-center gap-1">
+            <a :href="ndaDownloadUrl" target="_blank" class="text-xs text-[#0088ba] hover:underline flex items-center gap-1">
               <FileText class="w-3 h-3" /> NDA-Text als PDF einsehen
             </a>
           </div>
@@ -219,7 +219,7 @@
           <div class="flex gap-3">
             <button @click="closeSignModal" class="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm">Abbrechen</button>
             <button @click="submitSign" :disabled="!zustimmung || !canvasDirty || signing"
-              class="flex-1 px-4 py-3 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf] disabled:opacity-50">
+              class="flex-1 px-4 py-3 bg-[#0088ba] text-white rounded-xl text-sm font-semibold hover:bg-[#00a0d8] disabled:opacity-50">
               {{ signing ? 'Wird signiert…' : 'NDA unterschreiben' }}
             </button>
           </div>

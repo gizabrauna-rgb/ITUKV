@@ -9,7 +9,7 @@
         <button @click="generierenAusFragebogen" :disabled="!hasFragebogen" class="flex items-center gap-2 px-3 py-2 bg-amber-500 text-white rounded-xl text-sm font-medium hover:bg-amber-600 disabled:opacity-50">
           <Sparkles class="w-4 h-4" /> Aus Fragebogen vorbefüllen
         </button>
-        <button @click="openPreview" :disabled="previewLoading" class="flex items-center gap-2 px-3 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf] disabled:opacity-50">
+        <button @click="openPreview" :disabled="previewLoading" class="flex items-center gap-2 px-3 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8] disabled:opacity-50">
           <FileText class="w-4 h-4" /> {{ previewLoading ? 'Lade…' : 'Vorschau (PDF)' }}
         </button>
       </div>
@@ -92,7 +92,7 @@
     <div v-if="previewUrl" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" @click.self="closePreview">
       <div class="bg-white rounded-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden shadow-2xl">
         <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-          <h3 class="font-bold text-gray-900 flex items-center gap-2"><FileText class="w-5 h-5 text-[#097e92]" /> Exposé-Vorschau</h3>
+          <h3 class="font-bold text-gray-900 flex items-center gap-2"><FileText class="w-5 h-5 text-[#0088ba]" /> Exposé-Vorschau</h3>
           <div class="flex items-center gap-2">
             <a :href="previewUrl" :download="`Expose_${data.mbNr || 'Entwurf'}.pdf`" class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Herunterladen</a>
             <button @click="closePreview" class="p-1.5 hover:bg-gray-100 rounded-lg"><X class="w-5 h-5 text-gray-500" /></button>
@@ -272,6 +272,6 @@ onMounted(async () => {
 
 <style scoped>
 @reference "tailwindcss";
-.input { @apply w-full px-3 py-2 border-2 border-gray-200 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]; }
+.input { @apply w-full px-3 py-2 border-2 border-gray-200 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
 .lbl { @apply block text-xs font-medium text-gray-600 mb-1; }
 </style>

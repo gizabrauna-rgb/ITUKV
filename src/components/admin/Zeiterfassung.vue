@@ -10,7 +10,7 @@
           <option value="">Alle Monate</option>
           <option v-for="m in monate" :key="m" :value="m">{{ formatMonat(m) }}</option>
         </select>
-        <button @click="openNew" class="flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf]">
+        <button @click="openNew" class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8]">
           <Plus class="w-4 h-4" /> Zeit erfassen
         </button>
       </div>
@@ -24,7 +24,7 @@
       </div>
       <div class="bg-white rounded-xl border border-gray-100 p-4">
         <div class="text-xs text-gray-500 mb-1">Stunden im Filterzeitraum</div>
-        <div class="text-2xl font-bold text-[#097e92]">{{ filterStunden.toFixed(2) }}</div>
+        <div class="text-2xl font-bold text-[#0088ba]">{{ filterStunden.toFixed(2) }}</div>
       </div>
       <div class="bg-white rounded-xl border border-gray-100 p-4">
         <div class="text-xs text-gray-500 mb-1">Einträge im Zeitraum</div>
@@ -96,7 +96,7 @@
         </div>
         <div class="flex gap-3 mt-5">
           <button @click="showModal = false" class="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-xl">Abbrechen</button>
-          <button @click="save" :disabled="!canSave" class="flex-1 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium disabled:opacity-50">Speichern</button>
+          <button @click="save" :disabled="!canSave" class="flex-1 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium disabled:opacity-50">Speichern</button>
         </div>
       </div>
     </div>
@@ -198,5 +198,5 @@ function exportCsv() {
 
 <style scoped>
 @reference "tailwindcss";
-.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]; }
+.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
 </style>

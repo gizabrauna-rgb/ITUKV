@@ -10,23 +10,23 @@
     <!-- Freigabe-Checkliste -->
     <div class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
       <h3 class="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
-        <CheckCircle2 class="w-4 h-4 text-[#097e92]" /> Voraussetzungen vor Presseversand
+        <CheckCircle2 class="w-4 h-4 text-[#0088ba]" /> Voraussetzungen vor Presseversand
       </h3>
       <div class="space-y-2">
         <label class="flex items-center gap-3 cursor-pointer">
-          <input type="checkbox" v-model="freigabe.dealAbgeschlossen" @change="save" class="rounded text-[#097e92]" />
+          <input type="checkbox" v-model="freigabe.dealAbgeschlossen" @change="save" class="rounded text-[#0088ba]" />
           <span class="text-sm">Deal vertraglich abgeschlossen</span>
         </label>
         <label class="flex items-center gap-3 cursor-pointer">
-          <input type="checkbox" v-model="freigabe.maInformiert" @change="save" class="rounded text-[#097e92]" />
+          <input type="checkbox" v-model="freigabe.maInformiert" @change="save" class="rounded text-[#0088ba]" />
           <span class="text-sm">Mitarbeiter wurden über den Verkauf informiert</span>
         </label>
         <label class="flex items-center gap-3 cursor-pointer">
-          <input type="checkbox" v-model="freigabe.kaeuferFreigabe" @change="save" class="rounded text-[#097e92]" />
+          <input type="checkbox" v-model="freigabe.kaeuferFreigabe" @change="save" class="rounded text-[#0088ba]" />
           <span class="text-sm">Käufer hat Pressemitteilung freigegeben</span>
         </label>
         <label class="flex items-center gap-3 cursor-pointer">
-          <input type="checkbox" v-model="freigabe.verkaeuferFreigabe" @change="save" class="rounded text-[#097e92]" />
+          <input type="checkbox" v-model="freigabe.verkaeuferFreigabe" @change="save" class="rounded text-[#0088ba]" />
           <span class="text-sm">Verkäufer hat O-Töne freigegeben</span>
         </label>
       </div>
@@ -35,7 +35,7 @@
     <!-- Deal-Daten -->
     <div class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
       <h3 class="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
-        <FileText class="w-4 h-4 text-[#097e92]" /> Deal-Daten für KI-Generierung
+        <FileText class="w-4 h-4 text-[#0088ba]" /> Deal-Daten für KI-Generierung
       </h3>
       <div class="grid grid-cols-2 gap-3">
         <div>
@@ -84,7 +84,7 @@
     <!-- Pressetext -->
     <div v-if="text" class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
       <h3 class="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
-        <FileText class="w-4 h-4 text-[#097e92]" /> Pressetext (editierbar)
+        <FileText class="w-4 h-4 text-[#0088ba]" /> Pressetext (editierbar)
       </h3>
       <textarea v-model="text" @blur="save" rows="20" class="input font-mono text-sm resize-y"></textarea>
       <p class="text-xs text-gray-400 mt-2">Wörter: {{ text.split(/\s+/).filter(Boolean).length }} (Ziel: max. 450)</p>
@@ -93,7 +93,7 @@
     <!-- Kunden-Freigabe -->
     <div v-if="text" class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
       <h3 class="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
-        <UserCheck class="w-4 h-4 text-[#097e92]" /> Kunden-Freigabe (optional)
+        <UserCheck class="w-4 h-4 text-[#0088ba]" /> Kunden-Freigabe (optional)
       </h3>
       <p class="text-xs text-gray-500 mb-3">Schicke den Pressetext erst zum Kunden zur Freigabe / Kommentar. <strong>Du kannst aber auch direkt versenden, falls keine Freigabe nötig ist.</strong></p>
       <!-- Status-Banner -->
@@ -116,12 +116,12 @@
     <!-- Empfänger -->
     <div v-if="text" class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
       <h3 class="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
-        <Users class="w-4 h-4 text-[#097e92]" /> Empfänger Fachmedien
-        <button @click="toggleAlle" class="ml-auto text-xs text-[#097e92] hover:underline">{{ alleAusgewaehlt ? 'Alle abwählen' : 'Alle auswählen' }}</button>
+        <Users class="w-4 h-4 text-[#0088ba]" /> Empfänger Fachmedien
+        <button @click="toggleAlle" class="ml-auto text-xs text-[#0088ba] hover:underline">{{ alleAusgewaehlt ? 'Alle abwählen' : 'Alle auswählen' }}</button>
       </h3>
       <div class="space-y-2 max-h-72 overflow-y-auto">
         <label v-for="k in kontakte" :key="k.id" class="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
-          <input type="checkbox" :checked="ausgewaehlt.includes(k.email)" @change="toggleEmpfaenger(k.email)" class="rounded text-[#097e92]" />
+          <input type="checkbox" :checked="ausgewaehlt.includes(k.email)" @change="toggleEmpfaenger(k.email)" class="rounded text-[#0088ba]" />
           <div class="flex-1">
             <div class="text-sm text-gray-800">{{ k.name }} <span class="text-xs text-gray-400">— {{ k.rolle }}</span></div>
             <div class="text-xs text-gray-500">{{ k.medium }} · {{ k.email }}</div>
@@ -134,7 +134,7 @@
     <div v-if="text" class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
       <label class="text-xs text-gray-600 mb-1 block">Betreff</label>
       <input v-model="betreff" class="input mb-3" />
-      <button @click="versenden" :disabled="!canVersenden || sending" class="w-full px-4 py-3 bg-[#097e92] text-white rounded-xl font-semibold hover:bg-[#0a9aaf] disabled:opacity-50 flex items-center justify-center gap-2">
+      <button @click="versenden" :disabled="!canVersenden || sending" class="w-full px-4 py-3 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8] disabled:opacity-50 flex items-center justify-center gap-2">
         <Send class="w-4 h-4" />
         {{ sending ? 'Versende...' : `An ${ausgewaehlt.length} Pressekontakt(e) senden` }}
       </button>
@@ -158,7 +158,7 @@
     <!-- Veröffentlichungs-Links -->
     <div v-if="versendetAm" class="bg-white rounded-xl border border-gray-100 p-5">
       <h3 class="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
-        <LinkIcon class="w-4 h-4 text-[#097e92]" /> Veröffentlichungs-Links
+        <LinkIcon class="w-4 h-4 text-[#0088ba]" /> Veröffentlichungs-Links
       </h3>
       <p class="text-xs text-gray-500 mb-3">Sobald die Artikel online sind, hier die Links eintragen.</p>
       <div class="space-y-2">
@@ -167,7 +167,7 @@
           <input v-model="veroeffentlichungen[idx].url" placeholder="https://..." class="input flex-1" @blur="save" />
           <button @click="veroeffentlichungen.splice(idx, 1); save()" class="px-2 text-red-500"><X class="w-4 h-4" /></button>
         </div>
-        <button @click="veroeffentlichungen.push({ medium: '', url: '' })" class="text-sm text-[#097e92] hover:underline">+ Veröffentlichung hinzufügen</button>
+        <button @click="veroeffentlichungen.push({ medium: '', url: '' })" class="text-sm text-[#0088ba] hover:underline">+ Veröffentlichung hinzufügen</button>
       </div>
     </div>
   </div>
@@ -304,5 +304,5 @@ onMounted(async () => {
 
 <style scoped>
 @reference "tailwindcss";
-.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]; }
+.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
 </style>

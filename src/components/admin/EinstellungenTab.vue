@@ -7,7 +7,7 @@
       <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
         <div>
           <h3 class="font-semibold text-gray-900 flex items-center gap-2">
-            <Webhook class="w-4 h-4 text-[#097e92]" />
+            <Webhook class="w-4 h-4 text-[#0088ba]" />
             Webhook für neue Kunden
           </h3>
           <p class="text-xs text-gray-500 mt-0.5">Damit kann dein bestehendes CRM-System neue Kunden automatisch ins ITUKV-Dashboard übertragen</p>
@@ -67,7 +67,7 @@
         <div>
           <div class="flex items-center justify-between mb-1.5">
             <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Beispiel-Anfrage (curl)</label>
-            <button @click="copy(curlExample, 'curl')" class="text-xs text-[#097e92] hover:underline flex items-center gap-1">
+            <button @click="copy(curlExample, 'curl')" class="text-xs text-[#0088ba] hover:underline flex items-center gap-1">
               <Check v-if="copied === 'curl'" class="w-3 h-3 text-green-500" />
               <Copy v-else class="w-3 h-3" /> kopieren
             </button>

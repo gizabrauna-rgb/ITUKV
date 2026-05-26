@@ -5,7 +5,7 @@
         <h3 class="text-lg font-bold text-gray-900">Kommunikations-Verlauf</h3>
       </div>
       <div class="flex items-center gap-2">
-        <button @click="openMail" class="flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf]">
+        <button @click="openMail" class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8]">
           <Mail class="w-4 h-4" /> E-Mail senden
         </button>
         <button @click="openNew" class="flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">
@@ -17,14 +17,14 @@
       <div v-if="showMailModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4" @click.self="showMailModal = false">
         <div class="bg-white rounded-2xl w-full max-w-lg p-6">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="font-bold text-gray-900 flex items-center gap-2"><Mail class="w-5 h-5 text-[#097e92]" /> E-Mail senden</h3>
+            <h3 class="font-bold text-gray-900 flex items-center gap-2"><Mail class="w-5 h-5 text-[#0088ba]" /> E-Mail senden</h3>
             <button @click="showMailModal = false"><X class="w-5 h-5 text-gray-400" /></button>
           </div>
           <p class="text-xs text-gray-500 mb-3">Geht direkt an den Empfänger – Antworten erscheinen automatisch hier im Verlauf.</p>
           <div class="space-y-3">
             <div v-if="vorlagen.length">
               <label class="text-xs font-medium text-gray-600 mb-1 block">Vorlage einfügen</label>
-              <select @change="onVorlageChange($event)" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30">
+              <select @change="onVorlageChange($event)" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30">
                 <option value="">— Vorlage wählen —</option>
                 <optgroup v-for="kat in vorlagenKategorien" :key="kat" :label="kat">
                   <option v-for="v in vorlagen.filter(x => (x.kategorie || 'Allgemein') === kat)" :key="v.RowKey" :value="v.RowKey">{{ v.name }}</option>
@@ -33,20 +33,20 @@
             </div>
             <div>
               <label class="text-xs font-medium text-gray-600 mb-1 block">An (E-Mail)</label>
-              <input v-model="mailForm.empfaengerEmail" placeholder="z.B. kunde@example.de" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+              <input v-model="mailForm.empfaengerEmail" placeholder="z.B. kunde@example.de" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30" />
             </div>
             <div>
               <label class="text-xs font-medium text-gray-600 mb-1 block">Betreff *</label>
-              <input v-model="mailForm.betreff" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+              <input v-model="mailForm.betreff" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30" />
             </div>
             <div>
               <label class="text-xs font-medium text-gray-600 mb-1 block">Nachricht *</label>
-              <textarea v-model="mailForm.body" rows="8" placeholder="Hallo …" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 resize-y"></textarea>
+              <textarea v-model="mailForm.body" rows="8" placeholder="Hallo …" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 resize-y"></textarea>
             </div>
           </div>
           <div class="flex gap-3 mt-5">
             <button @click="showMailModal = false" class="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm">Abbrechen</button>
-            <button @click="sendMail" :disabled="!mailForm.betreff || !mailForm.body || mailSending" class="flex-1 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf] disabled:opacity-50">
+            <button @click="sendMail" :disabled="!mailForm.betreff || !mailForm.body || mailSending" class="flex-1 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-semibold hover:bg-[#00a0d8] disabled:opacity-50">
               {{ mailSending ? 'Wird gesendet…' : 'E-Mail senden' }}
             </button>
           </div>
@@ -71,7 +71,7 @@
     <div v-else-if="!filtered.length" class="bg-white rounded-xl border border-gray-100 p-10 text-center text-gray-400 text-sm">
       <MessageSquare class="w-10 h-10 mx-auto mb-3 text-gray-200" />
       <p>Noch keine Einträge im Verlauf.</p>
-      <button @click="openNew" class="text-[#097e92] hover:underline mt-2 text-sm">Ersten Eintrag erstellen →</button>
+      <button @click="openNew" class="text-[#0088ba] hover:underline mt-2 text-sm">Ersten Eintrag erstellen →</button>
     </div>
     <div v-else class="relative">
       <!-- Timeline-Linie -->
@@ -148,7 +148,7 @@
         </div>
         <div class="flex gap-3 mt-5">
           <button @click="closeModal" class="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50">Abbrechen</button>
-          <button @click="saveEntry" class="flex-1 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium">Speichern</button>
+          <button @click="saveEntry" class="flex-1 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium">Speichern</button>
         </div>
       </div>
     </div>
@@ -228,7 +228,7 @@ const form = ref({ typ: 'notiz', datum: '', autor: '', betreff: '', beschreibung
 
 const typFilters = [
   { value: 'mail_in', label: 'E-Mail eingegangen', icon: Mail, activeClass: 'bg-blue-500' },
-  { value: 'mail_out', label: 'E-Mail versendet', icon: Mail, activeClass: 'bg-[#097e92]' },
+  { value: 'mail_out', label: 'E-Mail versendet', icon: Mail, activeClass: 'bg-[#0088ba]' },
   { value: 'telefon', label: 'Telefonat', icon: Phone, activeClass: 'bg-purple-500' },
   { value: 'termin', label: 'Termin', icon: Calendar, activeClass: 'bg-amber-500' },
   { value: 'notiz', label: 'Notiz', icon: FileText, activeClass: 'bg-gray-500' },
@@ -251,13 +251,13 @@ function typIcon(t) {
   return map[t] || FileText
 }
 function typBg(t) {
-  const map = { mail_in: 'bg-blue-500', mail_out: 'bg-[#097e92]', telefon: 'bg-purple-500', termin: 'bg-amber-500', notiz: 'bg-gray-500', wichtig: 'bg-red-500' }
+  const map = { mail_in: 'bg-blue-500', mail_out: 'bg-[#0088ba]', telefon: 'bg-purple-500', termin: 'bg-amber-500', notiz: 'bg-gray-500', wichtig: 'bg-red-500' }
   return map[t] || 'bg-gray-500'
 }
 function typBadge(t) {
   const map = {
     mail_in: 'bg-blue-50 text-blue-700',
-    mail_out: 'bg-[#097e92]/10 text-[#097e92]',
+    mail_out: 'bg-[#0088ba]/10 text-[#0088ba]',
     telefon: 'bg-purple-50 text-purple-700',
     termin: 'bg-amber-50 text-amber-700',
     notiz: 'bg-gray-100 text-gray-600',
@@ -341,5 +341,5 @@ async function deleteEntry(entry) {
 
 <style scoped>
 @reference "tailwindcss";
-.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]; }
+.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
 </style>

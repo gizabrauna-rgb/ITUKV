@@ -13,7 +13,7 @@
         <!-- Ansicht-Switcher -->
         <div class="relative">
           <button @click="showSwitcher = !showSwitcher"
-            class="flex items-center gap-2 px-3 py-1.5 bg-[#097e92]/20 hover:bg-[#097e92]/30 rounded-lg text-xs font-medium text-white transition-colors">
+            class="flex items-center gap-2 px-3 py-1.5 bg-[#0088ba]/20 hover:bg-[#0088ba]/30 rounded-lg text-xs font-medium text-white transition-colors">
             <Eye class="w-3.5 h-3.5" />
             Ansicht testen
             <ChevronDown class="w-3.5 h-3.5" />
@@ -25,7 +25,7 @@
             <div class="px-3 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase">Verkäufer-Ansichten</div>
             <button v-for="t in targetTypes" :key="t" @click="switchTo(t)"
               class="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-3">
-              <Briefcase class="w-4 h-4 text-[#097e92]" />
+              <Briefcase class="w-4 h-4 text-[#0088ba]" />
               <span class="text-sm">{{ t }}</span>
             </button>
             <div class="px-3 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase border-t border-gray-50 mt-1">Käufer-Ansichten</div>
@@ -48,7 +48,7 @@
           <div v-if="showBell" class="absolute right-0 top-full mt-2 bg-white text-gray-800 rounded-xl shadow-2xl border border-gray-100 w-96 z-50 overflow-hidden">
             <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
               <div class="font-semibold text-sm">Ungelesene Nachrichten</div>
-              <button v-if="unreadItems.length" @click="markAllRead" class="text-xs text-gray-500 hover:text-[#097e92]">Alle als gelesen markieren</button>
+              <button v-if="unreadItems.length" @click="markAllRead" class="text-xs text-gray-500 hover:text-[#0088ba]">Alle als gelesen markieren</button>
             </div>
             <div class="max-h-96 overflow-y-auto">
               <div v-if="!unreadItems.length" class="p-6 text-center text-sm text-gray-400">
@@ -87,7 +87,7 @@
               :class="[
                 'w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors',
                 tab === item.tab
-                  ? 'bg-[#097e92]/10 text-[#097e92] font-semibold'
+                  ? 'bg-[#0088ba]/10 text-[#0088ba] font-semibold'
                   : 'text-gray-600 hover:bg-gray-50'
               ]"
             >
@@ -187,7 +187,7 @@
             <!-- Aktivitäts-Feed -->
             <div class="bg-white rounded-xl border border-gray-100 p-5">
               <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2 mb-3">
-                <Activity class="w-4 h-4 text-[#097e92]" /> Letzte Aktivitäten
+                <Activity class="w-4 h-4 text-[#0088ba]" /> Letzte Aktivitäten
               </h3>
               <div v-if="!ueberblick.feed?.length" class="text-sm text-gray-400 py-3 text-center">Noch keine Aktivitäten</div>
               <div v-else class="space-y-2 max-h-80 overflow-y-auto">
@@ -208,8 +208,8 @@
             <h3 class="font-semibold text-gray-800 mb-4 text-sm">Schnellzugriff</h3>
             <div class="grid grid-cols-3 gap-3">
               <button v-for="q in quickAccess" :key="q.tab" @click="tab = q.tab"
-                class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:border-[#097e92]/30 hover:bg-[#097e92]/5 transition-all text-left">
-                <component :is="q.icon" class="w-5 h-5 text-[#097e92]" />
+                class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:border-[#0088ba]/30 hover:bg-[#0088ba]/5 transition-all text-left">
+                <component :is="q.icon" class="w-5 h-5 text-[#0088ba]" />
                 <div>
                   <div class="text-sm font-medium text-gray-800">{{ q.label }}</div>
                   <div class="text-xs text-gray-400">{{ q.desc }}</div>
@@ -332,7 +332,7 @@ const quickAccess = [
 ]
 
 const statsData = computed(() => [
-  { label: 'Aktive Targets', value: statsRaw.value.aktiveTargets, icon: Briefcase, color: '#097e92' },
+  { label: 'Aktive Targets', value: statsRaw.value.aktiveTargets, icon: Briefcase, color: '#0088ba' },
   { label: 'Offene NDAs', value: statsRaw.value.offeneNdas, icon: GitBranch, color: '#c8b274' },
   { label: 'Investoren gesamt', value: statsRaw.value.investorenGesamt, icon: Users, color: '#3498db' },
   { label: 'Deals abgeschlossen', value: statsRaw.value.dealsAbgeschlossen, icon: Megaphone, color: '#22c55e' },
@@ -355,7 +355,7 @@ async function pollUnread() {
   } catch {}
 }
 function typColor(t) {
-  const m = { mail_in: 'bg-blue-500', mail_out: 'bg-[#097e92]', telefon: 'bg-purple-500', termin: 'bg-amber-500', wichtig: 'bg-red-500', notiz: 'bg-gray-400' }
+  const m = { mail_in: 'bg-blue-500', mail_out: 'bg-[#0088ba]', telefon: 'bg-purple-500', termin: 'bg-amber-500', wichtig: 'bg-red-500', notiz: 'bg-gray-400' }
   return m[t] || 'bg-gray-400'
 }
 function formatRelative(iso) {

@@ -32,14 +32,14 @@
         <!-- Key Facts -->
         <div v-if="data.keyFacts?.length" class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
           <div v-for="(f, idx) in data.keyFacts" :key="idx" class="bg-white rounded-xl border border-gray-100 p-4">
-            <div class="text-2xl font-bold text-[#097e92]">{{ f.wert }}</div>
+            <div class="text-2xl font-bold text-[#0088ba]">{{ f.wert }}</div>
             <div class="text-sm font-medium text-gray-800 mt-1">{{ f.label }}</div>
             <div v-if="f.beschreib" class="text-xs text-gray-500 mt-1">{{ f.beschreib }}</div>
           </div>
         </div>
 
         <!-- Formular -->
-        <div class="bg-white rounded-2xl border-2 border-[#097e92]/20 p-8">
+        <div class="bg-white rounded-2xl border-2 border-[#0088ba]/20 p-8">
           <h2 class="text-xl font-bold text-gray-900 mb-2">Jetzt Formular ausfüllen und Exposé sichern!</h2>
           <p class="text-sm text-gray-600 mb-5">
             Deine Daten werden <strong>streng vertraulich</strong> behandelt und ausschließlich gegenüber dem Verkäufer kommuniziert.
@@ -60,7 +60,7 @@
               <input type="checkbox" v-model="form.dsgvo" required class="mt-0.5" />
               <span>Ich willige ein, dass meine Daten vertraulich verarbeitet und ausschließlich für diese Anfrage sowie gegenüber dem Verkäufer kommuniziert werden (DSGVO).</span>
             </label>
-            <button type="submit" :disabled="sending || !form.dsgvo" class="w-full px-4 py-3 bg-[#097e92] text-white rounded-xl font-semibold hover:bg-[#0a9aaf] disabled:opacity-50">
+            <button type="submit" :disabled="sending || !form.dsgvo" class="w-full px-4 py-3 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8] disabled:opacity-50">
               {{ sending ? 'Wird gesendet…' : 'Jetzt absenden' }}
             </button>
             <p v-if="errMsg" class="text-xs text-red-600">{{ errMsg }}</p>
@@ -125,5 +125,5 @@ onMounted(async () => {
 
 <style scoped>
 @reference "tailwindcss";
-.input { @apply w-full px-3 py-2.5 border-2 border-gray-200 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]; }
+.input { @apply w-full px-3 py-2.5 border-2 border-gray-200 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
 </style>

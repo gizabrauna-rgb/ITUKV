@@ -3,7 +3,7 @@
     <div class="flex items-center justify-between mb-5">
       <div>
         <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <BarChart3 class="w-6 h-6 text-[#097e92]" /> Controlling & Auswertung
+          <BarChart3 class="w-6 h-6 text-[#0088ba]" /> Controlling & Auswertung
         </h2>
         <p class="text-sm text-gray-500 mt-1">Jahresübersicht aller M&A-Prozesse: Erfolgsquote, Deal-Dauer, Pipeline</p>
       </div>
@@ -21,7 +21,7 @@
         <div class="bg-white rounded-xl border border-gray-100 p-5">
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs text-gray-400 font-medium uppercase tracking-wide">Mandate gesamt</span>
-            <Briefcase class="w-4 h-4 text-[#097e92]" />
+            <Briefcase class="w-4 h-4 text-[#0088ba]" />
           </div>
           <div class="text-3xl font-bold text-gray-900">{{ stats.total }}</div>
           <div class="text-xs text-gray-500 mt-1">{{ stats.verkaufAnzahl }} Verkauf · {{ stats.kaufAnzahl }} Kauf</div>
@@ -55,13 +55,13 @@
       <!-- Pipeline-Funnel -->
       <div class="bg-white rounded-xl border border-gray-100 p-5 mb-6">
         <h3 class="font-semibold text-gray-800 text-sm mb-4 flex items-center gap-2">
-          <GitBranch class="w-4 h-4 text-[#097e92]" /> Pipeline – wo stehen die offenen Mandate?
+          <GitBranch class="w-4 h-4 text-[#0088ba]" /> Pipeline – wo stehen die offenen Mandate?
         </h3>
         <div class="space-y-2">
           <div v-for="(count, key) in stats.pipelineFunnel" :key="key" class="flex items-center gap-3">
             <span class="text-xs text-gray-500 w-32 flex-shrink-0">Phasen {{ key }}</span>
             <div class="flex-1 bg-gray-100 rounded-full h-7 overflow-hidden relative">
-              <div class="bg-[#097e92] h-full rounded-full transition-all flex items-center justify-end pr-2"
+              <div class="bg-[#0088ba] h-full rounded-full transition-all flex items-center justify-end pr-2"
                 :style="`width: ${maxBucket ? (count / maxBucket) * 100 : 0}%`">
                 <span v-if="count > 0" class="text-xs font-bold text-white">{{ count }}</span>
               </div>
@@ -75,7 +75,7 @@
       <!-- Deal-Dauer pro Projekttyp -->
       <div class="bg-white rounded-xl border border-gray-100 p-5 mb-6">
         <h3 class="font-semibold text-gray-800 text-sm mb-4 flex items-center gap-2">
-          <Clock class="w-4 h-4 text-[#097e92]" /> Ø Deal-Dauer pro Projekttyp
+          <Clock class="w-4 h-4 text-[#0088ba]" /> Ø Deal-Dauer pro Projekttyp
         </h3>
         <div v-if="!Object.keys(stats.dauerProTyp).length" class="text-sm text-gray-400 py-4 text-center">
           Noch keine abgeschlossenen Deals zum Auswerten.
@@ -94,27 +94,27 @@
       <!-- Monatlicher Verlauf -->
       <div class="bg-white rounded-xl border border-gray-100 p-5 mb-6" v-if="stats.monthly?.length">
         <h3 class="font-semibold text-gray-800 text-sm mb-4 flex items-center gap-2">
-          <TrendingUp class="w-4 h-4 text-[#097e92]" /> Monatlicher Verlauf
+          <TrendingUp class="w-4 h-4 text-[#0088ba]" /> Monatlicher Verlauf
         </h3>
         <div class="flex items-end gap-2 h-32">
           <div v-for="m in stats.monthly" :key="m.month" class="flex-1 flex flex-col items-center gap-1">
             <div class="w-full bg-gray-100 rounded-t flex flex-col-reverse" :style="`height: ${maxMonth ? Math.max((m.created + m.closed) / maxMonth, 0.05) * 100 : 0}%`">
-              <div class="w-full bg-[#097e92]" :style="`height: ${(m.closed / Math.max(m.created+m.closed, 1)) * 100}%`" :title="`${m.closed} Abschluss`"></div>
-              <div class="w-full bg-[#097e92]/40" :style="`height: ${(m.created / Math.max(m.created+m.closed, 1)) * 100}%`" :title="`${m.created} neu`"></div>
+              <div class="w-full bg-[#0088ba]" :style="`height: ${(m.closed / Math.max(m.created+m.closed, 1)) * 100}%`" :title="`${m.closed} Abschluss`"></div>
+              <div class="w-full bg-[#0088ba]/40" :style="`height: ${(m.created / Math.max(m.created+m.closed, 1)) * 100}%`" :title="`${m.created} neu`"></div>
             </div>
             <span class="text-[10px] text-gray-500 -rotate-45 origin-top-left whitespace-nowrap mt-2">{{ m.month }}</span>
           </div>
         </div>
         <div class="flex gap-3 text-xs text-gray-500 mt-4">
-          <span class="flex items-center gap-1"><span class="w-3 h-3 bg-[#097e92] rounded"></span> Abschluss</span>
-          <span class="flex items-center gap-1"><span class="w-3 h-3 bg-[#097e92]/40 rounded"></span> Neue Mandate</span>
+          <span class="flex items-center gap-1"><span class="w-3 h-3 bg-[#0088ba] rounded"></span> Abschluss</span>
+          <span class="flex items-center gap-1"><span class="w-3 h-3 bg-[#0088ba]/40 rounded"></span> Neue Mandate</span>
         </div>
       </div>
 
       <!-- Lessons Learned Aggregat -->
       <div class="bg-white rounded-xl border border-gray-100 p-5">
         <h3 class="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
-          <BookOpen class="w-4 h-4 text-[#097e92]" /> Lessons Learned aus abgeschlossenen Deals
+          <BookOpen class="w-4 h-4 text-[#0088ba]" /> Lessons Learned aus abgeschlossenen Deals
         </h3>
         <div v-if="!lessons.length" class="text-sm text-gray-400 py-6 text-center">
           Noch keine Lessons-Learned-Einträge. Fülle in jedem Mandant unter „Erfolgsmeldung" den entsprechenden Bereich.
@@ -122,7 +122,7 @@
         <div v-else class="space-y-3">
           <div v-for="l in lessons" :key="l.targetId" class="border border-gray-100 rounded-xl p-4">
             <div class="flex items-center gap-2 mb-2">
-              <span class="font-mono text-xs bg-[#097e92]/10 text-[#097e92] px-2 py-0.5 rounded">{{ l.mbNr }}</span>
+              <span class="font-mono text-xs bg-[#0088ba]/10 text-[#0088ba] px-2 py-0.5 rounded">{{ l.mbNr }}</span>
               <span class="font-medium text-gray-800">{{ l.verkaueferName }}</span>
               <span class="text-xs text-gray-500">{{ l.projekttyp }}</span>
             </div>

@@ -22,7 +22,7 @@
         <button
           @click="loginMicrosoft"
           :disabled="loading"
-          class="w-full flex items-center justify-center gap-3 px-4 py-3.5 bg-[#097e92] text-white rounded-xl font-semibold hover:bg-[#0a9aaf] transition-colors disabled:opacity-50 mb-2"
+          class="w-full flex items-center justify-center gap-3 px-4 py-3.5 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8] transition-colors disabled:opacity-50 mb-2"
         >
           <component :is="loading && loginType === 'microsoft' ? Loader2 : MicrosoftIcon" class="w-5 h-5" :class="loading && loginType === 'microsoft' ? 'animate-spin' : ''" />
           Mit Microsoft anmelden
@@ -47,7 +47,7 @@
               type="email"
               required
               placeholder="ihre@email.de"
-              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]"
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]"
             />
           </div>
           <div>
@@ -57,7 +57,7 @@
               type="password"
               required
               placeholder="••••••••"
-              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]"
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]"
             />
           </div>
           <button
@@ -69,7 +69,7 @@
             <LogIn v-else class="w-4 h-4" />
             {{ loading && loginType === 'customer' ? 'Anmelden…' : 'Anmelden' }}
           </button>
-          <button type="button" @click="forgotPassword" class="w-full text-center text-xs text-gray-500 hover:text-[#097e92] mt-2">
+          <button type="button" @click="forgotPassword" class="w-full text-center text-xs text-gray-500 hover:text-[#0088ba] mt-2">
             Passwort vergessen?
           </button>
         </form>
@@ -81,13 +81,13 @@
           <h3 class="font-bold text-gray-900 mb-2">Passwort zurücksetzen</h3>
           <p class="text-xs text-gray-500 mb-4">Gib deine E-Mail ein – wir schicken dir ein neues Passwort.</p>
           <input v-model="forgotEmail" type="email" placeholder="ihre@email.de"
-            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30" />
           <div v-if="forgotMsg" :class="['text-xs mt-3 p-2 rounded', forgotMsgOk ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700']">
             {{ forgotMsg }}
           </div>
           <div class="flex gap-3 mt-4">
             <button @click="showForgotModal = false" class="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50">Schließen</button>
-            <button @click="sendForgot" :disabled="forgotSending || !forgotEmail" class="flex-1 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium disabled:opacity-50">
+            <button @click="sendForgot" :disabled="forgotSending || !forgotEmail" class="flex-1 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium disabled:opacity-50">
               {{ forgotSending ? 'Sende…' : 'Neues Passwort anfordern' }}
             </button>
           </div>

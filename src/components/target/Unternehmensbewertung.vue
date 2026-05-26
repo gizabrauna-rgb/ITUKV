@@ -22,7 +22,7 @@
     </div>
 
     <!-- Sticky Live-Score -->
-    <div class="bg-gradient-to-br from-[#097e92] to-[#0a9aaf] rounded-xl p-5 mb-4 text-white sticky top-4 z-10 shadow-lg">
+    <div class="bg-gradient-to-br from-[#0088ba] to-[#00a0d8] rounded-xl p-5 mb-4 text-white sticky top-4 z-10 shadow-lg">
       <div class="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <div class="text-xs uppercase tracking-wide opacity-80">Deine Bewertung</div>
@@ -45,7 +45,7 @@
     <!-- EBIT-Eingabe Karte -->
     <div class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
       <div class="flex items-center gap-2 mb-3">
-        <Calculator class="w-4 h-4 text-[#097e92]" />
+        <Calculator class="w-4 h-4 text-[#0088ba]" />
         <h3 class="font-semibold text-gray-800 text-sm">Unternehmenswert-Schätzung</h3>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
@@ -54,9 +54,9 @@
           <input v-model.number="adjustedEbit" type="number" placeholder="z.B. 250" class="input" />
           <p class="text-xs text-gray-400 mt-1">EBIT nach Bereinigung um Sondereffekte und marktübliches GF-Gehalt</p>
         </div>
-        <div v-if="adjustedEbit > 0" class="bg-[#097e92]/10 rounded-lg p-4">
+        <div v-if="adjustedEbit > 0" class="bg-[#0088ba]/10 rounded-lg p-4">
           <div class="text-xs text-gray-600">Geschätzter Unternehmenswert</div>
-          <div class="text-2xl font-bold text-[#097e92]">{{ formatTeur(unternehmenswert) }} TEUR</div>
+          <div class="text-2xl font-bold text-[#0088ba]">{{ formatTeur(unternehmenswert) }} TEUR</div>
           <div class="text-xs text-gray-500 mt-1">{{ adjustedEbit }} × {{ ebitFaktor.toFixed(1) }}× ({{ einstufung }})</div>
         </div>
       </div>
@@ -66,11 +66,11 @@
     <div class="flex items-center gap-2 mb-3">
       <button @click="onlyUnanswered = !onlyUnanswered"
         :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors',
-          onlyUnanswered ? 'bg-[#097e92] text-white border-[#097e92]' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50']">
+          onlyUnanswered ? 'bg-[#0088ba] text-white border-[#0088ba]' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50']">
         <Filter class="w-3.5 h-3.5" /> Nur unbeantwortete zeigen
       </button>
-      <button @click="expandAll" class="text-xs text-gray-500 hover:text-[#097e92] underline">Alle aufklappen</button>
-      <button @click="collapseAll" class="text-xs text-gray-500 hover:text-[#097e92] underline">Alle zuklappen</button>
+      <button @click="expandAll" class="text-xs text-gray-500 hover:text-[#0088ba] underline">Alle aufklappen</button>
+      <button @click="collapseAll" class="text-xs text-gray-500 hover:text-[#0088ba] underline">Alle zuklappen</button>
     </div>
 
     <!-- Themenblöcke -->
@@ -148,7 +148,7 @@
         <div v-if="lastSaved" class="text-xs text-gray-500">Zuletzt gespeichert: {{ lastSavedHuman }}</div>
         <div v-else class="text-xs text-gray-500">Vergiss nicht zu speichern</div>
       </div>
-      <button @click="save" :disabled="saving || readOnly" class="px-6 py-2.5 bg-[#097e92] text-white rounded-xl font-semibold hover:bg-[#0a9aaf] disabled:opacity-50 flex items-center gap-2">
+      <button @click="save" :disabled="saving || readOnly" class="px-6 py-2.5 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8] disabled:opacity-50 flex items-center gap-2">
         <Save class="w-4 h-4" />
         {{ saving ? 'Speichere…' : 'Bewertung speichern' }}
       </button>
@@ -346,5 +346,5 @@ async function save() {
 
 <style scoped>
 @reference "tailwindcss";
-.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]; }
+.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
 </style>

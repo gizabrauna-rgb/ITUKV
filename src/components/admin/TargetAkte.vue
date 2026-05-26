@@ -9,7 +9,7 @@
           </button>
           <div>
             <div class="flex items-center gap-2">
-              <span class="font-mono text-xs bg-[#097e92]/10 text-[#097e92] px-2 py-1 rounded font-semibold">{{ target?.mbNr }}</span>
+              <span class="font-mono text-xs bg-[#0088ba]/10 text-[#0088ba] px-2 py-1 rounded font-semibold">{{ target?.mbNr }}</span>
               <span class="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">{{ target?.projekttyp }}</span>
               <span :class="statusClass(target?.status)" class="text-xs font-medium px-2 py-1 rounded-full">{{ statusLabel(target?.status) }}</span>
             </div>
@@ -18,14 +18,14 @@
         </div>
         <div class="text-right">
           <div class="text-xs text-gray-500">Aktuelle Phase</div>
-          <div class="font-semibold text-[#097e92]">Phase {{ currentPhase }} / {{ phasen.length || 15 }} · {{ progressPercent }}%</div>
+          <div class="font-semibold text-[#0088ba]">Phase {{ currentPhase }} / {{ phasen.length || 15 }} · {{ progressPercent }}%</div>
         </div>
       </div>
 
       <!-- Fortschrittsbalken -->
       <div class="px-6 pb-3">
         <div class="w-full bg-gray-100 rounded-full h-1.5">
-          <div class="bg-[#097e92] h-1.5 rounded-full transition-all" :style="`width: ${progressPercent}%`"></div>
+          <div class="bg-[#0088ba] h-1.5 rounded-full transition-all" :style="`width: ${progressPercent}%`"></div>
         </div>
       </div>
 
@@ -33,7 +33,7 @@
       <nav class="flex items-center gap-1 px-4 border-t border-gray-50 overflow-x-auto">
         <button v-for="t in tabs" :key="t.tab" @click="tab = t.tab"
           :class="['flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors',
-                  tab === t.tab ? 'border-[#097e92] text-[#097e92]' : 'border-transparent text-gray-500 hover:text-gray-800']">
+                  tab === t.tab ? 'border-[#0088ba] text-[#0088ba]' : 'border-transparent text-gray-500 hover:text-gray-800']">
           <component :is="t.icon" class="w-4 h-4" />
           {{ t.label }}
           <span v-if="t.badge" class="ml-1 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold bg-[#c8b274] text-[#161e2a] rounded-full">{{ t.badge }}</span>
@@ -55,7 +55,7 @@
         </div>
 
         <!-- Nächste Schritte -->
-        <div class="bg-gradient-to-br from-[#097e92] to-[#0a9aaf] rounded-xl p-5 mb-6 text-white">
+        <div class="bg-gradient-to-br from-[#0088ba] to-[#00a0d8] rounded-xl p-5 mb-6 text-white">
           <div class="flex items-center gap-2 mb-2">
             <Sparkles class="w-4 h-4" />
             <span class="text-sm font-semibold uppercase tracking-wide">Was kommt als nächstes</span>
@@ -74,14 +74,14 @@
         <!-- Wiedervorlage -->
         <div class="bg-white rounded-xl border border-gray-100 p-5 mb-6">
           <h3 class="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
-            <CalendarClock class="w-4 h-4 text-[#097e92]" /> Wiedervorlage
+            <CalendarClock class="w-4 h-4 text-[#0088ba]" /> Wiedervorlage
           </h3>
           <div class="flex items-center gap-3">
             <input
               type="date"
               :value="target?.wiedervorlage || ''"
               @change="saveWiedervorlage($event.target.value)"
-              :class="['px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30', wvInputClass]" />
+              :class="['px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30', wvInputClass]" />
             <button v-if="target?.wiedervorlage" @click="saveWiedervorlage('')" class="text-xs text-gray-400 hover:text-red-500 flex items-center gap-1">
               <X class="w-3.5 h-3.5" /> Entfernen
             </button>
@@ -163,10 +163,10 @@
       <div v-else-if="tab === 'nda'">
         <!-- Sub-Tabs -->
         <div class="flex gap-1 mb-5 bg-white rounded-xl border border-gray-100 p-1 w-fit">
-          <button @click="vertragSubTab = 'mandat'" :class="['px-4 py-2 rounded-lg text-sm font-medium transition-colors', vertragSubTab === 'mandat' ? 'bg-[#097e92] text-white' : 'text-gray-600 hover:bg-gray-50']">
+          <button @click="vertragSubTab = 'mandat'" :class="['px-4 py-2 rounded-lg text-sm font-medium transition-colors', vertragSubTab === 'mandat' ? 'bg-[#0088ba] text-white' : 'text-gray-600 hover:bg-gray-50']">
             Mandatsvertrag
           </button>
-          <button @click="vertragSubTab = 'nda'" :class="['px-4 py-2 rounded-lg text-sm font-medium transition-colors', vertragSubTab === 'nda' ? 'bg-[#097e92] text-white' : 'text-gray-600 hover:bg-gray-50']">
+          <button @click="vertragSubTab = 'nda'" :class="['px-4 py-2 rounded-lg text-sm font-medium transition-colors', vertragSubTab === 'nda' ? 'bg-[#0088ba] text-white' : 'text-gray-600 hover:bg-gray-50']">
             {{ isKaufMandat ? 'NDA für Käufer' : 'NDA für Investor' }}
           </button>
         </div>

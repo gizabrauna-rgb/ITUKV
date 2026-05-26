@@ -2,7 +2,7 @@
   <div>
     <div v-if="!embedded" class="flex items-center justify-between mb-6">
       <h2 class="text-xl font-bold text-gray-900">Master-Prozess</h2>
-      <select v-model="selectedTargetId" @change="loadTarget" class="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#097e92]/30">
+      <select v-model="selectedTargetId" @change="loadTarget" class="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30">
         <option value="">— Target auswählen —</option>
         <option v-for="t in targets" :key="t.RowKey" :value="t.RowKey">{{ t.mbNr }} · {{ t.verkaueferName }}</option>
       </select>
@@ -18,10 +18,10 @@
       <div class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
         <div class="flex items-center justify-between mb-2">
           <span class="text-sm font-medium text-gray-700">Gesamtfortschritt M&A-Prozess</span>
-          <span class="text-sm font-bold text-[#097e92]">Phase {{ activePhaseNumber }} / {{ phasen.length }} · {{ doneTasksTotal }} / {{ totalTasksTotal }} Aufgaben</span>
+          <span class="text-sm font-bold text-[#0088ba]">Phase {{ activePhaseNumber }} / {{ phasen.length }} · {{ doneTasksTotal }} / {{ totalTasksTotal }} Aufgaben</span>
         </div>
         <div class="w-full bg-gray-100 rounded-full h-2">
-          <div class="bg-[#097e92] h-2 rounded-full transition-all" :style="`width: ${progressPercent}%`"></div>
+          <div class="bg-[#0088ba] h-2 rounded-full transition-all" :style="`width: ${progressPercent}%`"></div>
         </div>
         <div class="text-xs text-gray-400 mt-1">{{ progressPercent }}% komplett</div>
       </div>
@@ -37,7 +37,7 @@
             <div :class="[
               'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0',
               phaseStatus(phase) === 'done' ? 'bg-green-500 text-white' :
-              phaseStatus(phase) === 'active' ? 'bg-[#097e92] text-white' :
+              phaseStatus(phase) === 'active' ? 'bg-[#0088ba] text-white' :
               'bg-gray-100 text-gray-400'
             ]">
               <Check v-if="phaseStatus(phase) === 'done'" class="w-3.5 h-3.5" />
@@ -58,16 +58,16 @@
             <div v-for="(task, ti) in phase.aufgaben" :key="task.id" class="bg-white rounded-lg p-3 mb-2 last:mb-0 flex items-start gap-3">
               <button
                 @click="toggleTask(phase, task)"
-                :class="['w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors mt-0.5', task.done ? 'bg-[#097e92] border-[#097e92]' : 'border-gray-300 hover:border-[#097e92]']"
+                :class="['w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors mt-0.5', task.done ? 'bg-[#0088ba] border-[#0088ba]' : 'border-gray-300 hover:border-[#0088ba]']"
               >
                 <Check v-if="task.done" class="w-3 h-3 text-white" />
               </button>
               <div class="flex-1 min-w-0">
                 <div :class="['text-sm', task.done ? 'line-through text-gray-400' : 'text-gray-800']">{{ task.label }}</div>
                 <div class="grid grid-cols-3 gap-2 mt-2">
-                  <input v-model="task.verantwortlich" @blur="save" placeholder="Verantwortlich" class="text-xs px-2 py-1 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-[#097e92]/30" />
+                  <input v-model="task.verantwortlich" @blur="save" placeholder="Verantwortlich" class="text-xs px-2 py-1 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0088ba]/30" />
                   <input v-model="task.datum" type="date" @blur="save" class="text-xs px-2 py-1 border border-gray-200 rounded focus:outline-none" />
-                  <input v-model="task.notiz" @blur="save" placeholder="Notiz" class="text-xs px-2 py-1 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-[#097e92]/30" />
+                  <input v-model="task.notiz" @blur="save" placeholder="Notiz" class="text-xs px-2 py-1 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0088ba]/30" />
                 </div>
               </div>
               <button @click="removeTask(phase, ti)" class="text-gray-300 hover:text-red-500" title="Aufgabe entfernen">
@@ -75,7 +75,7 @@
               </button>
             </div>
 
-            <button @click="addTask(phase)" class="w-full px-3 py-2 border border-dashed border-gray-300 rounded-lg text-xs text-gray-500 hover:text-[#097e92] hover:border-[#097e92] transition-colors flex items-center justify-center gap-1.5">
+            <button @click="addTask(phase)" class="w-full px-3 py-2 border border-dashed border-gray-300 rounded-lg text-xs text-gray-500 hover:text-[#0088ba] hover:border-[#0088ba] transition-colors flex items-center justify-center gap-1.5">
               <Plus class="w-3.5 h-3.5" /> Aufgabe hinzufügen
             </button>
 
@@ -87,7 +87,7 @@
                 @blur="save"
                 rows="2"
                 placeholder="Notizen zur gesamten Phase…"
-                class="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#097e92]/30 resize-none bg-white"
+                class="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0088ba]/30 resize-none bg-white"
               ></textarea>
             </div>
           </div>
@@ -275,7 +275,7 @@ function phaseStatus(p) {
 function phaseBadgeClass(p) {
   const s = phaseStatus(p)
   if (s === 'done') return 'bg-green-100 text-green-700'
-  if (s === 'active') return 'bg-[#097e92]/10 text-[#097e92]'
+  if (s === 'active') return 'bg-[#0088ba]/10 text-[#0088ba]'
   return 'bg-gray-100 text-gray-500'
 }
 function phaseBadgeLabel(p) {

@@ -2,7 +2,7 @@
   <div>
     <div class="flex items-center justify-between mb-6">
       <h2 class="text-xl font-bold text-gray-900">Benutzer-Verwaltung</h2>
-      <button @click="openNew" class="flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf]">
+      <button @click="openNew" class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8]">
         <UserPlus class="w-4 h-4" /> Neuer Benutzer
       </button>
     </div>
@@ -10,7 +10,7 @@
     <!-- Filter -->
     <div class="flex gap-2 mb-4">
       <button v-for="r in roleFilters" :key="r.value" @click="filterRole = r.value"
-        :class="['px-3 py-1.5 rounded-lg text-sm font-medium', filterRole === r.value ? 'bg-[#097e92] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50']">
+        :class="['px-3 py-1.5 rounded-lg text-sm font-medium', filterRole === r.value ? 'bg-[#0088ba] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50']">
         {{ r.label }} <span class="opacity-60 ml-1">({{ countRole(r.value) }})</span>
       </button>
     </div>
@@ -120,7 +120,7 @@
         </div>
         <div class="flex gap-3 mt-5">
           <button @click="closeModal" class="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50">Abbrechen</button>
-          <button @click="save" :disabled="saving || !form.email" class="flex-1 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium disabled:opacity-50">
+          <button @click="save" :disabled="saving || !form.email" class="flex-1 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium disabled:opacity-50">
             {{ saving ? 'Speichern…' : 'Speichern' }}
           </button>
         </div>
@@ -131,33 +131,33 @@
     <div v-if="resetUser" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4" @click.self="resetUser = null">
       <div class="bg-white rounded-2xl p-6 w-full max-w-md">
         <h3 class="font-bold text-gray-900 mb-1 flex items-center gap-2">
-          <Send class="w-5 h-5 text-[#097e92]" /> Zugangsdaten neu senden
+          <Send class="w-5 h-5 text-[#0088ba]" /> Zugangsdaten neu senden
         </h3>
         <p class="text-xs text-gray-500 mb-4">Für: <strong>{{ resetUser.email }}</strong></p>
         <p class="text-xs text-gray-600 mb-4 leading-relaxed">
           Der Benutzer erhält per E-Mail ein neues Passwort und einen Login-Link. Das alte Passwort wird ungültig.
         </p>
         <div class="space-y-2">
-          <label class="flex items-start gap-2 p-3 border-2 rounded-xl cursor-pointer hover:bg-gray-50" :class="resetMode === 'random' ? 'border-[#097e92] bg-[#097e92]/5' : 'border-gray-200'">
+          <label class="flex items-start gap-2 p-3 border-2 rounded-xl cursor-pointer hover:bg-gray-50" :class="resetMode === 'random' ? 'border-[#0088ba] bg-[#0088ba]/5' : 'border-gray-200'">
             <input type="radio" v-model="resetMode" value="random" class="mt-1" />
             <div>
               <div class="text-sm font-medium text-gray-800">Zufalls-Passwort generieren (empfohlen)</div>
               <div class="text-xs text-gray-500">Wird automatisch per E-Mail an den Benutzer verschickt.</div>
             </div>
           </label>
-          <label class="flex items-start gap-2 p-3 border-2 rounded-xl cursor-pointer hover:bg-gray-50" :class="resetMode === 'custom' ? 'border-[#097e92] bg-[#097e92]/5' : 'border-gray-200'">
+          <label class="flex items-start gap-2 p-3 border-2 rounded-xl cursor-pointer hover:bg-gray-50" :class="resetMode === 'custom' ? 'border-[#0088ba] bg-[#0088ba]/5' : 'border-gray-200'">
             <input type="radio" v-model="resetMode" value="custom" class="mt-1" />
             <div class="flex-1">
               <div class="text-sm font-medium text-gray-800">Eigenes Passwort setzen</div>
               <div class="text-xs text-gray-500 mb-2">Z.B. für telefonische Absprache.</div>
               <input v-if="resetMode === 'custom'" v-model="resetCustomPw" type="text" placeholder="Neues Passwort (min. 6 Zeichen)"
-                class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 font-mono" />
+                class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 font-mono" />
             </div>
           </label>
         </div>
         <div class="flex gap-3 mt-5">
           <button @click="resetUser = null" class="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50">Abbrechen</button>
-          <button @click="doReset" class="flex-1 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf]">Setzen + Mail senden</button>
+          <button @click="doReset" class="flex-1 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8]">Setzen + Mail senden</button>
         </div>
       </div>
     </div>
@@ -187,7 +187,7 @@
             <Copy v-else class="w-3 h-3" /> Kopieren
           </button>
         </div>
-        <button @click="passwordReveal = null" class="w-full px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium">Verstanden</button>
+        <button @click="passwordReveal = null" class="w-full px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium">Verstanden</button>
       </div>
     </div>
   </div>
@@ -225,7 +225,7 @@ function countRole(role) {
 }
 
 function roleClass(r) {
-  if (r === 'admin') return 'bg-[#097e92]/10 text-[#097e92]'
+  if (r === 'admin') return 'bg-[#0088ba]/10 text-[#0088ba]'
   if (r === 'target') return 'bg-blue-100 text-blue-700'
   return 'bg-purple-100 text-purple-700'
 }
@@ -367,5 +367,5 @@ async function copyPassword() {
 
 <style scoped>
 @reference "tailwindcss";
-.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92] disabled:bg-gray-50 disabled:text-gray-400; }
+.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba] disabled:bg-gray-50 disabled:text-gray-400; }
 </style>

@@ -2,7 +2,7 @@
   <div>
     <div class="flex items-center justify-between mb-6">
       <h2 class="text-xl font-bold text-gray-900">Interessenten-Pipeline</h2>
-      <select v-model="selectedTargetId" @change="loadInteressenten" class="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#097e92]/30">
+      <select v-model="selectedTargetId" @change="loadInteressenten" class="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30">
         <option value="">— Target auswählen —</option>
         <option v-for="t in targets" :key="t.RowKey" :value="t.RowKey">{{ t.mbNr }} · {{ t.verkaueferName }}</option>
       </select>
@@ -32,7 +32,7 @@
             draggable="true"
             @dragstart="onDragStart($event, i)"
             @click="openDetail(i)"
-            class="bg-white rounded-xl border border-gray-100 p-3 cursor-pointer hover:border-[#097e92]/30 hover:shadow-sm transition-all"
+            class="bg-white rounded-xl border border-gray-100 p-3 cursor-pointer hover:border-[#0088ba]/30 hover:shadow-sm transition-all"
           >
             <div class="font-medium text-sm text-gray-800 truncate">{{ i.firma || i.name }}</div>
             <div class="text-xs text-gray-500 mt-0.5">{{ i.name }}</div>
@@ -74,7 +74,7 @@
           <!-- Pipeline Status -->
           <div>
             <label class="text-xs font-medium text-gray-600 mb-1 block">Pipeline-Status</label>
-            <select v-model="detailItem.pipelineStatus" @change="saveDetail" class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#097e92]/30">
+            <select v-model="detailItem.pipelineStatus" @change="saveDetail" class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30">
               <option v-for="col in columns" :key="col.status" :value="col.status">{{ col.label }}</option>
             </select>
           </div>
@@ -92,13 +92,13 @@
           <!-- Gebot -->
           <div>
             <label class="text-xs font-medium text-gray-600 mb-1 block">Aktuelles Gebot</label>
-            <input v-model="detailItem.aktuellesGebot" @blur="saveDetail" placeholder="z. B. 1,2 Mio. €" class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+            <input v-model="detailItem.aktuellesGebot" @blur="saveDetail" placeholder="z. B. 1,2 Mio. €" class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30" />
           </div>
 
           <!-- Notizen -->
           <div>
             <label class="text-xs font-medium text-gray-600 mb-1 block">Notizen</label>
-            <textarea v-model="detailItem.notizen" @blur="saveDetail" rows="3" class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 resize-none"></textarea>
+            <textarea v-model="detailItem.notizen" @blur="saveDetail" rows="3" class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 resize-none"></textarea>
           </div>
 
           <!-- Freigabe -->

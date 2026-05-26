@@ -23,7 +23,7 @@
         <div :class="['w-3 h-3 rounded-full', landing.status === 'published' ? 'bg-green-500' : 'bg-gray-400']"></div>
         <div>
           <div class="font-medium text-sm">Status: {{ landing.status === 'published' ? 'Veröffentlicht (öffentlich erreichbar)' : 'Entwurf (noch nicht öffentlich)' }}</div>
-          <div v-if="landing.status === 'published'" class="text-xs text-gray-500">Live unter <a :href="liveUrl" target="_blank" class="text-[#097e92] hover:underline">{{ liveUrl }}</a></div>
+          <div v-if="landing.status === 'published'" class="text-xs text-gray-500">Live unter <a :href="liveUrl" target="_blank" class="text-[#0088ba] hover:underline">{{ liveUrl }}</a></div>
         </div>
       </div>
       <div class="flex gap-2">
@@ -66,7 +66,7 @@
     <div class="bg-white rounded-xl border border-gray-100 p-5 mb-3">
       <div class="flex items-center justify-between mb-3">
         <h4 class="font-semibold text-gray-800 text-sm">Key Facts (Kacheln)</h4>
-        <button @click="addFact" class="flex items-center gap-1 text-xs text-[#097e92] hover:text-[#0a9aaf]">
+        <button @click="addFact" class="flex items-center gap-1 text-xs text-[#0088ba] hover:text-[#00a0d8]">
           <Plus class="w-3 h-3" /> Kachel hinzufügen
         </button>
       </div>
@@ -231,6 +231,6 @@ async function vorbefuellen() {
 
 <style scoped>
 @reference "tailwindcss";
-.input { @apply w-full px-3 py-2 border-2 border-gray-200 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]; }
+.input { @apply w-full px-3 py-2 border-2 border-gray-200 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
 .lbl { @apply block text-xs font-medium text-gray-600 mb-1; }
 </style>

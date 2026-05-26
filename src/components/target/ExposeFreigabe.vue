@@ -79,11 +79,11 @@
           <h3 class="font-bold text-gray-900 mb-2">Korrekturwunsch</h3>
           <p class="text-sm text-gray-500 mb-3">Was sollen wir am Exposé anpassen?</p>
           <textarea v-model="korrekturText" rows="4"
-            class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 resize-none"
+            class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 resize-none"
             placeholder="z.B. Bitte den Umsatz nicht so genau angeben, bitte Branche detaillierter beschreiben..."></textarea>
           <div class="flex gap-3 mt-4">
             <button @click="showKorrektur = false" class="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-xl">Abbrechen</button>
-            <button @click="sendKorrektur" :disabled="!korrekturText.trim() || sending" class="flex-1 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium disabled:opacity-50">
+            <button @click="sendKorrektur" :disabled="!korrekturText.trim() || sending" class="flex-1 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium disabled:opacity-50">
               {{ sending ? 'Wird gesendet…' : 'An Jenny senden' }}
             </button>
           </div>
@@ -94,7 +94,7 @@
       <div v-if="pdfUrl" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" @click.self="closePdf">
         <div class="bg-white rounded-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden shadow-2xl">
           <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-            <h3 class="font-bold text-gray-900 flex items-center gap-2"><FileText class="w-5 h-5 text-[#097e92]" /> Exposé-PDF</h3>
+            <h3 class="font-bold text-gray-900 flex items-center gap-2"><FileText class="w-5 h-5 text-[#0088ba]" /> Exposé-PDF</h3>
             <button @click="closePdf" class="p-1.5 hover:bg-gray-100 rounded-lg"><X class="w-5 h-5 text-gray-500" /></button>
           </div>
           <iframe :src="pdfUrl" class="flex-1 w-full" frameborder="0"></iframe>

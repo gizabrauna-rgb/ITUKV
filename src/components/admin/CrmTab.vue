@@ -13,7 +13,7 @@
         <button @click="showImport = true" class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50">
           <Upload class="w-4 h-4" /> Importieren
         </button>
-        <button @click="showNewModal = true" class="flex items-center gap-2 px-3 py-2 bg-[#097e92] text-white rounded-xl text-sm hover:bg-[#0a9aaf]">
+        <button @click="showNewModal = true" class="flex items-center gap-2 px-3 py-2 bg-[#0088ba] text-white rounded-xl text-sm hover:bg-[#00a0d8]">
           <UserPlus class="w-4 h-4" /> Neuer Kontakt
         </button>
       </div>
@@ -24,7 +24,7 @@
       <div class="flex gap-3 flex-wrap items-center">
         <div class="relative flex-1 min-w-[260px] max-w-md">
           <Search class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-          <input v-model="search" placeholder="Suche: Firma, Name, E-Mail…" class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+          <input v-model="search" placeholder="Suche: Firma, Name, E-Mail…" class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30" />
         </div>
         <select v-model="filterStatus" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
           <option value="">Status (alle)</option>
@@ -44,7 +44,7 @@
         <div class="flex items-center gap-2 border-l border-gray-200 pl-3">
           <label class="text-xs font-medium text-gray-600">PLZ</label>
           <input v-model="filterCenterPlz" placeholder="z.B. 80331" maxlength="5"
-            class="w-24 px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+            class="w-24 px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30" />
           <label class="text-xs font-medium text-gray-600">Umkreis</label>
           <select v-model.number="filterRadiusKm" class="px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none">
             <option :value="0">alle</option>
@@ -55,9 +55,9 @@
             <option :value="500">500 km</option>
           </select>
         </div>
-        <button @click="showProduktFilter = !showProduktFilter" :class="['flex items-center gap-1.5 px-3 py-2 border rounded-xl text-sm', selectedProdukte.length ? 'border-[#097e92] bg-[#097e92]/5 text-[#097e92]' : 'border-gray-200 text-gray-600 hover:bg-gray-50']">
+        <button @click="showProduktFilter = !showProduktFilter" :class="['flex items-center gap-1.5 px-3 py-2 border rounded-xl text-sm', selectedProdukte.length ? 'border-[#0088ba] bg-[#0088ba]/5 text-[#0088ba]' : 'border-gray-200 text-gray-600 hover:bg-gray-50']">
           <Filter class="w-4 h-4" /> Produkte
-          <span v-if="selectedProdukte.length" class="bg-[#097e92] text-white text-[10px] px-1.5 py-0.5 rounded-full">{{ selectedProdukte.length }}</span>
+          <span v-if="selectedProdukte.length" class="bg-[#0088ba] text-white text-[10px] px-1.5 py-0.5 rounded-full">{{ selectedProdukte.length }}</span>
         </button>
         <button v-if="hasAnyFilter" @click="clearAllFilters" class="text-xs text-gray-500 hover:text-gray-800 underline">Filter zurücksetzen</button>
         <div class="flex-1"></div>
@@ -89,7 +89,7 @@
           <tr>
             <th class="text-left px-3 py-3 w-10">
               <input type="checkbox" :checked="allVisibleSelected" @change="toggleAllVisible"
-                class="rounded border-gray-300 text-[#097e92] focus:ring-[#097e92]/30" title="Alle sichtbaren auswählen" />
+                class="rounded border-gray-300 text-[#0088ba] focus:ring-[#0088ba]/30" title="Alle sichtbaren auswählen" />
             </th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Firma</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Name</th>
@@ -100,13 +100,13 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-50">
-          <tr v-for="k in visibleList" :key="k.RowKey || k.id" :class="['hover:bg-gray-50', selectedIds.has(k.id || k.RowKey) && 'bg-[#097e92]/5']">
+          <tr v-for="k in visibleList" :key="k.RowKey || k.id" :class="['hover:bg-gray-50', selectedIds.has(k.id || k.RowKey) && 'bg-[#0088ba]/5']">
             <td class="px-3 py-3">
               <input type="checkbox" :checked="selectedIds.has(k.id || k.RowKey)" @change="toggleSelect(k)"
-                class="rounded border-gray-300 text-[#097e92] focus:ring-[#097e92]/30" />
+                class="rounded border-gray-300 text-[#0088ba] focus:ring-[#0088ba]/30" />
             </td>
             <td class="px-4 py-3 text-sm font-medium text-gray-800">
-              <button @click="openAkte(k)" class="text-left hover:text-[#097e92] hover:underline">{{ k.firma }}</button>
+              <button @click="openAkte(k)" class="text-left hover:text-[#0088ba] hover:underline">{{ k.firma }}</button>
             </td>
             <td class="px-4 py-3 text-sm text-gray-600">{{ k.name }}</td>
             <td class="px-4 py-3">
@@ -130,7 +130,7 @@
               </div>
             </td>
             <td class="px-4 py-3">
-              <a v-if="k.email" :href="`mailto:${k.email}`" class="inline-flex items-center gap-1 text-xs text-[#097e92] hover:text-[#0a9aaf] mr-2">
+              <a v-if="k.email" :href="`mailto:${k.email}`" class="inline-flex items-center gap-1 text-xs text-[#0088ba] hover:text-[#00a0d8] mr-2">
                 <Mail class="w-3.5 h-3.5" /> Anschreiben
               </a>
               <button @click="openEdit(k)" class="text-xs text-gray-400 hover:text-gray-600">
@@ -185,7 +185,7 @@
       <div class="w-px h-6 bg-white/20"></div>
       <button @click="clearSelection" class="text-xs text-gray-300 hover:text-white">Auswahl löschen</button>
       <div class="w-px h-6 bg-white/20"></div>
-      <button @click="showAusschreibungModal = true" class="flex items-center gap-2 px-4 py-2 bg-[#097e92] hover:bg-[#0a9aaf] rounded-xl text-sm font-medium">
+      <button @click="showAusschreibungModal = true" class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] hover:bg-[#00a0d8] rounded-xl text-sm font-medium">
         <Megaphone class="w-4 h-4" /> Ausschreibung versenden
       </button>
     </div>
@@ -236,10 +236,10 @@
           <button @click="sendMailto" :disabled="!canSend" class="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-xl text-sm disabled:opacity-50">
             <Mail class="w-4 h-4" /> E-Mail-App öffnen
           </button>
-          <button @click="downloadCsv" :disabled="!canSend" class="flex items-center gap-2 px-4 py-2 border border-[#097e92] text-[#097e92] rounded-xl text-sm disabled:opacity-50">
+          <button @click="downloadCsv" :disabled="!canSend" class="flex items-center gap-2 px-4 py-2 border border-[#0088ba] text-[#0088ba] rounded-xl text-sm disabled:opacity-50">
             <Download class="w-4 h-4" /> Für Serien-Mail (CSV)
           </button>
-          <button @click="sendAcs" :disabled="!canSend" class="flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium disabled:opacity-50" title="Wenn ACS-Domain mail.itukv.de verifiziert ist">
+          <button @click="sendAcs" :disabled="!canSend" class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium disabled:opacity-50" title="Wenn ACS-Domain mail.itukv.de verifiziert ist">
             <Send class="w-4 h-4" /> Direkt senden (ACS)
           </button>
         </div>
@@ -254,10 +254,10 @@
           <button @click="showImport = false"><X class="w-5 h-5 text-gray-400" /></button>
         </div>
         <p class="text-sm text-gray-500 mb-4">JSON-Array mit Kontakten einfügen oder CSV-Datei hochladen:</p>
-        <textarea v-model="importJson" rows="6" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 resize-none" placeholder='[{"firma":"Musterfirma","name":"Max Muster","email":"m@example.de","typ":"PE","plz":"80000","ort":"München"}]'></textarea>
+        <textarea v-model="importJson" rows="6" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 resize-none" placeholder='[{"firma":"Musterfirma","name":"Max Muster","email":"m@example.de","typ":"PE","plz":"80000","ort":"München"}]'></textarea>
         <div class="flex gap-3 mt-4">
           <button @click="showImport = false" class="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50">Abbrechen</button>
-          <button @click="doImport" :disabled="importing" class="flex-1 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium disabled:opacity-50">
+          <button @click="doImport" :disabled="importing" class="flex-1 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium disabled:opacity-50">
             {{ importing ? 'Importiere…' : 'Importieren' }}
           </button>
         </div>
@@ -285,16 +285,16 @@
             <label class="field-label">Rollen (mehrere möglich)</label>
             <div class="flex flex-wrap gap-3 mt-1">
               <label class="flex items-center gap-1.5 text-sm cursor-pointer">
-                <input type="checkbox" v-model="form.istKunde" class="rounded text-[#097e92]" /> Kunde
+                <input type="checkbox" v-model="form.istKunde" class="rounded text-[#0088ba]" /> Kunde
               </label>
               <label class="flex items-center gap-1.5 text-sm cursor-pointer">
-                <input type="checkbox" v-model="form.istExKunde" class="rounded text-[#097e92]" /> Ex-Kunde
+                <input type="checkbox" v-model="form.istExKunde" class="rounded text-[#0088ba]" /> Ex-Kunde
               </label>
               <label class="flex items-center gap-1.5 text-sm cursor-pointer">
-                <input type="checkbox" v-model="form.istInvestor" class="rounded text-[#097e92]" /> Investor
+                <input type="checkbox" v-model="form.istInvestor" class="rounded text-[#0088ba]" /> Investor
               </label>
               <label class="flex items-center gap-1.5 text-sm cursor-pointer">
-                <input type="checkbox" v-model="form.istTarget" class="rounded text-[#097e92]" /> Target
+                <input type="checkbox" v-model="form.istTarget" class="rounded text-[#0088ba]" /> Target
               </label>
             </div>
           </div>
@@ -314,7 +314,7 @@
           <div class="col-span-2 border-t border-gray-100 pt-4 mt-2">
             <div class="flex items-center justify-between mb-2">
               <label class="field-label">Weitere Ansprechpartner</label>
-              <button type="button" @click="addAnsprechpartner" class="text-xs text-[#097e92] hover:text-[#0a9aaf] flex items-center gap-1">
+              <button type="button" @click="addAnsprechpartner" class="text-xs text-[#0088ba] hover:text-[#00a0d8] flex items-center gap-1">
                 <Plus class="w-3 h-3" /> Hinzufügen
               </button>
             </div>
@@ -334,7 +334,7 @@
         </div>
         <div class="flex gap-3 mt-5">
           <button @click="closeModal" class="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50">Abbrechen</button>
-          <button @click="saveKontakt" :disabled="saving" class="flex-1 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium disabled:opacity-50">
+          <button @click="saveKontakt" :disabled="saving" class="flex-1 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium disabled:opacity-50">
             {{ saving ? 'Speichern…' : 'Speichern' }}
           </button>
         </div>
@@ -648,7 +648,7 @@ onMounted(loadData)
 function typClass(t) {
   if (t === 'PE') return 'bg-purple-100 text-purple-700'
   if (t === 'Systemhausgruppe') return 'bg-blue-100 text-blue-700'
-  if (t === 'Strategisch') return 'bg-[#097e92]/10 text-[#097e92]'
+  if (t === 'Strategisch') return 'bg-[#0088ba]/10 text-[#0088ba]'
   return 'bg-gray-100 text-gray-600'
 }
 
@@ -720,6 +720,6 @@ async function saveKontakt() {
 
 <style scoped>
 @reference "tailwindcss";
-.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]; }
+.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
 .field-label { @apply block text-xs font-medium text-gray-600 mb-1; }
 </style>

@@ -20,17 +20,17 @@
     <div class="bg-white rounded-xl border border-gray-100 p-5 mb-6">
       <div class="flex items-center justify-between mb-2">
         <span class="text-sm font-medium text-gray-700">Vollständigkeit</span>
-        <span class="text-sm font-bold text-[#097e92]">{{ filledCount }} / {{ totalFields }} Felder</span>
+        <span class="text-sm font-bold text-[#0088ba]">{{ filledCount }} / {{ totalFields }} Felder</span>
       </div>
       <div class="w-full bg-gray-100 rounded-full h-2">
-        <div class="bg-[#097e92] h-2 rounded-full transition-all" :style="`width: ${progress}%`"></div>
+        <div class="bg-[#0088ba] h-2 rounded-full transition-all" :style="`width: ${progress}%`"></div>
       </div>
     </div>
 
     <!-- Persönliche Kontaktdaten -->
     <section class="bg-white rounded-xl border border-gray-100 mb-4">
       <header class="px-5 py-3 border-b border-gray-50 flex items-center gap-2">
-        <User class="w-4 h-4 text-[#097e92]" />
+        <User class="w-4 h-4 text-[#0088ba]" />
         <h3 class="font-semibold text-gray-800 text-sm">Persönliche Kontaktdaten</h3>
       </header>
       <div class="p-5 grid grid-cols-2 gap-4">
@@ -44,7 +44,7 @@
     <!-- Vorgangsnummern (mibeca-intern) -->
     <section class="bg-white rounded-xl border border-gray-100 mb-4">
       <header class="px-5 py-3 border-b border-gray-50 flex items-center gap-2">
-        <Database class="w-4 h-4 text-[#097e92]" />
+        <Database class="w-4 h-4 text-[#0088ba]" />
         <h3 class="font-semibold text-gray-800 text-sm">Vorgangsnummern</h3>
       </header>
       <div class="p-5 grid grid-cols-2 gap-4">
@@ -104,7 +104,7 @@ const Field = defineComponent({
         value: props.modelValue,
         onInput: e => emit('update:modelValue', e.target.value),
         onBlur: () => emit('blur'),
-        class: 'w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]'
+        class: 'w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]'
       })
     ])
   }

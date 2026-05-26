@@ -30,7 +30,7 @@
         <nav class="px-6 border-b border-gray-100 flex gap-6 text-sm">
           <button v-for="t in tabs" :key="t.key" @click="tab = t.key"
             :class="['py-3 border-b-2 -mb-px flex items-center gap-2 font-medium transition-colors',
-                     tab === t.key ? 'border-[#097e92] text-[#097e92]' : 'border-transparent text-gray-500 hover:text-gray-700']">
+                     tab === t.key ? 'border-[#0088ba] text-[#0088ba]' : 'border-transparent text-gray-500 hover:text-gray-700']">
             <component :is="t.icon" class="w-4 h-4" />
             {{ t.label }}
             <span v-if="t.count != null" class="text-[11px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full">{{ t.count }}</span>
@@ -52,14 +52,14 @@
               <div>
                 <div class="text-[11px] uppercase tracking-wide text-gray-400 font-semibold mb-0.5">E-Mail</div>
                 <div class="text-sm">
-                  <a v-if="kontakt.email" :href="`mailto:${kontakt.email}`" class="text-[#097e92] hover:underline">{{ kontakt.email }}</a>
+                  <a v-if="kontakt.email" :href="`mailto:${kontakt.email}`" class="text-[#0088ba] hover:underline">{{ kontakt.email }}</a>
                   <span v-else class="text-gray-400">—</span>
                 </div>
               </div>
               <div>
                 <div class="text-[11px] uppercase tracking-wide text-gray-400 font-semibold mb-0.5">Telefon</div>
                 <div class="text-sm">
-                  <a v-if="kontakt.telefon" :href="`tel:${kontakt.telefon}`" class="text-[#097e92] hover:underline">{{ kontakt.telefon }}</a>
+                  <a v-if="kontakt.telefon" :href="`tel:${kontakt.telefon}`" class="text-[#0088ba] hover:underline">{{ kontakt.telefon }}</a>
                   <span v-else class="text-gray-400">—</span>
                 </div>
               </div>
@@ -84,14 +84,14 @@
               <div class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Weitere Ansprechpartner</div>
               <ul class="space-y-2">
                 <li v-for="(a, i) in weitereAnsprechpartner" :key="i" class="flex items-start gap-3 text-sm">
-                  <div class="w-8 h-8 rounded-full bg-[#097e92]/10 text-[#097e92] flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                  <div class="w-8 h-8 rounded-full bg-[#0088ba]/10 text-[#0088ba] flex items-center justify-center text-xs font-semibold flex-shrink-0">
                     {{ (a.name || '?').slice(0, 1).toUpperCase() }}
                   </div>
                   <div class="flex-1 min-w-0">
                     <div class="font-medium text-gray-800">{{ a.name || '—' }}<span v-if="a.position" class="text-xs text-gray-500 font-normal"> · {{ a.position }}</span></div>
                     <div class="text-xs text-gray-500 flex flex-wrap gap-x-3">
-                      <a v-if="a.email" :href="`mailto:${a.email}`" class="text-[#097e92] hover:underline">{{ a.email }}</a>
-                      <a v-if="a.telefon" :href="`tel:${a.telefon}`" class="text-[#097e92] hover:underline">{{ a.telefon }}</a>
+                      <a v-if="a.email" :href="`mailto:${a.email}`" class="text-[#0088ba] hover:underline">{{ a.email }}</a>
+                      <a v-if="a.telefon" :href="`tel:${a.telefon}`" class="text-[#0088ba] hover:underline">{{ a.telefon }}</a>
                     </div>
                   </div>
                 </li>
@@ -140,7 +140,7 @@
             <ul v-else class="space-y-2">
               <li v-for="p in verknuepfteProjekte" :key="p.RowKey"
                 @click="$emit('open-projekt', p)"
-                class="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-[#097e92]/40 hover:bg-[#097e92]/5 cursor-pointer transition-colors">
+                class="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-[#0088ba]/40 hover:bg-[#0088ba]/5 cursor-pointer transition-colors">
                 <span class="font-mono text-xs bg-blue-50 text-blue-800 px-2 py-0.5 rounded">{{ p.mbNr }}</span>
                 <div class="flex-1 min-w-0">
                   <div class="text-sm font-medium text-gray-800 truncate">{{ p.firma || p.verkaueferName }}</div>
@@ -190,7 +190,7 @@
                 </div>
                 <ul class="space-y-1.5">
                   <li v-for="d in g.dateien" :key="d.RowKey"
-                    class="flex items-center gap-2 p-2 rounded-lg border border-gray-100 hover:border-[#097e92]/40 hover:bg-[#097e92]/5 text-sm">
+                    class="flex items-center gap-2 p-2 rounded-lg border border-gray-100 hover:border-[#0088ba]/40 hover:bg-[#0088ba]/5 text-sm">
                     <FileText class="w-4 h-4 text-gray-400 flex-shrink-0" />
                     <span class="flex-1 truncate">{{ d.name }}</span>
                     <span class="text-[11px] text-gray-400 capitalize">{{ d.ordner }}</span>
@@ -205,9 +205,9 @@
           <section v-else-if="tab === 'notizen'" class="space-y-4">
             <div class="flex gap-2">
               <textarea v-model="newNote" rows="2" placeholder="Neue Notiz hinzufügen…"
-                class="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 resize-none"></textarea>
+                class="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 resize-none"></textarea>
               <button @click="addNote" :disabled="!newNote.trim() || savingNote"
-                class="px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf] disabled:opacity-50 self-start">
+                class="px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8] disabled:opacity-50 self-start">
                 {{ savingNote ? '…' : 'Speichern' }}
               </button>
             </div>
@@ -218,7 +218,7 @@
             </div>
             <ol v-else class="relative border-l-2 border-gray-100 ml-2 space-y-4">
               <li v-for="(n, i) in notizen" :key="i" class="pl-4 relative">
-                <span class="absolute -left-[7px] top-1.5 w-3 h-3 rounded-full bg-[#097e92] border-2 border-white"></span>
+                <span class="absolute -left-[7px] top-1.5 w-3 h-3 rounded-full bg-[#0088ba] border-2 border-white"></span>
                 <div class="flex items-center gap-2 text-xs text-gray-500">
                   <span class="font-medium text-gray-700">{{ n.autor || 'mibeca' }}</span>
                   <span>·</span>

@@ -13,7 +13,7 @@
     <!-- Fortschritt -->
     <div class="bg-white rounded-xl border border-gray-100 p-4 mb-4">
       <div class="w-full bg-gray-100 rounded-full h-1.5">
-        <div class="bg-[#097e92] h-1.5 rounded-full transition-all" :style="`width: ${progress}%`"></div>
+        <div class="bg-[#0088ba] h-1.5 rounded-full transition-all" :style="`width: ${progress}%`"></div>
       </div>
     </div>
 
@@ -36,7 +36,7 @@
     <!-- Kategorien -->
     <div v-for="(cat, ci) in categories" :key="ci" class="bg-white rounded-xl border border-gray-100 mb-4 overflow-hidden">
       <header class="px-5 py-3 border-b border-gray-50 bg-gray-50">
-        <h4 class="font-semibold text-sm text-[#097e92]">{{ cat.roman }}. {{ cat.titel }}</h4>
+        <h4 class="font-semibold text-sm text-[#0088ba]">{{ cat.roman }}. {{ cat.titel }}</h4>
       </header>
       <div class="divide-y divide-gray-50">
         <div v-for="(f, fi) in cat.fragen" :key="fi" class="px-5 py-4 grid grid-cols-2 gap-4">
@@ -46,7 +46,7 @@
             @blur="save"
             rows="2"
             placeholder="Antwort eintragen…"
-            class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92] resize-none"
+            class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba] resize-none"
           ></textarea>
         </div>
       </div>
@@ -154,5 +154,5 @@ function exportPdf() {
 
 <style scoped>
 @reference "tailwindcss";
-.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]; }
+.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
 </style>

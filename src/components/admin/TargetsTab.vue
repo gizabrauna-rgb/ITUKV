@@ -2,7 +2,7 @@
   <div>
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-xl font-bold text-gray-900">Projekte</h2>
-      <button @click="showModal = true" class="flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf] transition-colors">
+      <button @click="showModal = true" class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8] transition-colors">
         <Plus class="w-4 h-4" /> Neues Projekt
       </button>
     </div>
@@ -12,7 +12,7 @@
       <div class="relative flex-1 min-w-[260px] max-w-md">
         <Search class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
         <input v-model="search" placeholder="Suche nach mb-Nr, Verkäufer, Firma, Region…"
-          class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30" />
+          class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30" />
       </div>
       <select v-model="filterStatus" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
         <option value="">Alle Status</option>
@@ -75,7 +75,7 @@
             <td class="px-4 py-3">
               <div class="flex items-center gap-2">
                 <div class="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden w-24">
-                  <div class="bg-[#097e92] h-full" :style="`width: ${phaseProgress(t).percent}%`"></div>
+                  <div class="bg-[#0088ba] h-full" :style="`width: ${phaseProgress(t).percent}%`"></div>
                 </div>
                 <span class="text-xs text-gray-500 whitespace-nowrap">{{ phaseProgress(t).aktuell }}/{{ phaseProgress(t).gesamt }}</span>
               </div>
@@ -166,7 +166,7 @@
         </div>
         <div class="flex justify-end gap-3 mt-6">
           <button @click="showModal = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Abbrechen</button>
-          <button @click="createTarget" :disabled="saving" class="px-5 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf] disabled:opacity-50">
+          <button @click="createTarget" :disabled="saving" class="px-5 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8] disabled:opacity-50">
             {{ saving ? 'Speichern…' : 'Mandat anlegen' }}
           </button>
         </div>
@@ -377,5 +377,5 @@ function lastActivityClass(t) {
 
 <style scoped>
 @reference "tailwindcss";
-.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]; }
+.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
 </style>

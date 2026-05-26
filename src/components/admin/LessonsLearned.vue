@@ -2,7 +2,7 @@
   <div>
     <div class="mb-5">
       <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
-        <BookOpen class="w-6 h-6 text-[#097e92]" /> Lessons Learned
+        <BookOpen class="w-6 h-6 text-[#0088ba]" /> Lessons Learned
       </h2>
       <p class="text-sm text-gray-500 mt-1">Retrospektive nach Deal-Abschluss. Diese Erkenntnisse fließen in die Wissensdatenbank im Controlling.</p>
     </div>
@@ -50,7 +50,7 @@
           placeholder="z.B. DueDiligence, Kultur, MSP, schneller-Deal"
           class="input" />
         <div v-if="data.tags?.length" class="flex flex-wrap gap-1 mt-2">
-          <span v-for="t in data.tags" :key="t" class="text-xs bg-[#097e92]/10 text-[#097e92] px-2 py-0.5 rounded-full">#{{ t }}</span>
+          <span v-for="t in data.tags" :key="t" class="text-xs bg-[#0088ba]/10 text-[#0088ba] px-2 py-0.5 rounded-full">#{{ t }}</span>
         </div>
       </div>
 
@@ -105,5 +105,5 @@ onMounted(async () => {
 
 <style scoped>
 @reference "tailwindcss";
-.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]; }
+.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
 </style>

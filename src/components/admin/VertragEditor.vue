@@ -45,10 +45,10 @@
         <div :class="['grid gap-3', sichtbareVarianten.length === 1 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3']">
           <button v-for="v in sichtbareVarianten" :key="v.key" @click="selectVariante(v.key)"
             :class="['p-4 rounded-xl border-2 text-left transition-all',
-              variante === v.key ? 'border-[#097e92] bg-[#097e92]/5' : 'border-gray-200 hover:border-gray-300']">
+              variante === v.key ? 'border-[#0088ba] bg-[#0088ba]/5' : 'border-gray-200 hover:border-gray-300']">
             <div class="font-semibold text-sm text-gray-800 mb-1">{{ v.titel }}</div>
             <div class="text-xs text-gray-500">{{ v.beschreibung }}</div>
-            <div class="text-xs text-[#097e92] mt-2 font-semibold">{{ v.preis }}</div>
+            <div class="text-xs text-[#0088ba] mt-2 font-semibold">{{ v.preis }}</div>
           </button>
         </div>
       </div>
@@ -56,7 +56,7 @@
       <!-- Vertrags-Daten Formular -->
       <div v-if="variante" class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
         <h3 class="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
-          <FileEdit class="w-4 h-4 text-[#097e92]" />
+          <FileEdit class="w-4 h-4 text-[#0088ba]" />
           Vertrags-Daten (alle Felder editierbar)
         </h3>
         <p class="text-xs text-gray-500 mb-4">Die Daten werden automatisch aus den Stammdaten vorbefüllt. Du kannst alles anpassen.</p>
@@ -152,7 +152,7 @@
           <button @click="openPreview" :disabled="previewLoading" class="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 flex items-center gap-2 disabled:opacity-50">
             <FileText class="w-4 h-4" /> {{ previewLoading ? 'Lade Vorschau…' : 'Vorschau (PDF)' }}
           </button>
-          <button v-if="!vertrag?.gegengezeichnetAm" @click="zurSignaturSenden" :disabled="!form.auftraggeberFirma || sending" class="ml-auto px-4 py-2.5 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf] flex items-center gap-2 disabled:opacity-50">
+          <button v-if="!vertrag?.gegengezeichnetAm" @click="zurSignaturSenden" :disabled="!form.auftraggeberFirma || sending" class="ml-auto px-4 py-2.5 bg-[#0088ba] text-white rounded-xl text-sm font-semibold hover:bg-[#00a0d8] flex items-center gap-2 disabled:opacity-50">
             <Send class="w-4 h-4" />
             {{ sending ? 'Wird gesendet…' : (vertrag?.gesendetAm ? 'Erneut senden (mit aktuellen Daten)' : 'An Target zur Signatur senden') }}
           </button>
@@ -187,7 +187,7 @@
             <input v-model="adminSigName" placeholder="z.B. Jennifer Kaplan" class="input" />
             <p class="text-xs text-gray-500 mt-2">Mit der Gegenzeichnung erklärst du, den Vertrag stellvertretend für mibeca anzunehmen.</p>
             <button @click="countersign" :disabled="countersigning || !adminSigName"
-              class="mt-3 w-full px-4 py-2.5 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf] flex items-center justify-center gap-2 disabled:opacity-50">
+              class="mt-3 w-full px-4 py-2.5 bg-[#0088ba] text-white rounded-xl text-sm font-semibold hover:bg-[#00a0d8] flex items-center justify-center gap-2 disabled:opacity-50">
               <PenTool class="w-4 h-4" />
               {{ countersigning ? 'Wird gegengezeichnet…' : 'Jetzt gegenzeichnen' }}
             </button>
@@ -228,7 +228,7 @@
       <div class="bg-white rounded-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden shadow-2xl">
         <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
           <h3 class="font-bold text-gray-900 flex items-center gap-2">
-            <FileText class="w-5 h-5 text-[#097e92]" /> Vertrags-Vorschau
+            <FileText class="w-5 h-5 text-[#0088ba]" /> Vertrags-Vorschau
           </h3>
           <div class="flex items-center gap-2">
             <a :href="previewUrl" :download="`Mandatsvertrag_${form.auftraggeberFirma || 'Entwurf'}.pdf`" class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center gap-1.5">
@@ -483,6 +483,6 @@ function formatDate(iso) {
 
 <style scoped>
 @reference "tailwindcss";
-.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]; }
+.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
 .field-label { @apply block text-xs font-medium text-gray-600 mb-1; }
 </style>

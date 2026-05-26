@@ -58,7 +58,7 @@
         </div>
       </div>
       <button @click="zurSignaturSenden" :disabled="!canSend || sending"
-        class="mt-4 w-full px-4 py-2.5 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf] disabled:opacity-50 flex items-center justify-center gap-2">
+        class="mt-4 w-full px-4 py-2.5 bg-[#0088ba] text-white rounded-xl text-sm font-semibold hover:bg-[#00a0d8] disabled:opacity-50 flex items-center justify-center gap-2">
         <Send class="w-4 h-4" /> {{ sending ? 'Wird gesendet…' : `NDA zur digitalen Signatur an ${vars.email || '...'} senden` }}
       </button>
       <p class="text-xs text-gray-400 mt-2">Der Empfänger bekommt einen Mail-Link, kann das NDA online ansehen und mit Code per Mail signieren – gleicher Workflow wie beim Mandatsvertrag.</p>
@@ -79,7 +79,7 @@
       </div>
 
       <p class="mb-4"><strong>und</strong></p>
-      <div class="mb-4 border-l-2 border-[#097e92] pl-4">
+      <div class="mb-4 border-l-2 border-[#0088ba] pl-4">
         <strong>mibeca GmbH</strong><br>
         Schillerstr. 1 · 29525 Uelzen<br>
         vertreten durch Jennifer Kaplan<br>
@@ -160,7 +160,7 @@
     <div v-if="previewUrl" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" @click.self="closePreview">
       <div class="bg-white rounded-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden shadow-2xl">
         <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-          <h3 class="font-bold text-gray-900 flex items-center gap-2"><FileText class="w-5 h-5 text-[#097e92]" /> NDA-Vorschau</h3>
+          <h3 class="font-bold text-gray-900 flex items-center gap-2"><FileText class="w-5 h-5 text-[#0088ba]" /> NDA-Vorschau</h3>
           <div class="flex items-center gap-2">
             <a :href="previewUrl" :download="`NDA_${vars.firma || 'Entwurf'}.pdf`" class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Herunterladen</a>
             <button @click="closePreview" class="p-1.5 hover:bg-gray-100 rounded-lg"><X class="w-5 h-5 text-gray-500" /></button>
@@ -246,5 +246,5 @@ onMounted(async () => {
 
 <style scoped>
 @reference "tailwindcss";
-.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]; }
+.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
 </style>

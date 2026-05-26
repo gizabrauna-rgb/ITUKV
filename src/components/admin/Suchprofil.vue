@@ -9,7 +9,7 @@
       <!-- Region -->
       <div>
         <h3 class="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
-          <MapPin class="w-4 h-4 text-[#097e92]" /> Region / Geographie
+          <MapPin class="w-4 h-4 text-[#0088ba]" /> Region / Geographie
         </h3>
         <div class="grid grid-cols-2 gap-3">
           <div>
@@ -34,7 +34,7 @@
       <!-- Größe -->
       <div class="pt-3 border-t border-gray-100">
         <h3 class="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
-          <Users class="w-4 h-4 text-[#097e92]" /> Unternehmensgröße
+          <Users class="w-4 h-4 text-[#0088ba]" /> Unternehmensgröße
         </h3>
         <div class="grid grid-cols-2 gap-3">
           <div>
@@ -67,11 +67,11 @@
       <!-- IT-Fokus -->
       <div class="pt-3 border-t border-gray-100">
         <h3 class="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
-          <Cpu class="w-4 h-4 text-[#097e92]" /> IT-Fokus / Spezialisierung
+          <Cpu class="w-4 h-4 text-[#0088ba]" /> IT-Fokus / Spezialisierung
         </h3>
         <div class="flex flex-wrap gap-2 mb-2">
           <label v-for="t in itFokusOptionen" :key="t" class="flex items-center gap-1.5 text-xs px-3 py-1.5 border rounded-xl cursor-pointer hover:bg-gray-50"
-            :class="form.itFokus?.includes(t) ? 'border-[#097e92] bg-[#097e92]/5 text-[#097e92]' : 'border-gray-200 text-gray-600'">
+            :class="form.itFokus?.includes(t) ? 'border-[#0088ba] bg-[#0088ba]/5 text-[#0088ba]' : 'border-gray-200 text-gray-600'">
             <input type="checkbox" :checked="form.itFokus?.includes(t)" @change="toggleFokus(t)" class="sr-only" />
             {{ t }}
           </label>
@@ -82,7 +82,7 @@
       <!-- Sonstige Kriterien -->
       <div class="pt-3 border-t border-gray-100">
         <h3 class="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
-          <Filter class="w-4 h-4 text-[#097e92]" /> Weitere Kriterien
+          <Filter class="w-4 h-4 text-[#0088ba]" /> Weitere Kriterien
         </h3>
         <div class="space-y-3">
           <div>
@@ -159,5 +159,5 @@ onMounted(async () => {
 
 <style scoped>
 @reference "tailwindcss";
-.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92]; }
+.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
 </style>
