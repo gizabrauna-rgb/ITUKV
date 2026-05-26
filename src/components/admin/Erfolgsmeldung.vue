@@ -90,6 +90,29 @@
       <p class="text-xs text-gray-400 mt-2">Wörter: {{ text.split(/\s+/).filter(Boolean).length }} (Ziel: max. 450)</p>
     </div>
 
+    <!-- Kunden-Freigabe -->
+    <div v-if="text" class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
+      <h3 class="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
+        <UserCheck class="w-4 h-4 text-[#097e92]" /> Kunden-Freigabe (optional)
+      </h3>
+      <p class="text-xs text-gray-500 mb-3">Schicke den Pressetext erst zum Kunden zur Freigabe / Kommentar. <strong>Du kannst aber auch direkt versenden, falls keine Freigabe nötig ist.</strong></p>
+      <!-- Status-Banner -->
+      <div v-if="freigabeStatus === 'pending'" class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800 mb-3 flex items-center gap-2">
+        <Clock class="w-4 h-4" /> Wartet auf Antwort des Kunden seit {{ formatDate(freigabeAngefragtAm) }}
+      </div>
+      <div v-else-if="freigabeStatus === 'freigegeben'" class="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800 mb-3 flex items-center gap-2">
+        <CheckCircle2 class="w-4 h-4" /> Kunde hat freigegeben am {{ formatDate(freigabeAm) }}
+      </div>
+      <div v-else-if="freigabeStatus === 'aenderung_gewuenscht'" class="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm text-orange-800 mb-3">
+        <div class="flex items-center gap-2 font-medium mb-1"><AlertCircle class="w-4 h-4" /> Kunde wünscht Änderungen ({{ formatDate(freigabeAm) }})</div>
+        <p v-if="freigabeKommentar" class="text-xs ml-6 mt-1 italic">„{{ freigabeKommentar }}"</p>
+      </div>
+      <button @click="zurFreigabeSenden" :disabled="freigabeSending" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 flex items-center gap-2 disabled:opacity-50">
+        <Send class="w-3.5 h-3.5" />
+        {{ freigabeSending ? 'Wird gesendet…' : (freigabeStatus ? 'Erneut zur Freigabe senden' : 'An Kunde zur Freigabe senden') }}
+      </button>
+    </div>
+
     <!-- Empfänger -->
     <div v-if="text" class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
       <h3 class="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
@@ -152,7 +175,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Trophy, CheckCircle2, FileText, Users, Sparkles, Send, Link as LinkIcon, X } from '@lucide/vue'
+import { Trophy, CheckCircle2, FileText, Users, Sparkles, Send, Link as LinkIcon, X, UserCheck, Clock, AlertCircle } from '@lucide/vue'
 import { authFetch } from '../../api.js'
 
 const props = defineProps({ targetId: String })
@@ -168,6 +191,23 @@ const sending = ref(false)
 const versendetAm = ref('')
 const versendetEmpfaenger = ref([])
 const veroeffentlichungen = ref([])
+const freigabeStatus = ref('')  // '' | 'pending' | 'freigegeben' | 'aenderung_gewuenscht'
+const freigabeAngefragtAm = ref('')
+const freigabeAm = ref('')
+const freigabeKommentar = ref('')
+const freigabeSending = ref(false)
+
+async function zurFreigabeSenden() {
+  if (!text.value) return
+  freigabeSending.value = true
+  try {
+    await authFetch('/pr-zur-freigabe', { method: 'POST', data: { targetId: props.targetId, text: text.value } })
+    freigabeStatus.value = 'pending'
+    freigabeAngefragtAm.value = new Date().toISOString()
+    alert('Pressetext zur Freigabe an Kunde gesendet. Du bekommst Bescheid sobald geantwortet wurde.')
+  } catch (e) { alert('Fehler: ' + (e?.response?.data?.error || e.message)) }
+  finally { freigabeSending.value = false }
+}
 
 const alleAusgewaehlt = computed(() => kontakte.value.length > 0 && ausgewaehlt.value.length === kontakte.value.length)
 const canVersenden = computed(() =>
@@ -248,6 +288,10 @@ onMounted(async () => {
         versendetAm.value = d.versendetAm || ''
         versendetEmpfaenger.value = d.versendetEmpfaenger || []
         veroeffentlichungen.value = d.veroeffentlichungen || []
+        freigabeStatus.value = d.freigabeStatus || ''
+        freigabeAngefragtAm.value = d.freigabeAngefragtAm || ''
+        freigabeAm.value = d.freigabeAm || ''
+        freigabeKommentar.value = d.freigabeKommentar || ''
       } catch {}
     }
     // Vorbefüllen aus Target-Stammdaten falls leer

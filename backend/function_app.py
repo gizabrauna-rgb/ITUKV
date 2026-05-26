@@ -2307,6 +2307,124 @@ def pr_versand(req: func.HttpRequest) -> func.HttpResponse:
     return ok_({"ok": True, "gesendet": gesendet, "count": len(gesendet)})
 
 
+@app.route(route="pr-zur-freigabe", methods=["POST", "OPTIONS"])
+def pr_zur_freigabe(req: func.HttpRequest) -> func.HttpResponse:
+    """Schickt den Pressetext an den Verkaeufer/Kaeufer zur Freigabe."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    target_id = body.get("targetId", "")
+    text = body.get("text", "")
+    if not (target_id and text):
+        return err_("targetId und text erforderlich", 400)
+    target_users = list(table_("users").query_entities(f"targetId eq '{target_id}'"))
+    if not target_users:
+        return err_("Kein Target-Login fuer dieses Target", 400)
+    target_email = target_users[0].get("email", "")
+    target_name = target_users[0].get("name", "")
+    try:
+        targets = table_("targets")
+        t = targets.get_entity("target", target_id)
+        presse = {}
+        try: presse = json.loads(t.get("presseJson", "{}") or "{}")
+        except: presse = {}
+        presse["text"] = text
+        presse["freigabeAngefragtAm"] = datetime.utcnow().isoformat()
+        presse["freigabeStatus"] = "pending"
+        t["presseJson"] = json.dumps(presse, ensure_ascii=False)
+        targets.update_entity(dict(t))
+    except Exception as ex:
+        return err_(f"Persistierung fehlgeschlagen: {ex}", 500)
+    if ACS_CONN and target_email:
+        try:
+            from azure.communication.email import EmailClient
+            client = EmailClient.from_connection_string(ACS_CONN)
+            link = f"{FRONTEND_BASE}/?tab=erfolg"
+            html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
+                <h2 style="color:#097e92">Pressemitteilung zur Freigabe</h2>
+                <p>Hallo {target_name or ''},</p>
+                <p>wir haben einen Pressetext zu Deinem Unternehmensverkauf vorbereitet. Bitte gib ihn frei
+                oder kommentiere gewuenschte Aenderungen direkt im Dashboard.</p>
+                <p style="margin:24px 0"><a href="{link}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Pressetext ansehen &amp; freigeben</a></p>
+                </body></html>"""
+            client.begin_send({
+                "senderAddress": ACS_SENDER,
+                "recipients": {"to": [{"address": target_email}]},
+                "content": {"subject": "Pressetext zur Freigabe – ITUKV Dashboard", "plainText": f"Pressetext ansehen: {link}", "html": html},
+            })
+        except Exception:
+            pass
+    _verlauf_append(target_id, {
+        "id": "k" + str(int(datetime.utcnow().timestamp() * 1000)),
+        "typ": "mail_out",
+        "datum": datetime.utcnow().isoformat(),
+        "autor": p.get("name", ""),
+        "betreff": "Pressetext zur Freigabe an Kunde geschickt",
+        "beschreibung": "Der Pressetext wartet auf Freigabe / Kommentar des Kunden.",
+        "beteiligte": target_email,
+    })
+    return ok_({"ok": True})
+
+
+@app.route(route="pr-feedback", methods=["POST", "OPTIONS"])
+def pr_feedback(req: func.HttpRequest) -> func.HttpResponse:
+    """Kunde gibt Feedback (Freigabe oder Aenderungswunsch)."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    target_id = body.get("targetId", "")
+    freigabe = bool(body.get("freigabe", False))
+    kommentar = (body.get("kommentar") or "").strip()
+    if not target_id:
+        return err_("targetId erforderlich", 400)
+    if p.get("role") == "target" and p.get("targetId") and p.get("targetId") != target_id:
+        return err_("Nicht autorisiert", 403)
+    try:
+        targets = table_("targets")
+        t = targets.get_entity("target", target_id)
+        presse = {}
+        try: presse = json.loads(t.get("presseJson", "{}") or "{}")
+        except: presse = {}
+        presse["freigabeStatus"] = "freigegeben" if freigabe else "aenderung_gewuenscht"
+        presse["freigabeAm"] = datetime.utcnow().isoformat()
+        presse["freigabeKommentar"] = kommentar
+        presse["freigabeVon"] = p.get("name", "") or p.get("email", "")
+        t["presseJson"] = json.dumps(presse, ensure_ascii=False)
+        targets.update_entity(dict(t))
+    except Exception as ex:
+        return err_(f"Fehler: {ex}", 500)
+    _verlauf_append(target_id, {
+        "id": "k" + str(int(datetime.utcnow().timestamp() * 1000)),
+        "typ": "wichtig" if freigabe else "mail_in",
+        "datum": datetime.utcnow().isoformat(),
+        "autor": p.get("name", ""),
+        "betreff": "Pressetext freigegeben" if freigabe else "Aenderungswunsch zum Pressetext",
+        "beschreibung": kommentar or ("Pressetext wurde freigegeben." if freigabe else "Kunde wuenscht Aenderungen."),
+        "beteiligte": p.get("email", ""),
+    })
+    if ACS_CONN:
+        try:
+            from azure.communication.email import EmailClient
+            client = EmailClient.from_connection_string(ACS_CONN)
+            mibeca_mail = os.environ.get("MIBECA_NOTIFY_EMAIL", "jk@mike-bergmann.de")
+            betreff = "Pressetext freigegeben" if freigabe else "Aenderungswunsch zum Pressetext"
+            client.begin_send({
+                "senderAddress": ACS_SENDER,
+                "recipients": {"to": [{"address": mibeca_mail}]},
+                "content": {"subject": f"[ITUKV] {betreff}", "plainText": f"Kunde {p.get('email','')}: {kommentar or '(kein Kommentar)'}",
+                            "html": f"<p><strong>{betreff}</strong></p><p>Von: {p.get('email','')}</p><p>{kommentar}</p>"},
+            })
+        except Exception:
+            pass
+    return ok_({"ok": True})
+
+
 @app.route(route="presse-kontakte", methods=["GET", "OPTIONS"])
 def presse_kontakte(req: func.HttpRequest) -> func.HttpResponse:
     """Liefert die Default-Presseliste + Custom-Eintraege aus presse-kontakte-Tabelle."""

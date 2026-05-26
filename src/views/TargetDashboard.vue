@@ -45,6 +45,9 @@
       <div v-if="tab === 'projekt'">
         <h2 class="text-xl font-bold text-gray-900 mb-5">Mein Verkaufsprojekt</h2>
 
+        <!-- Pressetext zur Freigabe -->
+        <PressetextFreigabe :target-id="targetId" />
+
         <!-- Mandatsvertrag-Status -->
         <div v-if="vertragInfo" class="mb-4">
           <div v-if="vertragInfo.gegengezeichnetAm" class="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
@@ -344,6 +347,7 @@ import {
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
 import MandatDaten from '../components/target/MandatDaten.vue'
+import PressetextFreigabe from '../components/target/PressetextFreigabe.vue'
 import Fragebogen from '../components/target/Fragebogen.vue'
 import Unternehmensbewertung from '../components/target/Unternehmensbewertung.vue'
 import ExposeFreigabe from '../components/target/ExposeFreigabe.vue'
