@@ -3371,3 +3371,91 @@ def dokument_move(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as ex:
         return err_(f"Move fehlgeschlagen: {ex}", 500)
     return ok_({"ok": True})
+
+
+# =========================================================================
+# DASHBOARD-ÜBERSICHT: Aktivität + "Wartet auf mich"
+# =========================================================================
+
+@app.route(route="dashboard-uebersicht", methods=["GET", "OPTIONS"])
+def dashboard_uebersicht(req: func.HttpRequest) -> func.HttpResponse:
+    """Liefert Aktivitaets-Feed + 'Wartet auf mich' fuer Admin-Uebersicht."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    user = _get_user_full(p.get("id")) or {}
+    last_seen_map = {}
+    try: last_seen_map = json.loads(user.get("lastSeenVerlauf", "{}") or "{}")
+    except Exception: last_seen_map = {}
+
+    feed = []  # alle Verlauf-Eintraege ueber alle Targets
+    wartet = {
+        "vertragsGegenzeichnung": [],   # Vertraege wo Target signiert hat
+        "ndaReview": [],                # Interessenten mit NDA-Upload
+        "ungelesen": [],                # Targets mit ungelesenen Eintraegen
+        "wiedervorlage": [],            # Targets mit faelliger Wiedervorlage heute/ueberfaellig
+        "pressefreigabe": [],           # Pressetext wartet auf Kunden-Freigabe oder mibeca-Aktion
+    }
+
+    today = datetime.utcnow().date().isoformat()
+    try:
+        targets = [dict(t) for t in table_("targets").list_entities()]
+    except Exception:
+        targets = []
+
+    for t in targets:
+        tid = t.get("RowKey", "")
+        mb_nr = t.get("mbNr", "")
+        firma = t.get("verkaueferName", "") or t.get("firma", "")
+        try: verlauf = json.loads(t.get("kommunikationJson", "[]") or "[]")
+        except Exception: verlauf = []
+        # Feed
+        for e in verlauf[:5]:
+            feed.append({
+                "targetId": tid, "mbNr": mb_nr, "firma": firma,
+                "id": e.get("id", ""), "typ": e.get("typ", ""),
+                "datum": e.get("datum", ""), "autor": e.get("autor", ""),
+                "betreff": e.get("betreff", ""), "beschreibung": (e.get("beschreibung") or "")[:200],
+            })
+        # Ungelesen
+        ls = last_seen_map.get(tid, "1970-01-01T00:00:00")
+        unread = [e for e in verlauf if (e.get("datum", "") or "") > ls and e.get("createdBy", "") != p.get("id", "")]
+        if unread:
+            wartet["ungelesen"].append({"targetId": tid, "mbNr": mb_nr, "firma": firma, "anzahl": len(unread)})
+        # Vertrag zur Gegenzeichnung
+        try:
+            v = json.loads(t.get("vertragJson", "{}") or "{}")
+            if v.get("signiertAm") and not v.get("gegengezeichnetAm"):
+                wartet["vertragsGegenzeichnung"].append({"targetId": tid, "mbNr": mb_nr, "firma": firma, "signiertAm": v.get("signiertAm", "")})
+        except Exception: pass
+        # Pressetext
+        try:
+            pr = json.loads(t.get("presseJson", "{}") or "{}")
+            if pr.get("freigabeStatus") == "aenderung_gewuenscht":
+                wartet["pressefreigabe"].append({"targetId": tid, "mbNr": mb_nr, "firma": firma, "kommentar": pr.get("freigabeKommentar", "")})
+        except Exception: pass
+        # Wiedervorlage
+        wv = t.get("wiedervorlage", "")
+        if wv and wv <= today:
+            wartet["wiedervorlage"].append({"targetId": tid, "mbNr": mb_nr, "firma": firma, "datum": wv})
+
+    # Interessenten mit unterschriebenem NDA (zur Review)
+    try:
+        for i in table_("interessenten").list_entities():
+            if i.get("ndaStatus") == "unterzeichnet" and not i.get("ndaReviewed"):
+                wartet["ndaReview"].append({
+                    "targetId": i.get("targetId", ""),
+                    "interessentId": i.get("RowKey", ""),
+                    "firma": i.get("firma", "") or i.get("name", ""),
+                    "uploadedAt": i.get("ndaUploadedAt", ""),
+                })
+    except Exception: pass
+
+    feed.sort(key=lambda x: x.get("datum", ""), reverse=True)
+    return ok_({
+        "feed": feed[:30],
+        "wartet": wartet,
+        "totalWartet": sum(len(v) for v in wartet.values()),
+    })

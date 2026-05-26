@@ -20,6 +20,8 @@
     @logout="onLogout"
     @switch-view="switchView"
   />
+
+  <ToastHost />
 </template>
 
 <script setup>
@@ -31,6 +33,7 @@ import TargetDashboard from './views/TargetDashboard.vue'
 import InvestorDashboard from './views/InvestorDashboard.vue'
 import SignPage from './SignPage.vue'
 import LandingPage from './LandingPage.vue'
+import ToastHost from './components/ToastHost.vue'
 import { msalInstance } from './authConfig.js'
 
 // Oeffentliche Routen ohne Login

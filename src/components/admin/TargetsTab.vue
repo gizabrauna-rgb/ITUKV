@@ -52,6 +52,8 @@
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Name / Firma</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Region</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Typ</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Fortschritt</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Letzte Aktivität</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Wiedervorlage</th>
           </tr>
@@ -70,6 +72,17 @@
             </td>
             <td class="px-4 py-3 text-sm text-gray-600">{{ t.region }}</td>
             <td class="px-4 py-3 text-sm text-gray-600">{{ t.projekttyp }}</td>
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden w-24">
+                  <div class="bg-[#097e92] h-full" :style="`width: ${phaseProgress(t).percent}%`"></div>
+                </div>
+                <span class="text-xs text-gray-500 whitespace-nowrap">{{ phaseProgress(t).aktuell }}/{{ phaseProgress(t).gesamt }}</span>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-xs">
+              <span :class="lastActivityClass(t)">{{ lastActivityLabel(t) }}</span>
+            </td>
             <td class="px-4 py-3" @click.stop>
               <select v-model="t.status" @change="updateStatus(t)" :class="['text-xs border rounded-lg px-2 py-1 focus:outline-none', statusSelectClass(t.status)]">
                 <template v-if="istKaufMandat(t)">
@@ -307,6 +320,58 @@ function statusSelectClass(s) {
   if (s === 'verfuegbar') return 'border-green-200 bg-green-50 text-green-700'
   if (s === 'in_verhandlung') return 'border-yellow-200 bg-yellow-50 text-yellow-700'
   return 'border-gray-200'
+}
+
+function phaseProgress(t) {
+  try {
+    const phasen = t.phasenJson ? JSON.parse(t.phasenJson) : []
+    const gesamt = phasen.length || 15
+    let aktuell = 0
+    for (const p of phasen) {
+      const aufg = p.aufgaben || []
+      if (aufg.length && aufg.every(a => a.done)) aktuell++
+    }
+    const percent = gesamt > 0 ? Math.round((aktuell / gesamt) * 100) : 0
+    return { aktuell, gesamt, percent }
+  } catch {
+    return { aktuell: 0, gesamt: 15, percent: 0 }
+  }
+}
+
+function lastActivityDate(t) {
+  try {
+    const komm = t.kommunikationJson ? JSON.parse(t.kommunikationJson) : []
+    if (!komm.length) return null
+    const sorted = [...komm].sort((a, b) => (b.datum || '').localeCompare(a.datum || ''))
+    return sorted[0].datum || null
+  } catch {
+    return null
+  }
+}
+
+function lastActivityLabel(t) {
+  const iso = lastActivityDate(t)
+  if (!iso) return '—'
+  const then = new Date(iso).getTime()
+  const now = Date.now()
+  const diffMs = now - then
+  const min = Math.floor(diffMs / 60000)
+  if (min < 60) return min <= 1 ? 'gerade' : `vor ${min} Min`
+  const std = Math.floor(min / 60)
+  if (std < 24) return `vor ${std} Std`
+  const tg = Math.floor(std / 24)
+  if (tg < 30) return `vor ${tg} Tg`
+  const mon = Math.floor(tg / 30)
+  return `vor ${mon} Mon`
+}
+
+function lastActivityClass(t) {
+  const iso = lastActivityDate(t)
+  if (!iso) return 'text-gray-400'
+  const tg = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
+  if (tg > 30) return 'text-red-600 font-medium'
+  if (tg > 14) return 'text-amber-600'
+  return 'text-gray-500'
 }
 </script>
 

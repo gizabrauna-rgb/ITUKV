@@ -115,6 +115,74 @@
               <div class="text-2xl font-bold text-gray-900">{{ statsLoading ? '…' : s.value }}</div>
             </div>
           </div>
+
+          <div class="grid grid-cols-2 gap-4 mb-6">
+            <!-- Wartet auf mich -->
+            <div class="bg-white rounded-xl border border-gray-100 p-5">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
+                  <AlertCircle class="w-4 h-4 text-amber-500" /> Wartet auf mich
+                </h3>
+                <span v-if="ueberblick.totalWartet" class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">{{ ueberblick.totalWartet }}</span>
+              </div>
+              <div v-if="!ueberblick.totalWartet" class="text-sm text-gray-400 py-3 text-center">Nichts dringend ✓</div>
+              <div v-else class="space-y-2">
+                <button v-for="v in ueberblick.wartet.vertragsGegenzeichnung || []" :key="'sig'+v.targetId" @click="openAkte({ RowKey: v.targetId })"
+                  class="w-full text-left flex items-center gap-2 p-2 hover:bg-amber-50 rounded-lg text-xs">
+                  <span class="w-1.5 h-1.5 rounded-full bg-yellow-500 flex-shrink-0"></span>
+                  <span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ v.mbNr }}</span>
+                  <span class="font-medium truncate flex-1">{{ v.firma }}</span>
+                  <span class="text-gray-500">Vertrag gegenzeichnen</span>
+                </button>
+                <button v-for="v in ueberblick.wartet.ndaReview || []" :key="'nda'+v.interessentId"
+                  class="w-full text-left flex items-center gap-2 p-2 hover:bg-amber-50 rounded-lg text-xs">
+                  <span class="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>
+                  <span class="font-medium truncate flex-1">NDA von {{ v.firma }}</span>
+                  <span class="text-gray-500">prüfen</span>
+                </button>
+                <button v-for="v in ueberblick.wartet.wiedervorlage || []" :key="'wv'+v.targetId" @click="openAkte({ RowKey: v.targetId })"
+                  class="w-full text-left flex items-center gap-2 p-2 hover:bg-amber-50 rounded-lg text-xs">
+                  <span class="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0"></span>
+                  <span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ v.mbNr }}</span>
+                  <span class="font-medium truncate flex-1">{{ v.firma }}</span>
+                  <span class="text-red-600">Wiedervorlage</span>
+                </button>
+                <button v-for="v in ueberblick.wartet.pressefreigabe || []" :key="'pr'+v.targetId" @click="openAkte({ RowKey: v.targetId })"
+                  class="w-full text-left flex items-center gap-2 p-2 hover:bg-amber-50 rounded-lg text-xs">
+                  <span class="w-1.5 h-1.5 rounded-full bg-orange-500 flex-shrink-0"></span>
+                  <span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ v.mbNr }}</span>
+                  <span class="font-medium truncate flex-1">Pressetext: Änderungswunsch</span>
+                </button>
+                <button v-for="v in ueberblick.wartet.ungelesen || []" :key="'unr'+v.targetId" @click="openAkte({ RowKey: v.targetId })"
+                  class="w-full text-left flex items-center gap-2 p-2 hover:bg-amber-50 rounded-lg text-xs">
+                  <span class="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0"></span>
+                  <span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ v.mbNr }}</span>
+                  <span class="font-medium truncate flex-1">{{ v.firma }}</span>
+                  <span class="text-red-600">{{ v.anzahl }} ungelesen</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Aktivitäts-Feed -->
+            <div class="bg-white rounded-xl border border-gray-100 p-5">
+              <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2 mb-3">
+                <Activity class="w-4 h-4 text-[#097e92]" /> Letzte Aktivitäten
+              </h3>
+              <div v-if="!ueberblick.feed?.length" class="text-sm text-gray-400 py-3 text-center">Noch keine Aktivitäten</div>
+              <div v-else class="space-y-2 max-h-80 overflow-y-auto">
+                <button v-for="e in ueberblick.feed" :key="e.id" @click="openAkte({ RowKey: e.targetId })"
+                  class="w-full text-left p-2 hover:bg-gray-50 rounded-lg">
+                  <div class="flex items-center gap-2 text-xs mb-0.5">
+                    <span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ e.mbNr }}</span>
+                    <span class="text-gray-500 truncate flex-1">{{ e.firma }}</span>
+                    <span class="text-gray-400 text-[10px]">{{ formatRel(e.datum) }}</span>
+                  </div>
+                  <div class="text-sm text-gray-800 truncate">{{ e.betreff }}</div>
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div class="bg-white rounded-xl border border-gray-100 p-6">
             <h3 class="font-semibold text-gray-800 mb-4 text-sm">Schnellzugriff</h3>
             <div class="grid grid-cols-3 gap-3">
@@ -181,7 +249,7 @@
 import { ref, computed, onMounted } from 'vue'
 import {
   Building2, LogOut, LayoutDashboard, Briefcase, GitBranch,
-  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow, Bell, BarChart3
+  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow, Bell, BarChart3, AlertCircle, Activity
 } from '@lucide/vue'
 import { authFetch, verlaufUnreadCount, verlaufMarkRead } from '../api.js'
 import TargetsTab from '../components/admin/TargetsTab.vue'
@@ -289,10 +357,25 @@ async function markAllRead() {
 }
 let unreadTimer = null
 
+const ueberblick = ref({ feed: [], wartet: {}, totalWartet: 0 })
+async function loadUeberblick() {
+  try { ueberblick.value = await authFetch('/dashboard-uebersicht') } catch {}
+}
+function formatRel(iso) {
+  if (!iso) return ''
+  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+  if (d < 60) return 'gerade'
+  if (d < 3600) return `${Math.floor(d/60)} Min`
+  if (d < 86400) return `${Math.floor(d/3600)} Std`
+  if (d < 7*86400) return `${Math.floor(d/86400)} Tg`
+  return new Date(iso).toLocaleDateString('de-DE')
+}
+
 onMounted(async () => {
   try { statsRaw.value = await authFetch('/stats') } finally { statsLoading.value = false }
+  loadUeberblick()
   pollUnread()
-  unreadTimer = setInterval(pollUnread, 30000)
+  unreadTimer = setInterval(() => { pollUnread(); loadUeberblick() }, 30000)
 })
 
 import { onBeforeUnmount } from 'vue'
