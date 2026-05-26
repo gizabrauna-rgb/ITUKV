@@ -78,15 +78,15 @@
           </section>
 
           <!-- NDA-Aktionen -->
-          <section class="bg-white rounded-2xl border-2 border-[#0088ba]/30 p-7 mb-5">
+          <section class="bg-white rounded-2xl border-2 border-[#FF6F00]/30 p-7 mb-5">
             <h2 class="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
-              <FileText class="w-5 h-5 text-[#0088ba]" /> NDA unterschreiben
+              <FileText class="w-5 h-5 text-[#FF6F00]" /> NDA unterschreiben
             </h2>
             <p class="text-sm text-gray-600 mb-5">Wähle den Weg, der für Dich am bequemsten ist:</p>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               <button @click="showSignModal = true"
-                class="flex items-center justify-center gap-2 px-4 py-4 bg-[#0088ba] text-white rounded-xl text-sm font-semibold hover:bg-[#00a0d8]">
+                class="flex items-center justify-center gap-2 px-4 py-4 bg-[#FF6F00] text-white rounded-xl text-sm font-semibold hover:bg-[#e56500]">
                 <PenTool class="w-5 h-5" /> Jetzt online unterschreiben
               </button>
               <a :href="ndaDownloadUrl" target="_blank"
@@ -185,7 +185,7 @@
     <div v-if="showSignModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[95vh] flex flex-col overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h3 class="font-bold text-gray-900 flex items-center gap-2"><PenTool class="w-5 h-5 text-[#0088ba]" /> NDA online unterschreiben</h3>
+          <h3 class="font-bold text-gray-900 flex items-center gap-2"><PenTool class="w-5 h-5 text-[#FF6F00]" /> NDA online unterschreiben</h3>
           <button @click="closeSignModal" class="p-1.5 hover:bg-gray-100 rounded-lg"><X class="w-5 h-5 text-gray-500" /></button>
         </div>
         <div class="p-6 overflow-y-auto flex-1">
@@ -219,7 +219,7 @@
           <div class="flex gap-3">
             <button @click="closeSignModal" class="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm">Abbrechen</button>
             <button @click="submitSign" :disabled="!zustimmung || !canvasDirty || signing"
-              class="flex-1 px-4 py-3 bg-[#0088ba] text-white rounded-xl text-sm font-semibold hover:bg-[#00a0d8] disabled:opacity-50">
+              class="flex-1 px-4 py-3 bg-[#FF6F00] text-white rounded-xl text-sm font-semibold hover:bg-[#e56500] disabled:opacity-50">
               {{ signing ? 'Wird signiert…' : 'NDA unterschreiben' }}
             </button>
           </div>
