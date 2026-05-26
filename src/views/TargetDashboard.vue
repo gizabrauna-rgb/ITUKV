@@ -140,6 +140,11 @@
         <Unternehmensbewertung :target-id="targetId" :read-only="impersonating" />
       </div>
 
+      <!-- Tab: Target-Vorschläge (nur bei Kauf-Mandat) -->
+      <div v-else-if="tab === 'vorschlaege'">
+        <KaeuferVorschlaege :target-id="targetId" />
+      </div>
+
       <!-- Tab: Meine Daten (Mandat-Vorlage) -->
       <div v-else-if="tab === 'mandat'">
         <MandatDaten :target-id="targetId" :read-only="impersonating" />
@@ -348,6 +353,7 @@ import {
 const apiBaseUrl = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
 import MandatDaten from '../components/target/MandatDaten.vue'
 import PressetextFreigabe from '../components/target/PressetextFreigabe.vue'
+import KaeuferVorschlaege from '../components/target/KaeuferVorschlaege.vue'
 import Fragebogen from '../components/target/Fragebogen.vue'
 import Unternehmensbewertung from '../components/target/Unternehmensbewertung.vue'
 import ExposeFreigabe from '../components/target/ExposeFreigabe.vue'
@@ -384,15 +390,26 @@ const linkForm = ref({ titel: '', url: '', beschreibung: '', kategorie: 'Allgeme
 const TYPES_WITH_LINKS = ['UVE Target', 'MC Target', 'MC Investoren']
 
 const navItems = computed(() => {
-  const base = [
-    { tab: 'projekt', label: 'Mein Projekt', icon: Briefcase },
-    { tab: 'mandat', label: 'Meine Daten', icon: ClipboardList },
-    { tab: 'fragebogen', label: 'Fragebogen', icon: FileEdit },
-    { tab: 'bewertung', label: 'Bewertung', icon: TrendingUp },
-    { tab: 'expose', label: 'Mein Exposé', icon: FileText },
-    { tab: 'interessenten', label: 'Interessenten', icon: Users },
-    { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
-  ]
+  const istKauf = /kauf|investor/i.test(props.projekttyp || target.value?.projekttyp || '')
+  let base
+  if (istKauf) {
+    base = [
+      { tab: 'projekt', label: 'Mein Projekt', icon: Briefcase },
+      { tab: 'mandat', label: 'Meine Daten', icon: ClipboardList },
+      { tab: 'vorschlaege', label: 'Target-Vorschläge', icon: Users },
+      { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
+    ]
+  } else {
+    base = [
+      { tab: 'projekt', label: 'Mein Projekt', icon: Briefcase },
+      { tab: 'mandat', label: 'Meine Daten', icon: ClipboardList },
+      { tab: 'fragebogen', label: 'Fragebogen', icon: FileEdit },
+      { tab: 'bewertung', label: 'Bewertung', icon: TrendingUp },
+      { tab: 'expose', label: 'Mein Exposé', icon: FileText },
+      { tab: 'interessenten', label: 'Interessenten', icon: Users },
+      { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
+    ]
+  }
   if (TYPES_WITH_LINKS.includes(props.projekttyp)) {
     base.push({ tab: 'links', label: 'Links', icon: LinkIcon })
   }

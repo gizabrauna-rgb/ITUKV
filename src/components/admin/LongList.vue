@@ -15,10 +15,13 @@
     <!-- Filter + Manuell hinzufügen -->
     <div class="flex gap-2 mb-3 flex-wrap">
       <button @click="filter = 'long'" :class="['px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'long' ? 'bg-[#097e92] text-white' : 'bg-white border border-gray-200']">
-        💡 Vorschläge ({{ items.length - shortListCount - abgesagtCount }})
+        💡 Vorschläge ({{ vorschlagCount }})
       </button>
       <button @click="filter = 'short'" :class="['px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'short' ? 'bg-[#097e92] text-white' : 'bg-white border border-gray-200']">
         ⭐ Favoriten ({{ shortListCount }})
+      </button>
+      <button @click="filter = 'fuerKaeufer'" :class="['px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'fuerKaeufer' ? 'bg-purple-600 text-white' : 'bg-white border border-gray-200']">
+        👁️ Für Käufer freigegeben ({{ fuerKaeuferCount }})
       </button>
       <button @click="filter = 'abgesagt'" :class="['px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'abgesagt' ? 'bg-[#097e92] text-white' : 'bg-white border border-gray-200']">
         ❌ Abgelehnt ({{ abgesagtCount }})
@@ -26,6 +29,11 @@
       <button @click="showAddModal = true" class="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-dashed border-gray-300 text-gray-600 hover:border-[#097e92] hover:text-[#097e92]">
         <Plus class="w-3.5 h-3.5" /> Kandidat manuell hinzufügen
       </button>
+    </div>
+
+    <!-- Hint Box -->
+    <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-900 mb-3">
+      <strong>Workflow:</strong> Du markierst zuerst Favoriten – die sieht nur du. Sobald du auf <Eye class="w-3 h-3 inline" /> klickst, wird der Kandidat für den Käufer im Käufer-Portal sichtbar. Käufer kann dann Feedback geben (Interesse / kein Interesse / Rückfrage).
     </div>
 
     <!-- Modal: Manuell hinzufügen -->
@@ -64,6 +72,7 @@
     <div v-else class="space-y-2">
       <div v-for="k in visibleItems" :key="k.id || k.RowKey"
         :class="['rounded-xl border p-4 flex items-start gap-3',
+                 isFreigegeben(k) ? 'bg-purple-50 border-purple-200' :
                  k.istInternesTarget ? 'bg-orange-50 border-orange-200' : 'bg-white border-gray-100']">
         <!-- Score-Kreis -->
         <div :class="['w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0',
@@ -87,10 +96,22 @@
           <div v-if="k.ablehnGruende?.length" class="flex flex-wrap gap-1 mt-1">
             <span v-for="g in k.ablehnGruende" :key="g" class="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded-full">✗ {{ g }}</span>
           </div>
+          <!-- Käufer-Feedback (wenn vorhanden) -->
+          <div v-if="kaeuferFeedback[k.id]" class="mt-2 p-2 rounded-lg bg-purple-100 text-purple-900 text-xs">
+            <strong>Feedback Käufer:</strong>
+            <span v-if="kaeuferFeedback[k.id].interesse === 'ja'" class="ml-1">✅ Interesse</span>
+            <span v-else-if="kaeuferFeedback[k.id].interesse === 'nein'" class="ml-1">❌ Kein Interesse</span>
+            <span v-else-if="kaeuferFeedback[k.id].interesse === 'rueckfrage'" class="ml-1">💬 Rückfrage</span>
+            <span v-if="kaeuferFeedback[k.id].kommentar" class="block mt-1 italic">„{{ kaeuferFeedback[k.id].kommentar }}"</span>
+          </div>
         </div>
         <div class="flex gap-1 flex-shrink-0">
           <button v-if="decisions[k.id] !== 'short'" @click="setStatus(k, 'short')" title="Zu Favoriten hinzufügen"
             class="p-1.5 hover:bg-green-50 rounded text-green-600"><Check class="w-4 h-4" /></button>
+          <button v-if="decisions[k.id] === 'short' && !isFreigegeben(k)" @click="freigeben(k, true)" title="Für Käufer freigeben"
+            class="p-1.5 hover:bg-purple-50 rounded text-purple-600"><Eye class="w-4 h-4" /></button>
+          <button v-if="isFreigegeben(k)" @click="freigeben(k, false)" title="Freigabe für Käufer zurückziehen"
+            class="p-1.5 hover:bg-gray-50 rounded text-gray-500"><EyeOff class="w-4 h-4" /></button>
           <button v-if="decisions[k.id] !== 'abgesagt'" @click="setStatus(k, 'abgesagt')" title="Ablehnen"
             class="p-1.5 hover:bg-red-50 rounded text-red-600"><X class="w-4 h-4" /></button>
         </div>
@@ -101,7 +122,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Users, RefreshCw, Check, X, Plus } from '@lucide/vue'
+import { Users, RefreshCw, Check, X, Plus, Eye, EyeOff } from '@lucide/vue'
 import { authFetch, getKontakte, getTargets } from '../../api.js'
 
 const props = defineProps({ targetId: String })
@@ -113,7 +134,24 @@ const decisions = ref({})  // { kontaktId: 'short' | 'abgesagt' }
 const showAddModal = ref(false)
 const addSearch = ref('')
 const allKontakte = ref([])
-const manuellAdded = ref([])  // IDs der manuell hinzugefügten
+const manuellAdded = ref([])
+const fuerKaeuferIds = ref([])     // IDs der fuer Kaeufer freigegebenen
+const kaeuferFeedback = ref({})    // { kontaktId: { interesse, kommentar } }
+
+function isFreigegeben(k) { return fuerKaeuferIds.value.includes(k.id) }
+const fuerKaeuferCount = computed(() => fuerKaeuferIds.value.length)
+const vorschlagCount = computed(() => items.value.filter(k => !decisions.value[k.id] && !fuerKaeuferIds.value.includes(k.id)).length)
+
+async function freigeben(k, on) {
+  if (on) {
+    if (!fuerKaeuferIds.value.includes(k.id)) fuerKaeuferIds.value.push(k.id)
+  } else {
+    fuerKaeuferIds.value = fuerKaeuferIds.value.filter(id => id !== k.id)
+  }
+  try {
+    await authFetch('/target-update', { method: 'POST', data: { id: props.targetId, fuerKaeuferIdsJson: JSON.stringify(fuerKaeuferIds.value) } })
+  } catch (e) { console.error(e) }
+}
 
 const addCandidates = computed(() => {
   const q = addSearch.value.trim().toLowerCase()
@@ -152,8 +190,9 @@ async function saveManuell() {
 const shortListCount = computed(() => Object.values(decisions.value).filter(v => v === 'short').length)
 const abgesagtCount = computed(() => Object.values(decisions.value).filter(v => v === 'abgesagt').length)
 const visibleItems = computed(() => {
-  if (filter.value === 'long') return items.value.filter(k => !decisions.value[k.id])
+  if (filter.value === 'long') return items.value.filter(k => !decisions.value[k.id] && !fuerKaeuferIds.value.includes(k.id))
   if (filter.value === 'short') return items.value.filter(k => decisions.value[k.id] === 'short')
+  if (filter.value === 'fuerKaeufer') return items.value.filter(k => fuerKaeuferIds.value.includes(k.id))
   if (filter.value === 'abgesagt') return items.value.filter(k => decisions.value[k.id] === 'abgesagt')
   return items.value
 })
@@ -206,6 +245,8 @@ async function refreshList() {
     const t = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
     const suchprofil = t.suchprofilJson ? JSON.parse(t.suchprofilJson) : {}
     try { manuellAdded.value = JSON.parse(t.longListManuellJson || '[]') } catch { manuellAdded.value = [] }
+    try { fuerKaeuferIds.value = JSON.parse(t.fuerKaeuferIdsJson || '[]') } catch { fuerKaeuferIds.value = [] }
+    try { kaeuferFeedback.value = JSON.parse(t.kaeuferFeedbackJson || '{}') } catch { kaeuferFeedback.value = {} }
 
     // 1. CRM-Kontakte matchen
     const kontakte = await getKontakte()
