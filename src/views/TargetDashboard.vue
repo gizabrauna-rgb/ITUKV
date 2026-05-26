@@ -191,7 +191,7 @@
 
       <!-- Tab: Verlauf -->
       <div v-else-if="tab === 'verlauf'">
-        <Verlauf :target-id="targetId" />
+        <Verlauf :target-id="targetId" :read-only="true" />
       </div>
 
       <!-- Tab: Interessenten -->

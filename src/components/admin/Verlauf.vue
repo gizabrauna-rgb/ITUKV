@@ -5,7 +5,7 @@
         <h3 class="text-lg font-bold text-gray-900">Kommunikations-Verlauf</h3>
       </div>
       <div class="flex items-center gap-2">
-        <button @click="openMail" class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8]">
+        <button v-if="!readOnly" @click="openMail" class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8]">
           <Mail class="w-4 h-4" /> E-Mail senden
         </button>
         <button @click="openNew" class="flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">
@@ -71,7 +71,7 @@
     <div v-else-if="!filtered.length" class="bg-white rounded-xl border border-gray-100 p-10 text-center text-gray-400 text-sm">
       <MessageSquare class="w-10 h-10 mx-auto mb-3 text-gray-200" />
       <p>Noch keine Einträge im Verlauf.</p>
-      <button @click="openNew" class="text-[#0088ba] hover:underline mt-2 text-sm">Ersten Eintrag erstellen →</button>
+      <button @click="openNew" class="text-[#0088ba] hover:underline mt-2 text-sm">{{ readOnly ? 'Eigene Notiz hinzufügen →' : 'Ersten Eintrag erstellen →' }}</button>
     </div>
     <div v-else class="relative">
       <!-- Timeline-Linie -->
@@ -91,7 +91,7 @@
               <span class="text-xs text-gray-400">{{ formatDateTime(entry.datum) }}</span>
               <span v-if="entry.autor" class="text-xs text-gray-500">· {{ entry.autor }}</span>
             </div>
-            <div class="flex gap-1">
+            <div v-if="!readOnly || isOwnEntry(entry)" class="flex gap-1">
               <button @click="openEdit(entry)" class="text-gray-300 hover:text-gray-600 p-1" title="Bearbeiten">
                 <Pencil class="w-3.5 h-3.5" />
               </button>
@@ -164,7 +164,14 @@ import {
 import { authFetch, verlaufSendMail, verlaufMarkRead, getMailvorlagen } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 
-const props = defineProps({ targetId: String })
+const props = defineProps({
+  targetId: String,
+  readOnly: { type: Boolean, default: false },  // Verkäufer: nur lesen + eigene Notizen
+})
+
+// "readOnly" = Verkäufer-Sicht: kein Mail-Versand, keine fremden Einträge bearbeiten
+const currentUserName = sessionStorage.getItem('userName') || ''
+function isOwnEntry(e) { return e.autor && e.autor === currentUserName }
 
 // Vorlagen
 const vorlagen = ref([])
