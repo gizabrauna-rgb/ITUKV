@@ -36,22 +36,28 @@
         <template v-if="!ndaUnterzeichnet">
           <!-- Erklär-Text -->
           <section class="bg-white rounded-2xl border border-gray-100 p-7 mb-5">
-            <h2 class="text-xl font-bold text-gray-900 mb-3">Das Unternehmen hat Dein Interesse geweckt – Wie geht es jetzt weiter?</h2>
+            <h2 class="text-xl font-bold text-gray-900 mb-3">Das Unternehmen hat Dein Interesse geweckt – wie geht es jetzt weiter?</h2>
             <p class="text-sm text-gray-700 leading-relaxed mb-4">
-              Bevor wir Dir nähere Informationen geben können, benötigen wir Dein unterschriebenes NDA.
-              Du kannst das NDA <strong>direkt hier online unterschreiben</strong> oder als PDF herunterladen, ausdrucken, signieren und hochladen.
+              Du hast oben bereits Zugriff auf das anonymisierte Exposé. Damit wir Dir im nächsten Schritt
+              <strong>tiefere Einblicke und die Kontaktdaten</strong> des Verkäufers geben können, benötigen wir Dein NDA.
+            </p>
+            <p class="text-sm text-gray-700 leading-relaxed mb-4">
+              Am einfachsten geht das <strong>direkt hier online mit ein paar Klicks</strong> — Du zeichnest Deine Unterschrift
+              im Browser und wir generieren das fertige NDA-PDF automatisch (rechtssicher gemäß eIDAS, einfache elektronische
+              Signatur). Alternativ kannst Du das NDA auch als PDF herunterladen, klassisch unterschreiben und wieder hochladen.
             </p>
 
             <div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded mb-4">
               <p class="text-sm text-amber-900">
-                <strong>Wichtig:</strong> Die Termin-Buchung mit Jennifer Kaplan wird erst freigeschaltet, sobald das unterschriebene NDA bei uns vorliegt.
+                <strong>Wichtig:</strong> Die <strong>Termin-Buchung mit Jennifer Kaplan</strong> wird erst freigeschaltet,
+                sobald Dein unterschriebenes NDA vorliegt.
               </p>
             </div>
 
             <h3 class="text-lg font-bold text-gray-900 mt-6 mb-2">Nächster Schritt: Terminbuchung</h3>
             <p class="text-sm text-gray-700 leading-relaxed mb-4">
-              Sobald das NDA bei uns eingegangen ist, erhältst Du die Möglichkeit, direkt einen
-              <strong>Termin mit unserer M&amp;A-Beraterin Jennifer Kaplan</strong> zu buchen.
+              Sobald das NDA bei uns vorliegt, erhältst Du <strong>sofort die Möglichkeit</strong>, einen
+              Termin mit unserer M&amp;A-Beraterin <strong>Jennifer Kaplan</strong> zu buchen.
               In einem ca. 15-minütigen Gespräch klären wir den weiteren Ablauf sowie alle offenen Fragen.
             </p>
 
@@ -64,11 +70,11 @@
             <p class="text-sm text-gray-700 leading-relaxed mb-4">
               Bei Rückfragen erreichst Du Jennifer Kaplan unter
               <a href="mailto:jk@mike-bergmann.de" class="text-[#097e92] hover:underline font-medium">jk@mike-bergmann.de</a>.
-              Bitte beachte, dass Rückfragen <strong>nur nach Erhalt des unterschriebenen NDA</strong> beantwortet werden können.
+              Bitte beachte, dass tiefergehende Fragen <strong>erst nach Erhalt des unterschriebenen NDA</strong> beantwortet werden können.
             </p>
 
             <p class="text-sm text-gray-700 leading-relaxed mt-5">Wir freuen uns auf die Zusammenarbeit!</p>
-            <p class="text-sm text-gray-700 leading-relaxed">Dein M&amp;A Team der <strong>Mike Bergmann Akademie</strong></p>
+            <p class="text-sm text-gray-700 leading-relaxed">Dein M&amp;A-Team der <strong>Mike Bergmann Akademie</strong></p>
           </section>
 
           <!-- NDA-Aktionen -->
