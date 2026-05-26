@@ -288,57 +288,6 @@ onMounted(async () => {
   }
 })
 
-function vorlageFuer(target) {
-  return /kauf|investor/i.test(target?.projekttyp || '') ? PHASEN_KAUF() : PHASEN_VORLAGE()
-}
-
-async function loadTarget() {
-  if (!selectedTargetId.value) return
-  try {
-    const target = await authFetch('/target-get', { method: 'POST', data: { id: selectedTargetId.value } })
-    currentTarget.value = target
-    // Interessenten parallel für ndaErhalten-Auto-Check
-    try { interessentenList.value = await authFetch('/interessenten', { method: 'POST', data: { targetId: selectedTargetId.value } }) }
-    catch { interessentenList.value = [] }
-    const defaultVorlage = vorlageFuer(target)
-    if (target.phasenJson) {
-      try {
-        const stored = JSON.parse(target.phasenJson)
-        // Wenn gespeicherte Phasen keine Aufgaben haben (Backend-Init), nutze Vorlage
-        const hatAufgaben = Array.isArray(stored) && stored.some(p => Array.isArray(p.aufgaben) && p.aufgaben.length > 0)
-        if (!hatAufgaben) {
-          phasen.value = defaultVorlage
-          await authFetch('/target-update', { method: 'POST', data: { id: selectedTargetId.value, phasenJson: JSON.stringify(phasen.value) } })
-        } else {
-          phasen.value = stored
-        }
-      } catch { phasen.value = defaultVorlage }
-    } else {
-      // Erstmaliges Oeffnen: Standard-Phasen anlegen + sofort speichern,
-      // damit die Uebersicht/Target-Dashboard die Phasen kennen
-      phasen.value = defaultVorlage
-      try {
-        await authFetch('/target-update', { method: 'POST', data: { id: selectedTargetId.value, phasenJson: JSON.stringify(phasen.value) } })
-      } catch (e) { console.error('Auto-init Phasen fehlgeschlagen', e) }
-    }
-    expanded.value = {}
-    // aktive Phase aufklappen
-    const active = phasen.value.find(p => !phaseAllDone(p))
-    if (active) expanded.value[active.id] = true
-  } catch (e) { console.error(e) }
-}
-
-let saveTimer = null
-async function save() {
-  if (!selectedTargetId.value) return
-  clearTimeout(saveTimer)
-  saveTimer = setTimeout(async () => {
-    try {
-      await authFetch('/target-update', { method: 'POST', data: { id: selectedTargetId.value,  phasenJson: JSON.stringify(phasen.value)  } })
-    } catch (e) { console.error('save phasen', e) }
-  }, 500)
-}
-
 // ============ AUTO-CHECK ============
 // System-Ereignisse die Aufgaben automatisch als erledigt markieren
 const autoChecks = computed(() => {
@@ -376,14 +325,17 @@ const autoChecks = computed(() => {
 })
 
 function isTaskDone(t) {
-  if (t.auto && autoChecks.value[t.auto]) return true
+  if (!t) return false
+  if (t.auto && autoChecks.value && autoChecks.value[t.auto]) return true
   return !!t.done
 }
 
 function phaseAllDone(p) {
-  return p.aufgaben.length > 0 && p.aufgaben.every(isTaskDone)
+  if (!p || !Array.isArray(p.aufgaben) || p.aufgaben.length === 0) return false
+  return p.aufgaben.every(isTaskDone)
 }
 function phaseSomeDone(p) {
+  if (!p || !Array.isArray(p.aufgaben)) return false
   return p.aufgaben.some(isTaskDone)
 }
 function phaseStatus(p) {
@@ -404,17 +356,19 @@ function phaseBadgeLabel(p) {
   return 'offen'
 }
 function countDoneInPhase(p) {
+  if (!p || !Array.isArray(p.aufgaben)) return 0
   return p.aufgaben.filter(isTaskDone).length
 }
 
 const activePhaseNumber = computed(() => {
-  for (const p of phasen.value) {
+  const list = Array.isArray(phasen.value) ? phasen.value : []
+  for (const p of list) {
     if (!phaseAllDone(p)) return p.id
   }
-  return phasen.value.length
+  return list.length || 1
 })
-const totalTasksTotal = computed(() => phasen.value.reduce((s, p) => s + p.aufgaben.length, 0))
-const doneTasksTotal = computed(() => phasen.value.reduce((s, p) => s + p.aufgaben.filter(isTaskDone).length, 0))
+const totalTasksTotal = computed(() => (Array.isArray(phasen.value) ? phasen.value : []).reduce((s, p) => s + (Array.isArray(p.aufgaben) ? p.aufgaben.length : 0), 0))
+const doneTasksTotal = computed(() => (Array.isArray(phasen.value) ? phasen.value : []).reduce((s, p) => s + (Array.isArray(p.aufgaben) ? p.aufgaben.filter(isTaskDone).length : 0), 0))
 const progressPercent = computed(() => totalTasksTotal.value ? Math.round((doneTasksTotal.value / totalTasksTotal.value) * 100) : 0)
 
 function toggleTask(phase, task) {
@@ -434,5 +388,52 @@ function removeTask(phase, idx) {
   if (!confirm('Aufgabe wirklich entfernen?')) return
   phase.aufgaben.splice(idx, 1)
   save()
+}
+
+// ============ DATA LOADING / PERSISTENCE ============
+function vorlageFuer(target) {
+  return /kauf|investor/i.test(target?.projekttyp || '') ? PHASEN_KAUF() : PHASEN_VORLAGE()
+}
+
+async function loadTarget() {
+  if (!selectedTargetId.value) return
+  try {
+    const target = await authFetch('/target-get', { method: 'POST', data: { id: selectedTargetId.value } })
+    currentTarget.value = target
+    try { interessentenList.value = await authFetch('/interessenten', { method: 'POST', data: { targetId: selectedTargetId.value } }) }
+    catch { interessentenList.value = [] }
+    const defaultVorlage = vorlageFuer(target)
+    if (target.phasenJson) {
+      try {
+        const stored = JSON.parse(target.phasenJson)
+        const hatAufgaben = Array.isArray(stored) && stored.some(p => Array.isArray(p.aufgaben) && p.aufgaben.length > 0)
+        if (!hatAufgaben) {
+          phasen.value = defaultVorlage
+          await authFetch('/target-update', { method: 'POST', data: { id: selectedTargetId.value, phasenJson: JSON.stringify(phasen.value) } })
+        } else {
+          phasen.value = stored
+        }
+      } catch { phasen.value = defaultVorlage }
+    } else {
+      phasen.value = defaultVorlage
+      try {
+        await authFetch('/target-update', { method: 'POST', data: { id: selectedTargetId.value, phasenJson: JSON.stringify(phasen.value) } })
+      } catch (e) { console.error('Auto-init Phasen fehlgeschlagen', e) }
+    }
+    expanded.value = {}
+    const active = (phasen.value || []).find(p => !phaseAllDone(p))
+    if (active) expanded.value[active.id] = true
+  } catch (e) { console.error(e) }
+}
+
+let saveTimer = null
+async function save() {
+  if (!selectedTargetId.value) return
+  clearTimeout(saveTimer)
+  saveTimer = setTimeout(async () => {
+    try {
+      await authFetch('/target-update', { method: 'POST', data: { id: selectedTargetId.value,  phasenJson: JSON.stringify(phasen.value)  } })
+    } catch (e) { console.error('save phasen', e) }
+  }, 500)
 }
 </script>
