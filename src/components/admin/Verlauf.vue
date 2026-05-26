@@ -175,13 +175,16 @@ async function loadVorlagen() {
 
 function applyVorlage(v) {
   const target = currentTarget.value || {}
+  const origin = window.location.origin
+  const mbNr = target.mbNr || ''
   const vars = {
     firma: target.firma || target.verkaueferName || '',
     name: target.verkaueferName || '',
-    mbNr: target.mbNr || '',
+    mbNr: mbNr,
     absender: sessionStorage.getItem('userName') || 'mibeca',
     datum: new Date().toLocaleDateString('de-DE'),
     verkaueferName: target.verkaueferName || '',
+    anfrageLink: mbNr ? `${origin}/${mbNr}` : '',
   }
   function sub(s) { return (s || '').replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] || '') }
   mailForm.value.betreff = sub(v.betreff)

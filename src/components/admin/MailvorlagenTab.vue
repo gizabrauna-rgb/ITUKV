@@ -5,9 +5,14 @@
         <h2 class="text-xl font-bold text-gray-900">E-Mail-Vorlagen</h2>
         <p class="text-xs text-gray-500 mt-1">Platzhalter: <code v-for="(ph, i) in platzhalter" :key="ph" class="bg-gray-100 px-1 rounded mr-1">{{ ph }}</code></p>
       </div>
-      <button @click="newVorlage" class="flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf]">
-        <Plus class="w-4 h-4" /> Neue Vorlage
-      </button>
+      <div class="flex items-center gap-2">
+        <button @click="reseed" :disabled="reseeding" class="flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-700 rounded-xl text-sm hover:bg-gray-50 disabled:opacity-50" title="Jenny-Vorlagen einspielen, die noch fehlen (vorhandene werden nicht überschrieben)">
+          <Download class="w-4 h-4" /> {{ reseeding ? 'Importiere…' : 'Jenny-Vorlagen importieren' }}
+        </button>
+        <button @click="newVorlage" class="flex items-center gap-2 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf]">
+          <Plus class="w-4 h-4" /> Neue Vorlage
+        </button>
+      </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -80,12 +85,25 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { Plus, FileText, Trash2 } from '@lucide/vue'
-import { getMailvorlagen, saveMailvorlage, deleteMailvorlage } from '../../api.js'
+import { Plus, FileText, Trash2, Download } from '@lucide/vue'
+import { getMailvorlagen, saveMailvorlage, deleteMailvorlage, reseedMailvorlagen } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 
-const platzhalter = ['{{firma}}', '{{name}}', '{{mbNr}}', '{{absender}}', '{{datum}}']
+const platzhalter = ['{{firma}}', '{{name}}', '{{mbNr}}', '{{absender}}', '{{datum}}', '{{anfrageLink}}']
 const vorlagen = ref([])
+const reseeding = ref(false)
+
+async function reseed() {
+  reseeding.value = true
+  try {
+    const r = await reseedMailvorlagen()
+    if (r.added > 0) toast.success(`${r.added} neue Vorlage(n) importiert`)
+    else toast.info('Alle Jenny-Vorlagen sind bereits vorhanden')
+    await load()
+  } catch (e) {
+    toast.error('Import fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
+  } finally { reseeding.value = false }
+}
 const selected = ref(null)
 const form = ref({ name: '', kategorie: 'Allgemein', betreff: '', body: '' })
 const loading = ref(true)

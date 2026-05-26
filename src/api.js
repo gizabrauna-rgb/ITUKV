@@ -117,3 +117,4 @@ export const verlaufMarkRead = (targetId) => authFetch('/verlauf-mark-read', { m
 export const getMailvorlagen = () => authFetch('/mailvorlagen-list')
 export const saveMailvorlage = (data) => authFetch('/mailvorlage-save', { method: 'POST', data })
 export const deleteMailvorlage = (RowKey) => authFetch('/mailvorlage-delete', { method: 'POST', data: { RowKey } })
+export const reseedMailvorlagen = () => authFetch('/mailvorlagen-reseed', { method: 'POST', data: {} })
