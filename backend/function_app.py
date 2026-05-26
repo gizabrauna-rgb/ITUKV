@@ -1389,7 +1389,10 @@ _NDA_HTML_TEMPLATE = """<!DOCTYPE html>
   .signature-label { font-size: 9pt; color: #6b7280; }
 </style></head><body>
 <h1>Vertraulichkeitsvereinbarung (NDA)</h1>
-<p class="subtitle">{% if variante == 'kaeufer' %}Käufer-NDA für Kauf-Mandat{% else %}Investor-NDA für Verkaufs-Mandat{% endif %} · mibeca GmbH</p>
+<p class="subtitle">
+  {% if variante == 'kaeufer' %}Käufer-NDA für Kauf-Mandat{% else %}Investor-NDA für Verkaufs-Mandat{% endif %} ·
+  Projekt-Referenz: <strong>{{ form.mbNr or '(noch nicht zugeordnet)' }}</strong> · mibeca GmbH
+</p>
 <div class="meta-grid">
   <div class="meta-box">
     <div class="label">{% if variante == 'kaeufer' %}Käufer{% else %}Investor{% endif %}</div>
@@ -1407,7 +1410,7 @@ _NDA_HTML_TEMPLATE = """<!DOCTYPE html>
 </div>
 <p class="praeambel">Die Parteien beabsichtigen, im Rahmen einer möglichen Transaktion vertrauliche Informationen auszutauschen. Zu diesem Zweck vereinbaren die Parteien Folgendes:</p>
 <ol>
-  <li><strong>Definition vertraulicher Informationen:</strong> Als vertrauliche Informationen gelten sämtliche unter dieser Vereinbarung ausgetauschten Daten, insbesondere Informationen zu M&A-Transaktionen, geschäftliche, technische, finanzielle und personelle Details {% if variante == 'kaeufer' %}der vom Transaktionsberater vorgeschlagenen Zielunternehmen{% else %}des Verkaufsobjekts{% endif %}.</li>
+  <li><strong>Definition vertraulicher Informationen:</strong> Als vertrauliche Informationen gelten sämtliche unter dieser Vereinbarung ausgetauschten Daten, insbesondere Informationen zu M&A-Transaktionen, geschäftliche, technische, finanzielle und personelle Details {% if variante == 'kaeufer' %}der vom Transaktionsberater vorgeschlagenen Zielunternehmen{% else %}des Verkaufsobjekts {% if form.mbNr %}<strong>{{ form.mbNr }}</strong>{% endif %}{% endif %}.</li>
   <li><strong>Behandlungspflichten:</strong> Die Parteien behandeln die vertraulichen Informationen mit größtmöglicher Sorgfalt, nutzen sie ausschließlich zum vereinbarten Zweck und unterlassen jegliche unbefugte Vervielfältigung oder Weitergabe.</li>
   <li><strong>Ausnahmen:</strong> Von der Geheimhaltungspflicht ausgenommen sind Informationen, die (a) öffentlich bekannt sind oder werden, (b) der empfangenden Partei bereits durch Dritte zugänglich waren, oder (c) unabhängig entwickelt wurden.</li>
   <li><strong>Weitergabe bei Rechtspflicht:</strong> Im Falle gesetzlicher oder behördlicher Verpflichtung zur Offenlegung wird die andere Partei unverzüglich informiert.</li>

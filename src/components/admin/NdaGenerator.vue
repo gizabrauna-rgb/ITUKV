@@ -18,6 +18,12 @@
     <div class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
       <h4 class="font-semibold text-sm text-gray-800 mb-3">Variablen für diesen {{ isKaufMandat ? 'Käufer' : 'Investor' }}</h4>
       <div class="grid grid-cols-2 gap-3">
+        <div class="col-span-2">
+          <label class="text-xs font-medium text-gray-600 mb-1 block">Projekt-Referenz (mb-Nr.)</label>
+          <input v-model="vars.mbNr" readonly placeholder="(wird automatisch aus dem Target übernommen)"
+            class="input bg-gray-50 font-mono cursor-not-allowed" />
+          <p class="text-xs text-gray-400 mt-1">Diese Nummer erscheint im NDA, damit der Interessent eindeutig weiß, für welches Projekt er Vertraulichkeit zusichert.</p>
+        </div>
         <div>
           <label class="text-xs font-medium text-gray-600 mb-1 block">Mandantenfirma ({{ isKaufMandat ? 'Käufer' : 'Investor' }})</label>
           <input v-model="vars.firma" placeholder="z.B. Beispiel IT-Holding GmbH" class="input" />
@@ -163,6 +169,7 @@ const props = defineProps({ targetId: String })
 const target = ref(null)
 
 const vars = ref({
+  mbNr: '',
   firma: '', vertreten: '', email: '', ort: '',
   datum: new Date().toISOString().slice(0, 10),
 })
@@ -215,8 +222,10 @@ async function zurSignaturSenden() {
 
 onMounted(async () => {
   if (!props.targetId) return
-  try { target.value = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } }) }
-  catch (e) { console.error(e) }
+  try {
+    target.value = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
+    if (target.value?.mbNr) vars.value.mbNr = target.value.mbNr
+  } catch (e) { console.error(e) }
 })
 </script>
 
