@@ -3398,6 +3398,9 @@ def dashboard_uebersicht(req: func.HttpRequest) -> func.HttpResponse:
         "ungelesen": [],                # Targets mit ungelesenen Eintraegen
         "wiedervorlage": [],            # Targets mit faelliger Wiedervorlage heute/ueberfaellig
         "pressefreigabe": [],           # Pressetext wartet auf Kunden-Freigabe oder mibeca-Aktion
+        "fragebogenZuPruefen": [],      # Verkaeufer hat Fragebogen abgegeben, mibeca muss auswerten
+        "exposeKorrekturwunsch": [],    # Verkaeufer hat Korrekturwunsch zum Exposé
+        "exposeFreigabeAusstehend": [], # Exposé wurde an Kunden gesendet, wartet auf seine Freigabe
     }
 
     today = datetime.utcnow().date().isoformat()
@@ -3441,6 +3444,27 @@ def dashboard_uebersicht(req: func.HttpRequest) -> func.HttpResponse:
         wv = t.get("wiedervorlage", "")
         if wv and wv <= today:
             wartet["wiedervorlage"].append({"targetId": tid, "mbNr": mb_nr, "firma": firma, "datum": wv})
+        # Fragebogen abgegeben → mibeca muss auswerten (solange noch kein Exposé)
+        if t.get("fragebogenStatus") == "abgegeben":
+            try:
+                ej = json.loads(t.get("exposeJson", "{}") or "{}")
+                expose_status = ej.get("status", "")
+            except Exception:
+                expose_status = ""
+            if expose_status in ("", "draft"):
+                wartet["fragebogenZuPruefen"].append({
+                    "targetId": tid, "mbNr": mb_nr, "firma": firma,
+                    "abgegebenAm": t.get("fragebogenAbgegebenAm", ""),
+                })
+        # Exposé-Workflow
+        try:
+            ej = json.loads(t.get("exposeJson", "{}") or "{}")
+            es = ej.get("status", "")
+            if es == "changes_requested":
+                wartet["exposeKorrekturwunsch"].append({"targetId": tid, "mbNr": mb_nr, "firma": firma})
+            elif es == "awaiting_approval":
+                wartet["exposeFreigabeAusstehend"].append({"targetId": tid, "mbNr": mb_nr, "firma": firma})
+        except Exception: pass
 
     # Interessenten mit unterschriebenem NDA (zur Review)
     try:

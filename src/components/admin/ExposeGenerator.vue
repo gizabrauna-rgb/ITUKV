@@ -196,7 +196,38 @@ async function save() {
   }, 400)
 }
 
-async function setStatus(s) { exposeStatus.value = s; save() }
+async function setStatus(s) {
+  const prev = exposeStatus.value
+  exposeStatus.value = s
+  await save()
+  // Workflow-Notifizierung im Verlauf festhalten
+  try {
+    const targetData = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
+    const existing = targetData.kommunikationJson ? JSON.parse(targetData.kommunikationJson) : []
+    let betreff = '', beschreibung = '', typ = 'notiz'
+    if (s === 'awaiting_approval') {
+      betreff = 'Exposé an Kunde zur Freigabe gesendet'
+      beschreibung = 'Das Exposé wurde an den Verkäufer zur Freigabe gesendet. Er sieht es jetzt in seinem Portal unter „Mein Exposé".'
+      typ = 'wichtig'
+    } else if (s === 'in_review') {
+      betreff = 'Exposé in interne Prüfung gesetzt'
+      beschreibung = 'Das Exposé wird intern noch geprüft.'
+    } else if (s === 'approved') {
+      betreff = 'Exposé freigegeben (manuell durch mibeca)'
+      beschreibung = 'Status wurde manuell auf freigegeben gesetzt.'
+      typ = 'wichtig'
+    }
+    if (betreff) {
+      existing.unshift({
+        id: 'k' + Date.now(), typ, datum: new Date().toISOString(),
+        autor: sessionStorage.getItem('userName') || 'mibeca',
+        betreff, beschreibung, beteiligte: 'mibeca → Verkäufer',
+      })
+      await authFetch('/target-update', { method: 'POST', data: { id: props.targetId, kommunikationJson: JSON.stringify(existing) } })
+    }
+    toast.success(`Status: ${statusLabel.value}`)
+  } catch (e) { console.error(e) }
+}
 
 // Preview
 const previewUrl = ref(null)

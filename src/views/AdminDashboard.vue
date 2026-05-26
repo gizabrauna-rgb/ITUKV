@@ -160,6 +160,27 @@
                   <span class="font-medium truncate flex-1">{{ v.firma }}</span>
                   <span class="text-red-600">{{ v.anzahl }} ungelesen</span>
                 </button>
+                <button v-for="v in ueberblick.wartet.fragebogenZuPruefen || []" :key="'fb'+v.targetId" @click="openAkte({ RowKey: v.targetId })"
+                  class="w-full text-left flex items-center gap-2 p-2 hover:bg-amber-50 rounded-lg text-xs">
+                  <span class="w-1.5 h-1.5 rounded-full bg-purple-500 flex-shrink-0"></span>
+                  <span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ v.mbNr }}</span>
+                  <span class="font-medium truncate flex-1">{{ v.firma }}</span>
+                  <span class="text-purple-700">Fragebogen abgegeben — auswerten</span>
+                </button>
+                <button v-for="v in ueberblick.wartet.exposeKorrekturwunsch || []" :key="'ek'+v.targetId" @click="openAkte({ RowKey: v.targetId })"
+                  class="w-full text-left flex items-center gap-2 p-2 hover:bg-amber-50 rounded-lg text-xs">
+                  <span class="w-1.5 h-1.5 rounded-full bg-orange-500 flex-shrink-0"></span>
+                  <span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ v.mbNr }}</span>
+                  <span class="font-medium truncate flex-1">{{ v.firma }}</span>
+                  <span class="text-orange-700">Exposé-Korrekturwunsch</span>
+                </button>
+                <button v-for="v in ueberblick.wartet.exposeFreigabeAusstehend || []" :key="'ef'+v.targetId" @click="openAkte({ RowKey: v.targetId })"
+                  class="w-full text-left flex items-center gap-2 p-2 hover:bg-amber-50 rounded-lg text-xs">
+                  <span class="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0"></span>
+                  <span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ v.mbNr }}</span>
+                  <span class="font-medium truncate flex-1">{{ v.firma }}</span>
+                  <span class="text-gray-500">wartet auf Exposé-Freigabe</span>
+                </button>
               </div>
             </div>
 

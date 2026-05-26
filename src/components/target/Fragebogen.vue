@@ -181,12 +181,34 @@
         Weiter <ChevronRight class="w-4 h-4" />
       </button>
     </div>
+
+    <!-- Abschluss-Karte -->
+    <div class="mt-6 bg-white rounded-xl border-2 p-5"
+      :class="fragebogenStatus === 'abgegeben' ? 'border-green-200 bg-green-50' : 'border-[#097e92]/30'">
+      <div v-if="fragebogenStatus === 'abgegeben'" class="flex items-start gap-3">
+        <CheckCircle class="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
+        <div class="flex-1">
+          <h3 class="font-bold text-green-900 mb-1">Fragebogen abgegeben</h3>
+          <p class="text-sm text-green-800">Danke! Unser Team wertet deine Angaben aus und meldet sich mit dem Exposé-Entwurf.</p>
+          <button @click="zurueckziehen" class="text-xs text-green-700 underline mt-2 hover:text-green-900">Doch noch etwas ändern? Zurückziehen</button>
+        </div>
+      </div>
+      <div v-else>
+        <h3 class="font-bold text-gray-900 mb-1">Fragebogen abgeben</h3>
+        <p class="text-sm text-gray-600 mb-3">Wenn du soweit alles ausgefüllt hast, gib den Fragebogen ab. Unser Team kann dann mit der Auswertung starten und das Exposé erstellen.</p>
+        <p v-if="progress < 60" class="text-xs text-amber-700 mb-3">Hinweis: Aktuell sind erst {{ progress }}% ausgefüllt — du kannst trotzdem abgeben, aber je vollständiger desto besser.</p>
+        <button @click="abgeben" :disabled="abgebenSending" class="px-5 py-2.5 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf] disabled:opacity-50">
+          {{ abgebenSending ? 'Wird gesendet…' : 'Fragebogen abgeben' }}
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, defineComponent, h } from 'vue'
-import { Check, ChevronLeft, ChevronRight, Plus, X } from '@lucide/vue'
+import { toast } from '../../composables/useToast.js'
+import { Check, ChevronLeft, ChevronRight, Plus, X, CheckCircle } from '@lucide/vue'
 import { authFetch } from '../../api.js'
 
 const props = defineProps({ targetId: String })
@@ -299,6 +321,10 @@ function sectionDone(idx) {
   return false
 }
 
+const fragebogenStatus = ref('')
+const abgebenSending = ref(false)
+const targetCache = ref(null)
+
 let saveTimer = null
 async function save() {
   if (!props.targetId) return
@@ -310,10 +336,48 @@ async function save() {
   }, 600)
 }
 
+async function logVerlauf(typ, betreff, beschreibung) {
+  try {
+    const existing = targetCache.value?.kommunikationJson ? JSON.parse(targetCache.value.kommunikationJson) : []
+    existing.unshift({
+      id: 'k' + Date.now(),
+      typ, datum: new Date().toISOString(),
+      autor: sessionStorage.getItem('userName') || 'Verkäufer',
+      betreff, beschreibung,
+      beteiligte: 'Verkäufer → mibeca',
+    })
+    await authFetch('/target-update', { method: 'POST', data: { id: props.targetId, kommunikationJson: JSON.stringify(existing) } })
+    targetCache.value.kommunikationJson = JSON.stringify(existing)
+  } catch (e) { console.error('verlauf log failed', e) }
+}
+
+async function abgeben() {
+  abgebenSending.value = true
+  try {
+    await authFetch('/target-update', { method: 'POST', data: { id: props.targetId, fragebogenStatus: 'abgegeben', fragebogenAbgegebenAm: new Date().toISOString() } })
+    await logVerlauf('wichtig', 'Fragebogen abgegeben', `Der Verkäufer hat den Fragebogen abgegeben (${progress.value}% ausgefüllt).`)
+    fragebogenStatus.value = 'abgegeben'
+    toast.success('Fragebogen abgegeben — danke!')
+  } catch (e) {
+    toast.error('Abgeben fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
+  } finally { abgebenSending.value = false }
+}
+
+async function zurueckziehen() {
+  if (!confirm('Fragebogen zurückziehen, um noch zu ändern?')) return
+  try {
+    await authFetch('/target-update', { method: 'POST', data: { id: props.targetId, fragebogenStatus: 'in_arbeit' } })
+    fragebogenStatus.value = 'in_arbeit'
+    toast.info('Fragebogen wieder offen — du kannst weitere Änderungen vornehmen.')
+  } catch (e) { toast.error('Fehler: ' + e.message) }
+}
+
 onMounted(async () => {
   if (!props.targetId) return
   try {
     const t = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
+    targetCache.value = t
+    fragebogenStatus.value = t.fragebogenStatus || 'in_arbeit'
     if (t.fragebogenJson) {
       try {
         const parsed = JSON.parse(t.fragebogenJson)
