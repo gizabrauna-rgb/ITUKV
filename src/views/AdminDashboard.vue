@@ -201,7 +201,7 @@ const tab = ref('uebersicht')
 const showSwitcher = ref(false)
 
 const targetTypes = ['UVE Target', 'Projekt Target', 'MC Target']
-const investorTypes = ['Projekt Investoren', 'MC Investoren']
+const investorTypes = ['Kauf-Mandat', 'Projekt Investoren', 'MC Investoren']
 
 function switchTo(view) {
   showSwitcher.value = false

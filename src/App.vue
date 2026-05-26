@@ -41,14 +41,17 @@ const impersonating = ref(sessionStorage.getItem('impersonateAs') || '')
 
 // Projekttypen, die Verkäufer/Target-Seite sehen
 const TARGET_TYPS = ['UVE Target', 'Projekt Target', 'MC Target']
-const INVESTOR_TYPS = ['Projekt Investoren', 'MC Investoren']
+// Investoren-Projekttypen sind semantisch Kauf-Mandate -> auch TargetDashboard
+// (mit dem kauf-mandat-Tab-Set: Suchprofil, Target-Vorschlaege, Vertraege)
+const KAUF_MANDAT_TYPS = ['Projekt Investoren', 'MC Investoren', 'Kauf-Mandat']
+const INVESTOR_TYPS = []  // Legacy: leer (alte Liste bleibt fuer Abwaertskompatibilitaet)
 
 const currentView = computed(() => {
   if (isSignRoute) return SignPage
   if (!role.value) return Login
   // Admin testet eine bestimmte Projekttyp-Ansicht
   if (role.value === 'admin' && TARGET_TYPS.includes(impersonating.value)) return TargetDashboard
-  if (role.value === 'admin' && INVESTOR_TYPS.includes(impersonating.value)) return InvestorDashboard
+  if (role.value === 'admin' && KAUF_MANDAT_TYPS.includes(impersonating.value)) return TargetDashboard
   if (role.value === 'admin') return AdminDashboard
   if (role.value === 'target') return TargetDashboard
   if (role.value === 'investor') return InvestorDashboard
