@@ -58,12 +58,20 @@
             <div v-for="(task, ti) in phase.aufgaben" :key="task.id" class="bg-white rounded-lg p-3 mb-2 last:mb-0 flex items-start gap-3">
               <button
                 @click="toggleTask(phase, task)"
-                :class="['w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors mt-0.5', task.done ? 'bg-[#0088ba] border-[#0088ba]' : 'border-gray-300 hover:border-[#0088ba]']"
+                :disabled="task.auto && autoChecks[task.auto]"
+                :title="task.auto && autoChecks[task.auto] ? 'Automatisch erledigt durch System-Ereignis' : ''"
+                :class="['w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors mt-0.5',
+                         (task.auto && autoChecks[task.auto]) ? 'bg-green-500 border-green-500 cursor-default' :
+                         task.done ? 'bg-[#0088ba] border-[#0088ba]' :
+                         'border-gray-300 hover:border-[#0088ba]']"
               >
-                <Check v-if="task.done" class="w-3 h-3 text-white" />
+                <Check v-if="isTaskDone(task)" class="w-3 h-3 text-white" />
               </button>
               <div class="flex-1 min-w-0">
-                <div :class="['text-sm', task.done ? 'line-through text-gray-400' : 'text-gray-800']">{{ task.label }}</div>
+                <div class="flex items-center gap-2">
+                  <div :class="['text-sm', isTaskDone(task) ? 'line-through text-gray-400' : 'text-gray-800']">{{ task.label }}</div>
+                  <span v-if="task.auto && autoChecks[task.auto]" class="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">auto</span>
+                </div>
                 <div class="grid grid-cols-3 gap-2 mt-2">
                   <input v-model="task.verantwortlich" @blur="save" placeholder="Verantwortlich" class="text-xs px-2 py-1 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0088ba]/30" />
                   <input v-model="task.datum" type="date" @blur="save" class="text-xs px-2 py-1 border border-gray-200 rounded focus:outline-none" />
@@ -106,10 +114,10 @@ import { getTargets, authFetch } from '../../api.js'
 const PHASEN_VORLAGE = () => ([
   { id: 1, titel: '1. UVE Start — Vorbereitungs-Checkliste', notiz: '', aufgaben: [
     { id: 'uve1', label: 'MB050: Videolektionen ansehen ("Wie läuft Verkauf von A bis Z ab?")', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
-    { id: 'uve2', label: 'MB050: Fragebogen Unternehmensbewertung ausfüllen', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
+    { id: 'uve2', label: 'MB050: Fragebogen Unternehmensbewertung ausgefüllt', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'fragebogenAbgegeben' },
     { id: 'uve3', label: 'MB050: Due-Diligence-Datenraum nach Muster anlegen', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
     { id: 'uve4', label: 'MB041: Verkaufsstory entwickeln (Ziele, Wunsch-Exit, W-Fragen, Deal-Struktur)', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
-    { id: 'uve5', label: 'Eigenes Unternehmensexposé erstellen (Vorlage aus Unterlagenpaket)', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
+    { id: 'uve5', label: 'Eigenes Unternehmensexposé erstellen + vom Verkäufer freigegeben', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'exposeApproved' },
     { id: 'uve6', label: 'Verkaufsmandat erteilen → Marktansprache durch mibeca', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
     { id: 'uve7', label: 'Kosten-Tabelle ansehen ("Welche Kosten kommen auf Dich zu")', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
     { id: 't1', label: 'Zahlen, Daten, Fakten zusammentragen', done: false, verantwortlich: '', datum: '', notiz: '' },
@@ -117,21 +125,21 @@ const PHASEN_VORLAGE = () => ([
     { id: 't3', label: 'Exposé-Entwurf erstellen', done: false, verantwortlich: '', datum: '', notiz: '' },
   ]},
   { id: 2, titel: '2. UVE Abschluss — Verkaufsmandat-Eröffnung', notiz: '', aufgaben: [
-    { id: 't1', label: 'Verkaufsmandat unterzeichnet (12 Monate)', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 't1', label: 'Verkaufsmandat unterzeichnet (12 Monate)', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'mandatGegengezeichnet' },
     { id: 't2', label: 'Standard-Ordner anlegen: ITUKV/UVE/mb-XX', done: false, verantwortlich: '', datum: '', notiz: '' },
     { id: 't3', label: 'Onboarding durch Jenny (+ Content)', done: false, verantwortlich: 'Jenny', datum: '', notiz: '' },
     { id: 't4', label: 'Kundenakte angelegt', done: false, verantwortlich: '', datum: '', notiz: '' },
   ]},
   { id: 3, titel: '3. Marktansprache — Interessenten anschreiben', notiz: '', aufgaben: [
-    { id: 't1', label: 'Landing-Page online (it-unternehmen-kaufen-verkaufen.de/mb-XX)', done: false, verantwortlich: 'Marketing', datum: '', notiz: '' },
+    { id: 't1', label: 'Landing-Page online (targets.itukv.de/mb-XX)', done: false, verantwortlich: 'Marketing', datum: '', notiz: '', auto: 'landingPublished' },
     { id: 't2', label: 'Erstinteressenten aus Kundenstamm filtern (PLZ-Radius)', done: false, verantwortlich: '', datum: '', notiz: '' },
     { id: 't3', label: 'Anschreiben über zahlreiche Kanäle (Mail/Brief/Telefon)', done: false, verantwortlich: '', datum: '', notiz: '' },
     { id: 't4', label: 'KEINE Exklusivität zugesagt!', done: false, verantwortlich: '', datum: '', notiz: '' },
   ]},
   { id: 4, titel: '4. NDA von Interessenten abholen', notiz: '', aufgaben: [
-    { id: 't1', label: 'NDA-Anfragen prüfen & freigeben', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 't1', label: 'Mindestens 1 NDA erhalten', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'ndaErhalten' },
     { id: 't2', label: 'VETO-Check mit Verkäufer', done: false, verantwortlich: '', datum: '', notiz: '' },
-    { id: 't3', label: 'Signierte NDAs in Akte ablegen', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 't3', label: 'Signierte NDAs in Akte ablegen', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'ndaInDatenraum' },
   ]},
   { id: 5, titel: '5. Erstes Kennenlernen — Interessent ↔ Verkäufer', notiz: '', aufgaben: [
     { id: 't1', label: 'Termin koordinieren (3er-Gespräch)', done: false, verantwortlich: '', datum: '', notiz: '' },
@@ -158,8 +166,8 @@ const PHASEN_VORLAGE = () => ([
     { id: 't3', label: 'Bedingungen (Earn-Out, GF-Verbleib) geklärt', done: false, verantwortlich: '', datum: '', notiz: '' },
   ]},
   { id: 10, titel: '10. Letter of Intent (LOI)', notiz: '', aufgaben: [
-    { id: 't1', label: 'LOI erstellt', done: false, verantwortlich: '', datum: '', notiz: '' },
-    { id: 't2', label: 'LOI unterzeichnet', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 't1', label: 'LOI erstellt', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'loiGestartet' },
+    { id: 't2', label: 'LOI vollständig verhandelt (alle Punkte final)', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'loiFinal' },
   ]},
   { id: 11, titel: '11. Due Diligence', notiz: '', aufgaben: [
     { id: 'ddprep', label: 'Datenraum vollständig befüllt', done: false, verantwortlich: '', datum: '', notiz: '' },
@@ -194,12 +202,13 @@ const PHASEN_VORLAGE = () => ([
     { id: 'pc6', label: 'Aufhebungsvertrag GF (falls GF ausscheidet)', done: false, verantwortlich: 'Anwalt', datum: '', notiz: '' },
   ]},
   { id: 15, titel: '15. Erfolgsmeldung & Abrechnung', notiz: '', aufgaben: [
-    { id: 'pr1', label: 'Pressemitteilung erstellt (Vorlage: DATAreform x Knoblauch)', done: false, verantwortlich: 'Marketing', datum: '', notiz: '' },
-    { id: 'pr2', label: 'Erfolgsmeldung an Branche/Newsletter', done: false, verantwortlich: 'Marketing', datum: '', notiz: '' },
-    { id: 'pr3', label: 'LinkedIn-Post (anonymisiert oder mit Zustimmung)', done: false, verantwortlich: 'Marketing', datum: '', notiz: '' },
-    { id: 'pr4', label: 'Erfolgshonorar berechnet & in Rechnung gestellt', done: false, verantwortlich: 'Claudia', datum: '', notiz: '' },
-    { id: 'pr5', label: 'Zeiterfassung final abgerechnet', done: false, verantwortlich: 'Claudia', datum: '', notiz: '' },
-    { id: 'pr6', label: 'Mandat in Ordnerstruktur archiviert', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 'pr1', label: 'Pressemitteilung erstellt (Vorlage: DATAreform x Knoblauch)', done: false, verantwortlich: 'Marketing', datum: '', notiz: '', auto: 'pressetextErstellt' },
+    { id: 'pr2', label: 'Pressetext vom Verkäufer freigegeben', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'pressetextFreigegeben' },
+    { id: 'pr3', label: 'Erfolgsmeldung an Branche/Newsletter', done: false, verantwortlich: 'Marketing', datum: '', notiz: '', auto: 'presseVersand' },
+    { id: 'pr4', label: 'LinkedIn-Post (anonymisiert oder mit Zustimmung)', done: false, verantwortlich: 'Marketing', datum: '', notiz: '' },
+    { id: 'pr5', label: 'Erfolgshonorar berechnet & in Rechnung gestellt', done: false, verantwortlich: 'Claudia', datum: '', notiz: '' },
+    { id: 'pr6', label: 'Zeiterfassung final abgerechnet', done: false, verantwortlich: 'Claudia', datum: '', notiz: '' },
+    { id: 'pr7', label: 'Mandat in Ordnerstruktur archiviert', done: false, verantwortlich: '', datum: '', notiz: '' },
   ]},
 ])
 
@@ -210,6 +219,7 @@ const selectedTargetId = ref(props.targetId || '')
 const phasen = ref(PHASEN_VORLAGE())
 const expanded = ref({})
 const currentTarget = ref(null)
+const interessentenList = ref([])
 
 onMounted(async () => {
   if (!embedded.value) {
@@ -232,6 +242,9 @@ async function loadTarget() {
   try {
     const target = await authFetch('/target-get', { method: 'POST', data: { id: selectedTargetId.value } })
     currentTarget.value = target
+    // Interessenten parallel für ndaErhalten-Auto-Check
+    try { interessentenList.value = await authFetch('/interessenten', { method: 'POST', data: { targetId: selectedTargetId.value } }) }
+    catch { interessentenList.value = [] }
     if (target.phasenJson) {
       try { phasen.value = JSON.parse(target.phasenJson) }
       catch { phasen.value = PHASEN_VORLAGE() }
@@ -261,11 +274,43 @@ async function save() {
   }, 500)
 }
 
+// ============ AUTO-CHECK ============
+// System-Ereignisse die Aufgaben automatisch als erledigt markieren
+const autoChecks = computed(() => {
+  const t = currentTarget.value || {}
+  let vertrag = {}, expose = {}, landing = {}, presse = {}, loi = {}
+  try { vertrag = JSON.parse(t.vertragJson || '{}') } catch {}
+  try { expose = JSON.parse(t.exposeJson || '{}') } catch {}
+  try { landing = JSON.parse(t.landingJson || '{}') } catch {}
+  try { presse = JSON.parse(t.presseJson || '{}') } catch {}
+  try { loi = JSON.parse(t.loiJson || '{}') } catch {}
+  const ndas = (interessentenList.value || []).filter(i => i.ndaStatus === 'unterzeichnet')
+  const loiPunkte = loi.punkte || []
+  return {
+    fragebogenAbgegeben: t.fragebogenStatus === 'abgegeben',
+    mandatGegengezeichnet: !!vertrag.gegengezeichnetAm,
+    landingPublished: landing.status === 'published',
+    ndaErhalten: ndas.length > 0,
+    ndaInDatenraum: ndas.length > 0,
+    exposeApproved: expose.status === 'approved',
+    loiGestartet: loiPunkte.some(p => p.einigung || p.angebotKaeufer || p.angebotVerkaeufer),
+    loiFinal: loiPunkte.length > 0 && loiPunkte.every(p => p.final),
+    pressetextErstellt: !!presse.text,
+    pressetextFreigegeben: presse.freigabeStatus === 'freigegeben',
+    presseVersand: !!presse.versendetAm,
+  }
+})
+
+function isTaskDone(t) {
+  if (t.auto && autoChecks.value[t.auto]) return true
+  return !!t.done
+}
+
 function phaseAllDone(p) {
-  return p.aufgaben.length > 0 && p.aufgaben.every(t => t.done)
+  return p.aufgaben.length > 0 && p.aufgaben.every(isTaskDone)
 }
 function phaseSomeDone(p) {
-  return p.aufgaben.some(t => t.done)
+  return p.aufgaben.some(isTaskDone)
 }
 function phaseStatus(p) {
   if (phaseAllDone(p)) return 'done'
@@ -285,7 +330,7 @@ function phaseBadgeLabel(p) {
   return 'offen'
 }
 function countDoneInPhase(p) {
-  return p.aufgaben.filter(t => t.done).length
+  return p.aufgaben.filter(isTaskDone).length
 }
 
 const activePhaseNumber = computed(() => {
@@ -295,10 +340,12 @@ const activePhaseNumber = computed(() => {
   return phasen.value.length
 })
 const totalTasksTotal = computed(() => phasen.value.reduce((s, p) => s + p.aufgaben.length, 0))
-const doneTasksTotal = computed(() => phasen.value.reduce((s, p) => s + p.aufgaben.filter(t => t.done).length, 0))
+const doneTasksTotal = computed(() => phasen.value.reduce((s, p) => s + p.aufgaben.filter(isTaskDone).length, 0))
 const progressPercent = computed(() => totalTasksTotal.value ? Math.round((doneTasksTotal.value / totalTasksTotal.value) * 100) : 0)
 
 function toggleTask(phase, task) {
+  // Auto-Aufgaben sind nicht manuell schaltbar
+  if (task.auto && autoChecks.value[task.auto]) return
   task.done = !task.done
   save()
 }
