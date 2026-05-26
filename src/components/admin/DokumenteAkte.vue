@@ -71,9 +71,9 @@ import { Folder, Upload, FileText, Download, Trash2 } from '@lucide/vue'
 import { authFetch } from '../../api.js'
 
 const props = defineProps({ targetId: String, readOnly: { type: Boolean, default: false } })
-const ordnerListe = ['Verträge', 'Datenraum', 'NDA', 'Exposé', 'Vertragsverhandlungen', 'Videoprotokoll', 'Allgemein']
+const ordnerListe = ['Verträge', 'NDA', 'Exposé', 'Bilanzen & Finanzen', 'Vertragsverhandlungen', 'Videoprotokolle', 'Sonstiges']
 const dokumente = ref([])
-const selectedFolder = ref('Datenraum')
+const selectedFolder = ref('Verträge')
 const dragOver = ref(false)
 const uploading = ref(false)
 const uploadedCount = ref(0)
