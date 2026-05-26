@@ -18,33 +18,41 @@
       <div v-for="k in vorschlaege" :key="k.id" class="bg-white rounded-xl border border-gray-100 p-5">
         <div class="flex items-start justify-between gap-3 mb-3">
           <div class="flex-1 min-w-0">
-            <div class="font-semibold text-gray-900">{{ k.firma }}</div>
-            <div class="text-xs text-gray-500 mt-0.5">{{ k.plz }} {{ k.ort }} · {{ k.mitarbeiter || '?' }} MA · {{ k.umsatz || '?' }} Umsatz</div>
-            <div v-if="k.matchGruende?.length" class="flex flex-wrap gap-1 mt-2">
-              <span v-for="g in k.matchGruende" :key="g" class="text-[10px] bg-[#097e92]/10 text-[#097e92] px-2 py-0.5 rounded-full">{{ g }}</span>
+            <div class="font-bold text-base text-gray-900">{{ k.firma }}</div>
+            <div v-if="k.name" class="text-sm text-gray-700 mt-0.5">Ansprechpartner: {{ k.name }}</div>
+            <div class="text-xs text-gray-500 mt-1">
+              <span v-if="k.plz || k.ort">{{ k.plz }} {{ k.ort }}</span>
+              <span v-if="k.mitarbeiter"> · {{ k.mitarbeiter }} Mitarbeiter</span>
+              <span v-if="k.umsatz"> · {{ k.umsatz }}</span>
             </div>
           </div>
-          <!-- Status-Badge -->
+          <!-- Status-Badge (nur wenn schon Feedback gegeben) -->
           <div v-if="feedback[k.id]?.interesse" class="flex-shrink-0">
-            <span v-if="feedback[k.id].interesse === 'ja'" class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">✅ Interesse</span>
-            <span v-else-if="feedback[k.id].interesse === 'nein'" class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">❌ Kein Interesse</span>
-            <span v-else-if="feedback[k.id].interesse === 'rueckfrage'" class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">💬 Rückfrage</span>
+            <span v-if="feedback[k.id].interesse === 'ja'" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium flex items-center gap-1">
+              <Check class="w-3 h-3" /> Interesse
+            </span>
+            <span v-else-if="feedback[k.id].interesse === 'nein'" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium flex items-center gap-1">
+              <X class="w-3 h-3" /> Kein Interesse
+            </span>
+            <span v-else-if="feedback[k.id].interesse === 'rueckfrage'" class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium flex items-center gap-1">
+              <MessageCircle class="w-3 h-3" /> Rückfrage
+            </span>
           </div>
         </div>
 
         <!-- Feedback-Buttons -->
         <div class="flex gap-2 mt-3">
-          <button @click="setFeedback(k.id, 'ja')" :class="['flex-1 px-3 py-2 rounded-xl text-sm font-medium border-2 transition-colors',
+          <button @click="setFeedback(k.id, 'ja')" :class="['flex-1 px-3 py-2 rounded-xl text-sm font-medium border-2 transition-colors flex items-center justify-center gap-1.5',
             feedback[k.id]?.interesse === 'ja' ? 'bg-green-500 text-white border-green-500' : 'border-gray-200 text-gray-600 hover:border-green-300']">
-            ✅ Interesse
+            <Check class="w-4 h-4" /> Interesse
           </button>
-          <button @click="setFeedback(k.id, 'rueckfrage')" :class="['flex-1 px-3 py-2 rounded-xl text-sm font-medium border-2 transition-colors',
+          <button @click="setFeedback(k.id, 'rueckfrage')" :class="['flex-1 px-3 py-2 rounded-xl text-sm font-medium border-2 transition-colors flex items-center justify-center gap-1.5',
             feedback[k.id]?.interesse === 'rueckfrage' ? 'bg-amber-500 text-white border-amber-500' : 'border-gray-200 text-gray-600 hover:border-amber-300']">
-            💬 Rückfrage
+            <MessageCircle class="w-4 h-4" /> Rückfrage
           </button>
-          <button @click="setFeedback(k.id, 'nein')" :class="['flex-1 px-3 py-2 rounded-xl text-sm font-medium border-2 transition-colors',
+          <button @click="setFeedback(k.id, 'nein')" :class="['flex-1 px-3 py-2 rounded-xl text-sm font-medium border-2 transition-colors flex items-center justify-center gap-1.5',
             feedback[k.id]?.interesse === 'nein' ? 'bg-red-500 text-white border-red-500' : 'border-gray-200 text-gray-600 hover:border-red-300']">
-            ❌ Kein Interesse
+            <X class="w-4 h-4" /> Kein Interesse
           </button>
         </div>
 
@@ -61,7 +69,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Users } from '@lucide/vue'
+import { Users, Check, X, MessageCircle } from '@lucide/vue'
 import { authFetch, getKontakte } from '../../api.js'
 
 const props = defineProps({ targetId: String })
@@ -75,22 +83,20 @@ const loading = ref(true)
 const vorschlaege = computed(() => {
   const result = []
   for (const id of fuerKaeuferIds.value) {
-    // Erst Kontakte, dann Targets prüfen
     const k = allKontakte.value.find(x => (x.RowKey || x.id) === id)
     if (k) {
       result.push({ ...k, id: k.RowKey || k.id })
       continue
     }
-    // Format 'target-xxx': intere Targets
     if (id.startsWith && id.startsWith('target-')) {
       const tid = id.slice(7)
       const tt = allTargets.value.find(t => t.RowKey === tid)
       if (tt) {
         result.push({
           id, firma: tt.verkaueferName || tt.firma || tt.mbNr,
+          name: tt.gfName || tt.verkaueferName || '',
           plz: tt.plz, ort: tt.region || tt.ort,
           mitarbeiter: tt.mitarbeiter, umsatz: tt.umsatz,
-          matchGruende: ['🎯 In-House Target (' + (tt.mbNr || '') + ')']
         })
       }
     }

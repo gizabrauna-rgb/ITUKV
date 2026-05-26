@@ -14,17 +14,17 @@
 
     <!-- Filter + Manuell hinzufügen -->
     <div class="flex gap-2 mb-3 flex-wrap">
-      <button @click="filter = 'long'" :class="['px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'long' ? 'bg-[#097e92] text-white' : 'bg-white border border-gray-200']">
-        💡 Vorschläge ({{ vorschlagCount }})
+      <button @click="filter = 'long'" :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'long' ? 'bg-[#097e92] text-white' : 'bg-white border border-gray-200']">
+        <Lightbulb class="w-3.5 h-3.5" /> Vorschläge ({{ vorschlagCount }})
       </button>
-      <button @click="filter = 'short'" :class="['px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'short' ? 'bg-[#097e92] text-white' : 'bg-white border border-gray-200']">
-        ⭐ Favoriten ({{ shortListCount }})
+      <button @click="filter = 'short'" :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'short' ? 'bg-[#097e92] text-white' : 'bg-white border border-gray-200']">
+        <Star class="w-3.5 h-3.5" /> Favoriten ({{ shortListCount }})
       </button>
-      <button @click="filter = 'fuerKaeufer'" :class="['px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'fuerKaeufer' ? 'bg-purple-600 text-white' : 'bg-white border border-gray-200']">
-        👁️ Für Käufer freigegeben ({{ fuerKaeuferCount }})
+      <button @click="filter = 'fuerKaeufer'" :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'fuerKaeufer' ? 'bg-purple-600 text-white' : 'bg-white border border-gray-200']">
+        <Eye class="w-3.5 h-3.5" /> Für Käufer freigegeben ({{ fuerKaeuferCount }})
       </button>
-      <button @click="filter = 'abgesagt'" :class="['px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'abgesagt' ? 'bg-[#097e92] text-white' : 'bg-white border border-gray-200']">
-        ❌ Abgelehnt ({{ abgesagtCount }})
+      <button @click="filter = 'abgesagt'" :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'abgesagt' ? 'bg-[#097e92] text-white' : 'bg-white border border-gray-200']">
+        <Ban class="w-3.5 h-3.5" /> Abgelehnt ({{ abgesagtCount }})
       </button>
       <button @click="showAddModal = true" class="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-dashed border-gray-300 text-gray-600 hover:border-[#097e92] hover:text-[#097e92]">
         <Plus class="w-3.5 h-3.5" /> Kandidat manuell hinzufügen
@@ -33,7 +33,7 @@
 
     <!-- Hint Box -->
     <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-900 mb-3">
-      <strong>Workflow:</strong> Du markierst zuerst Favoriten – die sieht nur du. Sobald du auf <Eye class="w-3 h-3 inline" /> klickst, wird der Kandidat für den Käufer im Käufer-Portal sichtbar. Käufer kann dann Feedback geben (Interesse / kein Interesse / Rückfrage).
+      <strong>Workflow:</strong> Markiere zuerst Favoriten (nur intern sichtbar). Mit <Eye class="w-3 h-3 inline -mt-0.5" /> gibst du den Kandidaten für den Käufer frei. Der Käufer kann dann Feedback geben (Interesse / kein Interesse / Rückfrage).
     </div>
 
     <!-- Modal: Manuell hinzufügen -->
@@ -82,7 +82,8 @@
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="font-medium text-gray-900">{{ k.firma }}</span>
-            <span v-if="k.istInternesTarget" class="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded-full font-bold uppercase tracking-wide">🎯 In-House Match</span>
+            <span v-if="k.name" class="text-xs text-gray-500">· {{ k.name }}</span>
+            <span v-if="k.istInternesTarget" class="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide">In-House Match</span>
             <span v-if="k.istInternesTarget && k.mbNr" class="text-[10px] font-mono bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">{{ k.mbNr }}</span>
             <span v-if="k.istKunde && !k.istInternesTarget" class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">Kunde</span>
             <span v-if="k.istExKunde" class="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded-full font-semibold">Ex-Kunde</span>
@@ -91,17 +92,17 @@
             {{ k.plz }} {{ k.ort }} · {{ k.mitarbeiter || '?' }} MA · {{ k.umsatz || '?' }} Umsatz
           </div>
           <div v-if="k.matchGruende?.length" class="flex flex-wrap gap-1 mt-2">
-            <span v-for="g in k.matchGruende" :key="g" class="text-[10px] bg-[#097e92]/10 text-[#097e92] px-2 py-0.5 rounded-full">✓ {{ g }}</span>
+            <span v-for="g in cleanGruende(k.matchGruende)" :key="g" class="text-[10px] bg-[#097e92]/10 text-[#097e92] px-2 py-0.5 rounded-full">{{ g }}</span>
           </div>
           <div v-if="k.ablehnGruende?.length" class="flex flex-wrap gap-1 mt-1">
-            <span v-for="g in k.ablehnGruende" :key="g" class="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded-full">✗ {{ g }}</span>
+            <span v-for="g in k.ablehnGruende" :key="g" class="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded-full">{{ g }}</span>
           </div>
           <!-- Käufer-Feedback (wenn vorhanden) -->
           <div v-if="kaeuferFeedback[k.id]" class="mt-2 p-2 rounded-lg bg-purple-100 text-purple-900 text-xs">
             <strong>Feedback Käufer:</strong>
-            <span v-if="kaeuferFeedback[k.id].interesse === 'ja'" class="ml-1">✅ Interesse</span>
-            <span v-else-if="kaeuferFeedback[k.id].interesse === 'nein'" class="ml-1">❌ Kein Interesse</span>
-            <span v-else-if="kaeuferFeedback[k.id].interesse === 'rueckfrage'" class="ml-1">💬 Rückfrage</span>
+            <span v-if="kaeuferFeedback[k.id].interesse === 'ja'" class="ml-1 font-medium">Interesse</span>
+            <span v-else-if="kaeuferFeedback[k.id].interesse === 'nein'" class="ml-1 font-medium">Kein Interesse</span>
+            <span v-else-if="kaeuferFeedback[k.id].interesse === 'rueckfrage'" class="ml-1 font-medium">Rückfrage</span>
             <span v-if="kaeuferFeedback[k.id].kommentar" class="block mt-1 italic">„{{ kaeuferFeedback[k.id].kommentar }}"</span>
           </div>
         </div>
@@ -122,7 +123,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Users, RefreshCw, Check, X, Plus, Eye, EyeOff } from '@lucide/vue'
+import { Users, RefreshCw, Check, X, Plus, Eye, EyeOff, Lightbulb, Star, Ban } from '@lucide/vue'
 import { authFetch, getKontakte, getTargets } from '../../api.js'
 
 const props = defineProps({ targetId: String })
@@ -139,6 +140,10 @@ const fuerKaeuferIds = ref([])     // IDs der fuer Kaeufer freigegebenen
 const kaeuferFeedback = ref({})    // { kontaktId: { interesse, kommentar } }
 
 function isFreigegeben(k) { return fuerKaeuferIds.value.includes(k.id) }
+function cleanGruende(arr) {
+  // entferne emojis am Anfang von Strings
+  return (arr || []).map(g => String(g).replace(/^[\p{Emoji_Presentation}\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]\s*/u, '').trim())
+}
 const fuerKaeuferCount = computed(() => fuerKaeuferIds.value.length)
 const vorschlagCount = computed(() => items.value.filter(k => !decisions.value[k.id] && !fuerKaeuferIds.value.includes(k.id)).length)
 
@@ -171,7 +176,7 @@ function addManuell(k) {
   const id = k.RowKey || k.id
   items.value.unshift({
     ...k, id, score: 50,
-    matchGruende: ['📝 Manuell hinzugefügt'],
+    matchGruende: ['Manuell hinzugefügt'],
     ablehnGruende: [],
     _quelle: 'manuell',
   })
@@ -275,7 +280,7 @@ async function refreshList() {
           plz: asKontakt.plz, ort: asKontakt.ort,
           mitarbeiter: asKontakt.mitarbeiter, umsatz: asKontakt.umsatz,
           score: score + 15,  // Bonus fuer interne Targets ("wir kennen sie schon")
-          matchGruende: ['🎯 INTERNER TARGET (' + tt.mbNr + ')', ...reasons],
+          matchGruende: ['Interner Target ' + tt.mbNr, ...reasons],
           ablehnGruende: dislikes,
           istInternesTarget: true,
           mbNr: tt.mbNr,
