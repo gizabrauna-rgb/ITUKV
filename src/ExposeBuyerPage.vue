@@ -20,31 +20,39 @@
 
         <p class="text-lg text-gray-800 mb-6">Hallo {{ data.name || data.firma }},</p>
 
-        <!-- =========== ZUSTAND: VOR NDA-UPLOAD =========== -->
+        <!-- Exposé-Download (immer sichtbar) -->
+        <section class="bg-white rounded-2xl border border-gray-100 p-7 mb-5">
+          <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <FileText class="w-5 h-5 text-[#097e92]" /> Anonymisiertes Exposé
+          </h2>
+          <p class="text-sm text-gray-600 mb-4">Lade hier das anonymisierte Kurz-Exposé zum Unternehmen herunter.</p>
+          <a :href="exposeDownloadUrl" target="_blank"
+            class="flex items-center justify-center gap-2 px-4 py-3 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf]">
+            <Download class="w-5 h-5" /> Exposé jetzt herunterladen
+          </a>
+        </section>
+
+        <!-- =========== ZUSTAND: VOR NDA =========== -->
         <template v-if="!ndaUnterzeichnet">
-          <!-- Erklär-Text-Block -->
+          <!-- Erklär-Text -->
           <section class="bg-white rounded-2xl border border-gray-100 p-7 mb-5">
             <h2 class="text-xl font-bold text-gray-900 mb-3">Das Unternehmen hat Dein Interesse geweckt – Wie geht es jetzt weiter?</h2>
             <p class="text-sm text-gray-700 leading-relaxed mb-4">
-              Bevor wir Dir nähere Informationen zum Unternehmen geben können, benötigen wir Dein unterschriebenes NDA.
-              Lade Dir die <strong>Vertraulichkeitsvereinbarung (NDA)</strong> unten herunter, unterschreibe sie und lade sie direkt hier wieder hoch.
+              Bevor wir Dir nähere Informationen geben können, benötigen wir Dein unterschriebenes NDA.
+              Du kannst das NDA <strong>direkt hier online unterschreiben</strong> oder als PDF herunterladen, ausdrucken, signieren und hochladen.
             </p>
 
             <div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded mb-4">
               <p class="text-sm text-amber-900">
-                <strong>Wichtig:</strong> Das Exposé und die Termin-Buchung mit Jennifer Kaplan werden erst freigeschaltet, sobald das unterschriebene NDA bei uns eingegangen ist.
+                <strong>Wichtig:</strong> Die Termin-Buchung mit Jennifer Kaplan wird erst freigeschaltet, sobald das unterschriebene NDA bei uns vorliegt.
               </p>
             </div>
-
-            <p class="text-sm text-gray-700 leading-relaxed mb-5">
-              Wenn das vorgestellte IT-Unternehmen Dein Interesse geweckt hat, lade das unterzeichnete NDA bitte
-              <strong>schnellstmöglich</strong> hoch.
-            </p>
 
             <h3 class="text-lg font-bold text-gray-900 mt-6 mb-2">Nächster Schritt: Terminbuchung</h3>
             <p class="text-sm text-gray-700 leading-relaxed mb-4">
               Sobald das NDA bei uns eingegangen ist, erhältst Du die Möglichkeit, direkt einen
-              <strong>Termin mit unserer M&amp;A-Beraterin Jennifer Kaplan</strong> zu buchen. In diesem Gespräch besprechen wir den weiteren Ablauf sowie alle offenen Fragen.
+              <strong>Termin mit unserer M&amp;A-Beraterin Jennifer Kaplan</strong> zu buchen.
+              In einem ca. 15-minütigen Gespräch klären wir den weiteren Ablauf sowie alle offenen Fragen.
             </p>
 
             <h3 class="text-lg font-bold text-gray-900 mt-6 mb-2">Transparenz im Prozess</h3>
@@ -65,53 +73,46 @@
 
           <!-- NDA-Aktionen -->
           <section class="bg-white rounded-2xl border-2 border-[#097e92]/30 p-7 mb-5">
-            <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <FileText class="w-5 h-5 text-[#097e92]" /> NDA herunterladen, unterschreiben, hochladen
+            <h2 class="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+              <FileText class="w-5 h-5 text-[#097e92]" /> NDA unterschreiben
             </h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <a v-if="data.ndaTemplateUrl" :href="data.ndaTemplateUrl" target="_blank"
-                class="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-200 text-gray-800 rounded-xl text-sm font-medium hover:bg-gray-50">
-                <Download class="w-4 h-4" /> NDA herunterladen
-              </a>
-              <div v-else class="flex items-center justify-center px-4 py-3 bg-gray-50 border border-gray-200 text-gray-400 rounded-xl text-sm italic">
-                NDA-Vorlage folgt per E-Mail
-              </div>
+            <p class="text-sm text-gray-600 mb-5">Wähle den Weg, der für Dich am bequemsten ist:</p>
 
-              <label class="flex items-center justify-center gap-2 px-4 py-3 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf] cursor-pointer">
-                <Upload class="w-4 h-4" /> Unterschriebenes NDA hochladen
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <button @click="showSignModal = true"
+                class="flex items-center justify-center gap-2 px-4 py-4 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf]">
+                <PenTool class="w-5 h-5" /> Jetzt online unterschreiben
+              </button>
+              <a :href="ndaDownloadUrl" target="_blank"
+                class="flex items-center justify-center gap-2 px-4 py-4 bg-white border border-gray-200 text-gray-800 rounded-xl text-sm font-medium hover:bg-gray-50">
+                <Download class="w-5 h-5" /> NDA als PDF herunterladen
+              </a>
+            </div>
+
+            <div class="mt-4 pt-4 border-t border-gray-100">
+              <p class="text-xs text-gray-500 mb-2">Alternativ: NDA ausgedruckt unterschrieben hochladen</p>
+              <label class="flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-100 cursor-pointer">
+                <Upload class="w-4 h-4" /> Unterschriebenes NDA als Datei hochladen
                 <input type="file" accept="application/pdf,image/*" @change="onFileChange" class="hidden" :disabled="uploading" />
               </label>
+              <p v-if="uploading" class="text-xs text-amber-700 mt-2 text-center">Lade NDA hoch…</p>
             </div>
-            <p v-if="uploading" class="text-xs text-amber-700 mt-3 text-center">Lade NDA hoch…</p>
           </section>
         </template>
 
-        <!-- =========== ZUSTAND: NACH NDA-UPLOAD =========== -->
+        <!-- =========== ZUSTAND: NACH NDA =========== -->
         <template v-else>
           <section class="bg-green-50 border-2 border-green-200 rounded-2xl p-6 mb-5">
             <div class="flex items-start gap-3">
               <CheckCircle2 class="w-7 h-7 text-green-600 flex-shrink-0" />
               <div>
-                <h2 class="text-lg font-bold text-green-900 mb-1">NDA erfolgreich hochgeladen</h2>
+                <h2 class="text-lg font-bold text-green-900 mb-1">NDA erhalten</h2>
                 <p class="text-sm text-green-800">
                   Vielen Dank für Dein unterschriebenes NDA zu Projekt <strong>{{ data.mbNr.toUpperCase() }}</strong>.
-                  Du hast jetzt Zugang zum Exposé und kannst direkt einen Termin mit Jennifer Kaplan buchen.
+                  Du kannst jetzt direkt einen Termin mit Jennifer Kaplan buchen.
                 </p>
               </div>
             </div>
-          </section>
-
-          <!-- Exposé-Download -->
-          <section class="bg-white rounded-2xl border border-gray-100 p-7 mb-5">
-            <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-              <FileText class="w-5 h-5 text-[#097e92]" /> Exposé zum Unternehmen
-            </h2>
-            <p class="text-sm text-gray-600 mb-4">Das vollständige anonymisierte Exposé mit allen relevanten Informationen.</p>
-            <a v-if="data.exposeUrl" :href="data.exposeUrl" target="_blank"
-              class="flex items-center justify-center gap-2 px-4 py-3 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf]">
-              <Download class="w-5 h-5" /> Exposé jetzt herunterladen
-            </a>
-            <p v-else class="text-sm text-gray-500 italic text-center py-3">Das Exposé wird in Kürze hier verfügbar sein.</p>
           </section>
 
           <!-- Termin-Buchung -->
@@ -124,7 +125,6 @@
               <strong>{{ data.mbNr.toUpperCase() }}</strong>.
             </p>
 
-            <!-- Projektnummer-Hinweis -->
             <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 flex items-center justify-between gap-3">
               <div class="text-sm">
                 <strong class="text-amber-900">Wichtig:</strong>
@@ -174,12 +174,58 @@
     <footer class="text-center text-xs text-gray-400 py-6 border-t border-gray-100 mt-10">
       mibeca GmbH · Schillerstr. 1 · 29525 Uelzen · Gerichtsstand Uelzen
     </footer>
+
+    <!-- ============ SIGN-MODAL ============ -->
+    <div v-if="showSignModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+      <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[95vh] flex flex-col overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h3 class="font-bold text-gray-900 flex items-center gap-2"><PenTool class="w-5 h-5 text-[#097e92]" /> NDA online unterschreiben</h3>
+          <button @click="closeSignModal" class="p-1.5 hover:bg-gray-100 rounded-lg"><X class="w-5 h-5 text-gray-500" /></button>
+        </div>
+        <div class="p-6 overflow-y-auto flex-1">
+          <p class="text-sm text-gray-600 mb-4">
+            Schreibe Deine Unterschrift mit der Maus oder dem Finger in das Feld unten.
+            Mit Klick auf „NDA unterschreiben" bestätigst Du die Vereinbarung digital
+            (einfache elektronische Signatur gemäß eIDAS Art. 25 Abs. 1).
+          </p>
+
+          <div class="mb-3 flex items-center justify-between">
+            <a :href="ndaDownloadUrl" target="_blank" class="text-xs text-[#097e92] hover:underline flex items-center gap-1">
+              <FileText class="w-3 h-3" /> NDA-Text als PDF einsehen
+            </a>
+          </div>
+
+          <div class="bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl p-2 mb-3">
+            <canvas ref="canvasEl" width="600" height="180" class="bg-white rounded-lg w-full touch-none cursor-crosshair"
+              @mousedown="startDraw" @mousemove="draw" @mouseup="endDraw" @mouseleave="endDraw"
+              @touchstart="startDrawTouch" @touchmove="drawTouch" @touchend="endDraw"></canvas>
+          </div>
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs text-gray-500">Unterschrift hier zeichnen</span>
+            <button @click="clearCanvas" class="text-xs text-gray-500 hover:text-gray-700 underline">Zurücksetzen</button>
+          </div>
+
+          <label class="flex items-start gap-2 text-xs text-gray-600 mb-4">
+            <input type="checkbox" v-model="zustimmung" class="mt-0.5" />
+            <span>Ich, <strong>{{ data?.name || data?.firma }}</strong>, bestätige, dass ich berechtigt bin, diese Vereinbarung für <strong>{{ data?.firma || '(Firma)' }}</strong> rechtsverbindlich zu unterzeichnen.</span>
+          </label>
+
+          <div class="flex gap-3">
+            <button @click="closeSignModal" class="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm">Abbrechen</button>
+            <button @click="submitSign" :disabled="!zustimmung || !canvasDirty || signing"
+              class="flex-1 px-4 py-3 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf] disabled:opacity-50">
+              {{ signing ? 'Wird signiert…' : 'NDA unterschreiben' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { FileText, Download, Upload, CheckCircle2, Calendar, Copy } from '@lucide/vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { FileText, Download, Upload, CheckCircle2, Calendar, Copy, PenTool, X } from '@lucide/vue'
 
 const token = (() => {
   const m = window.location.pathname.match(/^\/expose-[^\/]+\/([^\/?#]+)/i)
@@ -191,8 +237,26 @@ const loading = ref(true)
 const data = ref(null)
 const uploading = ref(false)
 const copied = ref(false)
+const showSignModal = ref(false)
+const signing = ref(false)
+const zustimmung = ref(false)
+const canvasEl = ref(null)
+const canvasDirty = ref(false)
 
 const ndaUnterzeichnet = computed(() => data.value?.ndaStatus === 'unterzeichnet')
+
+// PDF-Download-URLs: bevorzugt die vom Backend gelieferten Auto-PDFs (immer verfügbar),
+// fallback auf manuelle Felder aus Landing-Editor
+const exposeDownloadUrl = computed(() => {
+  if (data.value?.exposeUrl) return data.value.exposeUrl
+  if (data.value?.autoExposePdfUrl) return apiBase.replace(/\/api$/, '') + data.value.autoExposePdfUrl
+  return '#'
+})
+const ndaDownloadUrl = computed(() => {
+  if (data.value?.ndaTemplateUrl) return data.value.ndaTemplateUrl
+  if (data.value?.autoNdaPdfUrl) return apiBase.replace(/\/api$/, '') + data.value.autoNdaPdfUrl
+  return '#'
+})
 
 async function load() {
   if (!token) { loading.value = false; return }
@@ -210,6 +274,83 @@ function copyMbNr() {
   setTimeout(() => copied.value = false, 1500)
 }
 
+// ========== Canvas-Signatur ==========
+let ctx = null
+let drawing = false
+let lastX = 0, lastY = 0
+
+watch(showSignModal, async (open) => {
+  if (open) {
+    await nextTick()
+    setupCanvas()
+  }
+})
+
+function setupCanvas() {
+  if (!canvasEl.value) return
+  ctx = canvasEl.value.getContext('2d')
+  ctx.strokeStyle = '#161e2a'
+  ctx.lineWidth = 2.5
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  canvasDirty.value = false
+  ctx.clearRect(0, 0, canvasEl.value.width, canvasEl.value.height)
+}
+
+function clearCanvas() {
+  if (!ctx) return
+  ctx.clearRect(0, 0, canvasEl.value.width, canvasEl.value.height)
+  canvasDirty.value = false
+}
+
+function getPos(e) {
+  const rect = canvasEl.value.getBoundingClientRect()
+  const scaleX = canvasEl.value.width / rect.width
+  const scaleY = canvasEl.value.height / rect.height
+  return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY }
+}
+
+function startDraw(e) { drawing = true; const p = getPos(e); lastX = p.x; lastY = p.y }
+function draw(e) {
+  if (!drawing) return
+  const p = getPos(e)
+  ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke()
+  lastX = p.x; lastY = p.y; canvasDirty.value = true
+}
+function endDraw() { drawing = false }
+
+function startDrawTouch(e) { e.preventDefault(); startDraw(e.touches[0]) }
+function drawTouch(e) { e.preventDefault(); draw(e.touches[0]) }
+
+function closeSignModal() {
+  showSignModal.value = false
+  zustimmung.value = false
+  canvasDirty.value = false
+}
+
+async function submitSign() {
+  if (!canvasDirty.value || !zustimmung.value) return
+  signing.value = true
+  try {
+    const dataUrl = canvasEl.value.toDataURL('image/png')
+    const res = await fetch(`${apiBase}/nda-public-sign`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, signatureDataUrl: dataUrl }),
+    })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      throw new Error(d.error || `HTTP ${res.status}`)
+    }
+    showSignModal.value = false
+    await load()
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  } catch (e) {
+    alert('Signatur fehlgeschlagen: ' + e.message)
+  } finally { signing.value = false }
+}
+
+// ========== Klassischer File-Upload ==========
 async function onFileChange(e) {
   const file = e.target.files?.[0]
   if (!file) return
@@ -228,7 +369,6 @@ async function onFileChange(e) {
           throw new Error(d.error || `HTTP ${res.status}`)
         }
         await load()
-        // Nach erfolgreichem Upload: nach oben scrollen, damit der Erfolg-Block sichtbar ist
         window.scrollTo({ top: 0, behavior: 'smooth' })
       } catch (err) {
         alert('Upload fehlgeschlagen: ' + err.message)

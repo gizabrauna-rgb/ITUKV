@@ -2964,6 +2964,9 @@ def expose_public(req: func.HttpRequest) -> func.HttpResponse:
         "ndaTemplateUrl": landing.get("ndaTemplateUrl", ""),
         "terminBookingUrl": landing.get("terminBookingUrl") or DEFAULT_BOOKINGS_URL,
         "headline": landing.get("headline", ""),
+        # Auto-PDFs aus System (immer verfuegbar, auch wenn keine externen URLs gepflegt sind)
+        "autoExposePdfUrl": f"/api/expose-public-pdf?token={token}",
+        "autoNdaPdfUrl": f"/api/nda-public-pdf?token={token}",
     })
 
 
@@ -3055,6 +3058,181 @@ def nda_upload(req: func.HttpRequest) -> func.HttpResponse:
             })
         except Exception as ex:
             logging.warning(f"NDA-Mail fehlgeschlagen: {ex}") if 'logging' in globals() else None
+    return ok_({"ok": True})
+
+
+# =========================================================================
+# PUBLIC: NDA + Exposé PDFs für Käufer (via exposeToken)
+# =========================================================================
+
+def _build_nda_form_for_interessent(i, t):
+    """Baut das NDA-Form-Dict aus Interessent + Target zusammen."""
+    return {
+        "firma": i.get("firma", ""),
+        "vertreten": i.get("name", ""),
+        "adresse": "",
+        "plzOrt": (i.get("plz", "") + " " + i.get("ort", "")).strip(),
+        "email": i.get("email", ""),
+        "ort": i.get("ort", "") or "Uelzen",
+        "datum": datetime.utcnow().strftime("%d.%m.%Y"),
+        "mbNr": t.get("mbNr", ""),
+        "gueltigBis": str(datetime.utcnow().year + 2),
+    }
+
+
+@app.route(route="nda-public-pdf", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def nda_public_pdf(req: func.HttpRequest) -> func.HttpResponse:
+    """Public: liefert NDA-PDF mit Interessenten-Daten vorbefuellt (zur Unterschrift)."""
+    if req.method == "OPTIONS":
+        return opt_()
+    token = (req.params.get("token") or "").strip()
+    if not token:
+        return err_("token erforderlich", 400)
+    items = list(table_("interessenten").query_entities(f"exposeToken eq '{token}'"))
+    if not items:
+        return err_("Token ungueltig", 404)
+    i = dict(items[0])
+    try:
+        t = dict(table_("targets").get_entity("target", i.get("targetId", "")))
+    except Exception:
+        return err_("Target nicht gefunden", 404)
+    form = _build_nda_form_for_interessent(i, t)
+    try:
+        pdf_bytes = _render_nda_pdf_bytes(form, "investor")
+    except Exception as ex:
+        return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
+    return func.HttpResponse(pdf_bytes, status_code=200, mimetype="application/pdf",
+                             headers={**CORS, "Content-Disposition": f'attachment; filename="NDA_{t.get("mbNr","")}.pdf"'})
+
+
+@app.route(route="expose-public-pdf", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def expose_public_pdf(req: func.HttpRequest) -> func.HttpResponse:
+    """Public: liefert das volle Exposé-PDF (aus target.exposeJson) via Token."""
+    if req.method == "OPTIONS":
+        return opt_()
+    token = (req.params.get("token") or "").strip()
+    if not token:
+        return err_("token erforderlich", 400)
+    items = list(table_("interessenten").query_entities(f"exposeToken eq '{token}'"))
+    if not items:
+        return err_("Token ungueltig", 404)
+    i = dict(items[0])
+    try:
+        t = dict(table_("targets").get_entity("target", i.get("targetId", "")))
+    except Exception:
+        return err_("Target nicht gefunden", 404)
+    expose_data = {}
+    try: expose_data = json.loads(t.get("exposeJson", "{}") or "{}")
+    except: expose_data = {}
+    expose_data["mbNr"] = t.get("mbNr", "")
+    try:
+        pdf_bytes = _render_expose_pdf_bytes(expose_data)
+    except Exception as ex:
+        return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
+    return func.HttpResponse(pdf_bytes, status_code=200, mimetype="application/pdf",
+                             headers={**CORS, "Content-Disposition": f'attachment; filename="Expose_{t.get("mbNr","")}.pdf"'})
+
+
+@app.route(route="nda-public-sign", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def nda_public_sign(req: func.HttpRequest) -> func.HttpResponse:
+    """Public: Interessent signiert NDA online via Canvas.
+    Body: { token, signatureDataUrl }"""
+    if req.method == "OPTIONS":
+        return opt_()
+    body = req.get_json() or {}
+    token = (body.get("token") or "").strip()
+    sig_data = body.get("signatureDataUrl", "")
+    if not (token and sig_data):
+        return err_("token + signatureDataUrl erforderlich", 400)
+    items = list(table_("interessenten").query_entities(f"exposeToken eq '{token}'"))
+    if not items:
+        return err_("Token ungueltig", 404)
+    i = dict(items[0])
+    target_id = i.get("targetId", "")
+    try:
+        t = dict(table_("targets").get_entity("target", target_id))
+    except Exception:
+        return err_("Target nicht gefunden", 404)
+    # PDF generieren
+    form = _build_nda_form_for_interessent(i, t)
+    try:
+        unsigned_pdf = _render_nda_pdf_bytes(form, "investor")
+    except Exception as ex:
+        return err_(f"NDA-PDF fehlgeschlagen: {ex}", 500)
+    # Signatur dekodieren
+    try:
+        if sig_data.startswith("data:"):
+            sig_data = sig_data.split(",", 1)[1]
+        sig_bytes = base64.b64decode(sig_data)
+    except Exception:
+        return err_("Signatur ungueltig", 400)
+    # Audit-Trail
+    ip = req.headers.get("X-Forwarded-For", "").split(",")[0].strip() or req.headers.get("Client-IP", "")
+    audit = {
+        "email": i.get("email", ""),
+        "signed_at": datetime.utcnow().isoformat(),
+        "ip": ip,
+        "user_agent": req.headers.get("User-Agent", "")[:200],
+    }
+    try:
+        signed_pdf = _embed_signature_in_pdf(unsigned_pdf, sig_bytes, i.get("name") or i.get("firma", ""), audit,
+                                              anchor_keywords=["Unterschrift Investor", "Unterschrift"])
+    except Exception as ex:
+        return err_(f"Signatur-Embedding fehlgeschlagen: {ex}", 500)
+    # Blob speichern
+    blob_name = f"nda-interessent-{i['RowKey']}-signed.pdf"
+    try:
+        _blob_container_lazy("vertraege").upload_blob(blob_name, signed_pdf, overwrite=True)
+    except Exception as ex:
+        return err_(f"Upload fehlgeschlagen: {ex}", 500)
+    # Interessent aktualisieren
+    i["ndaStatus"] = "unterzeichnet"
+    i["ndaUploadedAt"] = audit["signed_at"]
+    i["ndaBlob"] = blob_name
+    i["ndaFileName"] = f"NDA_{t.get('mbNr','')}_signed.pdf"
+    i["ndaSignedOnline"] = True
+    i["ndaSigIp"] = audit["ip"]
+    try: table_("interessenten").update_entity(i)
+    except Exception: pass
+    # Verlauf-Eintrag
+    _verlauf_append(target_id, {
+        "id": "k" + str(int(datetime.utcnow().timestamp() * 1000)),
+        "typ": "wichtig",
+        "datum": datetime.utcnow().isoformat(),
+        "autor": i.get("firma") or i.get("name") or i.get("email", ""),
+        "betreff": "NDA online signiert",
+        "beschreibung": f"{i.get('firma') or i.get('name')} hat das NDA online unterschrieben (IP: {audit['ip']}).",
+        "beteiligte": i.get("email", ""),
+    })
+    # Bestaetigungs-Mail (selber Block wie /nda-upload)
+    if ACS_CONN:
+        try:
+            landing = {}
+            try: landing = json.loads(t.get("landingJson", "{}") or "{}")
+            except: landing = {}
+            termin_url = landing.get("terminBookingUrl") or DEFAULT_BOOKINGS_URL
+            from azure.communication.email import EmailClient
+            client = EmailClient.from_connection_string(ACS_CONN)
+            html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
+<p>Hallo {i.get('name') or i.get('firma') or ''},</p>
+<p>vielen Dank fuer Dein unterschriebenes NDA zur Projektnummer <strong>{t.get('mbNr','')}</strong> &ndash; damit hast Du den ersten wichtigen Schritt gemacht!</p>
+<p>Du hast nun Zugang zum Exposé und kannst direkt einen Termin mit unserer M&amp;A-Beraterin Jennifer Kaplan buchen:</p>
+<p style="margin:24px 0"><a href="{termin_url}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Termin jetzt buchen</a></p>
+<p>Herzliche Gruesse<br/>Dein M&amp;A-Team der Mike Bergmann Akademie</p>
+</body></html>"""
+            client.begin_send({
+                "senderAddress": ACS_SENDER,
+                "recipients": {"to": [{"address": i.get("email", "")}]},
+                "content": {"subject": f"NDA bestaetigt – Termin mit Jennifer Kaplan buchen, Projekt {t.get('mbNr','')}", "plainText": f"Termin buchen: {termin_url}", "html": html},
+            })
+            mibeca_mail = os.environ.get("MIBECA_NOTIFY_EMAIL", "jk@mike-bergmann.de")
+            client.begin_send({
+                "senderAddress": ACS_SENDER,
+                "recipients": {"to": [{"address": mibeca_mail}]},
+                "content": {"subject": f"[ITUKV] NDA online signiert zu {t.get('mbNr','')}", "plainText": f"{i.get('firma') or i.get('name')} hat NDA online unterschrieben.", "html": f"<p><strong>NDA online signiert</strong></p><p>Projekt: {t.get('mbNr','')}</p><p>Interessent: {i.get('firma','')} / {i.get('name','')} / {i.get('email','')}</p>"},
+            })
+        except Exception as ex:
+            logging.warning(f"NDA-Sign-Mail fehlgeschlagen: {ex}")
     return ok_({"ok": True})
 
 
