@@ -1366,6 +1366,161 @@ def vertrag_pdf(req: func.HttpRequest) -> func.HttpResponse:
     return func.HttpResponse(pdf_bytes, status_code=200, headers=pdf_headers)
 
 
+_NDA_HTML_TEMPLATE = """<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8"><title>NDA</title>
+<style>
+  @page { size: A4; margin: 32mm 18mm 28mm 18mm; @bottom-right { content: "Seite " counter(page) " / " counter(pages); font-size: 9pt; color: #888; } }
+  html, body { font-family: "Helvetica", "Arial", system-ui, sans-serif; font-size: 11pt; line-height: 1.55; color: #1f2937; }
+  h1 { font-size: 20pt; font-weight: 700; color: #0e7c92; margin: 0 0 4pt 0; }
+  .subtitle { color: #6b7280; font-size: 10pt; margin: 0 0 24pt 0; }
+  .meta-grid { display: flex; gap: 16pt; margin-bottom: 20pt; }
+  .meta-box { flex: 1; padding: 10pt 12pt; background: #f9fafb; border-left: 3pt solid #0e7c92; border-radius: 2pt; }
+  .label { font-size: 8.5pt; text-transform: uppercase; letter-spacing: 1pt; color: #6b7280; margin-bottom: 4pt; }
+  .company { font-weight: 700; font-size: 11.5pt; }
+  .small { color: #6b7280; font-size: 10pt; }
+  .role { font-style: italic; color: #9ca3af; font-size: 9.5pt; margin-top: 4pt; }
+  ol { padding-left: 18pt; } ol li { margin-bottom: 8pt; text-align: justify; }
+  ol li strong { color: #0e7c92; }
+  .praeambel { font-style: italic; color: #4b5563; margin: 10pt 0 16pt 0; }
+  .signature-section { page-break-inside: avoid; margin-top: 60pt; }
+  .signature-row { display: flex; justify-content: space-between; gap: 30pt; margin-top: 50pt; }
+  .signature-block { flex: 1; }
+  .signature-line { border-top: 1pt solid #6b7280; height: 1pt; margin-bottom: 6pt; }
+  .signature-label { font-size: 9pt; color: #6b7280; }
+</style></head><body>
+<h1>Vertraulichkeitsvereinbarung (NDA)</h1>
+<p class="subtitle">{% if variante == 'kaeufer' %}Käufer-NDA für Kauf-Mandat{% else %}Investor-NDA für Verkaufs-Mandat{% endif %} · mibeca GmbH</p>
+<div class="meta-grid">
+  <div class="meta-box">
+    <div class="label">{% if variante == 'kaeufer' %}Käufer{% else %}Investor{% endif %}</div>
+    <div class="company">{{ form.firma }}</div>
+    <div class="small">vertreten durch {{ form.vertreten }}</div>
+    <div class="role">– nachfolgend „{% if variante == 'kaeufer' %}Käufer{% else %}Investor{% endif %}" –</div>
+  </div>
+  <div class="meta-box">
+    <div class="label">Transaktionsberater</div>
+    <div class="company">mibeca GmbH</div>
+    <div class="small">Schillerstr. 1 · 29525 Uelzen</div>
+    <div class="small">vertreten durch Jennifer Kaplan</div>
+    <div class="role">– nachfolgend „Transaktionsberater" –</div>
+  </div>
+</div>
+<p class="praeambel">Die Parteien beabsichtigen, im Rahmen einer möglichen Transaktion vertrauliche Informationen auszutauschen. Zu diesem Zweck vereinbaren die Parteien Folgendes:</p>
+<ol>
+  <li><strong>Definition vertraulicher Informationen:</strong> Als vertrauliche Informationen gelten sämtliche unter dieser Vereinbarung ausgetauschten Daten, insbesondere Informationen zu M&A-Transaktionen, geschäftliche, technische, finanzielle und personelle Details {% if variante == 'kaeufer' %}der vom Transaktionsberater vorgeschlagenen Zielunternehmen{% else %}des Verkaufsobjekts{% endif %}.</li>
+  <li><strong>Behandlungspflichten:</strong> Die Parteien behandeln die vertraulichen Informationen mit größtmöglicher Sorgfalt, nutzen sie ausschließlich zum vereinbarten Zweck und unterlassen jegliche unbefugte Vervielfältigung oder Weitergabe.</li>
+  <li><strong>Ausnahmen:</strong> Von der Geheimhaltungspflicht ausgenommen sind Informationen, die (a) öffentlich bekannt sind oder werden, (b) der empfangenden Partei bereits durch Dritte zugänglich waren, oder (c) unabhängig entwickelt wurden.</li>
+  <li><strong>Weitergabe bei Rechtspflicht:</strong> Im Falle gesetzlicher oder behördlicher Verpflichtung zur Offenlegung wird die andere Partei unverzüglich informiert.</li>
+  <li><strong>Weitergabe an Angestellte/Berater:</strong> Die Weitergabe an eigene Mitarbeiter, Wirtschaftsprüfer, Rechtsanwälte und sonstige Berater ist zulässig, soweit diese ihrerseits zur Verschwiegenheit verpflichtet sind („need-to-know"-Prinzip).</li>
+  <li><strong>Keine Eigentums- oder Nutzungsrechte:</strong> Aus dem Erhalt vertraulicher Informationen entstehen keinerlei Eigentums-, Nutzungs- oder Lizenzrechte.</li>
+  <li><strong>Laufzeit:</strong> Diese Vereinbarung gilt bis zum <strong>31.12.2027</strong>. Die Nicht-Weitergabe-Verpflichtung besteht darüber hinaus für weitere drei Jahre fort.</li>
+  <li><strong>Schriftform:</strong> Änderungen und Ergänzungen bedürfen der Schriftform. Mündliche Nebenabreden bestehen nicht.</li>
+  <li><strong>Salvatorische Klausel:</strong> Sollten einzelne Bestimmungen unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.</li>
+  <li><strong>Anwendbares Recht und Gerichtsstand:</strong> Es gilt deutsches Recht. Gerichtsstand ist Uelzen.</li>
+</ol>
+<div class="signature-section">
+  <p style="margin: 18pt 0 6pt 0; font-size: 10.5pt">{{ form.ort }}, den {{ form.datum }}</p>
+  <div class="signature-row">
+    <div class="signature-block"><div class="signature-line"></div><div class="signature-label">Unterschrift ({% if variante == 'kaeufer' %}Käufer{% else %}Investor{% endif %})</div></div>
+    <div class="signature-block"><div class="signature-line"></div><div class="signature-label">Unterschrift (mibeca)</div></div>
+  </div>
+</div>
+</body></html>"""
+
+
+def _render_nda_pdf_bytes(form, variante='investor'):
+    from jinja2 import Template
+    from weasyprint import HTML
+    html = Template(_NDA_HTML_TEMPLATE).render(form=form, variante=variante)
+    return HTML(string=html, base_url="/").write_pdf()
+
+
+@app.route(route="nda-pdf", methods=["POST", "OPTIONS"])
+def nda_pdf(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    try:
+        pdf_bytes = _render_nda_pdf_bytes(body.get("form", {}), body.get("variante", "investor"))
+    except Exception as ex:
+        return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
+    return func.HttpResponse(pdf_bytes, status_code=200, mimetype="application/pdf",
+                             headers={**CORS, "Content-Disposition": 'attachment; filename="NDA.pdf"'})
+
+
+@app.route(route="nda-zur-signatur", methods=["POST", "OPTIONS"])
+def nda_zur_signatur(req: func.HttpRequest) -> func.HttpResponse:
+    """NDA-Sign-Link an Investor/Kaeufer per Mail."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    target_id = body.get("targetId", "")
+    form = body.get("form", {})
+    variante = body.get("variante", "investor")
+    empfaenger = (body.get("empfaengerEmail") or "").strip()
+    if not (target_id and empfaenger and form.get("firma")):
+        return err_("targetId, empfaengerEmail, firma erforderlich", 400)
+    try:
+        pdf_bytes = _render_nda_pdf_bytes(form, variante)
+    except Exception as ex:
+        return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
+    pdf_blob_name = f"nda-{target_id}-{int(datetime.utcnow().timestamp())}.pdf"
+    try:
+        _blob_container_lazy("vertraege").upload_blob(pdf_blob_name, pdf_bytes, overwrite=True)
+    except Exception as ex:
+        return err_(f"Blob-Upload fehlgeschlagen: {ex}", 500)
+    sig_id = str(uuid.uuid4())
+    token = secrets.token_urlsafe(32)
+    code_salt = secrets.token_hex(16)
+    expires = (datetime.utcnow() + timedelta(days=SIGNATURE_LINK_EXPIRY_DAYS)).isoformat()
+    tc = table_("vertragsignaturen")
+    tc.create_entity({
+        "PartitionKey": "signatur", "RowKey": sig_id,
+        "targetId": target_id, "token": token, "code_salt": code_salt,
+        "status": "pending", "lead_email": empfaenger, "lead_name": form.get("vertreten", ""),
+        "variante": "nda_" + variante, "pdf_blob": pdf_blob_name,
+        "form_json": json.dumps(form, ensure_ascii=False),
+        "created_at": datetime.utcnow().isoformat(),
+        "expires_at": expires,
+        "dokument_typ": "nda",
+    })
+    sign_url = f"{FRONTEND_BASE}/sign/{token}"
+    if ACS_CONN:
+        try:
+            from azure.communication.email import EmailClient
+            client = EmailClient.from_connection_string(ACS_CONN)
+            html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
+                <h2 style="color:#097e92">NDA zur Unterschrift</h2>
+                <p>Hallo {form.get('vertreten','')},</p>
+                <p>im Rahmen unserer Zusammenarbeit als M&A-Berater bitten wir Sie um Unterzeichnung der beiliegenden Vertraulichkeitsvereinbarung (NDA).</p>
+                <p style="margin:24px 0"><a href="{sign_url}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">NDA ansehen &amp; unterschreiben</a></p>
+                <p style="font-size:12px;color:#666">Der Link ist {SIGNATURE_LINK_EXPIRY_DAYS} Tage gueltig.</p>
+                </body></html>"""
+            client.begin_send({
+                "senderAddress": ACS_SENDER,
+                "recipients": {"to": [{"address": empfaenger}]},
+                "content": {"subject": f"NDA zur Unterzeichnung – {form.get('firma','')}", "plainText": f"NDA: {sign_url}", "html": html},
+            })
+        except Exception:
+            pass
+    _verlauf_append(target_id, {
+        "id": "k" + str(int(datetime.utcnow().timestamp() * 1000)),
+        "typ": "mail_out",
+        "datum": datetime.utcnow().isoformat(),
+        "autor": p.get("name", ""),
+        "betreff": f"NDA verschickt an {form.get('firma','')}",
+        "beschreibung": f"NDA-Sign-Link an {empfaenger} versendet.",
+        "beteiligte": empfaenger,
+    })
+    return ok_({"signId": sig_id, "token": token, "signUrl": sign_url})
+
+
 @app.route(route="vertrag-zur-signatur", methods=["POST", "OPTIONS"])
 def vertrag_zur_signatur(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":

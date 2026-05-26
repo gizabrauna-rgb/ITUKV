@@ -2,27 +2,33 @@
   <div>
     <div class="flex items-center justify-between mb-4">
       <div>
-        <h3 class="text-lg font-bold text-gray-900">NDA-Vorlage (Stand 2025)</h3>
-        <p class="text-xs text-gray-500">Beidseitige Vertraulichkeitsvereinbarung mit Investoren</p>
+        <h3 class="text-lg font-bold text-gray-900">
+          {{ isKaufMandat ? 'NDA für Käufer' : 'NDA für Investor' }}
+        </h3>
+        <p class="text-xs text-gray-500">Beidseitige Vertraulichkeitsvereinbarung (Stand 2025) · digital signierbar</p>
       </div>
       <div class="flex gap-2">
-        <button @click="printPdf" class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50">
-          <Printer class="w-4 h-4" /> PDF / Drucken
+        <button @click="openPreview" :disabled="previewLoading" class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 disabled:opacity-50">
+          <FileText class="w-4 h-4" /> {{ previewLoading ? 'Lade…' : 'Vorschau (PDF)' }}
         </button>
       </div>
     </div>
 
-    <!-- Vorlauf für einzelne Investoren -->
+    <!-- Variablen + Empfänger -->
     <div class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
-      <h4 class="font-semibold text-sm text-gray-800 mb-3">Variablen für diesen Investor (nur 4 Felder)</h4>
+      <h4 class="font-semibold text-sm text-gray-800 mb-3">Variablen für diesen {{ isKaufMandat ? 'Käufer' : 'Investor' }}</h4>
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="text-xs font-medium text-gray-600 mb-1 block">Mandantenfirma (Investor)</label>
+          <label class="text-xs font-medium text-gray-600 mb-1 block">Mandantenfirma ({{ isKaufMandat ? 'Käufer' : 'Investor' }})</label>
           <input v-model="vars.firma" placeholder="z.B. Beispiel IT-Holding GmbH" class="input" />
         </div>
         <div>
           <label class="text-xs font-medium text-gray-600 mb-1 block">Vertreten durch</label>
           <input v-model="vars.vertreten" placeholder="z.B. Max Mustermann (Geschäftsführer)" class="input" />
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-600 mb-1 block">E-Mail des Unterzeichners *</label>
+          <input v-model="vars.email" type="email" placeholder="z.B. max@firma.de" class="input" />
         </div>
         <div>
           <label class="text-xs font-medium text-gray-600 mb-1 block">Ort der Unterzeichnung</label>
@@ -33,6 +39,11 @@
           <input v-model="vars.datum" type="date" class="input" />
         </div>
       </div>
+      <button @click="zurSignaturSenden" :disabled="!canSend || sending"
+        class="mt-4 w-full px-4 py-2.5 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf] disabled:opacity-50 flex items-center justify-center gap-2">
+        <Send class="w-4 h-4" /> {{ sending ? 'Wird gesendet…' : `NDA zur digitalen Signatur an ${vars.email || '...'} senden` }}
+      </button>
+      <p class="text-xs text-gray-400 mt-2">Der Empfänger bekommt einen Mail-Link, kann das NDA online ansehen und mit Code per Mail signieren – gleicher Workflow wie beim Mandatsvertrag.</p>
     </div>
 
     <!-- NDA-Vorschau -->
@@ -127,34 +138,86 @@
       </div>
     </div>
 
-    <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 mt-4 text-xs text-blue-900">
-      <Info class="w-4 h-4 inline mr-1" />
-      Diese NDA wird Interessenten auf der öffentlichen Landing-Page <code>anfrage.itukv.de/mb-XX</code> automatisch
-      mit ihren Daten gefüllt und kann digital akzeptiert werden (Click-Accept + Audit-Log).
-      Vollständige Auto-Signatur folgt im nächsten Schritt.
+    <!-- PDF-Vorschau Modal -->
+    <div v-if="previewUrl" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" @click.self="closePreview">
+      <div class="bg-white rounded-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+        <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+          <h3 class="font-bold text-gray-900 flex items-center gap-2"><FileText class="w-5 h-5 text-[#097e92]" /> NDA-Vorschau</h3>
+          <div class="flex items-center gap-2">
+            <a :href="previewUrl" :download="`NDA_${vars.firma || 'Entwurf'}.pdf`" class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Herunterladen</a>
+            <button @click="closePreview" class="p-1.5 hover:bg-gray-100 rounded-lg"><X class="w-5 h-5 text-gray-500" /></button>
+          </div>
+        </div>
+        <iframe :src="previewUrl" class="flex-1 w-full" frameborder="0"></iframe>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { Printer, Info } from '@lucide/vue'
+import { ref, computed, onMounted } from 'vue'
+import { FileText, Send, X } from '@lucide/vue'
+import { authFetch } from '../../api.js'
+
+const props = defineProps({ targetId: String })
+const target = ref(null)
 
 const vars = ref({
-  firma: '',
-  vertreten: '',
-  ort: '',
+  firma: '', vertreten: '', email: '', ort: '',
   datum: new Date().toISOString().slice(0, 10),
 })
+
+const isKaufMandat = computed(() => /kauf|investor/i.test(target.value?.projekttyp || ''))
+const docVariante = computed(() => isKaufMandat.value ? 'kaeufer' : 'investor')
+const canSend = computed(() => !!(vars.value.firma && vars.value.vertreten && vars.value.email && vars.value.ort))
 
 function formatDate(s) {
   if (!s) return '[Datum]'
   try { return new Date(s).toLocaleDateString('de-DE') } catch { return s }
 }
 
-function printPdf() {
-  window.print()
+const previewUrl = ref(null)
+const previewLoading = ref(false)
+const sending = ref(false)
+const apiBase = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
+
+async function openPreview() {
+  previewLoading.value = true
+  try {
+    const r = await fetch(`${apiBase}/nda-pdf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (sessionStorage.getItem('customerJwt') || sessionStorage.getItem('msalToken') || '') },
+      body: JSON.stringify({ form: vars.value, variante: docVariante.value }),
+    })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
+    previewUrl.value = URL.createObjectURL(await r.blob())
+  } catch (e) { alert('Vorschau fehlgeschlagen: ' + e.message) }
+  finally { previewLoading.value = false }
 }
+function closePreview() {
+  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
+  previewUrl.value = null
+}
+
+async function zurSignaturSenden() {
+  if (!canSend.value) return
+  if (!confirm(`NDA an ${vars.value.email} zur digitalen Signatur senden?`)) return
+  sending.value = true
+  try {
+    await authFetch('/nda-zur-signatur', { method: 'POST', data: {
+      targetId: props.targetId, form: vars.value, variante: docVariante.value, empfaengerEmail: vars.value.email
+    }})
+    alert('NDA wurde an ' + vars.value.email + ' versendet. ✅')
+  } catch (e) { alert('Versand fehlgeschlagen: ' + (e?.response?.data?.error || e.message)) }
+  finally { sending.value = false }
+}
+
+onMounted(async () => {
+  if (!props.targetId) return
+  try { target.value = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } }) }
+  catch (e) { console.error(e) }
+})
 </script>
 
 <style scoped>

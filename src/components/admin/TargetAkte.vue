@@ -152,7 +152,7 @@
             Mandatsvertrag
           </button>
           <button @click="vertragSubTab = 'nda'" :class="['px-4 py-2 rounded-lg text-sm font-medium transition-colors', vertragSubTab === 'nda' ? 'bg-[#097e92] text-white' : 'text-gray-600 hover:bg-gray-50']">
-            NDA für Interessenten
+            {{ isKaufMandat ? 'NDA für Käufer' : 'NDA für Investor' }}
           </button>
         </div>
         <VertragEditor v-if="vertragSubTab === 'mandat'" :target-id="targetId" />
