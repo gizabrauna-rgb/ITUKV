@@ -3,3 +3,5 @@ azure-data-tables
 azure-storage-blob
 azure-communication-email
 PyMuPDF>=1.22.2
+weasyprint>=60.0
+jinja2>=3.1.0

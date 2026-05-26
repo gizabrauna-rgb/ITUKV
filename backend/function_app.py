@@ -755,10 +755,166 @@ def _lookup_signature_by_token(token):
     return dict(items[0]) if items else None
 
 
+_VERTRAG_HTML_TEMPLATE = """<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mandatsvertrag</title>
+<style>
+  @page {
+    size: A4;
+    margin: 32mm 18mm 28mm 18mm;
+    @bottom-right { content: "Seite " counter(page) " / " counter(pages); font-size: 9pt; color: #888; }
+  }
+  html, body {
+    font-family: "Helvetica", "Arial", system-ui, sans-serif;
+    font-size: 11pt;
+    line-height: 1.55;
+    color: #1f2937;
+  }
+  h1 { font-size: 22pt; font-weight: 700; color: #0e7c92; margin: 0 0 4pt 0; letter-spacing: -0.5pt; }
+  h1 + .subtitle { color: #6b7280; font-size: 11pt; margin: 0 0 22pt 0; }
+  h2 { font-size: 14pt; font-weight: 700; color: #0e7c92; margin: 26pt 0 8pt 0; padding-bottom: 4pt; border-bottom: 1pt solid #e5e7eb; }
+  h3 { font-size: 11pt; font-weight: 700; margin: 12pt 0 4pt 0; color: #1f2937; }
+  p { margin: 0 0 8pt 0; text-align: justify; }
+  ul { margin: 4pt 0 12pt 0; padding-left: 14pt; }
+  ul li { margin-bottom: 4pt; }
+  .meta-grid { display: flex; gap: 20pt; margin-bottom: 18pt; }
+  .meta-box { flex: 1; padding: 10pt 12pt; background: #f9fafb; border-left: 3pt solid #0e7c92; border-radius: 2pt; }
+  .meta-box .label { font-size: 8.5pt; text-transform: uppercase; letter-spacing: 1pt; color: #6b7280; margin-bottom: 4pt; }
+  .meta-box .company { font-weight: 700; font-size: 11.5pt; }
+  .meta-box .small { color: #6b7280; font-size: 10pt; }
+  .role-suffix { color: #6b7280; font-style: italic; font-size: 9.5pt; }
+  .fee-block { background: #f9fafb; border-radius: 4pt; padding: 10pt 12pt; margin-bottom: 10pt; }
+  .signature-section { page-break-inside: avoid; margin-top: 60pt; }
+  .signature-row { display: flex; justify-content: space-between; gap: 30pt; margin-top: 50pt; }
+  .signature-block { flex: 1; }
+  .signature-line { border-top: 1pt solid #6b7280; height: 1pt; margin-bottom: 6pt; }
+  .signature-label { font-size: 9pt; color: #6b7280; }
+  .footer-note { font-size: 8.5pt; color: #9ca3af; margin-top: 60pt; padding-top: 8pt; border-top: 1pt solid #e5e7eb; text-align: center; }
+  .ort-datum { margin: 18pt 0 6pt 0; font-size: 10.5pt; }
+</style>
+</head>
+<body>
+
+<h1>Beratungs- und Dienstleistungsvertrag</h1>
+<p class="subtitle">Mandatsvertrag zwischen mibeca GmbH und dem Auftraggeber</p>
+
+<div class="meta-grid">
+  <div class="meta-box">
+    <div class="label">Berater</div>
+    <div class="company">mibeca GmbH</div>
+    <div class="small">Schillerstraße 1 · 29525 Uelzen</div>
+    <div class="small">vertreten durch {{ form.berater or "Jennifer Kaplan" }}</div>
+  </div>
+  <div class="meta-box">
+    <div class="label">Auftraggeber</div>
+    <div class="company">{{ form.auftraggeberFirma }}</div>
+    <div class="small">{{ form.auftraggeberStrasse }} · {{ form.auftraggeberPlzOrt }}</div>
+    <div class="small">vertreten durch {{ form.auftraggeberGf }}</div>
+  </div>
+</div>
+
+<h2>§1 Vertragsgegenstand</h2>
+<p>Der Auftraggeber erteilt hiermit dem Berater den Auftrag, ihn bei folgenden Entscheidungen / Vorhaben zu beraten und zu unterstützen: (Teil-)Veräußerung des Unternehmens <strong>{{ form.verkaufsobjekt }}</strong> (im Folgenden „Verkaufsobjekt" genannt).</p>
+
+<h2>§2 Leistungen des Beraters</h2>
+<ul>
+  <li>Aufbereitung der Daten für das Verkaufsobjekt</li>
+  <li>Erstellung eines anonymen Kurzexposés für das Verkaufsobjekt</li>
+  <li>Suche von Interessenten für das Verkaufsobjekt</li>
+  <li>Unterstützung bei Gesprächen mit Interessenten</li>
+  <li>Begleitung der Verkaufsverhandlungen</li>
+  <li>Vermittlung weiterer Berater (Rechtsanwälte, Steuerberater)</li>
+  <li>Laufende Beratung und Projektbegleitung (persönlich, telefonisch, per Videokonferenz, per E-Mail)</li>
+</ul>
+
+<h2>§3 Pflichten des Auftraggebers</h2>
+<p>Der Auftraggeber stellt alle relevanten Unterlagen (Bilanzen, BWA, Statistiken, Kunden-, Lieferanten- und Mitarbeiterlisten) bereit und sichert deren Vollständigkeit und Richtigkeit zu. Der Berater haftet nicht für die inhaltliche Richtigkeit der gelieferten Informationen.</p>
+
+<h2>§4 Pflichten des Beraters / Vertraulichkeit</h2>
+<p>Der Berater ist zum Stillschweigen gegenüber Dritten über sämtliche Inhalte des Verkaufsprozesses sowie über vertrauliche Informationen des Auftraggebers verpflichtet. Diese Verpflichtung gilt auch nach Ende des Vertrages. Unterlagen werden vertraulich aufbewahrt und nach Aufforderung an den Auftraggeber zurückgegeben oder vernichtet.</p>
+
+<h2>§5 Vergütung</h2>
+<p>Alle Vergütungen verstehen sich netto zzgl. 19 % Mehrwertsteuer.</p>
+
+<div class="fee-block">
+  <h3>(1) Eröffnungsvergütung</h3>
+  {% if variante == 'mit_uve' %}
+    {% if form.eroeffnungsModus == 'einmalig' %}
+    <p>Einmalige Eröffnungsvergütung in Höhe von <strong>{{ "{:,.0f}".format(form.eroeffnungsBetrag or 10000).replace(",", ".") }} €</strong> netto für das UVE-Coachingprogramm, Datenaufbereitung und Kurzexposé.</p>
+    {% else %}
+    <p>Eröffnungsvergütung: <strong>6 Monatsraten zu je 1.800 €</strong> netto für das UVE-Coachingprogramm, Datenaufbereitung und Kurzexposé.</p>
+    {% endif %}
+  {% elif variante == 'vorhandenes_uve' %}
+    <p>Keine Eröffnungsvergütung – der Auftraggeber hat das UVE-Coaching bereits abgeschlossen und bezahlt (ansonsten 3.490 €). Der Berater übernimmt die Datenaufbereitung sowie die Erstellung des Kurzexposés.</p>
+  {% else %}
+    <p>Eröffnungsvergütung: <strong>{{ "{:,.0f}".format(form.eroeffnungsBetrag or 4950).replace(",", ".") }} €</strong> netto für Datenaufbereitung und Erstellung des anonymen Kurzexposés.</p>
+  {% endif %}
+</div>
+
+<div class="fee-block">
+  <h3>(2) Beratungsvergütung</h3>
+  <p>Jennifer Kaplan: <strong>{{ "{:,.0f}".format(form.honorarJennyStunde or 250).replace(",", ".") }} € pro Stunde</strong> bzw. <strong>{{ "{:,.0f}".format(form.honorarJennyTag or 2990).replace(",", ".") }} € pro Tag</strong> vor Ort (zzgl. Reisespesen).</p>
+  <p>Mike Bergmann: <strong>{{ "{:,.0f}".format(form.honorarMikeStunde or 250).replace(",", ".") }} € pro Stunde</strong> bzw. <strong>{{ "{:,.0f}".format(form.honorarMikeTag or 2990).replace(",", ".") }} € pro Tag</strong> vor Ort (zzgl. Reisespesen).</p>
+  <p>Team-Mitarbeiter: <strong>{{ "{:,.0f}".format(form.honorarTeamStunde or 150).replace(",", ".") }} € pro Stunde</strong> bzw. <strong>{{ "{:,.0f}".format(form.honorarTeamTag or 1500).replace(",", ".") }} € pro Tag</strong> vor Ort (zzgl. Reisespesen).</p>
+</div>
+
+<div class="fee-block">
+  <h3>(3) Erfolgsvergütung</h3>
+  <p>Erfolgsvergütung in Höhe von <strong>{{ form.erfolgsProzent or 5 }} %</strong> des Transaktionsvolumens bei erfolgreichem Vertragsabschluss zwischen Auftraggeber und einem Interessenten. Als Vertragsabschluss gilt jede Form eines Verkaufs-, Kaufs-, Beteiligungs- oder Fusionsvertrages sowie vergleichbare Aktivitäten (z.B. Asset Deals).</p>
+</div>
+
+<h2>§6 Vertragsdauer und Vertragsende</h2>
+<p>Der Vertrag beginnt mit Vertragsunterzeichnung und wird zunächst für <strong>{{ form.laufzeitMonate or 12 }} Monate</strong> abgeschlossen. Die Laufzeit verlängert sich stillschweigend um jeweils 6 Monate, sofern er nicht mit einer Frist von 2 Monaten vor Ablauf schriftlich gekündigt wird. Die Vertragslaufzeit endet automatisch zum Monatsende, sobald der Auftraggeber das Verkaufsobjekt veräußert hat.</p>
+
+<h2>§7 Haftungsfreistellung</h2>
+<p>Der Berater agiert mit der Sorgfalt eines ordentlichen Kaufmannes. Für Schäden aus der Beratung sowie für entgangene Gewinne haftet der Berater nicht. Der Auftraggeber stellt den Berater von jeglicher Haftung frei, die auf Unvollständigkeit oder Unrichtigkeit der gelieferten Informationen beruht.</p>
+
+<h2>§8 Schlussbestimmungen</h2>
+<p>Änderungen bedürfen der Schriftform. Mündliche Nebenabreden bestehen nicht. Sind einzelne Bestimmungen unwirksam, bleibt die Gültigkeit der übrigen unberührt. Es gilt deutsches Recht. Gerichtsstand ist Uelzen.</p>
+
+{% if form.notizen %}
+<h2>§9 Zusatzklauseln / Notizen</h2>
+<p>{{ form.notizen }}</p>
+{% endif %}
+
+<div class="signature-section">
+  <p class="ort-datum">Uelzen, den {{ form.datum }}</p>
+
+  <div class="signature-row">
+    <div class="signature-block">
+      <div class="signature-line"></div>
+      <div class="signature-label">Unterschrift (mibeca)</div>
+    </div>
+    <div class="signature-block">
+      <div class="signature-line"></div>
+      <div class="signature-label">Unterschrift (Auftraggeber)</div>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    Dieser Vertrag wurde elektronisch zwischen mibeca GmbH und {{ form.auftraggeberFirma }} geschlossen.
+  </div>
+</div>
+
+</body>
+</html>"""
+
+
 def _render_vertrag_pdf_bytes(form, variante):
-    """Erstellt das PDF mit PyMuPDF – misst Zeilenhoehen praezise.
-    Ersetzt Sonderzeichen (geschweifte Anfuehrungszeichen, em-dash) durch
-    Helvetica-kompatible Aequivalente."""
+    """Erzeugt das PDF aus dem Jinja2/HTML-Template mit WeasyPrint.
+    Vorteile: echte CSS-Typografie, page-break-inside fuer Signaturen,
+    professioneller Look wie DocuSign/PandaDoc."""
+    from jinja2 import Template
+    from weasyprint import HTML
+    html = Template(_VERTRAG_HTML_TEMPLATE).render(form=form, variante=variante)
+    return HTML(string=html, base_url="/").write_pdf()
+
+
+# Fallback: einfacher PyMuPDF-Renderer falls WeasyPrint fehlt
+def _render_vertrag_pdf_bytes_fallback(form, variante):
+    """Erstellt das PDF mit PyMuPDF (Fallback)."""
     import fitz
 
     # Helvetica unterstuetzt keine geschweiften Anfuehrungszeichen oder em-dashes,
