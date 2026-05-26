@@ -4,9 +4,6 @@
       <img src="/e4adade-577b-0f2-5be2-71a313ed1cd2_d023416-88e7-db0f-fedb-6b354cf65_itukv-form.jpg"
         alt="Mike Bergmann · IT-Unternehmen kaufen und verkaufen"
         class="w-full h-auto rounded-2xl block" />
-      <div class="text-center text-xs text-gray-500 mt-3">
-        Exposé-Bereich · Projektnummer <span class="font-mono font-bold text-gray-800">{{ (data?.mbNr || 'mb-xxx').toUpperCase() }}</span>
-      </div>
     </header>
 
     <main class="max-w-3xl mx-auto px-6 py-10">
@@ -17,8 +14,11 @@
       </div>
 
       <template v-else>
-        <h1 class="text-2xl font-bold text-gray-900 mb-1">Hallo {{ data.name || data.firma }},</h1>
-        <p class="text-base text-gray-600 mb-8">Projekt <strong>{{ data.mbNr.toUpperCase() }}</strong>{{ data.headline ? ' · ' + data.headline : '' }}</p>
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-8 leading-tight">
+          <template v-if="data.headline">{{ data.headline }} <span class="text-gray-400 font-normal">|</span> </template>Projektnummer <span class="font-mono">{{ data.mbNr.toLowerCase() }}</span>
+        </h1>
+
+        <p class="text-lg text-gray-800 mb-6">Hallo {{ data.name || data.firma }},</p>
 
         <!-- =========== ZUSTAND: VOR NDA-UPLOAD =========== -->
         <template v-if="!ndaUnterzeichnet">

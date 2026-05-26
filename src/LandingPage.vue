@@ -4,9 +4,6 @@
       <img src="/e4adade-577b-0f2-5be2-71a313ed1cd2_d023416-88e7-db0f-fedb-6b354cf65_itukv-form.jpg"
         alt="Mike Bergmann · IT-Unternehmen kaufen und verkaufen"
         class="w-full h-auto rounded-2xl block" />
-      <div class="text-center text-xs text-gray-500 mt-3">
-        Projektnummer <span class="font-mono font-bold text-gray-800">{{ mbNr.toUpperCase() }}</span>
-      </div>
     </header>
 
     <main class="max-w-3xl mx-auto px-6 py-10">
@@ -25,7 +22,9 @@
       </div>
 
       <template v-else>
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ data.headline }}</h1>
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2 leading-tight">
+          {{ data.headline }} <span class="text-gray-400 font-normal">|</span> Projektnummer <span class="font-mono">{{ mbNr.toLowerCase() }}</span>
+        </h1>
         <p class="text-lg text-gray-600 mb-8">{{ data.subheadline }}</p>
 
         <div v-if="data.description" class="bg-white rounded-2xl border border-gray-100 p-6 mb-6 text-gray-700 leading-relaxed whitespace-pre-line">{{ data.description }}</div>
