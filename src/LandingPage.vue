@@ -1,10 +1,11 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <header class="bg-[#161e2a] text-white py-4 px-6 flex items-center gap-3">
-      <img src="/Logo_mibeca_Start.png" alt="mibeca" class="h-9 w-auto" />
-      <div>
-        <div class="font-bold text-sm">ITUKV · mibeca GmbH</div>
-        <div class="text-gray-400 text-xs">Projekt {{ mbNr.toUpperCase() }}</div>
+    <header>
+      <img src="/e4adade-577b-0f2-5be2-71a313ed1cd2_d023416-88e7-db0f-fedb-6b354cf65_itukv-form.jpg"
+        alt="Mike Bergmann · IT-Unternehmen kaufen und verkaufen"
+        class="w-full h-auto block" />
+      <div class="bg-[#161e2a] text-white py-2 px-6 text-center text-xs">
+        Projektnummer <span class="font-mono font-bold">{{ mbNr.toUpperCase() }}</span>
       </div>
     </header>
 
@@ -97,6 +98,12 @@ async function abschicken() {
       body: JSON.stringify({ mbNr, ...form.value }),
     })
     if (!res.ok) { const d = await res.json().catch(()=>({})); throw new Error(d.error || `HTTP ${res.status}`) }
+    const data = await res.json().catch(() => ({}))
+    if (data?.exposeUrl) {
+      // Direkt zur Exposé-Seite weiterleiten (Bestaetigungs-Mail kommt parallel)
+      window.location.href = data.exposeUrl
+      return
+    }
     sent.value = true
   } catch (e) { errMsg.value = 'Etwas ist schiefgegangen: ' + e.message }
   finally { sending.value = false }
