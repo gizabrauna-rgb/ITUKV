@@ -146,8 +146,8 @@
           <button @click="speichern" :disabled="saving" class="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 flex items-center gap-2 disabled:opacity-50">
             <Save class="w-4 h-4" /> Entwurf speichern
           </button>
-          <button @click="downloadDocx" class="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 flex items-center gap-2">
-            <Download class="w-4 h-4" /> Vorschau (PDF)
+          <button @click="openPreview" :disabled="previewLoading" class="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 flex items-center gap-2 disabled:opacity-50">
+            <FileText class="w-4 h-4" /> {{ previewLoading ? 'Lade Vorschau…' : 'Vorschau (PDF)' }}
           </button>
           <button v-if="!vertrag?.gegengezeichnetAm" @click="zurSignaturSenden" :disabled="!form.auftraggeberFirma || sending" class="ml-auto px-4 py-2.5 bg-[#097e92] text-white rounded-xl text-sm font-semibold hover:bg-[#0a9aaf] flex items-center gap-2 disabled:opacity-50">
             <Send class="w-4 h-4" />
@@ -217,6 +217,26 @@
             Speichern
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- PDF-Vorschau Modal -->
+    <div v-if="previewUrl" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" @click.self="closePreview">
+      <div class="bg-white rounded-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+        <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+          <h3 class="font-bold text-gray-900 flex items-center gap-2">
+            <FileText class="w-5 h-5 text-[#097e92]" /> Vertrags-Vorschau
+          </h3>
+          <div class="flex items-center gap-2">
+            <a :href="previewUrl" :download="`Mandatsvertrag_${form.auftraggeberFirma || 'Entwurf'}.pdf`" class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center gap-1.5">
+              <Download class="w-3.5 h-3.5" /> Herunterladen
+            </a>
+            <button @click="closePreview" class="p-1.5 hover:bg-gray-100 rounded-lg">
+              <X class="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
+        </div>
+        <iframe :src="previewUrl" class="flex-1 w-full" frameborder="0"></iframe>
       </div>
     </div>
   </div>
@@ -378,8 +398,14 @@ function _backendError(e) {
   return e?.response?.data?.error || e?.message || 'Unbekannter Fehler'
 }
 
-async function downloadDocx() {
-  if (!props.targetId || !variante.value) return
+const previewUrl = ref(null)
+const previewLoading = ref(false)
+async function openPreview() {
+  if (!props.targetId || !variante.value) {
+    alert('Bitte zuerst Variante wählen und speichern.')
+    return
+  }
+  previewLoading.value = true
   try {
     const r = await fetch(`${import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'}/vertrag-pdf`, {
       method: 'POST',
@@ -391,12 +417,15 @@ async function downloadDocx() {
       throw new Error(d.error || `HTTP ${r.status}`)
     }
     const blob = await r.blob()
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = `Mandatsvertrag_${form.value.auftraggeberFirma}.pdf`
-    a.click()
-    URL.revokeObjectURL(url)
+    // Alte URL freigeben
+    if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
+    previewUrl.value = URL.createObjectURL(blob)
   } catch (e) { alert('PDF-Vorschau fehlgeschlagen: ' + _backendError(e)) }
+  finally { previewLoading.value = false }
+}
+function closePreview() {
+  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
+  previewUrl.value = null
 }
 
 async function zurSignaturSenden() {
