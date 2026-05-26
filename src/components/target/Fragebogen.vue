@@ -335,19 +335,22 @@ onMounted(async () => {
 })
 
 // Mini-Komponenten
+const INPUT_CLASSES = 'w-full px-3 py-2 border-2 border-gray-200 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 focus:border-[#097e92] hover:border-gray-300 transition-colors'
+const LABEL_CLASSES = 'block text-xs font-medium text-gray-700 mb-1'
+
 const Feld = defineComponent({
   props: ['modelValue', 'label', 'type', 'placeholder'],
   emits: ['update:modelValue', 'blur'],
   setup(props, { emit }) {
     return () => h('div', [
-      h('label', { class: 'lbl' }, props.label),
+      h('label', { class: LABEL_CLASSES }, props.label),
       h('input', {
         type: props.type || 'text',
         value: props.modelValue,
         placeholder: props.placeholder || '',
         onInput: e => emit('update:modelValue', e.target.value),
         onBlur: () => emit('blur'),
-        class: 'input'
+        class: INPUT_CLASSES,
       })
     ])
   }
@@ -358,14 +361,14 @@ const FeldText = defineComponent({
   emits: ['update:modelValue', 'blur'],
   setup(props, { emit }) {
     return () => h('div', [
-      h('label', { class: 'lbl' }, props.label),
+      h('label', { class: LABEL_CLASSES }, props.label),
       h('textarea', {
         value: props.modelValue,
         rows: props.rows || 2,
         placeholder: props.placeholder || '',
         onInput: e => emit('update:modelValue', e.target.value),
         onBlur: () => emit('blur'),
-        class: 'input resize-none'
+        class: INPUT_CLASSES + ' resize-none'
       })
     ])
   }
