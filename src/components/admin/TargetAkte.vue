@@ -154,6 +154,11 @@
         <ExposeGenerator :target-id="targetId" />
       </div>
 
+      <!-- Landing-Page -->
+      <div v-else-if="tab === 'landing'">
+        <LandingEditor :target-id="targetId" />
+      </div>
+
       <!-- Verträge (Mandatsvertrag + NDA) -->
       <div v-else-if="tab === 'nda'">
         <!-- Sub-Tabs -->
@@ -193,7 +198,7 @@ import {
   ArrowLeft, MapPin, Tag, Users, Euro, Hash, Mail,
   Sparkles, Circle, Folder, FileText, MessageSquare,
   LayoutDashboard, Workflow, ClipboardList, FileEdit, ShieldCheck, Clock, TrendingUp, Trophy, BookOpen,
-  CalendarClock, X
+  CalendarClock, X, Globe
 } from '@lucide/vue'
 import { authFetch } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
@@ -207,6 +212,7 @@ import Erfolgsmeldung from './Erfolgsmeldung.vue'
 import LessonsLearned from './LessonsLearned.vue'
 import DokumenteAkte from './DokumenteAkte.vue'
 import VertragEditor from './VertragEditor.vue'
+import LandingEditor from './LandingEditor.vue'
 import Zwischenstand from './Zwischenstand.vue'
 import Verlauf from './Verlauf.vue'
 import ExposeGenerator from './ExposeGenerator.vue'
@@ -246,6 +252,7 @@ const tabs = computed(() => {
     { tab: 'bewertung', label: 'Bewertung', icon: TrendingUp },
     { tab: 'mandat', label: 'Mandat-Daten', icon: ClipboardList },
     { tab: 'expose', label: 'Exposé', icon: FileText },
+    { tab: 'landing', label: 'Landing-Page', icon: Globe },
     { tab: 'nda', label: 'Verträge', icon: ShieldCheck },
     { tab: 'interessenten', label: 'Interessenten', icon: Users },
     { tab: 'dokumente', label: 'Dokumente', icon: Folder },

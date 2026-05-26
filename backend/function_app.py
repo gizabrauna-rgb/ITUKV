@@ -887,6 +887,11 @@ SIGNATURE_LINK_EXPIRY_DAYS = 30
 ACS_CONN = os.environ.get("ACS_CONNECTION_STRING", "")
 ACS_SENDER = os.environ.get("ACS_SENDER_ADDRESS", "info@itukv.de")
 FRONTEND_BASE = os.environ.get("FRONTEND_BASE_URL", "https://dashboard.itukv.de")
+LANDING_BASE = os.environ.get("LANDING_BASE_URL", "https://targets.itukv.de")
+DEFAULT_BOOKINGS_URL = os.environ.get(
+    "DEFAULT_BOOKINGS_URL",
+    "https://outlook.office.com/owa/calendar/MikeBergmannUmsetzungscoachingfrITUnternehmer@visoma.de/bookings/s/JTBnZ631-k-f7jiaO9JDsw2?ismsaljsauthenabled",
+)
 
 
 def _blob_container_lazy(name):
@@ -2894,7 +2899,7 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
     })
 
     # Mail an Interessent: Expose-Link + NDA
-    expose_url = f"{FRONTEND_BASE}/expose-{mb_nr}/{token}"
+    expose_url = f"{LANDING_BASE}/expose-{mb_nr}/{token}"
     if ACS_CONN:
         try:
             from azure.communication.email import EmailClient
@@ -2957,7 +2962,7 @@ def expose_public(req: func.HttpRequest) -> func.HttpResponse:
         "ndaUploadedAt": i.get("ndaUploadedAt", ""),
         "exposeUrl": landing.get("exposeUrl", ""),
         "ndaTemplateUrl": landing.get("ndaTemplateUrl", ""),
-        "terminBookingUrl": landing.get("terminBookingUrl", ""),
+        "terminBookingUrl": landing.get("terminBookingUrl") or DEFAULT_BOOKINGS_URL,
         "headline": landing.get("headline", ""),
     })
 
@@ -3014,7 +3019,7 @@ def nda_upload(req: func.HttpRequest) -> func.HttpResponse:
             landing = {}
             try: landing = json.loads(t.get("landingJson", "{}") or "{}")
             except: landing = {}
-            termin_url = landing.get("terminBookingUrl", "")
+            termin_url = landing.get("terminBookingUrl") or DEFAULT_BOOKINGS_URL
             from azure.communication.email import EmailClient
             client = EmailClient.from_connection_string(ACS_CONN)
             html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">

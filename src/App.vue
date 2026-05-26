@@ -33,12 +33,14 @@ import TargetDashboard from './views/TargetDashboard.vue'
 import InvestorDashboard from './views/InvestorDashboard.vue'
 import SignPage from './SignPage.vue'
 import LandingPage from './LandingPage.vue'
+import ExposeBuyerPage from './ExposeBuyerPage.vue'
 import ToastHost from './components/ToastHost.vue'
 import { msalInstance } from './authConfig.js'
 
 // Oeffentliche Routen ohne Login
 const isSignRoute = /^\/sign\/[^/?#]+/.test(window.location.pathname)
 const isLandingRoute = /^\/mb-[^/?#]+/i.test(window.location.pathname)
+const isExposeBuyerRoute = /^\/expose-[^/]+\/[^/?#]+/i.test(window.location.pathname)
 
 const role = ref(sessionStorage.getItem('userRole') || '')
 const userName = ref(sessionStorage.getItem('userName') || '')
@@ -53,6 +55,7 @@ const INVESTOR_TYPS = []  // Legacy: leer (alte Liste bleibt fuer Abwaertskompat
 
 const currentView = computed(() => {
   if (isSignRoute) return SignPage
+  if (isExposeBuyerRoute) return ExposeBuyerPage
   if (isLandingRoute) return LandingPage
   if (!role.value) return Login
   // Admin testet eine bestimmte Projekttyp-Ansicht
