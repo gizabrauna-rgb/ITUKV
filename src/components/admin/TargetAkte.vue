@@ -102,6 +102,11 @@
         <LongList :target-id="targetId" />
       </div>
 
+      <!-- Erfolgsmeldung / Presse -->
+      <div v-else-if="tab === 'erfolg'">
+        <Erfolgsmeldung :target-id="targetId" />
+      </div>
+
       <!-- Bewertung (Score-System auf Basis der 33 Fragen) -->
       <div v-else-if="tab === 'bewertung'">
         <Unternehmensbewertung :target-id="targetId" />
@@ -172,7 +177,7 @@ import { ref, computed, onMounted, defineComponent, h } from 'vue'
 import {
   ArrowLeft, MapPin, Tag, Users, Euro, Hash, Mail,
   Sparkles, Circle, Folder, FileText, MessageSquare,
-  LayoutDashboard, Workflow, ClipboardList, FileEdit, ShieldCheck, Clock, TrendingUp
+  LayoutDashboard, Workflow, ClipboardList, FileEdit, ShieldCheck, Clock, TrendingUp, Trophy
 } from '@lucide/vue'
 import { authFetch } from '../../api.js'
 import PhasenProzessEingebettet from './PhasenProzess.vue'
@@ -181,6 +186,7 @@ import Fragebogen from '../target/Fragebogen.vue'
 import Unternehmensbewertung from '../target/Unternehmensbewertung.vue'
 import Suchprofil from './Suchprofil.vue'
 import LongList from './LongList.vue'
+import Erfolgsmeldung from './Erfolgsmeldung.vue'
 import VertragEditor from './VertragEditor.vue'
 import Zwischenstand from './Zwischenstand.vue'
 import Verlauf from './Verlauf.vue'
@@ -199,7 +205,6 @@ const isKaufMandat = computed(() => /kauf|investor/i.test(target.value?.projektt
 
 const tabs = computed(() => {
   if (isKaufMandat.value) {
-    // Kauf-Mandat: Suchprofil statt Fragebogen, Long-List statt Interessenten
     return [
       { tab: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard },
       { tab: 'prozess', label: 'Master-Prozess', icon: Workflow },
@@ -209,6 +214,7 @@ const tabs = computed(() => {
       { tab: 'longlist', label: 'Long-/Short-List', icon: Users },
       { tab: 'dokumente', label: 'Dokumente', icon: Folder },
       { tab: 'zwischenstand', label: 'Zwischenstand', icon: FileEdit },
+      { tab: 'erfolg', label: 'Erfolgsmeldung', icon: Trophy },
       { tab: 'verlauf', label: 'Verlauf', icon: MessageSquare },
       { tab: 'zeit', label: 'Zeiterfassung', icon: Clock },
     ]
@@ -224,6 +230,7 @@ const tabs = computed(() => {
     { tab: 'interessenten', label: 'Interessenten', icon: Users },
     { tab: 'dokumente', label: 'Dokumente', icon: Folder },
     { tab: 'zwischenstand', label: 'Zwischenstand', icon: FileEdit },
+    { tab: 'erfolg', label: 'Erfolgsmeldung', icon: Trophy },
     { tab: 'verlauf', label: 'Verlauf', icon: MessageSquare },
     { tab: 'zeit', label: 'Zeiterfassung', icon: Clock },
   ]

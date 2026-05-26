@@ -2145,3 +2145,181 @@ def inbound_mail(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as ex:
         logging.error(f"inbound-mail Fehler: {ex}") if 'logging' in globals() else None
         return func.HttpResponse(json.dumps({"error": str(ex)}), status_code=500, headers=CORS)
+
+
+# =========================================================================
+# PRESSE-PROZESS NACH ERFOLGREICHER TRANSAKTION
+# =========================================================================
+
+PRESSE_KONTAKTE_DEFAULT = [
+    {"id": "p1", "name": "Dr. Ronald Wiltscheck", "rolle": "Chefredakteur", "medium": "ChannelPartner", "email": "rw@channelpartner.de"},
+    {"id": "p1b", "name": "Dr. Ronald Wiltscheck", "rolle": "Chefredakteur (privat)", "medium": "ChannelPartner", "email": "ronald.wiltscheck@outlook.de"},
+    {"id": "p2", "name": "Martin Fryba", "rolle": "Journalist", "medium": "CRN", "email": "mfryba@thechannelcompany.com"},
+    {"id": "p3", "name": "Michael Hase", "rolle": "Chefreporter", "medium": "IT-BUSINESS / Vogel", "email": "michael.hase@vogel-it.de"},
+    {"id": "p4", "name": "Margrit Lingner", "rolle": "Leitende Redakteurin", "medium": "IT-BUSINESS / Vogel", "email": "margrit.lingner@vogel.de"},
+    {"id": "p5", "name": "Mihriban Dincel", "rolle": "Redakteurin", "medium": "IT-BUSINESS / Vogel", "email": "mihriban.dincel@vogel.de"},
+    {"id": "p6", "name": "Sylvia Loesel", "rolle": "Chefredakteurin", "medium": "IT-BUSINESS / Vogel", "email": "sylvia.loesel@vogel.de"},
+    {"id": "p7", "name": "Heidi Schuster", "rolle": "Redaktion", "medium": "IT-BUSINESS / Vogel", "email": "heidi.schuster@vogel.de"},
+    {"id": "p8", "name": "Heinz Arnold", "rolle": "Chefredakteur", "medium": "connect professional / WEKA", "email": "harnold@weka-fachmedien.de"},
+    {"id": "p9", "name": "WEKA Redaktion", "rolle": "Allgemein", "medium": "WEKA Fachmedien", "email": "jschroeper@weka-fachmedien.de"},
+    {"id": "p10", "name": "Sebastian Hirsch", "rolle": "Redaktion", "medium": "IT Media Publishing", "email": "shirsch@it-media.de"},
+]
+
+
+def _generate_press_text(data):
+    """Erzeugt einen Pressetext aus den Deal-Daten. Nutzt Azure OpenAI wenn konfiguriert,
+    sonst template-basiert."""
+    aoai_endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT", "")
+    aoai_key = os.environ.get("AZURE_OPENAI_KEY", "")
+    aoai_deployment = os.environ.get("AZURE_OPENAI_DEPLOYMENT", "gpt-4o-mini")
+    if aoai_endpoint and aoai_key:
+        try:
+            import urllib.request
+            prompt = f"""Agiere wie ein erfahrener Presseredakteur fuer eine IT-Fachzeitschrift.
+
+Erstelle eine Pressemeldung (max. 450 Woerter) zu folgendem Unternehmenskauf, den die mibeca GmbH (Mike Bergmann Akademie) begleitet hat:
+
+- Begleitete Seite: {data.get('seite','Verkaeuferseite')}
+- Kaeufer-Firma: {data.get('kaeuferFirma','')}, Sitz: {data.get('kaeuferOrt','')}
+- Verkaeufer-Firma: {data.get('verkaeuferFirma','')}, Sitz: {data.get('verkaeuferOrt','')}
+- Branche/Schwerpunkt: {data.get('schwerpunkt','IT-Systemhaus')}
+- Besonderheiten der Transaktion: {data.get('besonderheiten','')}
+- Synergien nach Transaktion: {data.get('synergien','')}
+
+Format:
+- Knackige Headline + Sub-Headline
+- 3-4 inhaltliche Absaetze
+- Drei Zitate: Jennifer Kaplan (mibeca), Mike Bergmann (mibeca), Verkaeufer/Kaeufer (je nach Begleitung)
+- Neutrale, professionelle Sprache
+- Hebt die Kompetenz von mibeca im M&A-Bereich subtil hervor
+
+Schreibe direkt den fertigen Pressetext, ohne weitere Erklaerung."""
+            body = json.dumps({"messages": [{"role":"user","content": prompt}], "max_tokens": 1200, "temperature": 0.7}).encode()
+            url = f"{aoai_endpoint.rstrip('/')}/openai/deployments/{aoai_deployment}/chat/completions?api-version=2024-02-15-preview"
+            req = urllib.request.Request(url, data=body, headers={"Content-Type":"application/json","api-key":aoai_key}, method="POST")
+            with urllib.request.urlopen(req, timeout=60) as r:
+                rj = json.loads(r.read().decode())
+                return rj["choices"][0]["message"]["content"]
+        except Exception as ex:
+            logging.error(f"AI-Gen Fehler, fallback Template: {ex}")
+
+    # Template-Fallback
+    kf = data.get("kaeuferFirma", "[Käufer]")
+    vf = data.get("verkaeuferFirma", "[Verkäufer]")
+    ko = data.get("kaeuferOrt", "")
+    vo = data.get("verkaeuferOrt", "")
+    schw = data.get("schwerpunkt", "IT-Systemhaus")
+    bes = data.get("besonderheiten", "")
+    syn = data.get("synergien", "")
+    return f"""IT-Systemhaus-Transaktion: {kf} uebernimmt {vf}
+
+In der IT-Branche wurde eine bedeutsame Transaktion abgeschlossen: Die {kf} aus {ko} hat das {schw} {vf} aus {vo} uebernommen. Die mibeca GmbH (Mike Bergmann Akademie) hat den Prozess als M&A-Berater begleitet.
+
+{bes}
+
+"Diese Transaktion zeigt, wie wichtig eine strukturierte Begleitung im M&A-Prozess fuer IT-Unternehmen ist", erklaert Jennifer Kaplan, Transaktionsberaterin der mibeca GmbH. "Beide Seiten konnten wir ueber den gesamten Prozess hinweg sicher zum Abschluss fuehren."
+
+Strategischer Hintergrund und Synergien: {syn}
+
+"Im IT-Markt sehen wir gerade enorme Konsolidierung – und {kf} positioniert sich damit aktiv fuer weiteres Wachstum", ergaenzt Mike Bergmann, Gruender der Mike Bergmann Akademie. "Die Verbindung von gewachsener Mittelstands-Erfahrung und der strategischen Synergiepotenzialen ist genau der Treiber, den der IT-Markt braucht."
+
+Ueber die mibeca GmbH:
+Die mibeca GmbH ist als Mike Bergmann Akademie spezialisiert auf M&A-Beratung fuer IT-Unternehmen im deutschsprachigen Raum. Sie begleitet Verkaeufer wie Kaeufer professionell durch den gesamten Transaktionsprozess.
+"""
+
+
+@app.route(route="pr-erstellen", methods=["POST", "OPTIONS"])
+def pr_erstellen(req: func.HttpRequest) -> func.HttpResponse:
+    """Erzeugt eine Pressemitteilung. Body: { targetId, deal-Daten... }"""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    text = _generate_press_text(body)
+    return ok_({"text": text})
+
+
+@app.route(route="pr-versand", methods=["POST", "OPTIONS"])
+def pr_versand(req: func.HttpRequest) -> func.HttpResponse:
+    """Verschickt die Pressemitteilung an ausgewaehlte Pressekontakte.
+    Body: { targetId, betreff, text, empfaengerEmails: [], anrede? }"""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    target_id = body.get("targetId", "")
+    text = body.get("text", "")
+    betreff = body.get("betreff", "Pressemitteilung – Unternehmensverkauf")
+    empfaenger = body.get("empfaengerEmails", [])
+    if not (text and empfaenger):
+        return err_("Text und mindestens ein Empfaenger erforderlich", 400)
+    if not ACS_CONN:
+        return err_("E-Mail-Service nicht konfiguriert", 500)
+    try:
+        from azure.communication.email import EmailClient
+        client = EmailClient.from_connection_string(ACS_CONN)
+        html_text = "<p>" + text.replace("\n\n", "</p><p>").replace("\n", "<br/>") + "</p>"
+        gesendet = []
+        for rcpt in empfaenger:
+            try:
+                client.begin_send({
+                    "senderAddress": ACS_SENDER,
+                    "recipients": {"to": [{"address": rcpt}]},
+                    "content": {"subject": betreff, "plainText": text, "html": f"<html><body style='font-family:Arial,sans-serif;line-height:1.6'>{html_text}<p style='font-size:11px;color:#888;margin-top:24px;border-top:1px solid #ddd;padding-top:12px'>Diese Mitteilung wurde versendet von der mibeca GmbH (Mike Bergmann Akademie).</p></body></html>"},
+                })
+                gesendet.append(rcpt)
+            except Exception as ex:
+                logging.error(f"PR-Versand an {rcpt} fehlgeschlagen: {ex}")
+    except Exception as ex:
+        return err_(f"Mailversand fehlgeschlagen: {ex}", 500)
+
+    # Status im Target persistieren + Verlauf-Eintrag
+    if target_id:
+        try:
+            targets = table_("targets")
+            t = targets.get_entity("target", target_id)
+            presse = {}
+            try: presse = json.loads(t.get("presseJson", "{}") or "{}")
+            except: presse = {}
+            presse["versendetAm"] = datetime.utcnow().isoformat()
+            presse["versendetVon"] = p.get("name", "")
+            presse["empfaenger"] = gesendet
+            presse["text"] = text
+            t["presseJson"] = json.dumps(presse, ensure_ascii=False)
+            targets.update_entity(dict(t))
+
+            _verlauf_append(target_id, {
+                "id": "k" + str(int(datetime.utcnow().timestamp() * 1000)),
+                "typ": "wichtig",
+                "datum": datetime.utcnow().isoformat(),
+                "autor": p.get("name", ""),
+                "betreff": f"Pressemitteilung versendet an {len(gesendet)} Fachmedien",
+                "beschreibung": f"Pressemitteilung zum Unternehmensverkauf wurde verschickt. Empfaenger: {', '.join(gesendet)}",
+                "beteiligte": ", ".join(gesendet),
+            })
+        except Exception as ex:
+            logging.error(f"PR-Status persistieren fehlgeschlagen: {ex}")
+
+    return ok_({"ok": True, "gesendet": gesendet, "count": len(gesendet)})
+
+
+@app.route(route="presse-kontakte", methods=["GET", "OPTIONS"])
+def presse_kontakte(req: func.HttpRequest) -> func.HttpResponse:
+    """Liefert die Default-Presseliste + Custom-Eintraege aus presse-kontakte-Tabelle."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    items = list(PRESSE_KONTAKTE_DEFAULT)
+    try:
+        tc = table_("pressekontakte")
+        for it in tc.list_entities():
+            items.append(dict(it))
+    except Exception:
+        pass
+    return ok_(items)
