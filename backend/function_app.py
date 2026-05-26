@@ -3901,6 +3901,9 @@ def dokument_list(req: func.HttpRequest) -> func.HttpResponse:
         items = [dict(d) for d in table_("dokumente").query_entities(f"PartitionKey eq '{target_id}'")]
     except Exception:
         items = []
+    # NDAs der Interessenten sind nur fuer Admins einsehbar (Datenschutz)
+    if p.get("role") != "admin":
+        items = [d for d in items if d.get("ordner") != "NDA"]
     items.sort(key=lambda x: x.get("uploadedAt", ""), reverse=True)
     return ok_({"items": items})
 

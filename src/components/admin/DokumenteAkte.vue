@@ -118,7 +118,9 @@ const props = defineProps({
   readOnly: { type: Boolean, default: false },
   initialDoc: { type: Object, default: null },  // { ordner, docId } — direkt öffnen
 })
-const ordnerListe = ['Verträge', 'NDA', 'Exposé', 'Bilanzen & Finanzen', 'Vertragsverhandlungen', 'Videoprotokolle', 'Sonstiges']
+const ALLE_ORDNER = ['Verträge', 'NDA', 'Exposé', 'Bilanzen & Finanzen', 'Vertragsverhandlungen', 'Videoprotokolle', 'Sonstiges']
+// Read-only-Verkaeufer-Sicht: NDAs der Interessenten sind nicht einsehbar (Datenschutz)
+const ordnerListe = computed(() => props.readOnly ? ALLE_ORDNER.filter(o => o !== 'NDA') : ALLE_ORDNER)
 const dokumente = ref([])
 const selectedFolder = ref('Verträge')
 const dragOver = ref(false)

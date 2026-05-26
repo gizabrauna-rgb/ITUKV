@@ -305,8 +305,6 @@ function switchTo(view) {
 }
 const statsLoading = ref(true)
 const statsRaw = ref({ aktiveTargets: 0, offeneNdas: 0, investorenGesamt: 0, dealsAbgeschlossen: 0 })
-const detailTarget = ref(null)
-const detailCheckliste = ref([])
 const akteTargetId = ref(null)
 const akteInitialTab = ref('')
 const akteInitialDoc = ref(null)
@@ -357,11 +355,6 @@ const statsData = computed(() => [
   { label: 'Deals abgeschlossen', value: statsRaw.value.dealsAbgeschlossen, icon: Megaphone, color: '#22c55e' },
 ])
 
-const checklistProgress = computed(() => {
-  if (!detailCheckliste.value.length) return 0
-  return Math.round((donCount.value / detailCheckliste.value.length) * 100)
-})
-const donCount = computed(() => detailCheckliste.value.filter(i => i.done).length)
 
 const unreadTotal = ref(0)
 const unreadItems = ref([])

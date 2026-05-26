@@ -211,7 +211,10 @@
                   <span :class="ndaClass(i.ndaStatus)" class="text-xs px-2 py-0.5 rounded-full font-medium">{{ ndaLabel(i.ndaStatus) }}</span>
                   <span v-if="i.veto" class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">VETO</span>
                 </div>
-                <div class="text-xs text-gray-400 mt-0.5">{{ i.plz }} {{ i.ort }}</div>
+                <div class="text-xs text-gray-400 mt-0.5">
+                  {{ i.plz }} {{ i.ort }}
+                  <span v-if="i.ndaUploadedAt"> · NDA seit {{ new Date(i.ndaUploadedAt).toLocaleDateString('de-DE') }}</span>
+                </div>
               </div>
               <!-- Rating -->
               <div class="flex items-center gap-0.5">
@@ -404,6 +407,7 @@ const navItems = computed(() => {
       { tab: 'mandat', label: 'Meine Daten', icon: ClipboardList },
       { tab: 'fragebogen', label: 'Fragebogen', icon: FileEdit },
       { tab: 'bewertung', label: 'Bewertung', icon: TrendingUp },
+      { tab: 'vertraege', label: 'Verträge', icon: FileText },
       { tab: 'expose', label: 'Mein Exposé', icon: FileText },
       { tab: 'interessenten', label: 'Interessenten', icon: Users },
       { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
@@ -455,12 +459,10 @@ async function loadAllData() {
       checkliste.value = JSON.parse(target.value.checklisteJson || '[]')
     } catch {} finally { loadingCheck.value = false }
     try { interessenten.value = await getInteressenten(targetId) } catch {} finally { loadingInt.value = false }
-    try { dokumente.value = await getDokumente(targetId) } catch {}
+    // Dokumente bei Bedarf separat ueber DokumenteAkte (nicht hier)
   } else if (props.impersonating && props.projekttyp) {
-    // Admin testet eine Ansicht – zeige Beispiel-Checkliste je Projekttyp
-    try {
-      checkliste.value = await authFetch(`/checkliste-vorlage/${encodeURIComponent(props.projekttyp)}`)
-    } catch {}
+    // Admin testet eine Ansicht – leere Liste, in echter Sitzung kommt sie aus dem Target
+    checkliste.value = []
     loadingCheck.value = false; loadingInt.value = false
   } else {
     loadingCheck.value = false; loadingInt.value = false
@@ -507,24 +509,33 @@ import { onBeforeUnmount } from 'vue'
 onBeforeUnmount(() => { if (unreadTimer) clearInterval(unreadTimer) })
 watch(() => props.projekttyp, loadAllData)
 
+async function persistLinks() {
+  if (!targetId) return
+  const custom = links.value.filter(l => !l.system)
+  await authFetch('/target-update', { method: 'POST', data: { id: targetId, linksJson: JSON.stringify(custom) } })
+}
+
 async function createLink() {
   if (!linkForm.value.titel || !linkForm.value.url) return
-  const tid = targetId || 'demo'
-  const created = await authFetch(`/targets/${tid}/links`, { method: 'POST', data: linkForm.value })
-  links.value.push(created)
+  const newLink = { id: 'l-' + Date.now(), ...linkForm.value, targetId }
+  links.value.push(newLink)
   showLinkModal.value = false
   linkForm.value = { titel: '', url: '', beschreibung: '', kategorie: 'Allgemein' }
+  await persistLinks()
 }
 
 async function deleteLink(l) {
   if (!confirm('Link löschen?')) return
-  await authFetch(`/targets/${l.targetId}/links/${l.RowKey}`, { method: 'DELETE' })
-  links.value = links.value.filter(x => x.RowKey !== l.RowKey)
+  links.value = links.value.filter(x => (x.id || x.RowKey) !== (l.id || l.RowKey))
+  await persistLinks()
 }
 
 async function toggleItem(item) {
   item.done = !item.done
-  await authFetch(`/targets/${targetId}/checkliste`, { method: 'PATCH', data: { id: item.id, done: item.done } })
+  if (!targetId) return
+  try {
+    await authFetch('/target-update', { method: 'POST', data: { id: targetId, checklisteJson: JSON.stringify(checkliste.value) } })
+  } catch (e) { console.error(e) }
 }
 
 async function setRating(i, n) {
