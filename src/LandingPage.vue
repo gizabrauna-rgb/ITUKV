@@ -23,7 +23,7 @@
 
       <template v-else>
         <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2 leading-tight">
-          {{ data.headline }} <span class="text-gray-400 font-normal">|</span> Projektnummer <span class="font-mono">{{ mbNr.toLowerCase() }}</span>
+          {{ data.headline }}&nbsp;<span class="text-gray-400 font-normal mx-1">|</span>&nbsp;Projektnummer&nbsp;<span class="font-mono">{{ mbNr.toLowerCase() }}</span>
         </h1>
         <p class="text-lg text-gray-600 mb-8">{{ data.subheadline }}</p>
 

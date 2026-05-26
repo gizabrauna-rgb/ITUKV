@@ -159,6 +159,11 @@
         <LandingEditor :target-id="targetId" />
       </div>
 
+      <!-- LOI · Finale Verhandlung -->
+      <div v-else-if="tab === 'loi'">
+        <LoiVerhandlung :target-id="targetId" />
+      </div>
+
       <!-- Verträge (Mandatsvertrag + NDA) -->
       <div v-else-if="tab === 'nda'">
         <!-- Sub-Tabs -->
@@ -198,7 +203,7 @@ import {
   ArrowLeft, MapPin, Tag, Users, Euro, Hash, Mail,
   Sparkles, Circle, Folder, FileText, MessageSquare,
   LayoutDashboard, Workflow, ClipboardList, FileEdit, ShieldCheck, Clock, TrendingUp, Trophy, BookOpen,
-  CalendarClock, X, Globe
+  CalendarClock, X, Globe, Handshake
 } from '@lucide/vue'
 import { authFetch } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
@@ -241,6 +246,7 @@ const tabs = computed(() => {
       { tab: 'suchprofil', label: 'Suchprofil', icon: FileEdit },
       { tab: 'mandat', label: 'Mandat-Daten', icon: ClipboardList },
       { tab: 'nda', label: 'Verträge', icon: ShieldCheck },
+      { tab: 'loi', label: 'LOI-Verhandlung', icon: Handshake },
       { tab: 'longlist', label: 'Kandidaten-Match', icon: Users },
       { tab: 'dokumente', label: 'Dokumente', icon: Folder },
       { tab: 'zwischenstand', label: 'Zwischenstand', icon: FileEdit },
@@ -259,6 +265,7 @@ const tabs = computed(() => {
     { tab: 'expose', label: 'Exposé', icon: FileText },
     { tab: 'landing', label: 'Landing-Page', icon: Globe },
     { tab: 'nda', label: 'Verträge', icon: ShieldCheck },
+    { tab: 'loi', label: 'LOI-Verhandlung', icon: Handshake },
     { tab: 'interessenten', label: 'Interessenten', icon: Users },
     { tab: 'dokumente', label: 'Dokumente', icon: Folder },
     { tab: 'zwischenstand', label: 'Zwischenstand', icon: FileEdit },

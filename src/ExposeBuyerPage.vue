@@ -15,7 +15,7 @@
 
       <template v-else>
         <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-8 leading-tight">
-          <template v-if="data.headline">{{ data.headline }} <span class="text-gray-400 font-normal">|</span> </template>Projektnummer <span class="font-mono">{{ data.mbNr.toLowerCase() }}</span>
+          <template v-if="data.headline">{{ data.headline }}&nbsp;<span class="text-gray-400 font-normal mx-1">|</span>&nbsp;</template>Projektnummer&nbsp;<span class="font-mono">{{ data.mbNr.toLowerCase() }}</span>
         </h1>
 
         <p class="text-lg text-gray-800 mb-6">Hallo {{ data.name || data.firma }},</p>
