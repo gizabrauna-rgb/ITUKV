@@ -1830,9 +1830,9 @@ def sign_submit(req: func.HttpRequest) -> func.HttpResponse:
         doc_id = "vertrag-" + sig["RowKey"]
         table_("dokumente").upsert_entity({
             "PartitionKey": target_id, "RowKey": doc_id,
-            "name": f"Mandatsvertrag_{variante}_kunden-signiert.pdf",
-            "ordner": "Verträge", "blob": doc_blob_name, "container": "datenraum",
-            "groesse": len(signed_bytes), "mimeType": "application/pdf",
+            "fileName": f"Mandatsvertrag_{variante}_kunden-signiert.pdf",
+            "ordner": "Verträge", "blobName": doc_blob_name, "container": "datenraum",
+            "size": len(signed_bytes), "contentType": "application/pdf",
             "uploadedAt": signed_at,
             "uploadedBy": sig.get("lead_email", ""),
             "quelle": "Kunden-Signatur (wartet auf Gegenzeichnung)",
@@ -1987,9 +1987,9 @@ def vertrag_countersign(req: func.HttpRequest) -> func.HttpResponse:
         doc_id = "vertrag-" + sig["RowKey"]
         table_("dokumente").upsert_entity({
             "PartitionKey": target_id, "RowKey": doc_id,
-            "name": f"Mandatsvertrag_{variante}_unterzeichnet.pdf",
-            "ordner": "Verträge", "blob": doc_blob_name, "container": "datenraum",
-            "groesse": len(final_bytes), "mimeType": "application/pdf",
+            "fileName": f"Mandatsvertrag_{variante}_unterzeichnet.pdf",
+            "ordner": "Verträge", "blobName": doc_blob_name, "container": "datenraum",
+            "size": len(final_bytes), "contentType": "application/pdf",
             "uploadedAt": signed_at_admin,
             "uploadedBy": p.get("email", ""),
             "quelle": "Mandatsvertrag-Gegenzeichnung",
@@ -3118,9 +3118,9 @@ def nda_upload(req: func.HttpRequest) -> func.HttpResponse:
         doc_id = "nda-" + i["RowKey"]
         table_("dokumente").upsert_entity({
             "PartitionKey": target_id, "RowKey": doc_id,
-            "name": f"NDA_{i.get('firma') or i.get('name','interessent')}_signiert.pdf",
-            "ordner": "NDA", "blob": doc_blob_name, "container": "datenraum",
-            "groesse": len(pdf_bytes), "mimeType": "application/pdf",
+            "fileName": f"NDA_{i.get('firma') or i.get('name','interessent')}_signiert.pdf",
+            "ordner": "NDA", "blobName": doc_blob_name, "container": "datenraum",
+            "size": len(pdf_bytes), "contentType": "application/pdf",
             "uploadedAt": datetime.utcnow().isoformat(),
             "uploadedBy": i.get("email", ""),
             "quelle": "Upload Interessent",
@@ -3519,12 +3519,12 @@ def nda_public_sign(req: func.HttpRequest) -> func.HttpResponse:
         table_("dokumente").upsert_entity({
             "PartitionKey": target_id,
             "RowKey": doc_id,
-            "name": f"NDA_{i.get('firma') or i.get('name','interessent')}_signiert.pdf",
+            "fileName": f"NDA_{i.get('firma') or i.get('name','interessent')}_signiert.pdf",
             "ordner": "NDA",
-            "blob": doc_blob_name,
+            "blobName": doc_blob_name,
             "container": "datenraum",
-            "groesse": len(signed_pdf),
-            "mimeType": "application/pdf",
+            "size": len(signed_pdf),
+            "contentType": "application/pdf",
             "uploadedAt": datetime.utcnow().isoformat(),
             "uploadedBy": i.get("email", ""),
             "quelle": "Online-Signatur Interessent",

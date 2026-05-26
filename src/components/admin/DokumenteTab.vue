@@ -12,7 +12,7 @@
       <div class="space-y-1 overflow-y-auto pr-1 flex-1">
         <button
           v-for="t in filteredTargets" :key="t.RowKey"
-          @click="selectTarget(t)"
+          @click="selectedTarget = t"
           :class="['w-full text-left px-3 py-2 rounded-xl text-sm transition-colors', selectedTarget?.RowKey === t.RowKey ? 'bg-[#0088ba] text-white' : 'hover:bg-gray-100 text-gray-700']"
         >
           <div class="font-mono text-xs opacity-70">{{ t.mbNr }}</div>
@@ -22,154 +22,44 @@
       </div>
     </div>
 
-    <!-- Rechte Spalte: Ordner + Dateien -->
+    <!-- Rechte Spalte: dieselbe DokumenteAkte-Komponente wie in der Projekt-Akte -->
     <div class="flex-1">
       <div v-if="!selectedTarget" class="bg-white rounded-xl border border-gray-100 p-10 text-center text-gray-400 text-sm">
         <FolderOpen class="w-10 h-10 mx-auto mb-3 text-gray-200" />
         Bitte links ein Target auswählen.
       </div>
-
-      <div v-else>
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-bold text-gray-900">{{ selectedTarget.mbNr }} – Dokumente</h2>
-          <span v-if="selectedOrdner" class="text-sm text-[#0088ba] font-medium">{{ selectedOrdner }}</span>
-        </div>
-
-        <!-- Ordner-Grid -->
-        <div v-if="!selectedOrdner" class="grid grid-cols-4 gap-3">
-          <button
-            v-for="ordner in ordnerListe" :key="ordner"
-            @click="openOrdner(ordner)"
-            class="bg-white rounded-xl border border-gray-100 p-4 text-left hover:border-[#0088ba]/40 hover:shadow-sm transition-all"
-          >
-            <Folder class="w-8 h-8 text-[#0088ba] mb-2" />
-            <div class="text-xs font-medium text-gray-700 leading-tight">{{ ordner }}</div>
-            <div class="text-xs text-gray-400 mt-0.5">{{ countInOrdner(ordner) }} Dateien</div>
-          </button>
-        </div>
-
-        <!-- Dateiliste -->
-        <div v-else>
-          <button @click="selectedOrdner = null" class="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4">
-            <ChevronLeft class="w-4 h-4" /> Zurück zu Ordnern
-          </button>
-
-          <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
-            <!-- Upload-Zeile -->
-            <div class="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
-              <span class="text-sm font-medium text-gray-700">{{ selectedOrdner }}</span>
-              <label class="flex items-center gap-2 px-3 py-1.5 bg-[#0088ba] text-white rounded-lg text-xs cursor-pointer hover:bg-[#00a0d8]">
-                <Upload class="w-3.5 h-3.5" />
-                Datei hochladen
-                <input type="file" class="hidden" @change="uploadFile" :disabled="uploading" />
-              </label>
-            </div>
-
-            <div v-if="!filteredDokumente.length" class="p-6 text-center text-gray-400 text-sm">
-              Noch keine Dateien in diesem Ordner.
-            </div>
-
-            <div v-for="dok in filteredDokumente" :key="dok.RowKey" class="flex items-center justify-between px-4 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50">
-              <div class="flex items-center gap-3">
-                <FileText class="w-4 h-4 text-gray-400" />
-                <div>
-                  <div class="text-sm font-medium text-gray-700">{{ dok.dateiname }}</div>
-                  <div class="text-xs text-gray-400">{{ dok.hochgeladenVon }} · {{ formatDate(dok.hochgeladenAm) }}</div>
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <button @click="downloadFile(dok)" class="flex items-center gap-1 text-xs text-[#0088ba] hover:text-[#00a0d8]">
-                  <Download class="w-3.5 h-3.5" /> Herunterladen
-                </button>
-                <button @click="deleteFile(dok)" class="text-xs text-red-400 hover:text-red-600">
-                  <Trash2 class="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DokumenteAkte v-else :key="selectedTarget.RowKey" :target-id="selectedTarget.RowKey" />
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { FolderOpen, Folder, ChevronLeft, Upload, FileText, Download, Trash2, Search } from '@lucide/vue'
-import { getTargets, getDokumente, uploadDokument } from '../../api.js'
-import { toast } from '../../composables/useToast.js'
-import { authFetch } from '../../api.js'
+import { FolderOpen, Search } from '@lucide/vue'
+import { getTargets } from '../../api.js'
+import DokumenteAkte from './DokumenteAkte.vue'
 
 const targets = ref([])
 const search = ref('')
+const selectedTarget = ref(null)
+
 const filteredTargets = computed(() => {
-  const q = search.value.trim().toLowerCase()
-  if (!q) return targets.value
+  if (!search.value) return targets.value
+  const q = search.value.toLowerCase()
   return targets.value.filter(t =>
     (t.mbNr || '').toLowerCase().includes(q) ||
     (t.verkaueferName || '').toLowerCase().includes(q) ||
-    (t.firma || '').toLowerCase().includes(q) ||
-    (t.region || '').toLowerCase().includes(q)
+    (t.firma || '').toLowerCase().includes(q)
   )
 })
-const selectedTarget = ref(null)
-const selectedOrdner = ref(null)
-const dokumente = ref([])
-const uploading = ref(false)
 
-const ordnerListe = ['Verträge', 'NDA', 'Exposé', 'Bilanzen & Finanzen', 'Vertragsverhandlungen', 'Videoprotokolle', 'Sonstiges']
-
-onMounted(async () => { targets.value = await getTargets() })
-
-async function selectTarget(t) {
-  selectedTarget.value = t
-  selectedOrdner.value = null
-  dokumente.value = await getDokumente(t.RowKey)
-}
-
-async function openOrdner(ordner) {
-  selectedOrdner.value = ordner
-}
-
-const filteredDokumente = computed(() =>
-  dokumente.value.filter(d => d.ordner === selectedOrdner.value)
-)
-
-function countInOrdner(ordner) {
-  return dokumente.value.filter(d => d.ordner === ordner).length
-}
-
-async function uploadFile(e) {
-  const file = e.target.files[0]
-  if (!file || !selectedTarget.value) return
-  uploading.value = true
+onMounted(async () => {
   try {
-    const formData = new FormData()
-    formData.append('file', file)
-    const result = await authFetch(
-      `/targets/${selectedTarget.value.RowKey}/dokumente/upload?ordner=${encodeURIComponent(selectedOrdner.value)}&dateiname=${encodeURIComponent(file.name)}`,
-      { method: 'POST', data: file, headers: { 'Content-Type': file.type } }
-    )
-    dokumente.value.push(result)
-  } catch { toast.error('Upload fehlgeschlagen') }
-  finally { uploading.value = false; e.target.value = '' }
-}
-
-async function downloadFile(dok) {
-  try {
-    const result = await authFetch(`/targets/${selectedTarget.value.RowKey}/dokumente/${dok.RowKey}/download`)
-    window.open(result.url, '_blank')
-  } catch { toast.error('Download fehlgeschlagen') }
-}
-
-async function deleteFile(dok) {
-  if (!confirm(`"${dok.dateiname}" löschen?`)) return
-  await authFetch(`/targets/${selectedTarget.value.RowKey}/dokumente/${dok.RowKey}`, { method: 'DELETE' })
-  dokumente.value = dokumente.value.filter(d => d.RowKey !== dok.RowKey)
-}
-
-function formatDate(iso) {
-  if (!iso) return ''
-  return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
+    targets.value = (await getTargets()).sort((a, b) => {
+      const na = parseInt((a.mbNr || '').replace(/[^\d]/g, ''), 10) || 0
+      const nb = parseInt((b.mbNr || '').replace(/[^\d]/g, ''), 10) || 0
+      return na - nb
+    })
+  } catch {}
+})
 </script>

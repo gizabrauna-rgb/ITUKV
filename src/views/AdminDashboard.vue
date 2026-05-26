@@ -323,6 +323,12 @@ function openNdaInAkte(v) {
   akteInitialTab.value = 'dokumente'
   akteInitialDoc.value = { ordner: 'NDA', docId: v.ndaDocId }
   tab.value = 'targets'
+  // NDA als geprüft markieren, damit es aus "Wartet auf mich" verschwindet
+  if (v.interessentId) {
+    authFetch('/interessent-update', { method: 'POST', data: { id: v.interessentId, ndaReviewed: true } }).catch(() => {})
+  }
+  // Übersicht neu laden damit der Eintrag verschwindet
+  setTimeout(loadUeberblick, 1000)
 }
 
 const navItems = [
