@@ -20,16 +20,22 @@
 
         <p class="text-lg text-gray-800 mb-6">Hallo {{ data.name || data.firma }},</p>
 
-        <!-- Exposé-Download (immer sichtbar) -->
+        <!-- Exposé-Vorschau (immer sichtbar) -->
         <section class="bg-white rounded-2xl border border-gray-100 p-7 mb-5">
           <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
             <FileText class="w-5 h-5 text-[#0088ba]" /> Anonymisiertes Exposé
           </h2>
-          <p class="text-sm text-gray-600 mb-4">Lade hier das anonymisierte Kurz-Exposé zum Unternehmen herunter.</p>
-          <a :href="exposeDownloadUrl" target="_blank"
-            class="flex items-center justify-center gap-2 px-4 py-3 bg-[#0088ba] text-white rounded-xl text-sm font-semibold hover:bg-[#00a0d8]">
-            <Download class="w-5 h-5" /> Exposé jetzt herunterladen
-          </a>
+          <p class="text-sm text-gray-600 mb-4">Direkt hier ansehen oder als PDF herunterladen.</p>
+          <div class="flex gap-3">
+            <button @click="openPreview('expose')"
+              class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#0088ba] text-white rounded-xl text-sm font-semibold hover:bg-[#00a0d8]">
+              <Eye class="w-5 h-5" /> Exposé jetzt ansehen
+            </button>
+            <a :href="exposeDownloadUrl" target="_blank"
+              class="flex items-center justify-center gap-2 px-4 py-3 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">
+              <Download class="w-5 h-5" /> Download
+            </a>
+          </div>
         </section>
 
         <!-- =========== ZUSTAND: VOR NDA =========== -->
@@ -84,14 +90,18 @@
             </h2>
             <p class="text-sm text-gray-600 mb-5">Wähle den Weg, der für Dich am bequemsten ist:</p>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
               <button @click="showSignModal = true"
-                class="flex items-center justify-center gap-2 px-4 py-4 bg-[#FF6F00] text-white rounded-xl text-sm font-semibold hover:bg-[#e56500]">
+                class="md:col-span-3 flex items-center justify-center gap-2 px-4 py-4 bg-[#FF6F00] text-white rounded-xl text-sm font-semibold hover:bg-[#e56500]">
                 <PenTool class="w-5 h-5" /> Jetzt online unterschreiben
               </button>
+              <button @click="openPreview('nda')"
+                class="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-200 text-gray-800 rounded-xl text-sm font-medium hover:bg-gray-50">
+                <Eye class="w-4 h-4" /> NDA ansehen
+              </button>
               <a :href="ndaDownloadUrl" target="_blank"
-                class="flex items-center justify-center gap-2 px-4 py-4 bg-white border border-gray-200 text-gray-800 rounded-xl text-sm font-medium hover:bg-gray-50">
-                <Download class="w-5 h-5" /> NDA als PDF herunterladen
+                class="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-200 text-gray-800 rounded-xl text-sm font-medium hover:bg-gray-50">
+                <Download class="w-4 h-4" /> NDA-Download
               </a>
             </div>
 
@@ -191,6 +201,26 @@
       <div class="text-center text-[11px] text-gray-400 pb-4">© {{ new Date().getFullYear() }} mibeca GmbH · Schillerstr. 1 · 29525 Uelzen · Gerichtsstand Uelzen</div>
     </footer>
 
+    <!-- ============ PDF-PREVIEW-MODAL ============ -->
+    <div v-if="previewUrl" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" @click.self="closePreview">
+      <div class="bg-white rounded-2xl w-full max-w-5xl h-[92vh] flex flex-col overflow-hidden shadow-2xl">
+        <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+          <h3 class="font-bold text-gray-900 flex items-center gap-2">
+            <FileText class="w-5 h-5 text-[#0088ba]" />
+            {{ previewKind === 'nda' ? 'NDA-Vorschau' : 'Exposé-Vorschau' }}
+          </h3>
+          <div class="flex items-center gap-2">
+            <a :href="previewUrl" :download="previewKind === 'nda' ? 'NDA_' + (data?.mbNr || '') + '.pdf' : 'Expose_' + (data?.mbNr || '') + '.pdf'"
+              class="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">
+              <Download class="w-3.5 h-3.5" /> Herunterladen
+            </a>
+            <button @click="closePreview" class="p-1.5 hover:bg-gray-100 rounded-lg"><X class="w-5 h-5 text-gray-500" /></button>
+          </div>
+        </div>
+        <iframe :src="previewUrl" class="flex-1 w-full" frameborder="0"></iframe>
+      </div>
+    </div>
+
     <!-- ============ SIGN-MODAL ============ -->
     <div v-if="showSignModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[95vh] flex flex-col overflow-hidden">
@@ -241,7 +271,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { FileText, Download, Upload, CheckCircle2, Calendar, Copy, PenTool, X } from '@lucide/vue'
+import { FileText, Download, Upload, CheckCircle2, Calendar, Copy, PenTool, X, Eye } from '@lucide/vue'
 
 const token = (() => {
   const m = window.location.pathname.match(/^\/expose-[^\/]+\/([^\/?#]+)/i)
@@ -289,6 +319,15 @@ function copyMbNr() {
   copied.value = true
   setTimeout(() => copied.value = false, 1500)
 }
+
+// PDF-Preview-Modal (Inline-iframe)
+const previewUrl = ref(null)
+const previewKind = ref('')
+function openPreview(kind) {
+  previewKind.value = kind
+  previewUrl.value = kind === 'nda' ? ndaDownloadUrl.value : exposeDownloadUrl.value
+}
+function closePreview() { previewUrl.value = null }
 
 // ========== Canvas-Signatur ==========
 let ctx = null

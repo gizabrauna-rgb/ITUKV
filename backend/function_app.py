@@ -3510,6 +3510,80 @@ def _render_expose_pdf_bytes(data):
     return HTML(string=html, base_url="/").write_pdf()
 
 
+_LOI_HTML_TEMPLATE = """<!DOCTYPE html><html lang="de"><head><meta charset="utf-8">
+<style>
+  @page { size: A4 landscape; margin: 18mm 14mm; }
+  html, body { font-family: "Helvetica", Arial, sans-serif; font-size: 9.5pt; color: #1f2937; }
+  h1 { font-size: 18pt; color: #0088ba; margin: 0 0 4pt 0; }
+  .meta { color: #6b7280; font-size: 10pt; margin: 0 0 16pt 0; border-bottom: 1pt solid #e5e7eb; padding-bottom: 8pt; }
+  .meta strong { color: #1f2937; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #f3f4f6; color: #0088ba; font-weight: 700; padding: 6pt 5pt; font-size: 9pt; text-align: left; border: 1pt solid #d1d5db; }
+  th.einigung { background: #e0f2fb; }
+  td { padding: 6pt 5pt; border: 1pt solid #e5e7eb; vertical-align: top; }
+  td.einigung { background: #f0f9ff; font-weight: 600; }
+  td.final-yes { background: #dcfce7; color: #166534; font-weight: 700; text-align: center; }
+  td.final-no { background: #fef3c7; color: #92400e; text-align: center; font-size: 8pt; }
+  .footer-stats { margin-top: 14pt; font-size: 9pt; color: #6b7280; text-align: right; }
+</style></head><body>
+<h1>LOI · Finale Verhandlung</h1>
+<p class="meta">
+  Projekt: <strong>{{ mbNr }}</strong>  ·  Datum: <strong>{{ datum }}</strong><br/>
+  Käufer: <strong>{{ kaeufer or '—' }}</strong>  ·  Verkäufer: <strong>{{ verkaeufer or '—' }}</strong>
+</p>
+<table>
+<thead><tr>
+  <th style="width:18%">LOI-Punkt</th>
+  <th style="width:15%">Angebot Verkäufer</th>
+  <th style="width:15%">Angebot Käufer</th>
+  <th class="einigung" style="width:18%">Einigung</th>
+  <th style="width:24%">Erläuterung</th>
+  <th style="width:10%">Status</th>
+</tr></thead>
+<tbody>
+{% for p in punkte %}
+<tr>
+  <td><strong>{{ p.punkt }}</strong></td>
+  <td>{{ p.angebotVerkaeufer or '' }}</td>
+  <td>{{ p.angebotKaeufer or '' }}</td>
+  <td class="einigung">{{ p.einigung or '' }}</td>
+  <td>{{ p.erlaeuterung or '' }}</td>
+  {% if p.final %}<td class="final-yes">final</td>{% else %}<td class="final-no">offen</td>{% endif %}
+</tr>
+{% endfor %}
+</tbody>
+</table>
+<div class="footer-stats">
+  {{ punkte|length }} Punkte gesamt · {{ punkte|selectattr('final')|list|length }} final verhandelt · {{ punkte|rejectattr('final')|list|length }} noch offen
+</div>
+</body></html>"""
+
+
+@app.route(route="loi-pdf", methods=["POST", "OPTIONS"])
+def loi_pdf(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    try:
+        from jinja2 import Template
+        from weasyprint import HTML
+        html = Template(_LOI_HTML_TEMPLATE).render(
+            mbNr=body.get("mbNr", ""),
+            datum=body.get("datum", ""),
+            kaeufer=body.get("kaeufer", ""),
+            verkaeufer=body.get("verkaeufer", ""),
+            punkte=body.get("punkte", []),
+        )
+        pdf_bytes = HTML(string=html, base_url="/").write_pdf()
+    except Exception as ex:
+        return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
+    return func.HttpResponse(pdf_bytes, status_code=200, mimetype="application/pdf",
+                             headers={**CORS, "Content-Disposition": f'attachment; filename="LOI_{body.get("mbNr","")}.pdf"'})
+
+
 @app.route(route="expose-pdf", methods=["POST", "OPTIONS"])
 def expose_pdf(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
