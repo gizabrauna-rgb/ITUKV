@@ -67,8 +67,8 @@
                 <button @click="openEdit(u)" class="p-1.5 hover:bg-gray-100 rounded text-gray-500" title="Bearbeiten">
                   <Pencil class="w-3.5 h-3.5" />
                 </button>
-                <button @click="resetPwd(u)" class="p-1.5 hover:bg-gray-100 rounded text-gray-500" title="Passwort zurücksetzen">
-                  <KeyRound class="w-3.5 h-3.5" />
+                <button @click="resetPwd(u)" class="p-1.5 hover:bg-gray-100 rounded text-gray-500" title="Zugangsdaten neu senden (neues Passwort + Mail an Benutzer)">
+                  <Send class="w-3.5 h-3.5" />
                 </button>
                 <button @click="deleteIt(u)" class="p-1.5 hover:bg-red-50 rounded text-red-500" title="Löschen">
                   <Trash2 class="w-3.5 h-3.5" />
@@ -127,23 +127,28 @@
       </div>
     </div>
 
-    <!-- Reset-Passwort Modal -->
+    <!-- Reset-Passwort / Zugangsdaten neu senden Modal -->
     <div v-if="resetUser" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4" @click.self="resetUser = null">
       <div class="bg-white rounded-2xl p-6 w-full max-w-md">
-        <h3 class="font-bold text-gray-900 mb-1">Passwort zurücksetzen</h3>
+        <h3 class="font-bold text-gray-900 mb-1 flex items-center gap-2">
+          <Send class="w-5 h-5 text-[#097e92]" /> Zugangsdaten neu senden
+        </h3>
         <p class="text-xs text-gray-500 mb-4">Für: <strong>{{ resetUser.email }}</strong></p>
+        <p class="text-xs text-gray-600 mb-4 leading-relaxed">
+          Der Benutzer erhält per E-Mail ein neues Passwort und einen Login-Link. Das alte Passwort wird ungültig.
+        </p>
         <div class="space-y-2">
           <label class="flex items-start gap-2 p-3 border-2 rounded-xl cursor-pointer hover:bg-gray-50" :class="resetMode === 'random' ? 'border-[#097e92] bg-[#097e92]/5' : 'border-gray-200'">
             <input type="radio" v-model="resetMode" value="random" class="mt-1" />
             <div>
-              <div class="text-sm font-medium text-gray-800">🎲 Zufalls-Passwort generieren</div>
-              <div class="text-xs text-gray-500">Wird automatisch per E-Mail an den Nutzer geschickt.</div>
+              <div class="text-sm font-medium text-gray-800">Zufalls-Passwort generieren (empfohlen)</div>
+              <div class="text-xs text-gray-500">Wird automatisch per E-Mail an den Benutzer verschickt.</div>
             </div>
           </label>
           <label class="flex items-start gap-2 p-3 border-2 rounded-xl cursor-pointer hover:bg-gray-50" :class="resetMode === 'custom' ? 'border-[#097e92] bg-[#097e92]/5' : 'border-gray-200'">
             <input type="radio" v-model="resetMode" value="custom" class="mt-1" />
             <div class="flex-1">
-              <div class="text-sm font-medium text-gray-800">✏️ Eigenes Passwort setzen</div>
+              <div class="text-sm font-medium text-gray-800">Eigenes Passwort setzen</div>
               <div class="text-xs text-gray-500 mb-2">Z.B. für telefonische Absprache.</div>
               <input v-if="resetMode === 'custom'" v-model="resetCustomPw" type="text" placeholder="Neues Passwort (min. 6 Zeichen)"
                 class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#097e92]/30 font-mono" />
@@ -152,7 +157,7 @@
         </div>
         <div class="flex gap-3 mt-5">
           <button @click="resetUser = null" class="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50">Abbrechen</button>
-          <button @click="doReset" class="flex-1 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium">Passwort setzen + Mail senden</button>
+          <button @click="doReset" class="flex-1 px-4 py-2 bg-[#097e92] text-white rounded-xl text-sm font-medium hover:bg-[#0a9aaf]">Setzen + Mail senden</button>
         </div>
       </div>
     </div>
@@ -161,8 +166,9 @@
     <div v-if="passwordReveal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] px-4">
       <div class="bg-white rounded-2xl p-6 w-full max-w-md">
         <div class="text-center mb-4">
-          <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-            <KeyRound class="w-6 h-6 text-green-600" />
+          <div :class="['w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3', passwordReveal.mailSent ? 'bg-green-100' : 'bg-amber-100']">
+            <CheckCircle v-if="passwordReveal.mailSent" class="w-6 h-6 text-green-600" />
+            <AlertTriangle v-else class="w-6 h-6 text-amber-600" />
           </div>
           <h3 class="font-bold text-gray-900">{{ passwordReveal.title }}</h3>
           <p class="text-sm text-gray-500 mt-1">Bitte gib es dem Benutzer weiter. Aus Sicherheitsgründen wird es nur einmal angezeigt.</p>
@@ -189,7 +195,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { UserPlus, X, Pencil, Trash2, KeyRound, Copy, Check } from '@lucide/vue'
+import { UserPlus, X, Pencil, Trash2, KeyRound, Copy, Check, Send, CheckCircle, AlertTriangle } from '@lucide/vue'
 import { getUsers, createUser, updateUser, deleteUser, resetUserPassword, getTargets } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 
@@ -334,7 +340,8 @@ async function doReset() {
     const result = await resetUserPassword(u.RowKey, data)
     resetUser.value = null
     passwordReveal.value = {
-      title: result.mailSent ? '✅ Passwort neu gesetzt + Mail verschickt' : '⚠️ Passwort neu gesetzt (Mail-Versand fehlgeschlagen)',
+      title: result.mailSent ? 'Passwort neu gesetzt + Mail verschickt' : 'Passwort neu gesetzt (Mail-Versand fehlgeschlagen)',
+      mailSent: result.mailSent,
       email: result.email,
       password: result.newPassword,
     }
