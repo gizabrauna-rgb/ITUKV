@@ -2859,8 +2859,20 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
     body = req.get_json() or {}
     mb_nr = (body.get("mbNr") or "").strip().lower()
     firma = (body.get("firma") or "").strip()
-    name = (body.get("name") or "").strip()
+    # Name: kombiniert aus vorname+nachname ODER altes "name"-Feld (Abwärtskompat)
+    vorname = (body.get("vorname") or "").strip()
+    nachname = (body.get("nachname") or "").strip()
+    name = (vorname + " " + nachname).strip() or (body.get("name") or "").strip()
     email = (body.get("email") or "").strip()
+    website = (body.get("website") or "").strip()
+    plz_ort = (body.get("plzOrt") or "").strip()
+    # PLZ/Ort splitten falls zusammen eingegeben
+    plz, ort = (body.get("plz", "") or "").strip(), (body.get("ort", "") or "").strip()
+    if plz_ort:
+        import re as _re
+        m = _re.match(r"(\d{4,5})\s+(.+)", plz_ort)
+        if m: plz, ort = m.group(1), m.group(2).strip()
+        else: ort = plz_ort
     if not (mb_nr and email and (firma or name)):
         return err_("mbNr, email und firma oder name erforderlich", 400)
     # Target finden
@@ -2869,23 +2881,87 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
     if not t:
         return err_("Projekt nicht gefunden", 404)
     target_id = t.get("RowKey", "")
+
+    # Lead-Anreicherung versuchen (Impressum-Crawl + AI)
+    enrich = {}
+    try:
+        enrich = enrich_lead_data(website, email)
+    except Exception as ex:
+        logging.warning(f"Anreicherung fehlgeschlagen: {ex}")
+
     # Interessent anlegen
     iid = str(uuid.uuid4())
     token = secrets.token_urlsafe(24)
     entity = {
         "PartitionKey": "interessent", "RowKey": iid,
         "targetId": target_id,
-        "firma": firma, "name": name, "email": email,
-        "telefon": body.get("telefon", ""),
-        "plz": body.get("plz", ""), "ort": body.get("ort", ""),
+        "firma": firma, "name": name, "vorname": vorname, "nachname": nachname,
+        "email": email, "telefon": body.get("telefon", ""), "website": website,
+        "plz": plz, "ort": ort,
         "ndaStatus": "ausstehend",
         "exposeToken": token,  # fuer expose-mb-XXX/:token Zugriff
         "rating": 0, "veto": False, "freigegebenFuerKontakt": False,
         "kommentar": body.get("kommentar", ""),
         "createdAt": datetime.utcnow().isoformat(),
         "herkunft": f"Landing-Page {mb_nr}",
+        # Angereicherte Felder
+        "enrichDomain": enrich.get("_domain", ""),
+        "enrichImpressum": bool(enrich.get("_impressum", False)),
+        "enrichFirmenname": enrich.get("firmenname", "") or "",
+        "enrichGeschaeftsfuehrer": ", ".join(enrich.get("geschaeftsfuehrer", []) or []) if isinstance(enrich.get("geschaeftsfuehrer"), list) else (enrich.get("geschaeftsfuehrer", "") or ""),
+        "enrichStrasse": enrich.get("strasse", "") or "",
+        "enrichPLZ": str(enrich.get("postleitzahl", "") or ""),
+        "enrichOrt": enrich.get("ort", "") or "",
+        "enrichTelefon": enrich.get("telefon", "") or "",
+        "enrichEmailImpressum": enrich.get("email_impressum", "") or "",
+        "enrichUstId": enrich.get("umsatzsteuer_id", "") or "",
     }
     table_("interessenten").create_entity(entity)
+
+    # CRM-Eintrag: als Kauf-Interessent anlegen oder bestehenden anreichern (dedupe per email)
+    try:
+        tc = table_("kontakte")
+        existing = None
+        if email:
+            for k in tc.list_entities():
+                if (k.get("email", "") or "").strip().lower() == email.lower():
+                    existing = dict(k); break
+        # Bevorzugt korrekter Firmenname aus Impressum
+        firma_final = enrich.get("firmenname") or firma
+        ort_final = enrich.get("ort") or ort
+        plz_final = str(enrich.get("postleitzahl") or "") or plz
+        if existing:
+            updates = {**existing, "istInvestor": True, "updatedAt": datetime.utcnow().isoformat()}
+            herk = (existing.get("herkunft", "") or "")
+            new_herk = f"Landing-Page {mb_nr}"
+            updates["herkunft"] = (herk + " · " + new_herk).strip(" ·") if new_herk not in herk else herk
+            for fld, val in [("firma", firma_final), ("name", name), ("telefon", body.get("telefon", "")),
+                             ("website", website), ("plz", plz_final), ("ort", ort_final)]:
+                if val and not existing.get(fld):
+                    updates[fld] = val
+            if body.get("kommentar"):
+                kom = existing.get("kommentar", "")
+                addon = f"[{mb_nr}] {body.get('kommentar')}"
+                updates["kommentar"] = (kom + "\n" + addon).strip() if kom else addon
+            try: tc.update_entity(updates, mode="replace")
+            except Exception as ex: logging.warning(f"CRM-Anreicherung fehlgeschlagen: {ex}")
+        else:
+            tc.create_entity({
+                "PartitionKey": "kontakt", "RowKey": str(uuid.uuid4()),
+                "firma": firma_final, "name": name, "email": email,
+                "telefon": body.get("telefon", ""), "website": website,
+                "plz": plz_final, "ort": ort_final,
+                "sucht": f"Zukauf · Profil {mb_nr}", "bietet": "",
+                "kommentar": body.get("kommentar", ""),
+                "istInvestor": True, "istKunde": False, "istExKunde": False, "istTarget": False,
+                "investorTyp": "Strategisch", "typ": "Strategisch",
+                "kundenstatus": "Investor",
+                "herkunft": f"Landing-Page {mb_nr}",
+                "createdAt": datetime.utcnow().isoformat(),
+                "updatedAt": datetime.utcnow().isoformat(),
+            })
+    except Exception as ex:
+        logging.warning(f"CRM-Eintrag fehlgeschlagen: {ex}")
 
     # Verlauf-Eintrag im Target
     _verlauf_append(target_id, {
@@ -3059,6 +3135,124 @@ def nda_upload(req: func.HttpRequest) -> func.HttpResponse:
         except Exception as ex:
             logging.warning(f"NDA-Mail fehlgeschlagen: {ex}") if 'logging' in globals() else None
     return ok_({"ok": True})
+
+
+# =========================================================================
+# LEAD-ANREICHERUNG (Impressum-Crawl + Azure-OpenAI-Extraktion)
+# =========================================================================
+
+_IMPRESSUM_PATHS = ["/impressum", "/impressum.html", "/impressum/", "/legal/impressum",
+                    "/de/impressum", "/kontakt", "/ueber-uns", "/about", "/legal"]
+_PRIVATE_DOMAINS = {"gmail.com", "googlemail.com", "gmx.de", "gmx.net", "gmx.com", "web.de",
+                    "hotmail.com", "hotmail.de", "outlook.com", "outlook.de", "live.com",
+                    "yahoo.com", "yahoo.de", "icloud.com", "t-online.de", "aol.com",
+                    "freenet.de", "mail.de", "posteo.de", "mailbox.org", "arcor.de"}
+
+def _domain_from(website_or_email: str) -> str:
+    if not website_or_email: return ""
+    s = website_or_email.strip()
+    if "@" in s and "/" not in s:
+        return s.split("@", 1)[1].lower()
+    s = s.lower().replace("https://", "").replace("http://", "").split("/")[0]
+    if s.startswith("www."): s = s[4:]
+    return s.split("?")[0].split("#")[0]
+
+def _fetch_impressum(domain: str):
+    """Returns (impressum_text, website_url) or ('','')"""
+    try:
+        import requests
+        from bs4 import BeautifulSoup
+        from urllib.parse import urljoin
+    except Exception:
+        return "", ""
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; mibeca-enricher/1.0)"}
+    for scheme in ("https", "http"):
+        base = f"{scheme}://{domain}"
+        try:
+            resp = requests.get(base, headers=headers, timeout=6, allow_redirects=True)
+            if resp.status_code >= 400: continue
+            final_base = f"https://{resp.url.split('/')[2]}"
+            soup = BeautifulSoup(resp.text, "html.parser")
+            for link in soup.find_all("a", href=True):
+                href_low = link["href"].lower()
+                if "impressum" in href_low or "legal" in href_low:
+                    full = urljoin(final_base + "/", link["href"])
+                    try:
+                        imp = requests.get(full, headers=headers, timeout=6)
+                        if imp.status_code == 200:
+                            text = BeautifulSoup(imp.text, "html.parser").get_text(" ", strip=True)
+                            if len(text) > 100:
+                                return text[:6000], final_base
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+        for path in _IMPRESSUM_PATHS:
+            try:
+                resp = requests.get(f"{base}{path}", headers=headers, timeout=6, allow_redirects=True)
+                if resp.status_code == 200:
+                    text = BeautifulSoup(resp.text, "html.parser").get_text(" ", strip=True)
+                    if len(text) > 100:
+                        final_base = f"https://{resp.url.split('/')[2]}"
+                        return text[:6000], final_base
+            except Exception:
+                continue
+    return "", ""
+
+_ENRICH_PROMPT = """Du analysierst den Text einer deutschen Firmen-Impressum-Seite.
+Extrahiere folgende Felder als JSON. Wenn ein Feld nicht gefunden wird, setze es auf null.
+Gib NUR das JSON zurueck, keinen anderen Text, keine Erklaerungen, kein Markdown.
+
+Felder:
+- firmenname: Vollstaendiger Firmenname inkl. Rechtsform (z.B. "Muster GmbH")
+- geschaeftsfuehrer: Geschaeftsfuehrer als Liste (z.B. ["Max Mustermann"])
+- strasse: Strasse und Hausnummer
+- postleitzahl: PLZ
+- ort: Stadt/Ort
+- land: Land
+- umsatzsteuer_id: USt-ID (z.B. "DE123456789")
+- telefon: Festnetz-Telefonnummer (im internationalen Format wenn moeglich)
+- email_impressum: Kontakt-E-Mail aus dem Impressum
+
+Impressum-Text:
+{text}"""
+
+def _enrich_via_ai(impressum_text: str) -> dict:
+    if not impressum_text or len(impressum_text) < 100:
+        return {}
+    endpoint = os.environ.get("AZURE_AI_ENDPOINT", "")
+    api_key = os.environ.get("AZURE_AI_KEY", "")
+    deployment = os.environ.get("AZURE_AI_DEPLOYMENT", "gpt-4o-mini")
+    if not endpoint or not api_key:
+        return {}
+    try:
+        from openai import AzureOpenAI
+        client = AzureOpenAI(azure_endpoint=endpoint, api_key=api_key, api_version="2024-10-21")
+        resp = client.chat.completions.create(
+            model=deployment, temperature=0, max_tokens=800,
+            messages=[{"role": "user", "content": _ENRICH_PROMPT.format(text=impressum_text)}],
+        )
+        raw = resp.choices[0].message.content.strip()
+        import re as _re
+        m = _re.search(r"\{.*\}", raw, _re.DOTALL)
+        if m: return json.loads(m.group())
+    except Exception as ex:
+        logging.warning(f"AI-Anreicherung fehlgeschlagen: {ex}")
+    return {}
+
+def enrich_lead_data(website: str, email: str) -> dict:
+    """Versucht Domain → Impressum → AI-Extraktion. Liefert dict oder {}."""
+    domain = _domain_from(website) or _domain_from(email)
+    if not domain or domain in _PRIVATE_DOMAINS:
+        return {"_domain": domain, "_skipped": "private oder leer"}
+    text, base = _fetch_impressum(domain)
+    if not text:
+        return {"_domain": domain, "_impressum": False}
+    data = _enrich_via_ai(text) or {}
+    data["_domain"] = domain
+    data["_website"] = base
+    data["_impressum"] = True
+    return data
 
 
 # =========================================================================

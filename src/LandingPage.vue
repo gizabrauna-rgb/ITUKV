@@ -40,20 +40,25 @@
 
         <!-- Formular -->
         <div class="bg-white rounded-2xl border-2 border-[#097e92]/20 p-8">
-          <h2 class="text-xl font-bold text-gray-900 mb-2">Interesse geweckt?</h2>
-          <p class="text-sm text-gray-600 mb-5">Trage dich ein und erhalte sofort Zugriff auf das Exposé sowie die Vertraulichkeitsvereinbarung (NDA).</p>
+          <h2 class="text-xl font-bold text-gray-900 mb-2">Jetzt Formular ausfüllen und Exposé sichern!</h2>
+          <p class="text-sm text-gray-600 mb-5">
+            Deine Daten werden <strong>streng vertraulich</strong> behandelt und ausschließlich gegenüber dem Verkäufer kommuniziert.
+          </p>
           <form @submit.prevent="abschicken" class="space-y-3">
+            <input v-model="form.firma" placeholder="Firma *" required class="input" />
             <div class="grid grid-cols-2 gap-3">
-              <input v-model="form.firma" placeholder="Firma *" required class="input" />
-              <input v-model="form.name" placeholder="Vor- und Nachname *" required class="input" />
-              <input v-model="form.email" type="email" placeholder="E-Mail-Adresse *" required class="input col-span-2" />
-              <input v-model="form.telefon" placeholder="Telefon (optional)" class="input" />
-              <input v-model="form.plz" placeholder="PLZ (optional)" class="input" />
+              <input v-model="form.vorname" placeholder="Vorname *" required class="input" />
+              <input v-model="form.nachname" placeholder="Nachname *" required class="input" />
             </div>
-            <textarea v-model="form.kommentar" rows="3" placeholder="Kurze Vorstellung / Hintergrund deines Interesses (optional)" class="input resize-y"></textarea>
+            <input v-model="form.email" type="email" placeholder="E-Mail *" required class="input" />
+            <input v-model="form.telefon" placeholder="Mobilnummer *" required class="input" />
+            <input v-model="form.website" type="url" placeholder="Website (z.B. https://...) *" required class="input" />
+            <input v-model="form.plzOrt" placeholder="Sitz des Unternehmens (PLZ + Ort) *" required class="input" />
+            <textarea v-model="form.kommentar" rows="3" placeholder="Was möchtest Du uns mitteilen? (optional)" class="input resize-y"></textarea>
+
             <label class="flex items-start gap-2 text-xs text-gray-600">
               <input type="checkbox" v-model="form.dsgvo" required class="mt-0.5" />
-              <span>Ich willige ein, dass meine Daten vertraulich verarbeitet und ausschließlich für diese Anfrage genutzt werden (DSGVO).</span>
+              <span>Ich willige ein, dass meine Daten vertraulich verarbeitet und ausschließlich für diese Anfrage sowie gegenüber dem Verkäufer kommuniziert werden (DSGVO).</span>
             </label>
             <button type="submit" :disabled="sending || !form.dsgvo" class="w-full px-4 py-3 bg-[#097e92] text-white rounded-xl font-semibold hover:bg-[#0a9aaf] disabled:opacity-50">
               {{ sending ? 'Wird gesendet…' : 'Jetzt absenden' }}
@@ -82,7 +87,7 @@ const apiBase = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azureweb
 
 const loading = ref(true)
 const data = ref(null)
-const form = ref({ firma: '', name: '', email: '', telefon: '', plz: '', kommentar: '', dsgvo: false })
+const form = ref({ firma: '', vorname: '', nachname: '', email: '', telefon: '', website: '', plzOrt: '', kommentar: '', dsgvo: false })
 const sending = ref(false)
 const sent = ref(false)
 const errMsg = ref('')
