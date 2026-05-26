@@ -1821,6 +1821,25 @@ def sign_submit(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as ex:
         return err_(f"Signiertes PDF konnte nicht gespeichert werden: {ex}", 500)
 
+    # Auch im Verträge-Ordner des Datenraums ablegen (vorlaeufig: nur Kunden-signiert)
+    try:
+        target_id = sig.get("targetId", "")
+        variante = sig.get("variante", "vertrag")
+        doc_blob_name = f"{target_id}/Verträge/Mandatsvertrag_{variante}_kunden-signiert.pdf"
+        _blob_container_lazy("datenraum").upload_blob(doc_blob_name, signed_bytes, overwrite=True)
+        doc_id = "vertrag-" + sig["RowKey"]
+        table_("dokumente").upsert_entity({
+            "PartitionKey": target_id, "RowKey": doc_id,
+            "name": f"Mandatsvertrag_{variante}_kunden-signiert.pdf",
+            "ordner": "Verträge", "blob": doc_blob_name, "container": "datenraum",
+            "groesse": len(signed_bytes), "mimeType": "application/pdf",
+            "uploadedAt": signed_at,
+            "uploadedBy": sig.get("lead_email", ""),
+            "quelle": "Kunden-Signatur (wartet auf Gegenzeichnung)",
+        })
+    except Exception as ex:
+        logging.warning(f"Vertrag (Kunden-Signatur) als Datenraum-Dokument speichern fehlgeschlagen: {ex}")
+
     tc = table_("vertragsignaturen")
     ent = tc.get_entity("signatur", sig["RowKey"])
     ent["status"] = "awaiting_countersign"
@@ -3969,7 +3988,7 @@ def dokument_move(req: func.HttpRequest) -> func.HttpResponse:
 # DASHBOARD-ÜBERSICHT: Aktivität + "Wartet auf mich"
 # =========================================================================
 
-@app.route(route="dashboard-übersicht", methods=["GET", "OPTIONS"])
+@app.route(route="dashboard-uebersicht", methods=["GET", "OPTIONS"])
 def dashboard_uebersicht(req: func.HttpRequest) -> func.HttpResponse:
     """Liefert Aktivitaets-Feed + 'Wartet auf mich' für Admin-Übersicht."""
     if req.method == "OPTIONS":

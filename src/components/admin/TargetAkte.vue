@@ -138,10 +138,7 @@
 
       <!-- Interessenten -->
       <div v-else-if="tab === 'interessenten'">
-        <div class="bg-white rounded-xl border border-gray-100 p-10 text-center text-gray-400 text-sm">
-          <Users class="w-10 h-10 mx-auto mb-3 text-gray-200" />
-          Interessenten-Übersicht für diesen Target. Backend-Endpoint folgt.
-        </div>
+        <InteressentenTab :target-id="targetId" />
       </div>
 
       <!-- Dokumente -->
@@ -219,6 +216,7 @@ import DokumenteAkte from './DokumenteAkte.vue'
 import VertragEditor from './VertragEditor.vue'
 import LandingEditor from './LandingEditor.vue'
 import LoiVerhandlung from './LoiVerhandlung.vue'
+import InteressentenTab from './InteressentenTab.vue'
 import Zwischenstand from './Zwischenstand.vue'
 import Verlauf from './Verlauf.vue'
 import ExposeGenerator from './ExposeGenerator.vue'
