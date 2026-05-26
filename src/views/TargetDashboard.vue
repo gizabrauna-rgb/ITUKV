@@ -316,48 +316,9 @@
 
       <!-- Tab: Dokumente -->
       <div v-else-if="tab === 'dokumente'">
-        <h2 class="text-xl font-bold text-gray-900 mb-5">Meine Dokumente</h2>
-
-        <div v-if="!selectedOrdner" class="grid grid-cols-2 gap-3">
-          <button v-for="ordner in ordnerListe" :key="ordner"
-            @click="openOrdner(ordner)"
-            class="bg-white rounded-xl border border-gray-100 p-4 text-left hover:border-[#097e92]/40 hover:shadow-sm transition-all flex items-center gap-3">
-            <Folder class="w-6 h-6 text-[#097e92]" />
-            <div>
-              <div class="text-sm font-medium text-gray-700">{{ ordner }}</div>
-              <div class="text-xs text-gray-400">{{ countInOrdner(ordner) }} Dateien</div>
-            </div>
-          </button>
-        </div>
-
-        <div v-else>
-          <button @click="selectedOrdner = null" class="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4">
-            <ChevronLeft class="w-4 h-4" /> Zurück
-          </button>
-          <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
-            <div class="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
-              <span class="text-sm font-medium text-gray-700">{{ selectedOrdner }}</span>
-              <label class="flex items-center gap-2 px-3 py-1.5 bg-[#097e92] text-white rounded-lg text-xs cursor-pointer hover:bg-[#0a9aaf]">
-                <Upload class="w-3.5 h-3.5" /> Hochladen
-                <input type="file" class="hidden" @change="uploadFile" />
-              </label>
-            </div>
-            <div v-if="!filteredDok.length" class="p-6 text-center text-gray-400 text-sm">Keine Dateien in diesem Ordner.</div>
-            <div v-for="dok in filteredDok" :key="dok.RowKey"
-              class="flex items-center justify-between px-4 py-3 border-b border-gray-50 last:border-0">
-              <div class="flex items-center gap-3">
-                <FileText class="w-4 h-4 text-gray-400" />
-                <div>
-                  <div class="text-sm font-medium text-gray-700">{{ dok.dateiname }}</div>
-                  <div class="text-xs text-gray-400">{{ formatDate(dok.hochgeladenAm) }}</div>
-                </div>
-              </div>
-              <button @click="downloadDok(dok)" class="flex items-center gap-1 text-xs text-[#097e92] hover:text-[#0a9aaf]">
-                <Download class="w-3.5 h-3.5" /> Download
-              </button>
-            </div>
-          </div>
-        </div>
+        <h2 class="text-xl font-bold text-gray-900 mb-2">Meine Dokumente</h2>
+        <p class="text-sm text-gray-500 mb-5">Du kannst Dateien hochladen. Löschen können nur die mibeca-Berater (zur Sicherheit deiner Daten).</p>
+        <DokumenteAkte :target-id="targetId" :read-only="true" />
       </div>
     </div>
 
@@ -389,6 +350,7 @@ import MandatDaten from '../components/target/MandatDaten.vue'
 import PressetextFreigabe from '../components/target/PressetextFreigabe.vue'
 import KaeuferVorschlaege from '../components/target/KaeuferVorschlaege.vue'
 import Suchprofil from '../components/admin/Suchprofil.vue'
+import DokumenteAkte from '../components/admin/DokumenteAkte.vue'
 import Fragebogen from '../components/target/Fragebogen.vue'
 import Unternehmensbewertung from '../components/target/Unternehmensbewertung.vue'
 import ExposeFreigabe from '../components/target/ExposeFreigabe.vue'
@@ -510,6 +472,18 @@ async function loadAllData() {
       { id: 'sys-uve-kurs', system: true, kategorie: 'Kajabi Videokurse', titel: 'UVE Videokurse', url: 'https://www.mike-bergmann-akademie.de/products/mb058-uv-expressweg', beschreibung: 'Unternehmensverkauf-Expressweg – Videokurse von Mike Bergmann.' },
       { id: 'sys-uve-livecall', system: true, kategorie: 'Live-Calls', titel: 'UVE Live Call (Zoom)', url: 'https://us02web.zoom.us/j/85389200945?pwd=btDgPrB3awzuJNtxh8nrU8zX1cQSIb.1', beschreibung: 'Wiederkehrender Live Call zum UVE.' },
     ] : []
+    // Veröffentlichte Ausschreibung -> automatisch als Link
+    try {
+      const landing = target.value?.landingJson ? JSON.parse(target.value.landingJson) : null
+      if (landing?.status === 'published' && target.value?.mbNr) {
+        const url = `${window.location.origin}/${target.value.mbNr.toLowerCase()}`
+        systemLinks.push({
+          id: 'sys-ausschreibung', system: true, kategorie: 'Meine Ausschreibung',
+          titel: `Öffentliche Ausschreibung ${target.value.mbNr.toUpperCase()}`,
+          url, beschreibung: 'Hier siehst du, wie deine Ausschreibung im Internet aussieht. Diesen Link kannst du an Interessenten schicken.',
+        })
+      }
+    } catch {}
     const custom = target.value?.linksJson ? JSON.parse(target.value.linksJson) : []
     links.value = [...systemLinks, ...custom.filter(l => !systemLinks.some(s => s.id === l.id))]
   } catch { links.value = [] }

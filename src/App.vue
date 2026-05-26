@@ -30,10 +30,12 @@ import AdminDashboard from './views/AdminDashboard.vue'
 import TargetDashboard from './views/TargetDashboard.vue'
 import InvestorDashboard from './views/InvestorDashboard.vue'
 import SignPage from './SignPage.vue'
+import LandingPage from './LandingPage.vue'
 import { msalInstance } from './authConfig.js'
 
-// Oeffentliche Signier-Seite: /sign/<token> — kein Login noetig
+// Oeffentliche Routen ohne Login
 const isSignRoute = /^\/sign\/[^/?#]+/.test(window.location.pathname)
+const isLandingRoute = /^\/mb-[^/?#]+/i.test(window.location.pathname)
 
 const role = ref(sessionStorage.getItem('userRole') || '')
 const userName = ref(sessionStorage.getItem('userName') || '')
@@ -48,6 +50,7 @@ const INVESTOR_TYPS = []  // Legacy: leer (alte Liste bleibt fuer Abwaertskompat
 
 const currentView = computed(() => {
   if (isSignRoute) return SignPage
+  if (isLandingRoute) return LandingPage
   if (!role.value) return Login
   // Admin testet eine bestimmte Projekttyp-Ansicht
   if (role.value === 'admin' && TARGET_TYPS.includes(impersonating.value)) return TargetDashboard

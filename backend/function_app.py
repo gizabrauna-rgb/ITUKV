@@ -2806,3 +2806,410 @@ def lessons_learned_aggregat(req: func.HttpRequest) -> func.HttpResponse:
     except Exception:
         pass
     return ok_({"items": items})
+
+
+# =========================================================================
+# OEFFENTLICHE LANDING-PAGE & ANFRAGE-WORKFLOW (mb-XXX)
+# =========================================================================
+
+@app.route(route="landing-public", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def landing_public(req: func.HttpRequest) -> func.HttpResponse:
+    """Public: liefert Landing-Page-Daten fuer eine mb-Nr."""
+    if req.method == "OPTIONS":
+        return opt_()
+    mb_nr = (req.params.get("mbNr") or "").strip().lower()
+    if not mb_nr:
+        return err_("mbNr erforderlich", 400)
+    try:
+        items = list(table_("targets").list_entities())
+        t = next((x for x in items if (x.get("mbNr", "") or "").lower() == mb_nr), None)
+    except Exception:
+        t = None
+    if not t:
+        return err_("Projekt nicht gefunden", 404)
+    landing = {}
+    try: landing = json.loads(t.get("landingJson", "{}") or "{}")
+    except: landing = {}
+    if landing.get("status") != "published":
+        return err_("Projekt nicht veroeffentlicht", 404)
+    # Nur die public-safe Felder
+    return ok_({
+        "mbNr": t.get("mbNr", ""),
+        "targetId": t.get("RowKey", ""),
+        "headline": landing.get("headline", ""),
+        "subheadline": landing.get("subheadline", ""),
+        "description": landing.get("description", ""),
+        "keyFacts": landing.get("keyFacts", []),
+        "highlights": landing.get("highlights", []),
+        "published": True,
+    })
+
+
+@app.route(route="landing-anfrage", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
+    """Public: ein Interessent registriert sich fuer mb-XXX."""
+    if req.method == "OPTIONS":
+        return opt_()
+    body = req.get_json() or {}
+    mb_nr = (body.get("mbNr") or "").strip().lower()
+    firma = (body.get("firma") or "").strip()
+    name = (body.get("name") or "").strip()
+    email = (body.get("email") or "").strip()
+    if not (mb_nr and email and (firma or name)):
+        return err_("mbNr, email und firma oder name erforderlich", 400)
+    # Target finden
+    items = list(table_("targets").list_entities())
+    t = next((x for x in items if (x.get("mbNr", "") or "").lower() == mb_nr), None)
+    if not t:
+        return err_("Projekt nicht gefunden", 404)
+    target_id = t.get("RowKey", "")
+    # Interessent anlegen
+    iid = str(uuid.uuid4())
+    token = secrets.token_urlsafe(24)
+    entity = {
+        "PartitionKey": "interessent", "RowKey": iid,
+        "targetId": target_id,
+        "firma": firma, "name": name, "email": email,
+        "telefon": body.get("telefon", ""),
+        "plz": body.get("plz", ""), "ort": body.get("ort", ""),
+        "ndaStatus": "ausstehend",
+        "exposeToken": token,  # fuer expose-mb-XXX/:token Zugriff
+        "rating": 0, "veto": False, "freigegebenFuerKontakt": False,
+        "kommentar": body.get("kommentar", ""),
+        "createdAt": datetime.utcnow().isoformat(),
+        "herkunft": f"Landing-Page {mb_nr}",
+    }
+    table_("interessenten").create_entity(entity)
+
+    # Verlauf-Eintrag im Target
+    _verlauf_append(target_id, {
+        "id": "k" + str(int(datetime.utcnow().timestamp() * 1000)),
+        "typ": "wichtig",
+        "datum": datetime.utcnow().isoformat(),
+        "autor": "Landing-Page",
+        "betreff": f"Neue Anfrage von {firma or name}",
+        "beschreibung": f"Interessent hat sich ueber die Landing-Page {mb_nr} eingetragen. E-Mail: {email}",
+        "beteiligte": email,
+    })
+
+    # Mail an Interessent: Expose-Link + NDA
+    expose_url = f"{FRONTEND_BASE}/expose-{mb_nr}/{token}"
+    if ACS_CONN:
+        try:
+            from azure.communication.email import EmailClient
+            client = EmailClient.from_connection_string(ACS_CONN)
+            # An Interessent
+            html_int = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
+                <h2 style="color:#097e92">Willkommen bei mibeca · Projekt {mb_nr.upper()}</h2>
+                <p>Hallo {name or firma},</p>
+                <p>vielen Dank fuer Dein Interesse am Projekt <strong>{mb_nr}</strong>. Hier geht's zu Deinem Exposé-Bereich (Exposé + NDA herunterladen, signiertes NDA hochladen):</p>
+                <p style="margin:24px 0"><a href="{expose_url}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Zum Exposé-Bereich</a></p>
+                <p>Nach Eingang Deines unterschriebenen NDAs schalten wir die Termin-Buchung mit unserer M&amp;A-Beraterin Jennifer Kaplan frei.</p>
+                <p>Viele Gruesse<br/>Dein mibeca-Team</p>
+                </body></html>"""
+            client.begin_send({
+                "senderAddress": ACS_SENDER,
+                "recipients": {"to": [{"address": email}]},
+                "content": {"subject": f"Dein Exposé zu Projekt {mb_nr.upper()}", "plainText": f"Exposé-Bereich: {expose_url}", "html": html_int},
+            })
+            # An mibeca-Team + Target-User
+            notify_to = [os.environ.get("MIBECA_NOTIFY_EMAIL", "jk@mike-bergmann.de")]
+            tu = list(table_("users").query_entities(f"targetId eq '{target_id}'"))
+            for u in tu:
+                if u.get("email"): notify_to.append(u["email"])
+            for rcpt in notify_to:
+                client.begin_send({
+                    "senderAddress": ACS_SENDER,
+                    "recipients": {"to": [{"address": rcpt}]},
+                    "content": {"subject": f"[ITUKV] Neue Anfrage zu {mb_nr.upper()}", "plainText": f"{firma or name} ({email}) interessiert sich fuer {mb_nr}.", "html": f"<p><strong>Neue Anfrage zu {mb_nr.upper()}</strong></p><p>Firma: {firma}</p><p>Name: {name}</p><p>E-Mail: {email}</p>"},
+                })
+        except Exception as ex:
+            logging.warning(f"Anfrage-Mail fehlgeschlagen: {ex}") if 'logging' in globals() else None
+    return ok_({"ok": True, "exposeUrl": expose_url})
+
+
+@app.route(route="expose-public", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def expose_public(req: func.HttpRequest) -> func.HttpResponse:
+    """Public: liefert Exposé-Bereich-Daten anhand exposeToken."""
+    if req.method == "OPTIONS":
+        return opt_()
+    token = (req.params.get("token") or "").strip()
+    if not token:
+        return err_("token erforderlich", 400)
+    items = list(table_("interessenten").query_entities(f"exposeToken eq '{token}'"))
+    if not items:
+        return err_("Token ungueltig", 404)
+    i = dict(items[0])
+    target_id = i.get("targetId", "")
+    try:
+        t = dict(table_("targets").get_entity("target", target_id))
+    except Exception:
+        return err_("Target nicht gefunden", 404)
+    landing = {}
+    try: landing = json.loads(t.get("landingJson", "{}") or "{}")
+    except: landing = {}
+    return ok_({
+        "mbNr": t.get("mbNr", ""),
+        "firma": i.get("firma", ""),
+        "name": i.get("name", ""),
+        "ndaStatus": i.get("ndaStatus", "ausstehend"),
+        "ndaUploadedAt": i.get("ndaUploadedAt", ""),
+        "exposeUrl": landing.get("exposeUrl", ""),
+        "ndaTemplateUrl": landing.get("ndaTemplateUrl", ""),
+        "terminBookingUrl": landing.get("terminBookingUrl", ""),
+        "headline": landing.get("headline", ""),
+    })
+
+
+@app.route(route="nda-upload", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def nda_upload(req: func.HttpRequest) -> func.HttpResponse:
+    """Public: Interessent laedt unterschriebenes NDA hoch.
+    Body: { token, fileName, fileData (base64), email-Verifikation? }"""
+    if req.method == "OPTIONS":
+        return opt_()
+    body = req.get_json() or {}
+    token = (body.get("token") or "").strip()
+    file_data = body.get("fileData", "")
+    file_name = body.get("fileName", "nda.pdf")
+    if not (token and file_data):
+        return err_("token + fileData erforderlich", 400)
+    items = list(table_("interessenten").query_entities(f"exposeToken eq '{token}'"))
+    if not items:
+        return err_("Token ungueltig", 404)
+    i = dict(items[0])
+    target_id = i.get("targetId", "")
+    # Blob speichern
+    try:
+        if file_data.startswith("data:"):
+            file_data = file_data.split(",", 1)[1]
+        pdf_bytes = base64.b64decode(file_data)
+        blob_name = f"nda-interessent-{i['RowKey']}.pdf"
+        _blob_container_lazy("vertraege").upload_blob(blob_name, pdf_bytes, overwrite=True)
+    except Exception as ex:
+        return err_(f"Upload fehlgeschlagen: {ex}", 500)
+    # Update Interessent
+    i["ndaStatus"] = "unterzeichnet"
+    i["ndaUploadedAt"] = datetime.utcnow().isoformat()
+    i["ndaBlob"] = blob_name
+    i["ndaFileName"] = file_name
+    try:
+        table_("interessenten").update_entity(i)
+    except Exception:
+        pass
+    # Verlauf + Notification
+    _verlauf_append(target_id, {
+        "id": "k" + str(int(datetime.utcnow().timestamp() * 1000)),
+        "typ": "wichtig",
+        "datum": datetime.utcnow().isoformat(),
+        "autor": i.get("firma") or i.get("name") or i.get("email", ""),
+        "betreff": "NDA-Upload",
+        "beschreibung": f"{i.get('firma') or i.get('name')} hat das unterschriebene NDA hochgeladen ({file_name}).",
+        "beteiligte": i.get("email", ""),
+    })
+    # Welcome-Mail nach NDA (deine Vorlage)
+    if ACS_CONN:
+        try:
+            t = dict(table_("targets").get_entity("target", target_id))
+            landing = {}
+            try: landing = json.loads(t.get("landingJson", "{}") or "{}")
+            except: landing = {}
+            termin_url = landing.get("terminBookingUrl", "")
+            from azure.communication.email import EmailClient
+            client = EmailClient.from_connection_string(ACS_CONN)
+            html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
+<p>Hallo {i.get('name') or i.get('firma') or ''},</p>
+<p>vielen Dank fuer Dein unterschriebenes NDA zur Projektnummer <strong>{t.get('mbNr','')}</strong> &ndash; damit hast Du den ersten wichtigen Schritt gemacht!</p>
+<h3 style="color:#097e92">Wie geht es jetzt weiter?</h3>
+<p>Du hast nun Zugang zum Exposé, das Dir einen ersten Ueberblick ueber das Unternehmen gibt. Fuer tiefergehende Informationen und Zahlen ist ein persoenliches Gespraech erforderlich.</p>
+<p>Buche hier Deinen Termin mit unserer M&amp;A-Beraterin Jennifer Kaplan:</p>
+{(('<p style="margin:24px 0"><a href="' + termin_url + '" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Termin jetzt buchen</a></p>') if termin_url else '<p><em>Termin-Link wird in Kuerze nachgereicht.</em></p>')}
+<p>In diesem ca. 15-minuetigen Gespraech klaert Ihr:</p>
+<ul>
+  <li>Ob das Unternehmen zu Deiner Zukaufstrategie passt</li>
+  <li>Deine konkreten Zukaufsvisionen &ndash; damit wir diese mit dem Profil abgleichen koennen</li>
+  <li>Den weiteren Ablauf des Prozesses</li>
+  <li>Wie die Rolle unserer M&amp;A-Beraterin Dich durch den gesamten Transaktionsprozess begleitet</li>
+  <li>Ob ggf. ein Folgegespraech direkt mit dem Verkaeufer sinnvoll ist</li>
+</ul>
+<p><strong>Wichtig:</strong> Nur wenn die ersten Parameter nach dem Gespraech uebereinstimmen, senden wir Dir im Anschluss weitere Unterlagen &ndash; z.B. detaillierte Unternehmenskennzahlen.</p>
+<p>Wir freuen uns auf den Austausch!</p>
+<p>Herzliche Gruesse<br/>Dein M&amp;A-Team der Mike Bergmann Akademie</p>
+</body></html>"""
+            client.begin_send({
+                "senderAddress": ACS_SENDER,
+                "recipients": {"to": [{"address": i.get("email", "")}]},
+                "content": {"subject": f"NDA erhalten – naechste Schritte zu {t.get('mbNr','')}", "plainText": f"NDA bestaetigt. Termin buchen: {termin_url}", "html": html},
+            })
+            # Notification an Jenny
+            mibeca_mail = os.environ.get("MIBECA_NOTIFY_EMAIL", "jk@mike-bergmann.de")
+            client.begin_send({
+                "senderAddress": ACS_SENDER,
+                "recipients": {"to": [{"address": mibeca_mail}]},
+                "content": {"subject": f"[ITUKV] NDA erhalten zu {t.get('mbNr','')}", "plainText": f"{i.get('firma') or i.get('name')} hat NDA hochgeladen.", "html": f"<p><strong>NDA erhalten</strong> – Interessent kann jetzt Termin buchen.</p><p>Projekt: {t.get('mbNr','')}</p><p>Interessent: {i.get('firma','')} / {i.get('name','')} / {i.get('email','')}</p>"},
+            })
+        except Exception as ex:
+            logging.warning(f"NDA-Mail fehlgeschlagen: {ex}") if 'logging' in globals() else None
+    return ok_({"ok": True})
+
+
+# =========================================================================
+# DOKUMENTE / DATENRAUM mit Azure Blob Storage
+# =========================================================================
+
+@app.route(route="dokument-upload", methods=["POST", "OPTIONS"])
+def dokument_upload(req: func.HttpRequest) -> func.HttpResponse:
+    """Upload einer Datei in den Datenraum eines Targets.
+    Body: { targetId, ordner, fileName, fileData (base64), contentType? }
+    Target-User duerfen nur ihren eigenen Datenraum hochladen."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    target_id = body.get("targetId", "")
+    ordner = (body.get("ordner") or "Allgemein").strip()
+    file_name = (body.get("fileName") or "datei").strip()
+    file_data = body.get("fileData", "")
+    content_type = body.get("contentType", "application/octet-stream")
+    if not (target_id and file_data):
+        return err_("targetId + fileData erforderlich", 400)
+    # Target-User darf nur eigene Dateien hochladen
+    if p.get("role") == "target":
+        if p.get("targetId") and p.get("targetId") != target_id:
+            return err_("Nicht autorisiert", 403)
+    try:
+        if file_data.startswith("data:"):
+            file_data = file_data.split(",", 1)[1]
+        binary = base64.b64decode(file_data)
+    except Exception as ex:
+        return err_(f"Decoding fehlgeschlagen: {ex}", 400)
+    # Blob hochladen
+    blob_name = f"{target_id}/{ordner}/{uuid.uuid4()}_{file_name}"
+    try:
+        container = _blob_container_lazy("datenraum")
+        from azure.storage.blob import ContentSettings
+        container.upload_blob(blob_name, binary, overwrite=False,
+                              content_settings=ContentSettings(content_type=content_type))
+    except Exception as ex:
+        return err_(f"Upload fehlgeschlagen: {ex}", 500)
+    # Metadaten in Table
+    doc_id = str(uuid.uuid4())
+    entity = {
+        "PartitionKey": target_id,
+        "RowKey": doc_id,
+        "ordner": ordner,
+        "fileName": file_name,
+        "blobName": blob_name,
+        "contentType": content_type,
+        "size": len(binary),
+        "uploadedBy": p.get("name", "") or p.get("email", ""),
+        "uploadedByRole": p.get("role", ""),
+        "uploadedAt": datetime.utcnow().isoformat(),
+    }
+    table_("dokumente").create_entity(entity)
+    return ok_({"id": doc_id, "fileName": file_name, "ordner": ordner, "size": len(binary), "uploadedAt": entity["uploadedAt"], "uploadedBy": entity["uploadedBy"]}, 201)
+
+
+@app.route(route="dokument-list", methods=["GET", "POST", "OPTIONS"])
+def dokument_list(req: func.HttpRequest) -> func.HttpResponse:
+    """Liste der Dokumente eines Targets."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    target_id = req.params.get("targetId") or ""
+    if req.method == "POST":
+        b = req.get_json() or {}
+        target_id = b.get("targetId", "")
+    if not target_id:
+        return err_("targetId erforderlich", 400)
+    if p.get("role") == "target":
+        if p.get("targetId") and p.get("targetId") != target_id:
+            return err_("Nicht autorisiert", 403)
+    try:
+        items = [dict(d) for d in table_("dokumente").query_entities(f"PartitionKey eq '{target_id}'")]
+    except Exception:
+        items = []
+    items.sort(key=lambda x: x.get("uploadedAt", ""), reverse=True)
+    return ok_({"items": items})
+
+
+@app.route(route="dokument-download", methods=["GET", "OPTIONS"])
+def dokument_download(req: func.HttpRequest) -> func.HttpResponse:
+    """Liefert das Dokument als Datei."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    target_id = req.params.get("targetId", "")
+    doc_id = req.params.get("id", "")
+    if not (target_id and doc_id):
+        return err_("targetId + id erforderlich", 400)
+    if p.get("role") == "target":
+        if p.get("targetId") and p.get("targetId") != target_id:
+            return err_("Nicht autorisiert", 403)
+    try:
+        ent = dict(table_("dokumente").get_entity(target_id, doc_id))
+    except Exception:
+        return err_("Dokument nicht gefunden", 404)
+    try:
+        data = _blob_container_lazy("datenraum").download_blob(ent["blobName"]).readall()
+    except Exception as ex:
+        return err_(f"Download fehlgeschlagen: {ex}", 500)
+    return func.HttpResponse(data, status_code=200,
+                             mimetype=ent.get("contentType", "application/octet-stream"),
+                             headers={**CORS, "Content-Disposition": f'attachment; filename="{ent.get("fileName","file")}"'})
+
+
+@app.route(route="dokument-delete", methods=["POST", "OPTIONS"])
+def dokument_delete(req: func.HttpRequest) -> func.HttpResponse:
+    """Loescht ein Dokument – NUR Admin."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nur Admin darf Dokumente loeschen", 403)
+    b = req.get_json() or {}
+    target_id = b.get("targetId", "")
+    doc_id = b.get("id", "")
+    if not (target_id and doc_id):
+        return err_("targetId + id erforderlich", 400)
+    try:
+        ent = dict(table_("dokumente").get_entity(target_id, doc_id))
+    except Exception:
+        return err_("Dokument nicht gefunden", 404)
+    # Blob loeschen
+    try: _blob_container_lazy("datenraum").delete_blob(ent["blobName"])
+    except Exception: pass
+    try: table_("dokumente").delete_entity(target_id, doc_id)
+    except Exception: pass
+    return ok_({"deleted": True})
+
+
+@app.route(route="dokument-move", methods=["POST", "OPTIONS"])
+def dokument_move(req: func.HttpRequest) -> func.HttpResponse:
+    """Aendert den Ordner eines Dokuments. Admin oder Target-Owner."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    b = req.get_json() or {}
+    target_id = b.get("targetId", "")
+    doc_id = b.get("id", "")
+    neuer_ordner = (b.get("ordner") or "").strip()
+    if not (target_id and doc_id and neuer_ordner):
+        return err_("targetId, id, ordner erforderlich", 400)
+    if p.get("role") == "target":
+        if p.get("targetId") and p.get("targetId") != target_id:
+            return err_("Nicht autorisiert", 403)
+    try:
+        ent = dict(table_("dokumente").get_entity(target_id, doc_id))
+        ent["ordner"] = neuer_ordner
+        table_("dokumente").update_entity(ent)
+    except Exception as ex:
+        return err_(f"Move fehlgeschlagen: {ex}", 500)
+    return ok_({"ok": True})
