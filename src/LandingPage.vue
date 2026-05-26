@@ -51,8 +51,15 @@
               <input v-model="form.nachname" placeholder="Nachname *" required class="input" />
             </div>
             <input v-model="form.email" type="email" placeholder="E-Mail *" required class="input" />
-            <input v-model="form.telefon" placeholder="Mobilnummer *" required class="input" />
-            <input v-model="form.website" type="url" placeholder="Website (z.B. https://...) *" required class="input" />
+            <div class="flex gap-2">
+              <select v-model="form.telefonVorwahl" class="input !w-auto" style="flex: 0 0 auto;">
+                <option value="+49">🇩🇪 +49</option>
+                <option value="+43">🇦🇹 +43</option>
+                <option value="+41">🇨🇭 +41</option>
+              </select>
+              <input v-model="form.telefon" placeholder="Mobilnummer *" required class="input flex-1" inputmode="tel" />
+            </div>
+            <input v-model="form.website" type="text" placeholder="Website (z.B. www.firma.de) *" required class="input" />
             <input v-model="form.plzOrt" placeholder="Sitz des Unternehmens (PLZ + Ort) *" required class="input" />
             <textarea v-model="form.kommentar" rows="3" placeholder="Was möchtest Du uns mitteilen? (optional)" class="input resize-y"></textarea>
 
@@ -87,7 +94,7 @@ const apiBase = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azureweb
 
 const loading = ref(true)
 const data = ref(null)
-const form = ref({ firma: '', vorname: '', nachname: '', email: '', telefon: '', website: '', plzOrt: '', kommentar: '', dsgvo: false })
+const form = ref({ firma: '', vorname: '', nachname: '', email: '', telefonVorwahl: '+49', telefon: '', website: '', plzOrt: '', kommentar: '', dsgvo: false })
 const sending = ref(false)
 const sent = ref(false)
 const errMsg = ref('')
@@ -95,11 +102,17 @@ const errMsg = ref('')
 async function abschicken() {
   errMsg.value = ''
   sending.value = true
+  // Website normalisieren: https:// vor stellen wenn keine Schema-URL angegeben
+  let website = (form.value.website || '').trim()
+  if (website && !/^https?:\/\//i.test(website)) website = 'https://' + website
+  // Telefon zusammenbauen: Vorwahl + Nummer (fuehrende 0 entfernen)
+  const localNumber = (form.value.telefon || '').trim().replace(/^0+/, '')
+  const telefon = localNumber ? `${form.value.telefonVorwahl} ${localNumber}` : ''
   try {
     const res = await fetch(`${apiBase}/landing-anfrage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mbNr, ...form.value }),
+      body: JSON.stringify({ mbNr, ...form.value, website, telefon }),
     })
     if (!res.ok) { const d = await res.json().catch(()=>({})); throw new Error(d.error || `HTTP ${res.status}`) }
     const data = await res.json().catch(() => ({}))
