@@ -32,7 +32,12 @@
           <option>Investor</option>
           <option>Kunde</option>
           <option>Ex-Kunde</option>
+          <option>Nichtkunde</option>
         </select>
+        <label class="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none">
+          <input type="checkbox" v-model="showDuplikate" class="rounded text-[#0088ba]" />
+          nur Duplikate
+        </label>
         <!-- Investor-Sub-Typ: nur sichtbar wenn Investor gewählt -->
         <select v-if="filterStatus === 'Investor'" v-model="filterTyp" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
           <option value="">Investor-Typ (alle)</option>
@@ -346,6 +351,13 @@
           </div>
         </div>
         <div class="flex gap-3 mt-5">
+          <button v-if="editKontakt" @click="deleteCurrentKontakt" :disabled="saving" class="px-4 py-2 text-sm border border-red-200 text-red-600 rounded-xl hover:bg-red-50">
+            Löschen
+          </button>
+          <a v-if="editKontakt && form.firma" :href="northdataLink" target="_blank" rel="noopener"
+            class="flex items-center gap-1.5 px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50">
+            Northdata öffnen
+          </a>
           <button @click="closeModal" class="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50">Abbrechen</button>
           <button @click="saveKontakt" :disabled="saving" class="flex-1 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium disabled:opacity-50">
             {{ saving ? 'Speichern…' : 'Speichern' }}
@@ -367,7 +379,7 @@
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { Map, List, Download, Upload, UserPlus, Search, Mail, Pencil, X, CheckCircle, Megaphone, Send, Filter, Plus } from '@lucide/vue'
-import { getKontakte, createKontakt, updateKontakt, importKontakte, exportKontakte } from '../../api.js'
+import { getKontakte, createKontakt, updateKontakt, importKontakte, exportKontakte, deleteKontakt } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 import { authFetch } from '../../api.js'
 import KundenMap from '../KundenMap.vue'
@@ -380,6 +392,7 @@ const loading = ref(true)
 const view = ref('list')
 const filterCenterPlz = ref('')
 const filterRadiusKm = ref(0)
+const showDuplikate = ref(false)
 
 // Haversine: Entfernung in km zwischen zwei lat/lon Punkten
 function distanceKm(lat1, lon1, lat2, lon2) {
@@ -438,6 +451,7 @@ const visibleList = computed(() => {
     if (filterStatus.value === 'Ex-Kunde') return k.istExKunde === true || k.kundenstatus === 'Ex-Kunde'
     if (filterStatus.value === 'Investor') return k.istInvestor === true || k.kundenstatus === 'Investor' || ['PE','Systemhausgruppe','Strategisch','Sonstige'].includes(k.typ)
     if (filterStatus.value === 'Target') return k.istTarget === true || k.kundenstatus === 'Target'
+    if (filterStatus.value === 'Nichtkunde') return k.istNichtkunde === true || k.kundenstatus === 'Nichtkunde' || (!k.istKunde && !k.istExKunde && !k.istInvestor && !k.istTarget && !k.kundenstatus)
     return true
   })
   if (filterTyp.value && filterStatus.value === 'Investor') {
@@ -450,6 +464,15 @@ const visibleList = computed(() => {
   // Produkt-Filter (Mehrfachauswahl: ALLE ausgewählten müssen wahr sein)
   if (selectedProdukte.value.length) {
     r = r.filter(k => selectedProdukte.value.every(p => k[p] === true))
+  }
+  // Duplikate-Filter: zeige nur Kontakte, deren Firma mehrfach vorkommt
+  if (showDuplikate.value) {
+    const firmaCounts = new Map()
+    for (const k of r) {
+      const f = (k.firma || '').toLowerCase().trim()
+      if (f) firmaCounts.set(f, (firmaCounts.get(f) || 0) + 1)
+    }
+    r = r.filter(k => firmaCounts.get((k.firma || '').toLowerCase().trim()) > 1)
   }
   return r
 })
@@ -732,11 +755,29 @@ async function saveKontakt() {
     } else {
       await createKontakt(payload)
     }
-    allKontakte.value = await getKontakte()
-    applyFilters()
+    await loadData()
     closeModal()
   } finally { saving.value = false }
 }
+
+async function deleteCurrentKontakt() {
+  if (!editKontakt.value) return
+  if (!confirm(`Kontakt „${form.value.firma || form.value.name}" wirklich löschen? Das lässt sich nicht rückgängig machen.`)) return
+  saving.value = true
+  try {
+    await deleteKontakt(editKontakt.value.RowKey)
+    await loadData()
+    closeModal()
+    toast.success('Kontakt gelöscht')
+  } catch (e) {
+    toast.error('Löschen fehlgeschlagen')
+  } finally { saving.value = false }
+}
+
+const northdataLink = computed(() => {
+  const q = encodeURIComponent(`${form.value.firma || ''} ${form.value.plz || ''}`.trim())
+  return `https://www.northdata.de/?query=${q}`
+})
 </script>
 
 <style scoped>

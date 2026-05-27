@@ -547,6 +547,25 @@ def kontakt_create(req: func.HttpRequest) -> func.HttpResponse:
         return err_(f"Anlegen fehlgeschlagen: {ex}", 500)
 
 
+@app.route(route="kontakt-delete", methods=["POST", "OPTIONS"])
+def kontakt_delete(req: func.HttpRequest) -> func.HttpResponse:
+    """Loescht einen Kontakt aus dem CRM. Admin-only."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    rk = (body.get("id") or body.get("RowKey") or "").strip()
+    if not rk:
+        return err_("id erforderlich", 400)
+    try:
+        table_("kontakte").delete_entity("kontakt", rk)
+    except Exception as ex:
+        return err_(f"Loeschen fehlgeschlagen: {ex}", 500)
+    return ok_({"deleted": rk})
+
+
 @app.route(route="kontakte", methods=["GET", "OPTIONS"])
 def kontakte_route(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
@@ -897,12 +916,24 @@ def kontakte_locations_route(req: func.HttpRequest) -> func.HttpResponse:
                 "id": k.get("RowKey"),
                 "firma": k.get("firma","") or k.get("name",""),
                 "name": k.get("name",""),
+                "geschaeftsfuehrer": k.get("geschaeftsfuehrer",""),
+                "branche": k.get("branche",""),
                 "email": k.get("email",""),
                 "telefon": k.get("telefon",""),
+                "website": k.get("website",""),
                 "plz": k.get("plz",""),
                 "ort": k.get("ort",""),
                 "typ": k.get("typ","") or k.get("kundenstatus",""),
                 "kundenstatus": k.get("kundenstatus",""),
+                "istKunde": bool(k.get("istKunde", False)),
+                "istExKunde": bool(k.get("istExKunde", False)),
+                "istInvestor": bool(k.get("istInvestor", False)),
+                "istTarget": bool(k.get("istTarget", False)),
+                "istNichtkunde": bool(k.get("istNichtkunde", False)),
+                "mitarbeiter": k.get("mitarbeiter",""),
+                "umsatzTeur": k.get("umsatzTeur",""),
+                "sucht": k.get("sucht",""),
+                "bietet": k.get("bietet",""),
                 "lat": c[0], "lon": c[1],
             }
             # Produkt-Flags

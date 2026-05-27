@@ -77,6 +77,7 @@ export const createKontakt = (data) => authFetch('/kontakt-create', { method: 'P
 export const updateKontakt = (id, data) => authFetch('/kontakt-create', { method: 'POST', data: { ...data, id } })
 export const importKontakte = (data) => authFetch('/kontakte/import', { method: 'POST', data })
 export const exportKontakte = (params) => authFetch('/kontakte/export', { params })
+export const deleteKontakt = (id) => authFetch('/kontakt-delete', { method: 'POST', data: { id } })
 
 // Ausschreibungen
 export const getAusschreibungen = () => authFetch('/ausschreibungen')

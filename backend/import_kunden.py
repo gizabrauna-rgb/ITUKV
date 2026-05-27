@@ -9,7 +9,7 @@ import uuid
 import json
 from datetime import datetime
 from openpyxl import load_workbook
-from azure.data.tables import TableServiceClient
+from azure.data.tables import TableServiceClient, UpdateMode
 
 EXCEL_PATH = "/Users/annagiza-braun/Downloads/Kunden und Ex-Kunden.xlsx"
 CONN = os.environ.get("AZURE_TABLE_STORAGE_CONNECTION_STRING")
@@ -53,7 +53,7 @@ COL_EMAIL = idx("E-Mail-Adresse") if idx("E-Mail-Adresse") is not None else idx(
 COL_TELEFON = idx("Telefonnummer") if idx("Telefonnummer") is not None else idx("Telefon")
 COL_FIRMA = idx("Firmenname") if idx("Firmenname") is not None else idx("Firma")
 COL_WEBSITE = idx("Website")
-COL_PLZ = idx("PLZ")
+COL_PLZ = idx("Postleitzahl") if idx("Postleitzahl") is not None else idx("PLZ")
 COL_STADT = idx("Stadt")
 COL_LAND = idx("Land")
 COL_KUNDENSTATUS = idx("Kundenstatus")
@@ -62,6 +62,8 @@ COL_MBNR = idx("ITUKV ProjNr")
 COL_NOTIZEN = idx("Notizen Salesliste") if idx("Notizen Salesliste") is not None else idx("Notizen")
 COL_BEMERKUNG_ITUKV = idx("Bemerkung ITUKV")
 COL_LEAD_HERKUNFT = idx("Leadherkunft")
+COL_SCHWERPUNKT = idx("Unternehmenschwerpunkt")
+COL_BRANCHE_NICHT_IT = idx("Bei Branche Nicht-ITler")
 
 # UVE-Felder (Verkäufer-Infos)
 COL_UVE_WANN = idx("Wann verkaufen")
@@ -77,7 +79,22 @@ print(f"Indizes: Vorname={COL_VORNAME}, Email={COL_EMAIL}, Firma={COL_FIRMA}, mb
 targets_created = 0
 targets_seen_mbnr = set()
 kontakte_created = 0
+kontakte_updated = 0
 kontakte_seen_email = set()
+
+# Bestehende Kontakte einlesen (fuer Dedup beim Re-Import)
+print("Lade bestehende Kontakte für Dedup…")
+existing_by_email = {}
+existing_by_firma = {}
+for ek in tc_kontakte.list_entities():
+    e_mail = (ek.get("email") or "").lower().strip()
+    e_firma = (ek.get("firma") or "").lower().strip()
+    e_rk = ek.get("RowKey")
+    if e_mail:
+        existing_by_email[e_mail] = e_rk
+    if e_firma:
+        existing_by_firma.setdefault(e_firma, e_rk)
+print(f"  {len(existing_by_email)} bestehende Email-Keys, {len(existing_by_firma)} Firma-Keys")
 
 for row_idx, row in enumerate(rows, start=2):
     if not row:
@@ -107,6 +124,23 @@ for row_idx, row in enumerate(rows, start=2):
     telefon = g(COL_TELEFON)
     website = g(COL_WEBSITE)
     herkunft = g(COL_LEAD_HERKUNFT)
+    schwerpunkt = g(COL_SCHWERPUNKT)
+    branche_nicht_it = g(COL_BRANCHE_NICHT_IT)
+    # Branche aus Schwerpunkt ableiten (cleane Hauptkategorie statt Freitext)
+    branche_aus_schwerpunkt = ""
+    sw_low = schwerpunkt.lower()
+    if "msp" in sw_low or "managed" in sw_low or "systemhaus" in sw_low:
+        branche_aus_schwerpunkt = "IT-Systemhaus / MSP"
+    elif "softwareentw" in sw_low:
+        branche_aus_schwerpunkt = "Softwareentwicklung"
+    elif "cloud" in sw_low:
+        branche_aus_schwerpunkt = "Cloud Provider"
+    elif "beratung" in sw_low or "consulting" in sw_low or "datenschutz" in sw_low or "security" in sw_low or "nis2" in sw_low:
+        branche_aus_schwerpunkt = "IT-Beratung / Security"
+    elif "nicht-itler" in sw_low or "nicht itler" in sw_low:
+        branche_aus_schwerpunkt = branche_nicht_it or "Sonstige (Nicht-IT)"
+    elif schwerpunkt:
+        branche_aus_schwerpunkt = schwerpunkt
 
     # mb-Nummer extrahieren (kann "mb-317" oder nur "317" sein)
     mbNr = ""
@@ -151,12 +185,41 @@ for row_idx, row in enumerate(rows, start=2):
                 print(f"  ERROR Target {mbNr}: {e}")
 
     # === KONTAKTE (CRM) ===
-    # Nur Kunden / Ex-Kunden mit echter E-Mail importieren
-    if email and email not in kontakte_seen_email and "kunde" in kundenstatus.lower():
-        kontakte_seen_email.add(email)
-        kid = str(uuid.uuid4())
+    # Regeln:
+    # - Kunden / Ex-Kunden: weiterhin mit Email importiert (wie bisher)
+    # - Nichtkunden: nur wenn Firma + PLZ + Ort vollstaendig
+    # - Ausschluss-Statuses fliegen IMMER raus (auch wenn vollst. Adresse)
+    AUSSCHLUSS_SUBSTRINGS = [
+        "kunden-mitarbeiter", "nicht-itler", "fake", "presse",
+        "konkurrenz", "dauerhaft", "kunden-dublette", "insolvent",
+    ]
+    ks_low = kundenstatus.lower()
+    is_excluded = any(s in ks_low for s in AUSSCHLUSS_SUBSTRINGS)
+    is_kunde_or_ex = ("kunde" in ks_low) and ("kunden-mitarbeiter" not in ks_low) and ("kunden-dublette" not in ks_low)
+    adresse_vollstaendig = bool(firma and plz and ort)
 
-        # Typ bestimmen
+    soll_importieren = False
+    if is_excluded:
+        soll_importieren = False
+    elif is_kunde_or_ex and email:
+        soll_importieren = True  # wie bisher
+    elif adresse_vollstaendig:
+        soll_importieren = True  # neue Regel: Nichtkunden mit kompletter Adresse
+
+    # Dedup: erst Email, dann Firma (lower)
+    dedup_key = email or f"firma::{firma.lower()}"
+    if soll_importieren and dedup_key and dedup_key not in kontakte_seen_email:
+        kontakte_seen_email.add(dedup_key)
+        # Wenn Kontakt schon existiert (Re-Import), bestehende RowKey wiederverwenden
+        existing_rk = None
+        if email and email in existing_by_email:
+            existing_rk = existing_by_email[email]
+        elif firma.lower() in existing_by_firma:
+            existing_rk = existing_by_firma[firma.lower()]
+        kid = existing_rk or str(uuid.uuid4())
+        is_update = existing_rk is not None
+
+        # Typ + Such-/Biete-Texte
         typ = "Sonstige"
         sucht_text = ""
         bietet_text = ""
@@ -167,10 +230,27 @@ for row_idx, row in enumerate(rows, start=2):
             typ = "Verkäufer-Interesse"
             bietet_text = f"verkaufen: {g(COL_UVE_WANN)} {g(COL_UVE_PREIS)}".strip()
 
+        # Nichtkunde-Klassifizierung
+        ks_stripped = kundenstatus.strip()
+        is_nichtkunde = (not ks_stripped) or (
+            ks_stripped.lower() not in ("kunde", "ex-kunde") and
+            "kunde" not in ks_stripped.lower() and
+            "investor" not in ks_stripped.lower() and
+            "partner" not in ks_stripped.lower()
+        )
+        # Effektiver Kundenstatus: leere Werte werden als "Nichtkunde" markiert,
+        # damit Jenny im CRM-Tab filtern kann
+        effektiver_status = ks_stripped or "Nichtkunde"
+
         entity = {
             "PartitionKey": "kontakt", "RowKey": kid,
             "name": name,
             "firma": firma,
+            # Geschäftsführer: primärer Ansprechpartner (Vor + Nachname)
+            "geschaeftsfuehrer": name,
+            # Branche aus Schwerpunkt-Spalte ableiten, sonst leer
+            "branche": branche_aus_schwerpunkt,
+            "bietet": (bietet_text + (" · " + schwerpunkt if schwerpunkt else "")).strip(" ·"),
             "email": email,
             "telefon": telefon,
             "website": website,
@@ -178,20 +258,40 @@ for row_idx, row in enumerate(rows, start=2):
             "ort": ort,
             "typ": typ,
             "sucht": sucht_text,
-            "bietet": bietet_text,
             "kommentar": notizen,
             "herkunft": herkunft or "Excel-Import",
-            "kundenstatus": kundenstatus,
+            "kundenstatus": effektiver_status,
             "kundennummer": g(COL_KUNDENNR),
+            # Flags fuer einfaches Filtern in der UI
+            "istKunde": ks_stripped.lower() == "kunde",
+            "istExKunde": "ex-kunde" in ks_low,
+            "istInvestor": "investor" in ks_low,
+            "istNichtkunde": is_nichtkunde,
+            # Match-Felder leer - Jenny pflegt nach
+            "mitarbeiter": "", "umsatzTeur": "",
+            "ebitMarge": "", "recurringPct": "",
             "createdAt": now,
             "updatedAt": now,
         }
         try:
-            tc_kontakte.upsert_entity(entity)
-            kontakte_created += 1
+            # Bei Update: nicht alle Felder ueberschreiben (createdAt erhalten,
+            # ggf. manuell gepflegte Match-Felder nicht durch leere ersetzen)
+            if is_update:
+                entity.pop("createdAt", None)
+                for f in ("mitarbeiter", "umsatzTeur", "ebitMarge", "recurringPct"):
+                    if not entity.get(f):
+                        entity.pop(f, None)
+                tc_kontakte.update_entity(entity, mode=UpdateMode.MERGE)
+                kontakte_updated += 1
+            else:
+                tc_kontakte.create_entity(entity)
+                kontakte_created += 1
+            if (kontakte_created + kontakte_updated) % 500 == 0:
+                print(f"  … {kontakte_created + kontakte_updated} Kontakte verarbeitet")
         except Exception as e:
-            print(f"  ERROR Kontakt {email}: {e}")
+            print(f"  ERROR Kontakt {firma or email}: {e}")
 
 print(f"\n✓ Fertig:")
 print(f"  Targets angelegt: {targets_created}")
-print(f"  Kontakte angelegt: {kontakte_created}")
+print(f"  Kontakte neu angelegt: {kontakte_created}")
+print(f"  Kontakte aktualisiert: {kontakte_updated}")
