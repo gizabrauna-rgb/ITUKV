@@ -29,12 +29,22 @@
         </div>
       </div>
 
-      <!-- Tab-Navigation -->
+      <!-- Tab-Navigation: Hauptkategorien -->
       <nav class="flex items-center gap-1 px-4 border-t border-gray-50 overflow-x-auto">
-        <button v-for="t in tabs" :key="t.tab" @click="tab = t.tab"
+        <button v-for="g in tabGroups" :key="g.key" @click="selectGroup(g)"
           :class="['flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors',
-                  tab === t.tab ? 'border-[#0088ba] text-[#0088ba]' : 'border-transparent text-gray-500 hover:text-gray-800']">
-          <component :is="t.icon" class="w-4 h-4" />
+                  activeGroupKey === g.key ? 'border-[#0088ba] text-[#0088ba]' : 'border-transparent text-gray-500 hover:text-gray-800']">
+          <component :is="g.icon" class="w-4 h-4" />
+          {{ g.label }}
+        </button>
+      </nav>
+
+      <!-- Unter-Tabs (zweite Zeile, nur wenn Gruppe > 1 Tab) -->
+      <nav v-if="activeGroupTabs.length > 1" class="flex items-center gap-1 px-4 border-t border-gray-50 bg-gray-50 overflow-x-auto">
+        <button v-for="t in activeGroupTabs" :key="t.tab" @click="tab = t.tab"
+          :class="['flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap border-b-2 transition-colors',
+                  tab === t.tab ? 'border-[#0088ba] text-[#0088ba] bg-white' : 'border-transparent text-gray-500 hover:text-gray-800']">
+          <component :is="t.icon" class="w-3.5 h-3.5" />
           {{ t.label }}
           <span v-if="t.badge" class="ml-1 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold bg-[#c8b274] text-[#161e2a] rounded-full">{{ t.badge }}</span>
         </button>
@@ -282,6 +292,44 @@ watch(tabs, (newTabs) => {
     tab.value = 'uebersicht'
   }
 }, { immediate: false })
+
+// =============== Tab-Gruppen (Haupt-Kategorien + Unter-Tabs) ===============
+const TAB_GROUP_DEFS = [
+  { key: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard, tabs: ['uebersicht', 'prozess'] },
+  { key: 'mandat', label: 'Mandat', icon: ClipboardList, tabs: ['mandat', 'fragebogen', 'bewertung', 'suchprofil'] },
+  { key: 'vertraege', label: 'Verträge', icon: ShieldCheck, tabs: ['nda'] },
+  { key: 'markt', label: 'Marktansprache', icon: Users, tabs: ['expose', 'landing', 'interessenten', 'longlist'] },
+  { key: 'datenraum', label: 'Datenraum', icon: Folder, tabs: ['dokumente'] },
+  { key: 'abschluss', label: 'Abschluss', icon: Trophy, tabs: ['zwischenstand', 'loi', 'erfolg', 'lessons'] },
+  { key: 'verwaltung', label: 'Verwaltung', icon: Clock, tabs: ['verlauf', 'zeit'] },
+]
+
+const tabGroups = computed(() => {
+  const availableTabKeys = new Set(tabs.value.map(t => t.tab))
+  return TAB_GROUP_DEFS
+    .map(g => ({ ...g, tabs: g.tabs.filter(k => availableTabKeys.has(k)) }))
+    .filter(g => g.tabs.length > 0)
+})
+
+const activeGroupKey = computed(() => {
+  for (const g of tabGroups.value) {
+    if (g.tabs.includes(tab.value)) return g.key
+  }
+  return tabGroups.value[0]?.key || 'uebersicht'
+})
+
+const activeGroupTabs = computed(() => {
+  const group = tabGroups.value.find(g => g.key === activeGroupKey.value)
+  if (!group) return []
+  return group.tabs.map(k => tabs.value.find(t => t.tab === k)).filter(Boolean)
+})
+
+function selectGroup(g) {
+  // Beim Klick auf Hauptkategorie: ersten Unter-Tab dieser Gruppe wählen
+  if (g.tabs.length > 0 && !g.tabs.includes(tab.value)) {
+    tab.value = g.tabs[0]
+  }
+}
 
 async function loadTarget() {
   if (!props.targetId) return
