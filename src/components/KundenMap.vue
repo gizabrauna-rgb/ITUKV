@@ -44,6 +44,7 @@ const TYP_COLORS = {
   'Verkäufer-Interesse': '#c8b274',
   'Kunde': '#60a5fa',          // hellblau (Bestandskunde)
   'Ex-Kunde': '#475569',       // dunkles slate
+  'Nichtkunde': '#d4d4d8',     // hellgrau
   'Sonstige': '#94a3b8',
 }
 
@@ -55,8 +56,11 @@ function colorForKontakt(k) {
   // Investor-Status
   if (['PE','Systemhausgruppe','Strategisch','INVESTOR'].includes(k.typ)) return TYP_COLORS.INVESTOR
   if (k.typ === 'Verkäufer-Interesse') return TYP_COLORS['Verkäufer-Interesse']
-  if (k.kundenstatus === 'Ex-Kunde') return TYP_COLORS['Ex-Kunde']
-  return TYP_COLORS.Kunde
+  if (k.kundenstatus === 'Ex-Kunde' || k.istExKunde) return TYP_COLORS['Ex-Kunde']
+  // Echter Kunde → hellblau
+  if (k.istKunde || k.kundenstatus === 'Kunde') return TYP_COLORS.Kunde
+  // Alles andere (Nichtkunde, potenzieller Kunde, leer) → hellgrau
+  return TYP_COLORS.Nichtkunde
 }
 
 function makeIcon(color, size = 10) {
