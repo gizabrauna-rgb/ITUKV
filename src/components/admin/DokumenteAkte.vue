@@ -55,8 +55,11 @@
             <option v-for="o in ordnerListe" :key="o" :value="o">{{ o }}</option>
           </select>
           <button v-if="!readOnly && isPdf(f)" @click.stop="aiAnalyze(f)"
-            class="flex items-center gap-1 px-2 py-1 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700"
-            title="KI-Analyse: Kennzahlen automatisch aus dem PDF ziehen">
+            :class="['flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-lg',
+                     pdfWarn(f) ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white']"
+            :title="pdfWarn(f)
+              ? `Achtung: ${Math.round((f.size||0)/1024/1024*10)/10} MB - bei vielen Seiten kann die Analyse abbrechen (Tier-1-Limit)`
+              : 'KI-Analyse: Kennzahlen automatisch aus dem PDF ziehen (empfohlen: bis ~20 Seiten)'">
             <Sparkles class="w-3.5 h-3.5" /> KI-Analyse
           </button>
           <button @click.stop="previewFile(f)" class="text-gray-500 hover:text-[#0088ba] p-1.5" title="Anzeigen"><Eye class="w-4 h-4" /></button>
@@ -219,6 +222,8 @@ async function handleFiles(fileList) {
       dokumente.value.unshift({
         RowKey: created.id, PartitionKey: props.targetId,
         ordner: selectedFolder.value, fileName: f.name, size: f.size,
+        blobName: sas.blobName,
+        contentType: f.type || 'application/octet-stream',
         uploadedAt: created.uploadedAt, uploadedBy: created.uploadedBy,
       })
       uploadedCount.value++
