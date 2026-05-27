@@ -462,7 +462,8 @@ TARGET_WRITABLE_FIELDS = {
     "phasenJson", "exposeJson", "fragebogenJson", "bewertungJson", "landingJson",
     "vertragJson", "kommunikationJson", "termineJson", "kaeuferFeedbackJson",
     "lessonsLearnedJson", "loiJson", "suchprofilJson", "fuerKaeuferIdsJson",
-    "longListManuellJson", "longListDecisionsJson", "presseJson",
+    "longListManuellJson", "longListDecisionsJson", "presseJson", "bewertungKIJson",
+    "geschaeftsfuehrer", "kommentarKI",
     # Diverse Workflow-Felder
     "exposeToken", "ndaTemplateUrl",
 }
@@ -5518,6 +5519,103 @@ def ai_verlauf_add(req: func.HttpRequest) -> func.HttpResponse:
         "typ": typ, "betreff": betreff[:100],
     })
     return ok_({"ok": True, "entry": new_entry})
+
+
+@app.route(route="ai-analyze-document", methods=["POST", "OPTIONS"])
+def ai_analyze_document(req: func.HttpRequest) -> func.HttpResponse:
+    """Analysiert ein hochgeladenes Dokument (PDF) mit Claude und schlaegt
+    extrahierte Werte vor. Schreibt NICHTS in die DB - liefert nur Vorschlaege.
+    Der Admin uebernimmt die Werte dann selbst per Knopfdruck.
+
+    Body: { targetId, blobName, kind?='auto' } - blobName ist der relative
+    Pfad im 'datenraum'-Container.
+    """
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return err_("KI-Analyse ist noch nicht konfiguriert. Bitte ANTHROPIC_API_KEY in Azure-Function-App-Settings hinterlegen.", 503)
+    body = req.get_json() or {}
+    tid = (body.get("targetId") or "").strip()
+    blob_name = (body.get("blobName") or "").strip()
+    if not (tid and blob_name):
+        return err_("targetId + blobName erforderlich", 400)
+    # PDF aus Blob laden
+    try:
+        from azure.storage.blob import BlobServiceClient
+        svc = BlobServiceClient.from_connection_string(TABLE_CONN)
+        blob = svc.get_blob_client("datenraum", blob_name)
+        pdf_bytes = blob.download_blob().readall()
+    except Exception as ex:
+        return err_(f"Dokument nicht ladbar: {ex}", 404)
+    if len(pdf_bytes) > 30 * 1024 * 1024:
+        return err_("PDF zu gross (max 30 MB)", 400)
+
+    # Claude aufrufen
+    try:
+        import anthropic
+        import base64 as _b64
+        client = anthropic.Anthropic(api_key=api_key)
+        pdf_b64 = _b64.b64encode(pdf_bytes).decode()
+        prompt = (
+            "Du bekommst ein deutsches Geschaeftsdokument (BWA, Jahresabschluss, "
+            "Handelsregisterauszug, Unternehmens-Exposé o.ä.). Extrahiere folgende Felder "
+            "und gib NUR strukturiertes JSON zurueck (keine Erklaerung, kein Fließtext).\n\n"
+            "JSON-Schema:\n"
+            "{\n"
+            '  "geschaeftsfuehrer": "Vor + Nachname, oder leer",\n'
+            '  "branche": "z.B. IT-Systemhaus, Softwareentwicklung, etc.",\n'
+            '  "mitarbeiter": Zahl oder null,\n'
+            '  "umsatzTeur": Zahl in Tausend Euro oder null (z.B. 2500 für 2,5 Mio),\n'
+            '  "ebitMarge": Zahl in % oder null,\n'
+            '  "recurringPct": Zahl in % wiederkehrender Umsaetze oder null,\n'
+            '  "rechtsform": "GmbH, AG, etc.",\n'
+            '  "gruendungsjahr": Zahl oder null,\n'
+            '  "kennzahlenText": "Knappe Zusammenfassung der wichtigsten Kennzahlen (max 3 Saetze)",\n'
+            '  "dokumentTyp": "BWA | Jahresabschluss | Handelsregister | Expose | Sonstige"\n'
+            "}\n\n"
+            "Wichtig: Wenn ein Feld nicht zweifelsfrei erkennbar ist, setze null/leer. "
+            "Keine Schaetzungen, nur was klar im Dokument steht."
+        )
+        msg = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=2000,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": pdf_b64}},
+                    {"type": "text", "text": prompt},
+                ],
+            }],
+        )
+        raw_text = "".join(b.text for b in msg.content if hasattr(b, "text"))
+        # JSON aus der Antwort extrahieren (Claude umrahmt manchmal mit ```json)
+        import re as _re
+        m = _re.search(r"\{[\s\S]*\}", raw_text)
+        if not m:
+            return err_(f"KI hat keine strukturierte Antwort geliefert. Roh: {raw_text[:300]}", 500)
+        extracted = json.loads(m.group(0))
+    except json.JSONDecodeError as ex:
+        return err_(f"KI-Antwort nicht parsebar: {ex}", 500)
+    except Exception as ex:
+        return err_(f"KI-Analyse fehlgeschlagen: {ex}", 500)
+
+    log_audit(p, "ai_analyze", "target", tid, {
+        "blobName": blob_name,
+        "dokumentTyp": extracted.get("dokumentTyp", ""),
+        "tokens": getattr(msg, "usage", {}).input_tokens if hasattr(msg, "usage") else 0,
+    })
+    return ok_({
+        "extracted": extracted,
+        "dokumentTyp": extracted.get("dokumentTyp", ""),
+        "tokens": {
+            "input": msg.usage.input_tokens if hasattr(msg, "usage") else 0,
+            "output": msg.usage.output_tokens if hasattr(msg, "usage") else 0,
+        },
+    })
 
 
 @app.route(route="ai-stats", methods=["GET", "OPTIONS"])

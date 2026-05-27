@@ -54,6 +54,11 @@
           <select :value="f.ordner" @change.stop="moveFile(f, $event.target.value)" @click.stop class="text-xs border border-gray-200 rounded-lg px-2 py-1">
             <option v-for="o in ordnerListe" :key="o" :value="o">{{ o }}</option>
           </select>
+          <button v-if="!readOnly && isPdf(f)" @click.stop="aiAnalyze(f)"
+            class="flex items-center gap-1 px-2 py-1 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700"
+            title="KI-Analyse: Kennzahlen automatisch aus dem PDF ziehen">
+            <Sparkles class="w-3.5 h-3.5" /> KI-Analyse
+          </button>
           <button @click.stop="previewFile(f)" class="text-gray-500 hover:text-[#0088ba] p-1.5" title="Anzeigen"><Eye class="w-4 h-4" /></button>
           <button @click.stop="downloadFile(f)" class="text-gray-500 hover:text-[#0088ba] p-1.5" title="Download"><Download class="w-4 h-4" /></button>
           <button v-if="!readOnly" @click.stop="deleteFile(f)" class="text-gray-400 hover:text-red-500 p-1.5" title="Löschen"><Trash2 class="w-4 h-4" /></button>
@@ -63,6 +68,48 @@
     <div v-else class="bg-gray-50 border border-dashed border-gray-200 rounded-xl p-10 text-center text-sm text-gray-400">
       <Folder class="w-10 h-10 mx-auto mb-2 text-gray-300" />
       Bitte oben einen Ordner auswählen.
+    </div>
+
+    <!-- KI-Vorschlag Modal -->
+    <div v-if="aiResult" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="aiResult = null">
+      <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div class="flex items-center gap-2">
+            <Sparkles class="w-5 h-5 text-purple-600" />
+            <h3 class="font-bold text-gray-900">KI-Vorschlag</h3>
+            <span v-if="aiResult.dokumentTyp" class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">{{ aiResult.dokumentTyp }}</span>
+          </div>
+          <button @click="aiResult = null"><X class="w-5 h-5 text-gray-400" /></button>
+        </div>
+        <div class="p-5 overflow-y-auto flex-1">
+          <p class="text-xs text-gray-500 mb-4">Die KI hat folgende Werte aus dem Dokument gelesen. Wähle aus welche du übernehmen möchtest — kein Wert wird ohne dein „Übernehmen"-Klick gespeichert.</p>
+          <div v-if="aiResult.extracted.kennzahlenText" class="mb-4 p-3 bg-purple-50 border border-purple-100 rounded-lg text-sm text-purple-900 italic">
+            „{{ aiResult.extracted.kennzahlenText }}"
+          </div>
+          <div class="space-y-2">
+            <label v-for="field in aiFieldList" :key="field.key"
+              :class="['flex items-center gap-3 p-3 rounded-lg border', aiAccept[field.key] ? 'bg-purple-50 border-purple-200' : 'bg-white border-gray-100']">
+              <input type="checkbox" v-model="aiAccept[field.key]" :disabled="!hasValue(field.key)" class="rounded text-[#0088ba]" />
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-medium text-gray-600">{{ field.label }}</div>
+                <div :class="['text-sm', hasValue(field.key) ? 'text-gray-900 font-semibold' : 'text-gray-300 italic']">
+                  {{ hasValue(field.key) ? aiResult.extracted[field.key] : '— nicht erkannt —' }}
+                </div>
+              </div>
+            </label>
+          </div>
+          <div v-if="aiResult.tokens" class="mt-4 text-[11px] text-gray-400 text-right">
+            Token verbraucht: {{ aiResult.tokens.input }} input / {{ aiResult.tokens.output }} output
+          </div>
+        </div>
+        <div class="flex gap-3 p-4 border-t border-gray-100 bg-gray-50">
+          <button @click="aiResult = null" class="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-xl bg-white hover:bg-gray-50">Verwerfen</button>
+          <button @click="applyAiSuggestions" :disabled="!aiAcceptedCount || aiApplying"
+            class="flex-1 px-4 py-2 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700 disabled:opacity-50">
+            {{ aiApplying ? 'Übernehme…' : `${aiAcceptedCount} Wert(e) übernehmen` }}
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Preview Modal -->
@@ -110,8 +157,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Folder, Upload, FileText, Download, Trash2, Eye, X, Image as ImageIcon, Video, Music, FileType2 } from '@lucide/vue'
-import { authFetch } from '../../api.js'
+import { Folder, Upload, FileText, Download, Trash2, Eye, X, Image as ImageIcon, Video, Music, FileType2, Sparkles } from '@lucide/vue'
+import { authFetch, aiAnalyzeDocument, updateTarget } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 
 const props = defineProps({
@@ -302,4 +349,103 @@ onMounted(async () => {
     }
   }
 })
+
+// ============== KI-Analyse ==============
+function isPdf(f) {
+  const n = (f.fileName || '').toLowerCase()
+  const ct = (f.contentType || '').toLowerCase()
+  return ct === 'application/pdf' || n.endsWith('.pdf')
+}
+
+const aiResult = ref(null)        // { extracted: {...}, dokumentTyp, tokens }
+const aiAccept = ref({})          // { feldname: true/false }
+const aiApplying = ref(false)
+
+const aiFieldList = [
+  { key: 'geschaeftsfuehrer', label: 'Geschäftsführer', kind: 'kontakt-or-target' },
+  { key: 'branche', label: 'Branche', kind: 'both' },
+  { key: 'mitarbeiter', label: 'Mitarbeiter', kind: 'both' },
+  { key: 'umsatzTeur', label: 'Umsatz (TEUR)', kind: 'target-as-umsatz' },
+  { key: 'ebitMarge', label: 'EBIT-Marge (%)', kind: 'target-only-meta' },
+  { key: 'recurringPct', label: 'Wiederkehrender Umsatz (%)', kind: 'target-only-meta' },
+  { key: 'rechtsform', label: 'Rechtsform', kind: 'meta' },
+  { key: 'gruendungsjahr', label: 'Gründungsjahr', kind: 'meta' },
+]
+
+function hasValue(key) {
+  if (!aiResult.value) return false
+  const v = aiResult.value.extracted[key]
+  return v !== null && v !== undefined && v !== ''
+}
+
+const aiAcceptedCount = computed(() =>
+  Object.entries(aiAccept.value).filter(([k, v]) => v && hasValue(k)).length
+)
+
+async function aiAnalyze(f) {
+  if (!isPdf(f)) { toast.warn('KI-Analyse aktuell nur für PDFs'); return }
+  toast.info('KI analysiert das Dokument… kann 10-30 Sekunden dauern')
+  try {
+    const r = await aiAnalyzeDocument(props.targetId, f.blobName)
+    aiResult.value = r
+    // Standard: alle erkannten Werte vorhaken
+    aiAccept.value = {}
+    for (const field of aiFieldList) {
+      aiAccept.value[field.key] = hasValue(field.key)
+    }
+  } catch (e) {
+    const msg = e?.response?.data?.error || e.message
+    toast.error('KI-Analyse fehlgeschlagen: ' + msg)
+  }
+}
+
+async function applyAiSuggestions() {
+  if (!aiResult.value) return
+  aiApplying.value = true
+  try {
+    // Werte sammeln die uebernommen werden sollen
+    const payload = {}
+    const meta = {}
+    for (const field of aiFieldList) {
+      if (!aiAccept.value[field.key] || !hasValue(field.key)) continue
+      const val = aiResult.value.extracted[field.key]
+      // Felder mappen: target hat „umsatz" (Freitext), wir mappen aus umsatzTeur
+      if (field.key === 'umsatzTeur' && val) {
+        payload.umsatz = `${(val / 1000).toFixed(1).replace('.', ',')} Mio. €`.replace(',0 Mio', ' Mio')
+      } else if (['rechtsform', 'gruendungsjahr', 'ebitMarge', 'recurringPct'].includes(field.key)) {
+        meta[field.key] = val   // diese landen in bewertungJson (Target-Bewertung)
+      } else if (['mitarbeiter', 'branche', 'geschaeftsfuehrer'].includes(field.key)) {
+        payload[field.key] = String(val)
+      }
+    }
+    // 1) Target updaten
+    if (Object.keys(payload).length || Object.keys(meta).length) {
+      // bewertungKIJson zusammenbauen + Kennzahlen-Text speichern
+      if (Object.keys(meta).length || aiResult.value.extracted.kennzahlenText) {
+        payload.bewertungKIJson = JSON.stringify({
+          ...meta,
+          kennzahlenText: aiResult.value.extracted.kennzahlenText || '',
+          quelle: 'KI-Analyse',
+          stand: new Date().toISOString(),
+        })
+      }
+      await updateTarget(props.targetId, payload)
+    }
+    // 2) Verlauf-Eintrag „KI-Analyse: …" (eigener Endpoint - auch ohne ai-agent rolle, weil admin)
+    try {
+      await authFetch('/ai-verlauf-add', { method: 'POST', data: {
+        targetId: props.targetId,
+        typ: 'ki_analyse',
+        betreff: `KI-Analyse: ${aiResult.value.dokumentTyp || 'Dokument'}`,
+        beschreibung: aiResult.value.extracted.kennzahlenText || 'Werte wurden aus Dokument extrahiert und übernommen.',
+      }})
+    } catch {}
+    toast.success(`${aiAcceptedCount.value} Wert(e) übernommen + Verlauf-Eintrag erstellt`)
+    aiResult.value = null
+  } catch (e) {
+    toast.error('Übernehmen fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
+  } finally {
+    aiApplying.value = false
+  }
+}
 </script>
