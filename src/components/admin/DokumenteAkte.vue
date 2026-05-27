@@ -1,42 +1,43 @@
 <template>
   <div>
-    <div class="flex items-center justify-between mb-4">
+    <div class="flex items-center justify-between mb-3">
       <div>
         <h3 class="text-lg font-bold text-gray-900">Datenraum</h3>
         <p class="text-xs text-gray-500">Drag &amp; Drop zum Hochladen · Klick auf Ordner zum Anzeigen</p>
       </div>
     </div>
 
-    <!-- Ordner-Grid -->
-    <div class="grid grid-cols-3 gap-3 mb-5">
+    <!-- Upload-Zone (ganz oben) -->
+    <div
+      @dragover.prevent="dragOver = true"
+      @dragleave.prevent="dragOver = false"
+      @drop.prevent="onDrop"
+      :class="['rounded-xl p-5 mb-4 border-2 border-dashed text-center transition-colors flex items-center justify-center gap-4 flex-wrap',
+               dragOver ? 'bg-[#0088ba]/10 border-[#0088ba]' : 'bg-gray-50 border-gray-300']">
+      <Upload class="w-6 h-6" :class="dragOver ? 'text-[#0088ba]' : 'text-gray-400'" />
+      <span class="text-sm text-gray-700">
+        Datei(en) hier ablegen<span v-if="selectedFolder"> für <strong>„{{ selectedFolder }}"</strong></span>
+      </span>
+      <label class="inline-flex items-center gap-2 px-3 py-1.5 bg-[#0088ba] text-white rounded-lg text-xs font-medium hover:bg-[#00a0d8] cursor-pointer">
+        <Upload class="w-3.5 h-3.5" /> Datei wählen
+        <input type="file" multiple class="hidden" @change="onSelect" :disabled="!selectedFolder" />
+      </label>
+      <span v-if="uploading" class="text-xs text-[#0088ba]">Lade hoch ({{ uploadedCount }}/{{ totalCount }})…</span>
+    </div>
+
+    <!-- Ordner-Grid: alle nebeneinander, kompakt -->
+    <div class="grid grid-cols-7 gap-2 mb-4">
       <button v-for="o in ordnerListe" :key="o" @click="selectedFolder = o"
-        :class="['rounded-xl border-2 p-4 transition-all flex items-center gap-3 text-left',
+        :class="['rounded-lg border-2 p-2.5 transition-all flex flex-col items-center text-center',
                  selectedFolder === o ? 'border-[#0088ba] bg-[#0088ba]/5' : 'border-gray-100 hover:border-gray-200 bg-white']">
-        <Folder class="w-6 h-6 text-[#0088ba] flex-shrink-0" />
-        <div class="flex-1 min-w-0">
-          <div class="text-sm font-medium text-gray-800">{{ o }}</div>
-          <div class="text-xs text-gray-400">{{ countInOrdner(o) }} {{ countInOrdner(o) === 1 ? 'Datei' : 'Dateien' }}</div>
-        </div>
+        <Folder class="w-5 h-5 text-[#0088ba] mb-1" />
+        <div class="text-[11px] font-medium text-gray-800 leading-tight">{{ o }}</div>
+        <div class="text-[10px] text-gray-400 mt-0.5">{{ countInOrdner(o) }}</div>
       </button>
     </div>
 
-    <!-- Upload-Zone + Dateien -->
+    <!-- Dateien -->
     <div v-if="selectedFolder">
-      <div
-        @dragover.prevent="dragOver = true"
-        @dragleave.prevent="dragOver = false"
-        @drop.prevent="onDrop"
-        :class="['rounded-xl p-8 mb-4 border-2 border-dashed text-center transition-colors',
-                 dragOver ? 'bg-[#0088ba]/10 border-[#0088ba]' : 'bg-gray-50 border-gray-300']">
-        <Upload class="w-10 h-10 mx-auto mb-2" :class="dragOver ? 'text-[#0088ba]' : 'text-gray-400'" />
-        <p class="text-sm text-gray-700 font-medium mb-1">Datei(en) hier ablegen für „{{ selectedFolder }}"</p>
-        <label class="inline-flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8] cursor-pointer mt-2">
-          <Upload class="w-4 h-4" /> Datei wählen
-          <input type="file" multiple class="hidden" @change="onSelect" />
-        </label>
-        <p v-if="uploading" class="text-xs text-[#0088ba] mt-3">Lade hoch ({{ uploadedCount }}/{{ totalCount }})…</p>
-      </div>
-
       <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
         <div v-if="!filesInFolder.length" class="p-6 text-center text-sm text-gray-400">Noch keine Dateien in „{{ selectedFolder }}".</div>
         <div v-for="f in filesInFolder" :key="f.RowKey" class="flex items-center gap-3 px-4 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 cursor-pointer" @click="previewFile(f)">
