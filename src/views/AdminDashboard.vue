@@ -297,6 +297,11 @@
           <BenutzerTab />
         </div>
 
+        <!-- Audit & Backup -->
+        <div v-else-if="tab === 'audit'">
+          <AuditTab />
+        </div>
+
         <!-- Einstellungen -->
         <div v-else-if="tab === 'einstellungen'">
           <EinstellungenTab />
@@ -312,7 +317,7 @@
 import { ref, computed, onMounted } from 'vue'
 import {
   Building2, LogOut, LayoutDashboard, Briefcase, GitBranch,
-  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow, Bell, BarChart3, AlertCircle, Activity, Mail, CalendarClock,
+  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow, Bell, BarChart3, AlertCircle, Activity, Mail, CalendarClock, ShieldCheck,
 } from '@lucide/vue'
 import { authFetch, verlaufUnreadCount, verlaufMarkRead } from '../api.js'
 import TargetsTab from '../components/admin/TargetsTab.vue'
@@ -320,6 +325,7 @@ import CrmTab from '../components/admin/CrmTab.vue'
 import AusschreibungenTab from '../components/admin/AusschreibungenTab.vue'
 import DokumenteTab from '../components/admin/DokumenteTab.vue'
 import BenutzerTab from '../components/admin/BenutzerTab.vue'
+import AuditTab from '../components/admin/AuditTab.vue'
 import EinstellungenTab from '../components/admin/EinstellungenTab.vue'
 import Controlling from '../components/admin/Controlling.vue'
 import TargetAkte from '../components/admin/TargetAkte.vue'
@@ -380,6 +386,7 @@ const navItems = [
   { tab: 'mailvorlagen', label: 'E-Mail-Vorlagen', icon: Mail },
   { tab: 'controlling', label: 'Controlling', icon: BarChart3 },
   { tab: 'benutzer', label: 'Benutzer', icon: UserCog },
+  { tab: 'audit', label: 'Audit & Backup', icon: ShieldCheck },
   { tab: 'einstellungen', label: 'Einstellungen', icon: Settings },
 ]
 

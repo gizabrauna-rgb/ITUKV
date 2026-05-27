@@ -364,7 +364,9 @@ def targets_route(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "GET":
         items = [dict(i) for i in tc.list_entities()]
         return ok_(items)
-    # POST – neues Target
+    # POST – neues Target: nur Admins
+    if p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
     body = req.get_json()
     tid = str(uuid.uuid4())
     # Minimale Phasen-Vorlage (15 Master-Phasen, ohne Aufgabenliste – die
@@ -506,6 +508,9 @@ def target_delete(req: func.HttpRequest) -> func.HttpResponse:
                 pass
     except Exception:
         pass
+    log_audit(p, "delete", "target", tid, {
+        "interessentenGeloescht": deleted_int, "dokumenteGeloescht": deleted_docs,
+    })
     return ok_({"deleted": tid, "interessentenGeloescht": deleted_int, "dokumenteGeloescht": deleted_docs})
 
 
@@ -529,10 +534,15 @@ def target_update(req: func.HttpRequest) -> func.HttpResponse:
     except Exception:
         return err_("Target nicht gefunden", 404)
     # Mass-Assignment-Schutz: nur Felder aus der Allowlist uebernehmen
+    changed = []
     for k, v in body.items():
         if k in TARGET_WRITABLE_FIELDS:
+            if entity.get(k) != v:
+                changed.append(k)
             entity[k] = v
     tc.update_entity(dict(entity))
+    if changed:
+        log_audit(p, "update", "target", tid, {"fields": changed})
     return ok_(dict(entity))
 
 
@@ -622,6 +632,7 @@ def kontakt_delete(req: func.HttpRequest) -> func.HttpResponse:
         table_("kontakte").delete_entity("kontakt", rk)
     except Exception as ex:
         return err_(f"Loeschen fehlgeschlagen: {ex}", 500)
+    log_audit(p, "delete", "kontakt", rk)
     return ok_({"deleted": rk})
 
 
@@ -630,7 +641,7 @@ def kontakte_route(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return opt_()
     p = auth_user(req)
-    if not p or p.get("role") != "admin":
+    if not p or p.get("role") not in ("admin", "ai-agent"):
         return err_("Nicht autorisiert", 401)
     items = [dict(i) for i in table_("kontakte").list_entities()]
     return ok_(items)
@@ -707,6 +718,7 @@ def user_create(req: func.HttpRequest) -> func.HttpResponse:
         except Exception as ex:
             logging.warning(f"Begruessungsmail fehlgeschlagen: {ex}") if 'logging' in dir() else None
 
+    log_audit(p, "create", "user", uid, {"email": email, "role": entity["role"], "name": entity["name"]})
     return ok_({"id": uid, "email": email, "role": entity["role"], "name": entity["name"], "initialPassword": pw}, 201)
 
 
@@ -760,6 +772,7 @@ def user_delete(req: func.HttpRequest) -> func.HttpResponse:
         return err_("id erforderlich", 400)
     try:
         table_("users").delete_entity("user", uid)
+        log_audit(p, "delete", "user", uid)
         return ok_({"deleted": True})
     except Exception:
         return err_("Benutzer nicht gefunden", 404)
@@ -5211,3 +5224,257 @@ li {{ margin: 3px 0; font-size: 10.5pt; }}
 </body></html>"""
     from weasyprint import HTML
     return HTML(string=html_doc, base_url="/").write_pdf()
+
+
+# ============================================================
+# AUDIT-TRAIL — wer hat wann was geaendert
+# ============================================================
+
+def log_audit(p, action, target_type, target_id="", details=None):
+    """Schreibt einen Audit-Log-Eintrag.
+    Felder: PK='audit', RK=timestamp+uuid, userId, userName, userRole,
+            action (create/update/delete/login/...), targetType (target/kontakt/user/...),
+            targetId, details (JSON-String mit zusaetzlichen Infos)."""
+    try:
+        tc = table_("auditlog")
+        now = datetime.utcnow()
+        rk = now.isoformat() + "_" + str(uuid.uuid4())[:8]
+        tc.create_entity({
+            "PartitionKey": "audit", "RowKey": rk,
+            "ts": now.isoformat(),
+            "userId": (p or {}).get("id", "") or "",
+            "userName": (p or {}).get("name", "") or "",
+            "userRole": (p or {}).get("role", "") or "",
+            "action": action,
+            "targetType": target_type,
+            "targetId": target_id or "",
+            "details": json.dumps(details, ensure_ascii=False, default=str)[:32000] if details else "",
+        })
+    except Exception as ex:
+        logging.warning(f"[AUDIT] Konnte Log-Eintrag nicht schreiben: {ex}")
+
+
+@app.route(route="audit-log", methods=["GET", "OPTIONS"])
+def audit_log_list(req: func.HttpRequest) -> func.HttpResponse:
+    """Liefert die letzten 200 Audit-Eintraege. Admin-only."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    target_filter = (req.params.get("targetId") or "").strip()
+    user_filter = (req.params.get("userId") or "").strip()
+    limit = int(req.params.get("limit", "200") or "200")
+    try:
+        items = list(table_("auditlog").list_entities())
+    except Exception:
+        items = []
+    items = [dict(i) for i in items]
+    if target_filter:
+        items = [i for i in items if i.get("targetId") == target_filter]
+    if user_filter:
+        items = [i for i in items if i.get("userId") == user_filter]
+    items.sort(key=lambda x: x.get("ts", ""), reverse=True)
+    return ok_({"items": items[:limit], "total": len(items)})
+
+
+# ============================================================
+# WEEKLY BACKUP — Tabellen + Audit als JSON in Blob speichern
+# ============================================================
+
+@app.timer_trigger(schedule="0 0 3 * * 0", arg_name="weeklyTimer", run_on_startup=False, use_monitor=True)
+def weekly_backup(weeklyTimer: func.TimerRequest) -> None:
+    """Laeuft Sonntags um 03:00 UTC. Exportiert die wichtigsten Tabellen
+    als JSON in den Blob-Container 'backups'. Behaelt 12 Wochen
+    (rolliert aelteste raus)."""
+    logging.info("[BACKUP] weekly_backup gestartet")
+    TABLES = ["targets", "kontakte", "interessenten", "dokumente", "users",
+              "mailvorlagen", "vertragsignaturen", "auditlog", "passwordresets"]
+    snapshot = {"createdAt": datetime.utcnow().isoformat(), "tables": {}}
+    for tname in TABLES:
+        try:
+            tc = table_(tname)
+            entities = []
+            for e in tc.list_entities():
+                d = dict(e)
+                # passwordHash NICHT ins Backup (Risk-Hygiene)
+                if tname == "users":
+                    d.pop("passwordHash", None)
+                entities.append(d)
+            snapshot["tables"][tname] = entities
+            logging.info(f"[BACKUP] {tname}: {len(entities)} Records")
+        except Exception as ex:
+            logging.warning(f"[BACKUP] Tabelle {tname} nicht abrufbar: {ex}")
+            snapshot["tables"][tname] = {"error": str(ex)}
+    # Als JSON in Blob speichern
+    try:
+        from azure.storage.blob import BlobServiceClient
+        svc = BlobServiceClient.from_connection_string(TABLE_CONN)
+        try: svc.create_container("backups")
+        except Exception: pass
+        container = svc.get_container_client("backups")
+        date_str = datetime.utcnow().strftime("%Y-%m-%d")
+        blob_name = f"backup_{date_str}.json"
+        body = json.dumps(snapshot, ensure_ascii=False, default=str).encode("utf-8")
+        container.upload_blob(blob_name, body, overwrite=True)
+        logging.info(f"[BACKUP] gespeichert als {blob_name} ({len(body)/1024:.0f} KB)")
+        # Rotation: behalte nur letzte 12
+        backups = sorted([b.name for b in container.list_blobs() if b.name.startswith("backup_")], reverse=True)
+        for old in backups[12:]:
+            try:
+                container.delete_blob(old)
+                logging.info(f"[BACKUP] alte Sicherung geloescht: {old}")
+            except Exception:
+                pass
+    except Exception as ex:
+        logging.error(f"[BACKUP] Upload fehlgeschlagen: {ex}")
+
+
+@app.route(route="backup-trigger", methods=["POST", "OPTIONS"])
+def backup_trigger_manual(req: func.HttpRequest) -> func.HttpResponse:
+    """Loest den Backup-Job manuell aus. Admin-only.
+    Praktisch fuer „kurz vor groesserer Aenderung Snapshot machen"."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    try:
+        weekly_backup(None)  # type: ignore
+    except Exception as ex:
+        return err_(f"Backup fehlgeschlagen: {ex}", 500)
+    log_audit(p, "backup_manual", "system")
+    return ok_({"ok": True})
+
+
+@app.route(route="backup-list", methods=["GET", "OPTIONS"])
+def backup_list(req: func.HttpRequest) -> func.HttpResponse:
+    """Listet alle verfuegbaren Backups + Download-URL (SAS, 10 Min)."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    out = []
+    try:
+        from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
+        svc = BlobServiceClient.from_connection_string(TABLE_CONN)
+        container = svc.get_container_client("backups")
+        for b in container.list_blobs():
+            sas = generate_blob_sas(
+                account_name=svc.account_name, container_name="backups",
+                blob_name=b.name, account_key=svc.credential.account_key,
+                permission=BlobSasPermissions(read=True),
+                expiry=datetime.utcnow() + timedelta(minutes=10),
+            )
+            out.append({
+                "name": b.name,
+                "createdAt": b.creation_time.isoformat() if b.creation_time else "",
+                "sizeKb": round((b.size or 0) / 1024, 1),
+                "downloadUrl": f"https://{svc.account_name}.blob.core.windows.net/backups/{b.name}?{sas}",
+            })
+    except Exception as ex:
+        logging.warning(f"backup-list fehlgeschlagen: {ex}")
+    out.sort(key=lambda x: x.get("name", ""), reverse=True)
+    return ok_({"backups": out})
+
+
+# ============================================================
+# AI BULK UPDATE — Endpoint speziell fuer KI-Coworker
+# Beschraenkter Schreibumfang, jede Aktion ins Audit-Log
+# ============================================================
+
+# Felder die ein KI-Agent setzen darf (kein Status, keine User-Daten, keine Phasen)
+AI_WRITABLE_KONTAKT_FIELDS = {
+    "mitarbeiter", "umsatzTeur", "ebitMarge", "recurringPct",
+    "branche", "geschaeftsfuehrer", "bietet", "sucht", "kommentar", "website",
+}
+AI_WRITABLE_TARGET_FIELDS = {
+    "mitarbeiter", "umsatz", "branche", "beschreibung",
+}
+
+
+@app.route(route="ai-bulk-update", methods=["POST", "OPTIONS"])
+def ai_bulk_update(req: func.HttpRequest) -> func.HttpResponse:
+    """Bulk-Update von Kontakten oder Targets durch einen KI-Service-Account.
+    Erlaubt nur Rolle 'ai-agent'. Felder sind streng begrenzt.
+    Jeder Aufruf wird ins Audit-Log geschrieben.
+    Body: { updates: [{ type: 'kontakt'|'target', id, fields: {...} }, ...] }
+    Max 500 Updates pro Aufruf."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") not in ("ai-agent", "admin"):
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    updates = body.get("updates", [])
+    if not isinstance(updates, list) or not updates:
+        return err_("updates-Array erforderlich", 400)
+    if len(updates) > 500:
+        return err_("Max 500 Updates pro Aufruf", 400)
+
+    ok_count = 0
+    errors = []
+    for u in updates:
+        ttype = u.get("type")
+        tid = u.get("id")
+        fields = u.get("fields") or {}
+        if not (ttype and tid and isinstance(fields, dict)):
+            errors.append({"id": tid, "error": "Ungueltige Struktur"})
+            continue
+        if ttype == "kontakt":
+            allowed = AI_WRITABLE_KONTAKT_FIELDS
+            tname = "kontakte"; pk = "kontakt"
+        elif ttype == "target":
+            allowed = AI_WRITABLE_TARGET_FIELDS
+            tname = "targets"; pk = "target"
+        else:
+            errors.append({"id": tid, "error": f"Unbekannter type: {ttype}"})
+            continue
+        clean_fields = {k: v for k, v in fields.items() if k in allowed}
+        if not clean_fields:
+            errors.append({"id": tid, "error": "Keine erlaubten Felder"})
+            continue
+        try:
+            tc = table_(tname)
+            ent = tc.get_entity(pk, tid)
+            old_values = {k: ent.get(k, "") for k in clean_fields}
+            for k, v in clean_fields.items():
+                ent[k] = v
+            tc.update_entity(dict(ent))
+            log_audit(p, "ai_update", ttype, tid, {
+                "fields": list(clean_fields.keys()),
+                "old": old_values,
+                "new": clean_fields,
+            })
+            ok_count += 1
+        except Exception as ex:
+            errors.append({"id": tid, "error": str(ex)[:200]})
+    return ok_({"updated": ok_count, "failed": len(errors), "errors": errors[:20]})
+
+
+@app.route(route="ai-stats", methods=["GET", "OPTIONS"])
+def ai_stats(req: func.HttpRequest) -> func.HttpResponse:
+    """Health-Check + Quota-Info fuer KI-Service-Account."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") not in ("ai-agent", "admin"):
+        return err_("Nicht autorisiert", 401)
+    # Heute schon laufende ai_update-Eintraege zaehlen
+    today_iso = datetime.utcnow().date().isoformat()
+    count_today = 0
+    try:
+        for e in table_("auditlog").list_entities():
+            if e.get("action") == "ai_update" and (e.get("ts", "") or "").startswith(today_iso):
+                count_today += 1
+    except Exception:
+        pass
+    return ok_({
+        "user": p.get("name", ""),
+        "role": p.get("role", ""),
+        "updatesToday": count_today,
+        "dailyLimit": 1000,
+        "writableKontaktFields": sorted(AI_WRITABLE_KONTAKT_FIELDS),
+        "writableTargetFields": sorted(AI_WRITABLE_TARGET_FIELDS),
+    })

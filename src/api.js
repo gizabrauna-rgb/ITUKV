@@ -66,6 +66,11 @@ export const createTarget = (data) => authFetch('/targets', { method: 'POST', da
 export const updateTarget = (id, data) => authFetch('/target-update', { method: 'POST', data: { id, ...data } })
 export const deleteTarget = (id) => authFetch('/target-delete', { method: 'POST', data: { id } })
 
+// Audit + Backup (Admin)
+export const getAuditLog = (params = {}) => authFetch('/audit-log', { params })
+export const listBackups = () => authFetch('/backup-list')
+export const triggerBackup = () => authFetch('/backup-trigger', { method: 'POST' })
+
 // Interessenten
 export const getInteressenten = (targetId) => authFetch('/interessenten', { method: 'POST', data: { targetId } })
 export const createInteressent = (data) => authFetch('/interessent-create', { method: 'POST', data })
