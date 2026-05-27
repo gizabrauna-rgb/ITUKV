@@ -52,12 +52,45 @@
         <Field v-model="data.transaktionsnummer" label="Transaktionsnummer / mb-Nr." @blur="save" />
       </div>
     </section>
+
+    <!-- Mandatslaufzeit -->
+    <section class="bg-white rounded-xl border border-gray-100 mb-4">
+      <header class="px-5 py-3 border-b border-gray-50 flex items-center gap-2">
+        <Clock class="w-4 h-4 text-[#0088ba]" />
+        <h3 class="font-semibold text-gray-800 text-sm">Mandatslaufzeit</h3>
+      </header>
+      <div class="p-5 grid grid-cols-3 gap-4 items-end">
+        <Field v-model="data.mandatStart" label="Mandat-Beginn" type="date" @blur="save" />
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Laufzeit (Monate)</label>
+          <input v-model.number="data.mandatLaufzeitMonate" type="number" min="1" max="60" step="1"
+            @blur="save"
+            class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]" />
+          <p class="text-[11px] text-gray-400 mt-1">Empfehlung: 12 Monate</p>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Läuft bis</label>
+          <div :class="['px-3 py-2 rounded-xl text-sm border',
+              !mandatEnde ? 'bg-gray-50 border-gray-100 text-gray-400'
+              : tageBisEnde < 0 ? 'bg-red-50 border-red-200 text-red-700 font-semibold'
+              : tageBisEnde <= 60 ? 'bg-amber-50 border-amber-200 text-amber-700 font-semibold'
+              : 'bg-green-50 border-green-200 text-green-700']">
+            {{ mandatEnde || '—' }}
+            <span v-if="mandatEnde" class="block text-[11px] font-normal mt-0.5">
+              <template v-if="tageBisEnde < 0">vor {{ -tageBisEnde }} Tagen abgelaufen</template>
+              <template v-else-if="tageBisEnde === 0">heute</template>
+              <template v-else>in {{ tageBisEnde }} Tagen</template>
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, h, defineComponent } from 'vue'
-import { User, Database } from '@lucide/vue'
+import { User, Database, Clock } from '@lucide/vue'
 import { authFetch } from '../../api.js'
 
 const props = defineProps({ targetId: String, readOnly: Boolean })
@@ -66,6 +99,23 @@ const data = ref({
   vorname: '', name: '',
   privatEmail: '', privatHandy: '',
   kundennummer: '', transaktionsnummer: '',
+  mandatStart: '', mandatLaufzeitMonate: 12,
+})
+
+const mandatEnde = computed(() => {
+  if (!data.value.mandatStart || !data.value.mandatLaufzeitMonate) return ''
+  const start = new Date(data.value.mandatStart)
+  if (Number.isNaN(start.getTime())) return ''
+  const end = new Date(start)
+  end.setMonth(end.getMonth() + Number(data.value.mandatLaufzeitMonate))
+  return end.toISOString().slice(0, 10)
+})
+
+const tageBisEnde = computed(() => {
+  if (!mandatEnde.value) return null
+  const end = new Date(mandatEnde.value)
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  return Math.round((end - today) / (1000 * 60 * 60 * 24))
 })
 
 const allFields = ['vorname', 'name', 'privatEmail', 'privatHandy', 'kundennummer', 'transaktionsnummer']

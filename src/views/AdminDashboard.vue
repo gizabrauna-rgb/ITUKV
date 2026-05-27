@@ -149,6 +149,16 @@
                   <span class="font-medium truncate flex-1">{{ v.firma }}</span>
                   <span class="text-red-600">Wiedervorlage</span>
                 </button>
+                <button v-for="v in ueberblick.wartet.mandateLaufenAus || []" :key="'ml'+v.targetId" @click="openAkteWithTab(v.targetId, 'mandat')"
+                  class="w-full text-left flex items-center gap-2 p-2 hover:bg-amber-50 rounded-lg text-xs">
+                  <span :class="['w-1.5 h-1.5 rounded-full flex-shrink-0', v.abgelaufen ? 'bg-red-600' : 'bg-amber-500']"></span>
+                  <span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ v.mbNr }}</span>
+                  <span class="font-medium truncate flex-1">{{ v.firma }}</span>
+                  <span :class="v.abgelaufen ? 'text-red-700 font-semibold' : 'text-amber-700'">
+                    <template v-if="v.abgelaufen">Mandat abgelaufen ({{ -v.tageBisEnde }} T)</template>
+                    <template v-else>Mandat läuft in {{ v.tageBisEnde }} T aus</template>
+                  </span>
+                </button>
                 <button v-for="v in ueberblick.wartet.pressefreigabe || []" :key="'pr'+v.targetId" @click="openAkteWithTab(v.targetId, 'erfolg')"
                   class="w-full text-left flex items-center gap-2 p-2 hover:bg-amber-50 rounded-lg text-xs">
                   <span class="w-1.5 h-1.5 rounded-full bg-orange-500 flex-shrink-0"></span>
@@ -227,11 +237,6 @@
           <TargetsTab v-else @open-detail="openAkte" />
         </div>
 
-        <!-- Pipeline -->
-        <div v-else-if="tab === 'pipeline'">
-          <PipelineTab />
-        </div>
-
         <!-- CRM -->
         <div v-else-if="tab === 'crm'">
           <CrmTab />
@@ -280,7 +285,6 @@ import {
 } from '@lucide/vue'
 import { authFetch, verlaufUnreadCount, verlaufMarkRead } from '../api.js'
 import TargetsTab from '../components/admin/TargetsTab.vue'
-import PipelineTab from '../components/admin/PipelineTab.vue'
 import CrmTab from '../components/admin/CrmTab.vue'
 import AusschreibungenTab from '../components/admin/AusschreibungenTab.vue'
 import DokumenteTab from '../components/admin/DokumenteTab.vue'
@@ -339,7 +343,6 @@ function openNdaInAkte(v) {
 const navItems = [
   { tab: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard },
   { tab: 'targets', label: 'Projekte', icon: Briefcase },
-  { tab: 'pipeline', label: 'Pipeline', icon: GitBranch },
   { tab: 'crm', label: 'Kundenstamm', icon: Users },
   { tab: 'ausschreibungen', label: 'Veröffentlichte Mandate', icon: Megaphone },
   { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
@@ -351,7 +354,6 @@ const navItems = [
 
 const quickAccess = [
   { tab: 'targets', label: 'Targets', desc: 'Mandate verwalten', icon: Briefcase },
-  { tab: 'pipeline', label: 'Pipeline', desc: 'Interessenten', icon: GitBranch },
   { tab: 'crm', label: 'Investoren', desc: 'CRM & Karte', icon: Users },
 ]
 

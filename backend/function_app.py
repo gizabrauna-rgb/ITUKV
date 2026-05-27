@@ -4298,6 +4298,7 @@ def dashboard_uebersicht(req: func.HttpRequest) -> func.HttpResponse:
         "fragebogenZuPruefen": [],      # Verkäufer hat Fragebogen abgegeben, mibeca muss auswerten
         "exposeKorrekturwunsch": [],    # Verkäufer hat Korrekturwunsch zum Exposé
         "exposeFreigabeAusstehend": [], # Exposé wurde an Kunden gesendet, wartet auf seine Freigabe
+        "mandateLaufenAus": [],         # Mandat laeuft in <=60 Tagen aus oder ist abgelaufen
     }
 
     today = datetime.utcnow().date().isoformat()
@@ -4341,6 +4342,24 @@ def dashboard_uebersicht(req: func.HttpRequest) -> func.HttpResponse:
         wv = t.get("wiedervorlage", "")
         if wv and wv <= today:
             wartet["wiedervorlage"].append({"targetId": tid, "mbNr": mb_nr, "firma": firma, "datum": wv})
+        # Mandatslaufzeit: warnen wenn <=60 Tage bis Ende
+        try:
+            mandat_start = t.get("mandatStart", "") or ""
+            mandat_monate = int(t.get("mandatLaufzeitMonate", 0) or 0)
+            mandat_status = (t.get("status") or "").lower()
+            if mandat_start and mandat_monate > 0 and mandat_status not in ("verkauft", "abgebrochen"):
+                start_dt = datetime.fromisoformat(mandat_start[:10])
+                ende_dt = start_dt + timedelta(days=mandat_monate * 30)  # naeherungsweise
+                tage_bis_ende = (ende_dt.date() - datetime.utcnow().date()).days
+                if tage_bis_ende <= 60:
+                    wartet["mandateLaufenAus"].append({
+                        "targetId": tid, "mbNr": mb_nr, "firma": firma,
+                        "endeAm": ende_dt.date().isoformat(),
+                        "tageBisEnde": tage_bis_ende,
+                        "abgelaufen": tage_bis_ende < 0,
+                    })
+        except Exception:
+            pass
         # Fragebogen abgegeben → mibeca muss auswerten (solange noch kein Exposé)
         if t.get("fragebogenStatus") == "abgegeben":
             try:
