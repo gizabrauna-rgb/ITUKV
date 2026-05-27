@@ -86,10 +86,10 @@
             <img :src="previewUrl" :alt="previewFile_.fileName" class="max-h-full max-w-full object-contain" />
           </div>
           <div v-else-if="previewType === 'video'" class="h-full flex items-center justify-center p-4">
-            <video :src="previewUrl" controls autoplay class="max-h-full max-w-full"></video>
+            <video :src="previewUrl" controls preload="metadata" class="max-h-full max-w-full"></video>
           </div>
           <div v-else-if="previewType === 'audio'" class="h-full flex items-center justify-center p-4">
-            <audio :src="previewUrl" controls autoplay class="w-full max-w-md"></audio>
+            <audio :src="previewUrl" controls preload="metadata" class="w-full max-w-md"></audio>
           </div>
           <div v-else-if="previewType === 'text'" class="h-full overflow-auto p-6 bg-white">
             <pre class="text-sm whitespace-pre-wrap">{{ previewText }}</pre>
