@@ -31,6 +31,14 @@
       </button>
     </div>
 
+    <!-- Banner: Suchprofil leer -->
+    <div v-if="profilLeer && !loading" class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 mb-3 flex items-start gap-2">
+      <AlertCircle class="w-4 h-4 flex-shrink-0 mt-0.5" />
+      <div>
+        <strong>Kein Suchprofil hinterlegt</strong> – aktuell werden alle CRM-Kontakte angezeigt, nur nach PLZ sortiert. Lege ein Suchprofil im Tab „Suchprofil" an, um nur passende Kandidaten zu sehen.
+      </div>
+    </div>
+
     <!-- Hint Box -->
     <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-900 mb-3">
       <strong>Workflow:</strong> Markiere zuerst Favoriten (nur intern sichtbar). Mit <Eye class="w-3 h-3 inline -mt-0.5" /> gibst du den Kandidaten für den Käufer frei. Der Käufer kann dann Feedback geben (Interesse / kein Interesse / Rückfrage).
@@ -123,7 +131,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Users, RefreshCw, Check, X, Plus, Eye, EyeOff, Lightbulb, Star, Ban } from '@lucide/vue'
+import { Users, RefreshCw, Check, X, Plus, Eye, EyeOff, Lightbulb, Star, Ban, AlertCircle } from '@lucide/vue'
 import { authFetch, getKontakte, getTargets } from '../../api.js'
 
 const props = defineProps({ targetId: String })
@@ -138,13 +146,14 @@ const allKontakte = ref([])
 const manuellAdded = ref([])
 const fuerKaeuferIds = ref([])     // IDs der fuer Kaeufer freigegebenen
 const kaeuferFeedback = ref({})    // { kontaktId: { interesse, kommentar } }
+const profilLeer = ref(false)
 
 function isFreigegeben(k) { return fuerKaeuferIds.value.includes(k.id) }
 function cleanGruende(arr) {
   // entferne emojis am Anfang von Strings
   return (arr || []).map(g => String(g).replace(/^[\p{Emoji_Presentation}\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]\s*/u, '').trim())
 }
-const fuerKaeuferCount = computed(() => fuerKaeuferIds.value.length)
+const fuerKaeuferCount = computed(() => items.value.filter(k => fuerKaeuferIds.value.includes(k.id)).length)
 const vorschlagCount = computed(() => items.value.filter(k => !decisions.value[k.id] && !fuerKaeuferIds.value.includes(k.id)).length)
 
 async function freigeben(k, on) {
@@ -192,8 +201,10 @@ async function saveManuell() {
   } catch (e) { console.error(e) }
 }
 
-const shortListCount = computed(() => Object.values(decisions.value).filter(v => v === 'short').length)
-const abgesagtCount = computed(() => Object.values(decisions.value).filter(v => v === 'abgesagt').length)
+// Counts NUR aus items.value berechnen (nicht aus rohen decisions/fuerKaeuferIds)
+// → konsistent mit den tatsächlich sichtbaren Listen
+const shortListCount = computed(() => items.value.filter(k => decisions.value[k.id] === 'short').length)
+const abgesagtCount = computed(() => items.value.filter(k => decisions.value[k.id] === 'abgesagt').length)
 const visibleItems = computed(() => {
   if (filter.value === 'long') return items.value.filter(k => !decisions.value[k.id] && !fuerKaeuferIds.value.includes(k.id))
   if (filter.value === 'short') return items.value.filter(k => decisions.value[k.id] === 'short')
@@ -387,12 +398,13 @@ async function refreshList() {
       })
 
     const manuellSet = new Set(manuellAdded.value)
-    const profilLeer = !hasSuchprofil(suchprofil)
+    const profilLeerVal = !hasSuchprofil(suchprofil)
+    profilLeer.value = profilLeerVal
     // Ausschluss-Regionen fliegen IMMER raus (außer manuell hinzugefügt)
     let all = [...internalMatches, ...crmMatches]
       .filter(k => !k.ausgeschlossen || manuellSet.has(k.id))
 
-    if (profilLeer) {
+    if (profilLeerVal) {
       // Kein Suchprofil → einfach nach PLZ aufsteigend sortieren
       all = all.sort((a, b) => (a.plz || '99999').localeCompare(b.plz || '99999'))
     } else {
@@ -403,6 +415,30 @@ async function refreshList() {
     }
     items.value = all
     try { decisions.value = JSON.parse(t.longListDecisionsJson || '{}') } catch { decisions.value = {} }
+
+    // Stale-Cleanup: Markierungen für nicht mehr existierende Kontakte (z.B. aus
+    // Dedup-Aktionen) automatisch wegräumen. Sonst zählen die Counter falsch.
+    const validIds = new Set(items.value.map(k => k.id))
+    const cleanDecisions = {}
+    let removedDec = 0
+    for (const [id, v] of Object.entries(decisions.value)) {
+      if (validIds.has(id)) cleanDecisions[id] = v
+      else removedDec++
+    }
+    const cleanFuerKaeufer = fuerKaeuferIds.value.filter(id => validIds.has(id))
+    const removedFK = fuerKaeuferIds.value.length - cleanFuerKaeufer.length
+    if (removedDec || removedFK) {
+      decisions.value = cleanDecisions
+      fuerKaeuferIds.value = cleanFuerKaeufer
+      try {
+        await authFetch('/target-update', { method: 'POST', data: {
+          id: props.targetId,
+          longListDecisionsJson: JSON.stringify(cleanDecisions),
+          fuerKaeuferIdsJson: JSON.stringify(cleanFuerKaeufer),
+        }})
+        console.log(`[LongList] Stale-Cleanup: ${removedDec} Entscheidungen, ${removedFK} Freigaben entfernt`)
+      } catch (e) { console.error('cleanup failed', e) }
+    }
   } catch (e) { console.error(e) }
   finally { loading.value = false }
 }
