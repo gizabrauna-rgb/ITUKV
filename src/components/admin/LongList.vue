@@ -110,9 +110,9 @@
           <button v-if="decisions[k.id] !== 'short'" @click="setStatus(k, 'short')" title="Zu Favoriten hinzufügen"
             class="p-1.5 hover:bg-green-50 rounded text-green-600"><Check class="w-4 h-4" /></button>
           <button v-if="decisions[k.id] === 'short' && !isFreigegeben(k)" @click="freigeben(k, true)" title="Für Käufer freigeben"
+            class="p-1.5 hover:bg-purple-50 rounded text-gray-500"><EyeOff class="w-4 h-4" /></button>
+          <button v-if="isFreigegeben(k)" @click="freigeben(k, false)" title="Sichtbar für Käufer – klick zum Zurückziehen"
             class="p-1.5 hover:bg-purple-50 rounded text-purple-600"><Eye class="w-4 h-4" /></button>
-          <button v-if="isFreigegeben(k)" @click="freigeben(k, false)" title="Freigabe für Käufer zurückziehen"
-            class="p-1.5 hover:bg-gray-50 rounded text-gray-500"><EyeOff class="w-4 h-4" /></button>
           <button v-if="decisions[k.id] !== 'abgesagt'" @click="setStatus(k, 'abgesagt')" title="Ablehnen"
             class="p-1.5 hover:bg-red-50 rounded text-red-600"><X class="w-4 h-4" /></button>
         </div>
@@ -202,46 +202,140 @@ const visibleItems = computed(() => {
   return items.value
 })
 
+function hasSuchprofil(s) {
+  if (!s) return false
+  return !!(s.maMin || s.maMax || s.umsatzMin || s.umsatzMax ||
+            s.ebitMargeMin || s.recurringMin ||
+            s.zentralPlz || (s.regionen && s.regionen.trim()) ||
+            (s.regionenAusschluss && s.regionenAusschluss.trim()) ||
+            (s.itFokus && s.itFokus.length) ||
+            (s.itFokusSonstige && s.itFokusSonstige.trim()))
+}
+
+// Mapping IT-Fokus -> Kontakt-Flag-Felder (aus dem CRM-Schema)
+const FOKUS_FLAG_MAP = {
+  'MSP / Managed Services': ['hatMC', 'hatUC', 'hatUCS'],
+  'IT-Security': ['hatKIT', 'hatMSQ'],
+  'Cloud (Azure/AWS)': ['hatKIwerkOne'],
+  'ERP / SAP': [],
+  'Software-Entwicklung': [],
+  'Telefonanlagen': [],
+  'Drucker/Kopierer': [],
+  'Netzwerk': [],
+  'Beratung / Consulting': ['hatVME', 'hatFKE'],
+}
+
+function fokusMatch(kontakt, fokusName) {
+  // 1. Flag-Match (CRM-Tags)
+  const flags = FOKUS_FLAG_MAP[fokusName] || []
+  if (flags.some(f => kontakt[f])) return true
+  // 2. Freitext-Match in „bietet", „branche"
+  const haystack = `${kontakt.bietet || ''} ${kontakt.branche || ''} ${kontakt.beschreibung || ''}`.toLowerCase()
+  const needle = fokusName.toLowerCase().split('/')[0].trim()
+  return haystack.includes(needle)
+}
+
 function scoreFor(kontakt, suchprofil) {
-  let score = 50  // Basis
+  // Kein Suchprofil → Basis-Score, Anzeige + Sortierung erfolgen nach PLZ
+  if (!hasSuchprofil(suchprofil)) {
+    return { score: 50, reasons: ['kein Suchprofil – nach PLZ sortiert'], dislikes: [], ausgeschlossen: false }
+  }
+
+  let score = 0
   const reasons = []
   const dislikes = []
   const ist = (n, min, max) => (!min || n >= min) && (!max || n <= max)
-
-  // Mitarbeiter
   const ma = parseInt(kontakt.mitarbeiter) || 0
+  const umsatzNum = parseFloat((kontakt.umsatz || '').toString().replace(/[^\d.,]/g, '').replace(',', '.')) || 0
+  const ebitMarge = parseFloat(kontakt.ebitMarge) || 0
+  const recurring = parseFloat(kontakt.recurringPct || kontakt.recurring) || 0
+
+  // ---- Region & Ausschluss ----
+  let ausgeschlossen = false
+  if (suchprofil.regionenAusschluss && (kontakt.ort || kontakt.plz)) {
+    const aus = suchprofil.regionenAusschluss.toLowerCase().split(/[,;]/).map(s => s.trim()).filter(Boolean)
+    const ortLow = (kontakt.ort || '').toLowerCase()
+    const plz = (kontakt.plz || '')
+    if (aus.some(r => ortLow.includes(r) || (plz && plz.startsWith(r.slice(0, 2))))) {
+      ausgeschlossen = true
+      dislikes.push('in Ausschluss-Region')
+    }
+  }
+
+  if (!ausgeschlossen) {
+    // PLZ-Mittelpunkt: bis 1. Ziffer Match +5, bis 2. Ziffern +15
+    if (suchprofil.zentralPlz && kontakt.plz) {
+      if (kontakt.plz.startsWith(suchprofil.zentralPlz.slice(0, 2))) {
+        score += 15; reasons.push('PLZ-Region passt')
+      } else if (kontakt.plz.startsWith(suchprofil.zentralPlz.slice(0, 1))) {
+        score += 5; reasons.push('PLZ-Region grob')
+      }
+    }
+    if (suchprofil.regionen && (kontakt.ort || kontakt.plz)) {
+      const regs = suchprofil.regionen.toLowerCase().split(/[,;]/).map(s => s.trim()).filter(Boolean)
+      const ortLow = (kontakt.ort || '').toLowerCase()
+      const plz = (kontakt.plz || '')
+      if (regs.some(r => ortLow.includes(r) || (plz && plz.startsWith(r.slice(0, 2))))) {
+        score += 10; reasons.push('Region erlaubt')
+      }
+    }
+  }
+
+  // ---- Mitarbeiter ----
   if (suchprofil.maMin || suchprofil.maMax) {
     if (ma > 0 && ist(ma, suchprofil.maMin, suchprofil.maMax)) {
-      score += 15; reasons.push(`${ma} MA passt`)
+      score += 20; reasons.push(`${ma} MA passt`)
     } else if (ma > 0) {
-      score -= 20; dislikes.push(`${ma} MA außerhalb ${suchprofil.maMin}-${suchprofil.maMax}`)
+      score -= 20
+      dislikes.push(`${ma} MA außerhalb ${suchprofil.maMin || '?'}-${suchprofil.maMax || '?'}`)
     }
   }
 
-  // Region (einfaches PLZ-Match)
-  if (suchprofil.zentralPlz && kontakt.plz) {
-    if (kontakt.plz.startsWith(suchprofil.zentralPlz.slice(0, 2))) {
-      score += 10; reasons.push('PLZ-Region passt')
-    }
-  }
-  if (suchprofil.regionen && kontakt.ort) {
-    const regs = suchprofil.regionen.toLowerCase().split(/[,;]/).map(s => s.trim()).filter(Boolean)
-    if (regs.some(r => kontakt.ort.toLowerCase().includes(r) || (kontakt.plz || '').startsWith(r.slice(0, 2)))) {
-      score += 10; reasons.push('Region erlaubt')
+  // ---- Umsatz (in TEUR) ----
+  if (suchprofil.umsatzMin || suchprofil.umsatzMax) {
+    if (umsatzNum > 0 && ist(umsatzNum, suchprofil.umsatzMin, suchprofil.umsatzMax)) {
+      score += 15; reasons.push(`Umsatz ${umsatzNum} TEUR passt`)
+    } else if (umsatzNum > 0) {
+      score -= 10
+      dislikes.push(`Umsatz ${umsatzNum} außerhalb ${suchprofil.umsatzMin || '?'}-${suchprofil.umsatzMax || '?'}`)
     }
   }
 
-  // Kunde-Bonus (vertraute Targets bevorzugt)
+  // ---- EBIT-Marge / Recurring (optional, nur Bonus wenn Daten vorhanden) ----
+  if (suchprofil.ebitMargeMin && ebitMarge > 0) {
+    if (ebitMarge >= suchprofil.ebitMargeMin) {
+      score += 8; reasons.push(`EBIT-Marge ${ebitMarge}% ok`)
+    } else {
+      score -= 5; dislikes.push(`EBIT-Marge nur ${ebitMarge}%`)
+    }
+  }
+  if (suchprofil.recurringMin && recurring > 0) {
+    if (recurring >= suchprofil.recurringMin) {
+      score += 8; reasons.push(`Recurring ${recurring}% ok`)
+    }
+  }
+
+  // ---- IT-Fokus ----
+  if (suchprofil.itFokus && suchprofil.itFokus.length) {
+    for (const f of suchprofil.itFokus) {
+      if (fokusMatch(kontakt, f)) {
+        score += 6; reasons.push(`Fokus: ${f}`)
+      }
+    }
+  }
+  if (suchprofil.itFokusSonstige) {
+    const needles = suchprofil.itFokusSonstige.toLowerCase().split(/[,;]/).map(s => s.trim()).filter(Boolean)
+    const haystack = `${kontakt.bietet || ''} ${kontakt.branche || ''} ${kontakt.beschreibung || ''}`.toLowerCase()
+    for (const n of needles) {
+      if (haystack.includes(n)) { score += 4; reasons.push(`„${n}"`) }
+    }
+  }
+
+  // ---- Kunde-Bonus ----
   if (kontakt.istKunde) { score += 5; reasons.push('Bestandskunde') }
 
-  // IT-Fokus (gegen kontakt-flags wie hatUC etc.)
-  if (suchprofil.itFokus?.includes('MSP / Managed Services') && (kontakt.hatMC || kontakt.bietet?.toLowerCase().includes('msp'))) {
-    score += 8; reasons.push('MSP-Fokus')
-  }
-
-  // Cap
   score = Math.max(0, Math.min(100, score))
-  return { score, reasons, dislikes }
+  return { score, reasons, dislikes, ausgeschlossen }
 }
 
 async function refreshList() {
@@ -257,8 +351,8 @@ async function refreshList() {
     const kontakte = await getKontakte()
     allKontakte.value = kontakte || []
     const crmMatches = (kontakte || []).map(k => {
-      const { score, reasons, dislikes } = scoreFor(k, suchprofil)
-      return { ...k, id: k.RowKey || k.id, score, matchGruende: reasons, ablehnGruende: dislikes, _quelle: 'crm' }
+      const { score, reasons, dislikes, ausgeschlossen } = scoreFor(k, suchprofil)
+      return { ...k, id: k.RowKey || k.id, score, matchGruende: reasons, ablehnGruende: dislikes, ausgeschlossen, _quelle: 'crm' }
     })
 
     // 2. Eigene Verkaufs-Mandate (interne Targets) matchen – starke Prioritaet!
@@ -273,15 +367,16 @@ async function refreshList() {
           mitarbeiter: tt.mitarbeiter, umsatz: tt.umsatz,
           bietet: tt.branche, istKunde: true,  // intern bekanntes Target
         }
-        const { score, reasons, dislikes } = scoreFor(asKontakt, suchprofil)
+        const { score, reasons, dislikes, ausgeschlossen } = scoreFor(asKontakt, suchprofil)
         return {
           id: 'target-' + tt.RowKey,
           firma: asKontakt.firma,
           plz: asKontakt.plz, ort: asKontakt.ort,
           mitarbeiter: asKontakt.mitarbeiter, umsatz: asKontakt.umsatz,
-          score: score + 15,  // Bonus fuer interne Targets ("wir kennen sie schon")
+          score: Math.min(100, score + 15),  // Bonus fuer interne Targets, max 100
           matchGruende: ['Interner Target ' + tt.mbNr, ...reasons],
           ablehnGruende: dislikes,
+          ausgeschlossen,
           istInternesTarget: true,
           mbNr: tt.mbNr,
           targetRowKey: tt.RowKey,
@@ -289,11 +384,21 @@ async function refreshList() {
         }
       })
 
-    // Manuell hinzugefügte: immer drin lassen, auch wenn Score < 30
     const manuellSet = new Set(manuellAdded.value)
-    const all = [...internalMatches, ...crmMatches]
-      .filter(k => k.score >= 30 || manuellSet.has(k.id))
-      .sort((a, b) => b.score - a.score)
+    const profilLeer = !hasSuchprofil(suchprofil)
+    // Ausschluss-Regionen fliegen IMMER raus (außer manuell hinzugefügt)
+    let all = [...internalMatches, ...crmMatches]
+      .filter(k => !k.ausgeschlossen || manuellSet.has(k.id))
+
+    if (profilLeer) {
+      // Kein Suchprofil → einfach nach PLZ aufsteigend sortieren
+      all = all.sort((a, b) => (a.plz || '99999').localeCompare(b.plz || '99999'))
+    } else {
+      // Score-Filter + Sortierung nach Score absteigend
+      all = all
+        .filter(k => k.score >= 30 || manuellSet.has(k.id))
+        .sort((a, b) => b.score - a.score)
+    }
     items.value = all
     try { decisions.value = JSON.parse(t.longListDecisionsJson || '{}') } catch { decisions.value = {} }
   } catch (e) { console.error(e) }
