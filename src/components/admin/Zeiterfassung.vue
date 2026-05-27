@@ -41,8 +41,10 @@
         <thead class="bg-gray-50 border-b border-gray-100">
           <tr>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Datum</th>
+            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase">Zeit</th>
+            <th class="text-right px-3 py-3 text-xs font-semibold text-gray-500 uppercase">Std.</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Berater</th>
-            <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Stunden</th>
+            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase">Ort</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Tätigkeit</th>
             <th class="text-right px-3 py-3"></th>
           </tr>
@@ -50,8 +52,16 @@
         <tbody class="divide-y divide-gray-50">
           <tr v-for="e in filtered" :key="e.id" class="hover:bg-gray-50">
             <td class="px-4 py-3 text-sm text-gray-700">{{ formatDate(e.datum) }}</td>
+            <td class="px-3 py-3 text-xs text-gray-500 font-mono whitespace-nowrap">
+              <span v-if="e.von || e.bis">{{ e.von || '?' }}–{{ e.bis || '?' }}</span>
+              <span v-else class="text-gray-300">—</span>
+            </td>
+            <td class="px-3 py-3 text-sm text-right font-mono font-semibold">{{ Number(e.stunden).toFixed(2) }}</td>
             <td class="px-4 py-3 text-sm text-gray-800 font-medium">{{ e.berater }}</td>
-            <td class="px-4 py-3 text-sm text-right font-mono">{{ Number(e.stunden).toFixed(2) }}</td>
+            <td class="px-3 py-3 text-xs">
+              <span v-if="e.ort" class="inline-block px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">{{ e.ort }}</span>
+              <span v-else class="text-gray-300">—</span>
+            </td>
             <td class="px-4 py-3 text-sm text-gray-600">{{ e.taetigkeit }}</td>
             <td class="px-3 py-3 text-right">
               <button @click="deleteEntry(e)" class="text-gray-300 hover:text-red-500 p-1"><Trash2 class="w-3.5 h-3.5" /></button>
@@ -75,19 +85,44 @@
           <button @click="showModal = false"><X class="w-5 h-5 text-gray-400" /></button>
         </div>
         <div class="space-y-3">
-          <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">Datum *</label>
+            <input v-model="form.datum" type="date" class="input" />
+          </div>
+          <div class="grid grid-cols-3 gap-3">
             <div>
-              <label class="text-xs font-medium text-gray-600 mb-1 block">Datum *</label>
-              <input v-model="form.datum" type="date" class="input" />
+              <label class="text-xs font-medium text-gray-600 mb-1 block">Von</label>
+              <input v-model="form.von" type="time" class="input" />
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-600 mb-1 block">Bis</label>
+              <input v-model="form.bis" type="time" class="input" />
             </div>
             <div>
               <label class="text-xs font-medium text-gray-600 mb-1 block">Stunden *</label>
-              <input v-model="form.stunden" type="number" step="0.25" placeholder="z.B. 1.5" class="input" />
+              <input v-model="form.stunden" type="number" step="0.25" placeholder="auto" class="input" />
             </div>
           </div>
-          <div>
-            <label class="text-xs font-medium text-gray-600 mb-1 block">Berater *</label>
-            <input v-model="form.berater" placeholder="z.B. Jenny, Mike, Claudia…" class="input" />
+          <p v-if="form.von && form.bis" class="text-xs text-gray-400 -mt-1">
+            Aus Zeitraum berechnet: <strong>{{ computedStunden.toFixed(2) }} h</strong> (kann oben überschrieben werden)
+          </p>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-medium text-gray-600 mb-1 block">Berater *</label>
+              <input v-model="form.berater" placeholder="z.B. Jenny, Mike, Claudia…" class="input" />
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-600 mb-1 block">Ort</label>
+              <select v-model="form.ort" class="input">
+                <option value="">— wählen —</option>
+                <option>Telefon</option>
+                <option>Video-Call</option>
+                <option>Remote / Büro</option>
+                <option>Vor Ort beim Kunden</option>
+                <option>Notartermin</option>
+                <option>Sonstiges</option>
+              </select>
+            </div>
           </div>
           <div>
             <label class="text-xs font-medium text-gray-600 mb-1 block">Tätigkeit *</label>
@@ -104,7 +139,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { Plus, X, Trash2, Download } from '@lucide/vue'
 import { authFetch } from '../../api.js'
 
@@ -117,9 +152,30 @@ const filterMonat = ref('')
 
 const form = ref({
   datum: new Date().toISOString().slice(0, 10),
+  von: '',
+  bis: '',
   stunden: '',
+  ort: '',
   berater: sessionStorage.getItem('userName') || '',
   taetigkeit: '',
+})
+
+// Auto-Stunden aus Von/Bis (Differenz in Stunden, auf 0.25 gerundet)
+const computedStunden = computed(() => {
+  if (!form.value.von || !form.value.bis) return 0
+  const [vh, vm] = form.value.von.split(':').map(Number)
+  const [bh, bm] = form.value.bis.split(':').map(Number)
+  let mins = (bh * 60 + bm) - (vh * 60 + vm)
+  if (mins < 0) mins += 24 * 60   // ueber Mitternacht
+  const h = mins / 60
+  return Math.round(h * 4) / 4
+})
+
+// Wenn von/bis aendert und Stunden noch leer/auto → setze auto-berechneten Wert
+watch([() => form.value.von, () => form.value.bis], () => {
+  if (form.value.von && form.value.bis) {
+    form.value.stunden = computedStunden.value
+  }
 })
 
 const canSave = computed(() => form.value.datum && form.value.stunden && form.value.berater && form.value.taetigkeit)
@@ -151,7 +207,10 @@ onMounted(async () => {
 function openNew() {
   form.value = {
     datum: new Date().toISOString().slice(0, 10),
+    von: '',
+    bis: '',
     stunden: '',
+    ort: '',
     berater: sessionStorage.getItem('userName') || '',
     taetigkeit: '',
   }
@@ -183,8 +242,8 @@ function formatMonat(m) {
 }
 
 function exportCsv() {
-  const fields = ['datum','berater','stunden','taetigkeit']
-  const header = fields.join(';')
+  const fields = ['datum','von','bis','stunden','berater','ort','taetigkeit']
+  const header = ['Datum','Von','Bis','Stunden','Berater','Ort','Tätigkeit'].join(';')
   const rows = entries.value.map(e => fields.map(f => `"${(e[f] || '').toString().replaceAll('"', '""')}"`).join(';'))
   const csv = '﻿' + [header, ...rows].join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
