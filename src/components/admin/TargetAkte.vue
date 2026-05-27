@@ -232,13 +232,6 @@ defineEmits(['close'])
 
 const target = ref(null)
 const tab = ref(props.initialTab || 'uebersicht')
-
-// Falls initialTab im aktuellen Projekttyp nicht existiert, fallback auf Übersicht
-watch(() => tabs.value, (newTabs) => {
-  if (newTabs.length && !newTabs.some(x => x.tab === tab.value)) {
-    tab.value = 'uebersicht'
-  }
-}, { immediate: false })
 const vertragSubTab = ref('mandat')
 
 const isKaufMandat = computed(() => /kauf|investor/i.test(target.value?.projekttyp || ''))
@@ -281,7 +274,14 @@ const tabs = computed(() => {
   ]
 })
 
-const ordnerListe = ['Verträge', 'Datenraum', 'NDA', 'Exposé', 'Vertragsverhandlungen', 'Videoprotokoll']
+// Falls initialTab im aktuellen Projekttyp nicht existiert (z.B. "fragebogen" bei
+// Kauf-Mandat), fallback auf Übersicht. Watch NACH tabs-Definition platzieren,
+// damit kein TDZ-Fehler entsteht.
+watch(tabs, (newTabs) => {
+  if (Array.isArray(newTabs) && newTabs.length && !newTabs.some(x => x.tab === tab.value)) {
+    tab.value = 'uebersicht'
+  }
+}, { immediate: false })
 
 async function loadTarget() {
   if (!props.targetId) return
