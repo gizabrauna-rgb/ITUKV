@@ -3946,9 +3946,26 @@ def dokument_download(req: func.HttpRequest) -> func.HttpResponse:
         data = _blob_container_lazy("datenraum").download_blob(ent["blobName"]).readall()
     except Exception as ex:
         return err_(f"Download fehlgeschlagen: {ex}", 500)
+    # Content-Type: bevorzugt aus Entity, sonst aus Dateiname ableiten
+    file_name = ent.get("fileName", "file") or "file"
+    ct = ent.get("contentType") or ""
+    if not ct or ct == "application/octet-stream":
+        ext = file_name.lower().rsplit(".", 1)[-1] if "." in file_name else ""
+        ct = {
+            "pdf": "application/pdf",
+            "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "gif": "image/gif",
+            "svg": "image/svg+xml", "webp": "image/webp",
+            "mp4": "video/mp4", "mov": "video/quicktime", "webm": "video/webm",
+            "mp3": "audio/mpeg", "wav": "audio/wav", "m4a": "audio/mp4",
+            "txt": "text/plain; charset=utf-8", "csv": "text/csv; charset=utf-8",
+            "json": "application/json", "xml": "application/xml",
+        }.get(ext, "application/octet-stream")
+    # Disposition: "inline" fuer Browser-darstellbare Typen, "attachment" sonst
+    inline_types = ("application/pdf", "image/", "video/", "audio/", "text/")
+    disp = "inline" if any(ct.startswith(t) for t in inline_types) else "attachment"
     return func.HttpResponse(data, status_code=200,
-                             mimetype=ent.get("contentType", "application/octet-stream"),
-                             headers={**CORS, "Content-Disposition": f'attachment; filename="{ent.get("fileName","file")}"'})
+                             mimetype=ct,
+                             headers={**CORS, "Content-Disposition": f'{disp}; filename="{file_name}"'})
 
 
 @app.route(route="dokument-delete", methods=["POST", "OPTIONS"])

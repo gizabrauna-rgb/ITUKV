@@ -225,7 +225,10 @@ async function previewFile(f) {
     if (previewType.value === 'text') {
       previewText.value = await r.text()
     } else {
-      const blob = await r.blob()
+      // MIME explizit setzen — Server liefert manchmal application/octet-stream
+      const mimeMap = { pdf: 'application/pdf', image: f.contentType || 'image/jpeg', video: f.contentType || 'video/mp4', audio: f.contentType || 'audio/mpeg' }
+      const ab = await r.arrayBuffer()
+      const blob = new Blob([ab], { type: mimeMap[previewType.value] || f.contentType || 'application/octet-stream' })
       previewUrl.value = URL.createObjectURL(blob)
     }
   } catch (e) { toast.error('Vorschau fehlgeschlagen: ' + e.message) }
