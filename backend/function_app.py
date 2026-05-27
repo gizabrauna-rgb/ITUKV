@@ -464,6 +464,8 @@ TARGET_WRITABLE_FIELDS = {
     "lessonsLearnedJson", "loiJson", "suchprofilJson", "fuerKaeuferIdsJson",
     "longListManuellJson", "longListDecisionsJson", "presseJson", "bewertungKIJson",
     "geschaeftsfuehrer", "kommentarKI",
+    # Unternehmens-Stammdaten (von KI oder manuell pflegbar)
+    "rechtsform", "gruendungsjahr", "ebitMarge", "recurringPct",
     # Compliance-Schalter (pro Akte KI-Freigabe)
     "kiAnalyseErlaubt", "kiAnalyseErlaubtSeit", "kiAnalyseErlaubtVon",
     # Diverse Workflow-Felder
@@ -5404,6 +5406,8 @@ AI_WRITABLE_KONTAKT_FIELDS = {
 AI_WRITABLE_TARGET_FIELDS = {
     # Adresse + Stammdaten-Anreicherung (NICHT mbNr, NICHT status)
     "region", "plz", "branche", "mitarbeiter", "umsatz", "beschreibung",
+    # Unternehmens-Stammdaten
+    "rechtsform", "gruendungsjahr", "ebitMarge", "recurringPct",
     # Bewertung + Fragebogen + Notizen
     "bewertungJson", "fragebogenJson", "suchprofilJson",
     "kommentarKI", "bewertungKIJson",

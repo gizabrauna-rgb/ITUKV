@@ -53,6 +53,25 @@
       </div>
     </section>
 
+    <!-- Unternehmens-Stammdaten (von KI-Analyse oder manuell) -->
+    <section class="bg-white rounded-xl border border-gray-100 mb-4">
+      <header class="px-5 py-3 border-b border-gray-50 flex items-center gap-2">
+        <Building2 class="w-4 h-4 text-[#0088ba]" />
+        <h3 class="font-semibold text-gray-800 text-sm">Unternehmens-Stammdaten</h3>
+        <span class="ml-auto text-[10px] text-gray-400">manuell oder aus KI-Analyse befüllt</span>
+      </header>
+      <div class="p-5 grid grid-cols-2 gap-4">
+        <Field v-model="data.geschaeftsfuehrer" label="Geschäftsführer" @blur="save" />
+        <Field v-model="data.rechtsform" label="Rechtsform (GmbH, AG, …)" @blur="save" />
+        <Field v-model="data.gruendungsjahr" label="Gründungsjahr" type="number" @blur="save" />
+        <Field v-model="data.branche" label="Branche" @blur="save" />
+        <Field v-model="data.mitarbeiter" label="Mitarbeiter (Anzahl)" type="number" @blur="save" />
+        <Field v-model="data.umsatz" label="Umsatz (Freitext, z.B. „2,5 Mio. €")" @blur="save" />
+        <Field v-model="data.ebitMarge" label="EBIT-Marge (%)" type="number" @blur="save" />
+        <Field v-model="data.recurringPct" label="Wiederkehrende Umsätze (%)" type="number" @blur="save" />
+      </div>
+    </section>
+
     <!-- Termine & Erinnerungen -->
     <TermineSection :target-id="targetId" :termine-json="termineJson" :read-only="!!readOnly" @updated="onTermineUpdated" />
 
@@ -93,7 +112,7 @@
 
 <script setup>
 import { ref, computed, onMounted, h, defineComponent } from 'vue'
-import { User, Database, Clock } from '@lucide/vue'
+import { User, Database, Clock, Building2 } from '@lucide/vue'
 import { authFetch } from '../../api.js'
 import TermineSection from './TermineSection.vue'
 
@@ -104,6 +123,10 @@ const data = ref({
   privatEmail: '', privatHandy: '',
   kundennummer: '', transaktionsnummer: '',
   mandatStart: '', mandatLaufzeitMonate: 12,
+  // Unternehmens-Stammdaten
+  geschaeftsfuehrer: '', rechtsform: '', gruendungsjahr: '',
+  branche: '', mitarbeiter: '', umsatz: '',
+  ebitMarge: '', recurringPct: '',
 })
 const termineJson = ref('')
 

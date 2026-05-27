@@ -429,32 +429,31 @@ async function applyAiSuggestions() {
   if (!aiResult.value) return
   aiApplying.value = true
   try {
-    // Werte sammeln die uebernommen werden sollen
+    // Werte sammeln — alle Felder landen direkt am Target (keine versteckten JSON-Blobs)
     const payload = {}
-    const meta = {}
     for (const field of aiFieldList) {
       if (!aiAccept.value[field.key] || !hasValue(field.key)) continue
       const val = aiResult.value.extracted[field.key]
-      // Felder mappen: target hat „umsatz" (Freitext), wir mappen aus umsatzTeur
+      // umsatzTeur (Zahl) wird zu umsatz (Freitext: „2,5 Mio. €") konvertiert
       if (field.key === 'umsatzTeur' && val) {
-        payload.umsatz = `${(val / 1000).toFixed(1).replace('.', ',')} Mio. €`.replace(',0 Mio', ' Mio')
-      } else if (['rechtsform', 'gruendungsjahr', 'ebitMarge', 'recurringPct'].includes(field.key)) {
-        meta[field.key] = val   // diese landen in bewertungJson (Target-Bewertung)
-      } else if (['mitarbeiter', 'branche', 'geschaeftsfuehrer'].includes(field.key)) {
+        const mio = val / 1000
+        payload.umsatz = `${mio.toFixed(1).replace('.', ',')} Mio. €`.replace(',0 Mio', ' Mio')
+      } else if (['mitarbeiter', 'gruendungsjahr', 'ebitMarge', 'recurringPct'].includes(field.key)) {
+        payload[field.key] = Number(val) || val
+      } else if (['branche', 'geschaeftsfuehrer', 'rechtsform'].includes(field.key)) {
         payload[field.key] = String(val)
       }
     }
-    // 1) Target updaten
-    if (Object.keys(payload).length || Object.keys(meta).length) {
-      // bewertungKIJson zusammenbauen + Kennzahlen-Text speichern
-      if (Object.keys(meta).length || aiResult.value.extracted.kennzahlenText) {
-        payload.bewertungKIJson = JSON.stringify({
-          ...meta,
-          kennzahlenText: aiResult.value.extracted.kennzahlenText || '',
-          quelle: 'KI-Analyse',
-          stand: new Date().toISOString(),
-        })
-      }
+    // Kennzahlen-Text + Metadaten zusätzlich als KI-Stand-Vermerk speichern
+    if (aiResult.value.extracted.kennzahlenText) {
+      payload.bewertungKIJson = JSON.stringify({
+        kennzahlenText: aiResult.value.extracted.kennzahlenText,
+        quelle: 'KI-Analyse',
+        stand: new Date().toISOString(),
+        dokumentTyp: aiResult.value.dokumentTyp || '',
+      })
+    }
+    if (Object.keys(payload).length) {
       await updateTarget(props.targetId, payload)
     }
     // 2) Verlauf-Eintrag „KI-Analyse: …" (eigener Endpoint - auch ohne ai-agent rolle, weil admin)
