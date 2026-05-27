@@ -20,7 +20,7 @@ try {
       const userEmail = (result.account.username || '').toLowerCase()
       const userName = result.account.name || userEmail
       const { resolveMsLogin } = await import('./api.js')
-      const resolved = await resolveMsLogin({ email: userEmail, name: userName })
+      const resolved = await resolveMsLogin({ email: userEmail, name: userName }, result.idToken)
       sessionStorage.setItem('msalToken', result.idToken)
       sessionStorage.setItem('customerJwt', resolved.token)
       sessionStorage.setItem('userRole', resolved.role)
@@ -28,11 +28,10 @@ try {
       sessionStorage.setItem('customerId', resolved.id)
       if (resolved.targetId) sessionStorage.setItem('targetId', resolved.targetId)
     } catch (e) {
-      console.error('[boot] resolve role failed – fallback auf Admin', e)
-      // Fallback: Microsoft-Login = Admin
-      sessionStorage.setItem('msalToken', result.idToken)
-      sessionStorage.setItem('userRole', 'admin')
-      sessionStorage.setItem('userName', result.account.name || result.account.username)
+      console.error('[boot] resolve role failed – kein Zugang', e)
+      // KEIN Admin-Fallback mehr: wer nicht in der users-Tabelle steht, kommt nicht rein.
+      sessionStorage.clear()
+      try { await msalInstance.logoutRedirect({ postLogoutRedirectUri: window.location.origin }) } catch {}
     }
   } else {
     const accounts = msalInstance.getAllAccounts()

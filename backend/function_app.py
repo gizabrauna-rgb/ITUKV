@@ -13,7 +13,26 @@ from azure.data.tables import TableServiceClient
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
 TABLE_CONN = os.environ.get("AZURE_TABLE_STORAGE_CONNECTION_STRING", "")
-JWT_SECRET = os.environ.get("JWT_SECRET", "dev-secret")
+JWT_SECRET = os.environ.get("JWT_SECRET", "")
+# Sicherheits-Assertion: dev-secret oder leerer JWT_SECRET ist Production verboten.
+# Tokens mit "dev-secret" sind trivial faelschbar.
+if not JWT_SECRET or JWT_SECRET == "dev-secret":
+    # In Azure muss JWT_SECRET als App-Setting gesetzt sein. Lokal:
+    # `func start` mit local.settings.json. Falls leer -> harter Fehler beim ersten Auth-Versuch.
+    logging.error("[SECURITY] JWT_SECRET ist nicht gesetzt oder == 'dev-secret'. Auth wird verweigert.")
+    JWT_SECRET = ""  # erzwingt Auth-Fehlschlag
+
+# Microsoft Entra ID (multi-tenant App Registration) - Audience fuer ID-Token-Verifikation.
+# Nicht geheim; identisch mit VITE_APP_REGISTRATION_CLIENTID im Frontend.
+MS_CLIENT_ID = os.environ.get("MS_CLIENT_ID", "0e531dfd-9c67-460c-b9f5-c2d57c60cb83")
+
+
+def odata_quote(s):
+    """Escape Single-Quotes fuer OData-Filter (verhindert Injection).
+    Azure Table Storage erlaubt nur '' als Escape fuer '."""
+    if s is None:
+        return ""
+    return str(s).replace("'", "''")
 
 CORS = {
     "Access-Control-Allow-Origin": "*",
@@ -96,8 +115,11 @@ def _b64ud(s):
     return base64.urlsafe_b64decode(s + pad)
 
 
-def make_jwt(uid, role, name, email):
+def make_jwt(uid, role, name, email, target_id=""):
+    if not JWT_SECRET:
+        raise RuntimeError("JWT_SECRET nicht konfiguriert - Token-Erstellung verweigert.")
     payload = {"id": uid, "role": role, "name": name, "email": email,
+               "targetId": target_id or "",
                "exp": int((datetime.utcnow() + timedelta(days=7)).timestamp())}
     h = _b64u(json.dumps({"alg":"HS256","typ":"JWT"}, separators=(',',':')).encode())
     p = _b64u(json.dumps(payload, separators=(',',':'), default=str).encode())
@@ -124,6 +146,8 @@ def _touch_last_seen(uid):
 
 
 def auth_user(req):
+    if not JWT_SECRET:
+        return None
     a = req.headers.get("Authorization", "")
     if not a.startswith("Bearer "):
         return None
@@ -133,9 +157,51 @@ def auth_user(req):
         if not hmac.compare_digest(_b64ud(s), expected):
             return None
         payload = json.loads(_b64ud(p))
+        if int(payload.get("exp", 0)) < int(datetime.utcnow().timestamp()):
+            return None
         _touch_last_seen(payload.get("id"))
         return payload
     except Exception:
+        return None
+
+
+# Microsoft Entra ID Token-Verifikation (multi-tenant)
+# JWKS-Cache pro Tenant, damit nicht bei jedem Login ein HTTP-Call rausgeht.
+_MS_JWKS_CACHE = {}
+
+def _verify_ms_id_token(token):
+    """Verifiziert ein Microsoft ID-Token gegen Microsoft JWKS.
+    Liefert verifizierte Claims dict oder None bei Fehlschlag.
+    NIEMALS die Email/UPN aus unverifizierten Claims uebernehmen."""
+    try:
+        import jwt as pyjwt
+        from jwt import PyJWKClient
+    except Exception as ex:
+        logging.error(f"[SECURITY] PyJWT nicht installiert: {ex}")
+        return None
+    if not token or not isinstance(token, str):
+        return None
+    try:
+        # Tenant aus unverifiziertem Header lesen, um den passenden JWKS-Endpunkt zu finden.
+        # Signatur wird DANACH verifiziert -> sicher.
+        unverified = pyjwt.decode(token, options={"verify_signature": False, "verify_exp": False})
+        tid = unverified.get("tid")
+        if not tid or not all(c.isalnum() or c == "-" for c in tid):
+            return None
+        jwks_url = f"https://login.microsoftonline.com/{tid}/discovery/v2.0/keys"
+        if jwks_url not in _MS_JWKS_CACHE:
+            _MS_JWKS_CACHE[jwks_url] = PyJWKClient(jwks_url, cache_keys=True)
+        client = _MS_JWKS_CACHE[jwks_url]
+        signing_key = client.get_signing_key_from_jwt(token).key
+        issuer = f"https://login.microsoftonline.com/{tid}/v2.0"
+        claims = pyjwt.decode(
+            token, signing_key, algorithms=["RS256"],
+            audience=MS_CLIENT_ID, issuer=issuer,
+            options={"require": ["exp", "iat", "iss", "aud"]},
+        )
+        return claims
+    except Exception as ex:
+        logging.warning(f"[SECURITY] MS-Token-Verifikation fehlgeschlagen: {ex}")
         return None
 
 
@@ -146,33 +212,30 @@ def ping(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="auth/resolve", methods=["POST", "OPTIONS"])
 def auth_resolve(req: func.HttpRequest) -> func.HttpResponse:
+    """Login via Microsoft Entra ID. Erwartet ein verifiziertes MS-ID-Token
+    im Authorization-Header (Bearer). Die Email aus dem Body wird IGNORIERT
+    und durch den verifizierten preferred_username/email-Claim ersetzt."""
     if req.method == "OPTIONS":
         return opt_()
-    body = req.get_json()
-    email = body.get("email", "").lower().strip()
-    name = body.get("name", "")
+    a = req.headers.get("Authorization", "") or ""
+    if not a.startswith("Bearer "):
+        return err_("Microsoft-Token erforderlich", 401)
+    claims = _verify_ms_id_token(a[7:])
+    if not claims:
+        return err_("Microsoft-Token ungueltig", 401)
+    # Email aus VERIFIZIERTEN Claims, nie aus dem Request-Body.
+    email = (claims.get("preferred_username") or claims.get("email") or claims.get("upn") or "").lower().strip()
+    name = claims.get("name") or email
     if not email:
-        return err_("E-Mail erforderlich", 400)
+        return err_("Token enthaelt keine Email", 401)
     tc = table_("users")
-    users = list(tc.query_entities(f"email eq '{email}'"))
+    users = list(tc.query_entities("email eq @email", parameters={"email": email}))
     if users:
         u = users[0]
-        token = make_jwt(u["RowKey"], u["role"], u.get("name", name), email)
-        return ok_({"token": token, "role": u["role"], "name": u.get("name", name), "id": u["RowKey"]})
-
-    # Bootstrap: nur wenn noch GAR KEIN User existiert, wird der erste Login zum Admin.
-    # Sonst: Zugriff verweigert. Neue Nutzer muessen vom Admin im Dashboard angelegt werden.
-    any_user = next(iter(tc.list_entities(results_per_page=1)), None)
-    if any_user is not None:
-        return err_("Kein Zugang. Bitte wende dich an den Administrator.", 403)
-
-    uid = str(uuid.uuid4())
-    tc.create_entity({
-        "PartitionKey": "user", "RowKey": uid, "email": email,
-        "passwordHash": "", "role": "admin", "name": name,
-        "createdAt": datetime.utcnow().isoformat(),
-    })
-    return ok_({"token": make_jwt(uid, "admin", name, email), "role": "admin", "name": name, "id": uid})
+        token = make_jwt(u["RowKey"], u["role"], u.get("name", name), email, u.get("targetId", ""))
+        return ok_({"token": token, "role": u["role"], "name": u.get("name", name), "id": u["RowKey"], "targetId": u.get("targetId", "")})
+    # Kein Bootstrap mehr - neue User muessen vom Admin angelegt werden.
+    return err_("Kein Zugang. Bitte wende dich an den Administrator.", 403)
 
 
 @app.route(route="health", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
@@ -297,6 +360,9 @@ def target_get(req: func.HttpRequest) -> func.HttpResponse:
     tid = body.get("id", "")
     if not tid:
         return err_("id erforderlich", 400)
+    # IDOR-Schutz: Nicht-Admins duerfen nur ihre eigene Akte sehen.
+    if p.get("role") != "admin" and p.get("targetId") != tid:
+        return err_("Nicht autorisiert", 403)
     try:
         entity = table_("targets").get_entity("target", tid)
         return ok_(dict(entity))
@@ -315,6 +381,9 @@ def target_update(req: func.HttpRequest) -> func.HttpResponse:
     tid = body.pop("id", "")
     if not tid:
         return err_("id erforderlich", 400)
+    # IDOR-Schutz: Nicht-Admins duerfen nur ihre eigene Akte aendern.
+    if p.get("role") != "admin" and p.get("targetId") != tid:
+        return err_("Nicht autorisiert", 403)
     tc = table_("targets")
     try:
         entity = tc.get_entity("target", tid)
@@ -395,7 +464,7 @@ def kontakte_route(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return opt_()
     p = auth_user(req)
-    if not p:
+    if not p or p.get("role") != "admin":
         return err_("Nicht autorisiert", 401)
     items = [dict(i) for i in table_("kontakte").list_entities()]
     return ok_(items)
@@ -426,7 +495,7 @@ def user_create(req: func.HttpRequest) -> func.HttpResponse:
     if not email:
         return err_("E-Mail erforderlich", 400)
     tc = table_("users")
-    existing = list(tc.query_entities(f"email eq '{email}'"))
+    existing = list(tc.query_entities("email eq @email", parameters={"email": email}))
     if existing:
         return err_("E-Mail bereits registriert", 409)
     import string
@@ -487,7 +556,7 @@ def login_password(req: func.HttpRequest) -> func.HttpResponse:
     if not (email and pw):
         return err_("E-Mail und Passwort erforderlich", 400)
     tc = table_("users")
-    users = list(tc.query_entities(f"email eq '{email}'"))
+    users = list(tc.query_entities("email eq @email", parameters={"email": email}))
     if not users:
         return err_("Login fehlgeschlagen", 401)
     u = dict(users[0])
@@ -503,7 +572,7 @@ def login_password(req: func.HttpRequest) -> func.HttpResponse:
             return err_("Login fehlgeschlagen", 401)
     except Exception:
         return err_("Login fehlgeschlagen", 401)
-    token = make_jwt(u["RowKey"], u.get("role", "target"), u.get("name", ""), email)
+    token = make_jwt(u["RowKey"], u.get("role", "target"), u.get("name", ""), email, u.get("targetId", ""))
     return ok_({
         "token": token,
         "role": u.get("role", "target"),
@@ -594,7 +663,7 @@ def password_forgot(req: func.HttpRequest) -> func.HttpResponse:
     if not email:
         return err_("E-Mail erforderlich", 400)
     try:
-        users = list(table_("users").query_entities(f"email eq '{email}'"))
+        users = list(table_("users").query_entities("email eq @email", parameters={"email": email}))
     except Exception:
         users = []
     if users:
@@ -663,7 +732,7 @@ def kontakte_locations_route(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return opt_()
     p = auth_user(req)
-    if not p:
+    if not p or p.get("role") != "admin":
         return err_("Nicht autorisiert", 401)
     coords = get_plz_coords()
 
@@ -821,7 +890,7 @@ def interessenten_list(req: func.HttpRequest) -> func.HttpResponse:
     if p.get("role") == "target" and p.get("targetId") and p.get("targetId") != target_id:
         return err_("Nicht autorisiert", 403)
     tc = table_("interessenten")
-    items = [dict(i) for i in tc.query_entities(f"targetId eq '{target_id}'")]
+    items = [dict(i) for i in tc.query_entities("targetId eq @t", parameters={"t": target_id})]
     return ok_(items)
 
 
@@ -941,7 +1010,7 @@ def _lookup_signature_by_token(token):
     if not token:
         return None
     tc = table_("vertragsignaturen")
-    items = list(tc.query_entities(f"token eq '{token}'"))
+    items = list(tc.query_entities("token eq @t", parameters={"t": token}))
     return dict(items[0]) if items else None
 
 
@@ -1604,7 +1673,7 @@ def vertrag_zur_signatur(req: func.HttpRequest) -> func.HttpResponse:
     if not target_id:
         return err_("targetId erforderlich", 400)
 
-    target_users = list(table_("users").query_entities(f"targetId eq '{target_id}'"))
+    target_users = list(table_("users").query_entities("targetId eq @t", parameters={"t": target_id}))
     if not target_users:
         return err_("Kein Target-Login angelegt. Bitte zuerst Benutzer für dieses Target erstellen.", 400)
     target_email = target_users[0].get("email", "")
@@ -1628,7 +1697,7 @@ def vertrag_zur_signatur(req: func.HttpRequest) -> func.HttpResponse:
     tc = table_("vertragsignaturen")
     revision = 1
     try:
-        old_sigs = list(tc.query_entities(f"targetId eq '{target_id}'"))
+        old_sigs = list(tc.query_entities("targetId eq @t", parameters={"t": target_id}))
         for old in old_sigs:
             if old.get("status") in ("pending", "awaiting_countersign"):
                 old["status"] = "superseded"
@@ -2134,10 +2203,10 @@ def _notify_new_entry(target_id, entry, sender_user_id=None):
                 recipients = [os.environ.get("MIBECA_NOTIFY_EMAIL", "jk@mike-bergmann.de")]
             else:
                 # Admin/mibeca hat geschrieben -> Target informieren
-                tu = list(table_("users").query_entities(f"targetId eq '{target_id}'"))
+                tu = list(table_("users").query_entities("targetId eq @t", parameters={"t": target_id}))
                 recipients = [u.get("email", "") for u in tu if u.get("email")]
         else:
-            tu = list(table_("users").query_entities(f"targetId eq '{target_id}'"))
+            tu = list(table_("users").query_entities("targetId eq @t", parameters={"t": target_id}))
             recipients = [u.get("email", "") for u in tu if u.get("email")]
 
         if not recipients:
@@ -2190,7 +2259,7 @@ def verlauf_send_mail(req: func.HttpRequest) -> func.HttpResponse:
             # Target schreibt -> an mibeca
             recipient = os.environ.get("MIBECA_NOTIFY_EMAIL", "jk@mike-bergmann.de")
         else:
-            tu = list(table_("users").query_entities(f"targetId eq '{target_id}'"))
+            tu = list(table_("users").query_entities("targetId eq @t", parameters={"t": target_id}))
             if not tu or not tu[0].get("email"):
                 return err_("Kein Empfaenger gefunden – Target hat keinen User-Account", 400)
             recipient = tu[0].get("email")
@@ -2597,7 +2666,7 @@ def pr_zur_freigabe(req: func.HttpRequest) -> func.HttpResponse:
     text = body.get("text", "")
     if not (target_id and text):
         return err_("targetId und text erforderlich", 400)
-    target_users = list(table_("users").query_entities(f"targetId eq '{target_id}'"))
+    target_users = list(table_("users").query_entities("targetId eq @t", parameters={"t": target_id}))
     if not target_users:
         return err_("Kein Target-Login für dieses Target", 400)
     target_email = target_users[0].get("email", "")
@@ -3063,7 +3132,7 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
             })
             # An mibeca-Team + Target-User
             notify_to = [os.environ.get("MIBECA_NOTIFY_EMAIL", "jk@mike-bergmann.de")]
-            tu = list(table_("users").query_entities(f"targetId eq '{target_id}'"))
+            tu = list(table_("users").query_entities("targetId eq @t", parameters={"t": target_id}))
             for u in tu:
                 if u.get("email"): notify_to.append(u["email"])
             for rcpt in notify_to:
@@ -3085,7 +3154,7 @@ def expose_public(req: func.HttpRequest) -> func.HttpResponse:
     token = (req.params.get("token") or "").strip()
     if not token:
         return err_("token erforderlich", 400)
-    items = list(table_("interessenten").query_entities(f"exposeToken eq '{token}'"))
+    items = list(table_("interessenten").query_entities("exposeToken eq @t", parameters={"t": token}))
     if not items:
         return err_("Token ungueltig", 404)
     i = dict(items[0])
@@ -3125,7 +3194,7 @@ def nda_upload(req: func.HttpRequest) -> func.HttpResponse:
     file_name = body.get("fileName", "nda.pdf")
     if not (token and file_data):
         return err_("token + fileData erforderlich", 400)
-    items = list(table_("interessenten").query_entities(f"exposeToken eq '{token}'"))
+    items = list(table_("interessenten").query_entities("exposeToken eq @t", parameters={"t": token}))
     if not items:
         return err_("Token ungueltig", 404)
     i = dict(items[0])
@@ -3372,7 +3441,7 @@ def nda_public_pdf(req: func.HttpRequest) -> func.HttpResponse:
     token = (req.params.get("token") or "").strip()
     if not token:
         return err_("token erforderlich", 400)
-    items = list(table_("interessenten").query_entities(f"exposeToken eq '{token}'"))
+    items = list(table_("interessenten").query_entities("exposeToken eq @t", parameters={"t": token}))
     if not items:
         return err_("Token ungueltig", 404)
     i = dict(items[0])
@@ -3397,7 +3466,7 @@ def expose_public_pdf(req: func.HttpRequest) -> func.HttpResponse:
     token = (req.params.get("token") or "").strip()
     if not token:
         return err_("token erforderlich", 400)
-    items = list(table_("interessenten").query_entities(f"exposeToken eq '{token}'"))
+    items = list(table_("interessenten").query_entities("exposeToken eq @t", parameters={"t": token}))
     if not items:
         return err_("Token ungueltig", 404)
     i = dict(items[0])
@@ -3426,7 +3495,7 @@ def nda_public_send_code(req: func.HttpRequest) -> func.HttpResponse:
     token = (body.get("token") or "").strip()
     if not token:
         return err_("token erforderlich", 400)
-    items = list(table_("interessenten").query_entities(f"exposeToken eq '{token}'"))
+    items = list(table_("interessenten").query_entities("exposeToken eq @t", parameters={"t": token}))
     if not items:
         return err_("Token ungültig", 404)
     i = dict(items[0])
@@ -3480,7 +3549,7 @@ def nda_public_sign(req: func.HttpRequest) -> func.HttpResponse:
     code = (body.get("code") or "").strip()
     if not (token and sig_data and code):
         return err_("token, signatureDataUrl und code erforderlich", 400)
-    items = list(table_("interessenten").query_entities(f"exposeToken eq '{token}'"))
+    items = list(table_("interessenten").query_entities("exposeToken eq @t", parameters={"t": token}))
     if not items:
         return err_("Token ungültig", 404)
     i = dict(items[0])
@@ -3980,7 +4049,7 @@ def dokument_list(req: func.HttpRequest) -> func.HttpResponse:
         if p.get("targetId") and p.get("targetId") != target_id:
             return err_("Nicht autorisiert", 403)
     try:
-        items = [dict(d) for d in table_("dokumente").query_entities(f"PartitionKey eq '{target_id}'")]
+        items = [dict(d) for d in table_("dokumente").query_entities("PartitionKey eq @pk", parameters={"pk": target_id})]
     except Exception:
         items = []
     # NDAs der Interessenten sind nur fuer Admins einsehbar (Datenschutz)

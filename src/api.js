@@ -25,7 +25,12 @@ export async function authFetch(path, options = {}) {
 
 // Auth
 export const loginCustomer = (data) => authFetch('/login', { method: 'POST', data })
-export const resolveMsLogin = (data) => authFetch('/auth/resolve', { method: 'POST', data })
+// Sendet ID-Token im Authorization-Header, damit Backend serverseitig
+// gegen Microsoft JWKS verifizieren kann (Schutz vor Login-Bypass).
+export const resolveMsLogin = (data, idToken) => authFetch('/auth/resolve', {
+  method: 'POST', data,
+  headers: idToken ? { Authorization: `Bearer ${idToken}` } : {},
+})
 
 // User Management (KIwerk-style: separate Endpoints statt REST)
 export const getUsers = () => authFetch('/users')
