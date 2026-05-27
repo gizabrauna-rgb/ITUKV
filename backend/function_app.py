@@ -2617,9 +2617,13 @@ def verlauf_unread_count(req: func.HttpRequest) -> func.HttpResponse:
             t = {}
             verlauf = []
         ls = last_seen.get(tid, "1970-01-01T00:00:00")
+        my_id = p.get("id", "")
+        my_name = (p.get("name", "") or "").strip().lower()
         unread_entries = [e for e in verlauf
                           if (e.get("datum", "") or "") > ls
-                          and e.get("createdBy", "") != p.get("id", "")]
+                          and e.get("createdBy", "") != my_id
+                          # Fallback fuer Alt-Eintraege ohne createdBy: per Autor-Name pruefen
+                          and (my_name == "" or (e.get("autor", "") or "").strip().lower() != my_name)]
         if unread_entries:
             per_target[tid] = len(unread_entries)
             total += len(unread_entries)
@@ -4504,9 +4508,14 @@ def dashboard_uebersicht(req: func.HttpRequest) -> func.HttpResponse:
                 "datum": e.get("datum", ""), "autor": e.get("autor", ""),
                 "betreff": e.get("betreff", ""), "beschreibung": (e.get("beschreibung") or "")[:200],
             })
-        # Ungelesen
+        # Ungelesen — auch Alt-Eintraege ohne createdBy korrekt per Autor-Name zuordnen
         ls = last_seen_map.get(tid, "1970-01-01T00:00:00")
-        unread = [e for e in verlauf if (e.get("datum", "") or "") > ls and e.get("createdBy", "") != p.get("id", "")]
+        my_id_o = p.get("id", "")
+        my_name_o = (p.get("name", "") or "").strip().lower()
+        unread = [e for e in verlauf
+                  if (e.get("datum", "") or "") > ls
+                  and e.get("createdBy", "") != my_id_o
+                  and (my_name_o == "" or (e.get("autor", "") or "").strip().lower() != my_name_o)]
         if unread:
             wartet["ungelesen"].append({"targetId": tid, "mbNr": mb_nr, "firma": firma, "anzahl": len(unread)})
         # Vertrag zur Gegenzeichnung
