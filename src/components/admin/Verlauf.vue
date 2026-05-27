@@ -8,7 +8,10 @@
         <button v-if="!readOnly" @click="openMail" class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8]">
           <Mail class="w-4 h-4" /> E-Mail senden
         </button>
-        <button @click="openNew" class="flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">
+        <button @click="openNewTelefonat" class="flex items-center gap-2 px-3 py-2 border border-purple-200 text-purple-700 rounded-xl text-sm font-medium hover:bg-purple-50">
+          <Phone class="w-4 h-4" /> Telefonat
+        </button>
+        <button @click="openNew('notiz')" class="flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">
           <Plus class="w-4 h-4" /> Notiz
         </button>
       </div>
@@ -102,6 +105,10 @@
           </div>
           <div v-if="entry.betreff" class="font-semibold text-sm text-gray-900 mb-1">{{ entry.betreff }}</div>
           <p v-if="entry.beschreibung" class="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{{ entry.beschreibung }}</p>
+          <a v-if="entry.typ === 'telefon' && entry.telefonnr" :href="`tel:${entry.telefonnr.replace(/\s/g, '')}`"
+            class="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 bg-purple-50 text-purple-700 text-xs rounded-full hover:bg-purple-100">
+            <Phone class="w-3 h-3" /> {{ entry.telefonnr }}
+          </a>
           <div v-if="entry.beteiligte" class="flex items-center gap-1.5 mt-2 text-xs text-gray-400">
             <Users class="w-3 h-3" /> {{ entry.beteiligte }}
           </div>
@@ -136,6 +143,23 @@
           <div>
             <label class="text-xs font-medium text-gray-600 mb-1 block">Betreff / Titel</label>
             <input v-model="form.betreff" placeholder="z.B. Telefonat mit Käufer-Kandidat" class="input" />
+          </div>
+          <!-- Telefonnummer-Block: nur sichtbar bei Typ „Telefonat" -->
+          <div v-if="form.typ === 'telefon'" class="bg-purple-50 border border-purple-100 rounded-xl p-3 -mx-1">
+            <label class="text-xs font-medium text-purple-900 mb-1 block">Telefonnummer</label>
+            <div class="flex gap-2">
+              <input v-model="form.telefonnr" placeholder="z.B. +49 171 1234567" inputmode="tel"
+                class="flex-1 px-3 py-2 border border-purple-200 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
+              <a v-if="form.telefonnr" :href="`tel:${form.telefonnr.replace(/\s/g, '')}`"
+                class="flex items-center gap-1.5 px-4 py-2 bg-purple-600 text-white rounded-xl text-sm font-medium hover:bg-purple-700">
+                <Phone class="w-4 h-4" /> Anrufen
+              </a>
+            </div>
+            <p v-if="!form.telefonnr && (currentTarget?.telefon || currentTarget?.privatHandy)" class="text-[11px] text-purple-700 mt-1">
+              <button @click="form.telefonnr = currentTarget?.telefon || currentTarget?.privatHandy || ''" class="hover:underline">
+                Verkäufer-Nummer übernehmen: {{ currentTarget?.telefon || currentTarget?.privatHandy }}
+              </button>
+            </p>
           </div>
           <div>
             <label class="text-xs font-medium text-gray-600 mb-1 block">Beschreibung / Notiz</label>
@@ -212,7 +236,10 @@ const showMailModal = ref(false)
 const mailSending = ref(false)
 const mailForm = ref({ empfaengerEmail: '', betreff: '', body: '' })
 function openMail() {
-  mailForm.value = { empfaengerEmail: '', betreff: '', body: '' }
+  const target = currentTarget.value || {}
+  // Empfaenger automatisch mit Verkaeufer-Mail vorbefuellen
+  const presetEmail = target.email || target.privatEmail || ''
+  mailForm.value = { empfaengerEmail: presetEmail, betreff: '', body: '' }
   showMailModal.value = true
 }
 async function sendMail() {
@@ -231,7 +258,7 @@ const showModal = ref(false)
 const editing = ref(null)
 const filterTyp = ref('')
 
-const form = ref({ typ: 'notiz', datum: '', autor: '', betreff: '', beschreibung: '', beteiligte: '' })
+const form = ref({ typ: 'notiz', datum: '', autor: '', betreff: '', beschreibung: '', beteiligte: '', telefonnr: '' })
 
 const typFilters = [
   { value: 'mail_in', label: 'E-Mail eingegangen', icon: Mail, activeClass: 'bg-blue-500' },
@@ -297,18 +324,21 @@ async function loadEntries() {
 
 onMounted(() => { loadEntries(); loadVorlagen() })
 
-function openNew() {
+function openNew(presetTyp = 'notiz') {
   editing.value = null
   const now = new Date()
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
+  const t = currentTarget.value || {}
   form.value = {
-    typ: 'notiz',
+    typ: presetTyp,
     datum: now.toISOString().slice(0, 16),
     autor: sessionStorage.getItem('userName') || '',
     betreff: '', beschreibung: '', beteiligte: '',
+    telefonnr: presetTyp === 'telefon' ? (t.telefon || t.privatHandy || '') : '',
   }
   showModal.value = true
 }
+function openNewTelefonat() { openNew('telefon') }
 
 function openEdit(entry) {
   editing.value = entry
@@ -326,12 +356,14 @@ async function saveAll() {
 }
 
 async function saveEntry() {
+  const currentUserId = sessionStorage.getItem('customerId') || ''
   if (editing.value) {
     const idx = entries.value.findIndex(e => e.id === editing.value.id)
     if (idx >= 0) entries.value[idx] = { ...editing.value, ...form.value }
   } else {
     entries.value.push({
       id: 'k' + Date.now(),
+      createdBy: currentUserId,   // damit eigene Eintraege NICHT als ungelesen erscheinen
       ...form.value,
     })
   }
