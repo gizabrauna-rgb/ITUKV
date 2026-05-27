@@ -1383,7 +1383,7 @@ def vertrag_pdf(req: func.HttpRequest) -> func.HttpResponse:
         return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
     pdf_headers = {k: v for k, v in CORS.items() if k.lower() != "content-type"}
     pdf_headers["Content-Type"] = "application/pdf"
-    pdf_headers["Content-Disposition"] = 'attachment; filename="Mandatsvertrag.pdf"'
+    pdf_headers["Content-Disposition"] = 'inline; filename="Mandatsvertrag.pdf"'
     return func.HttpResponse(pdf_bytes, status_code=200, headers=pdf_headers)
 
 
@@ -1504,7 +1504,7 @@ def nda_pdf(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as ex:
         return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
     return func.HttpResponse(pdf_bytes, status_code=200, mimetype="application/pdf",
-                             headers={**CORS, "Content-Disposition": 'attachment; filename="NDA.pdf"'})
+                             headers={**CORS, "Content-Disposition": 'inline; filename="NDA.pdf"'})
 
 
 @app.route(route="nda-zur-signatur", methods=["POST", "OPTIONS"])
@@ -3373,7 +3373,7 @@ def nda_public_pdf(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as ex:
         return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
     return func.HttpResponse(pdf_bytes, status_code=200, mimetype="application/pdf",
-                             headers={**CORS, "Content-Disposition": f'attachment; filename="NDA_{t.get("mbNr","")}.pdf"'})
+                             headers={**CORS, "Content-Disposition": f`inline; filename="NDA_{t.get("mbNr","")}.pdf"'})
 
 
 @app.route(route="expose-public-pdf", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
@@ -3401,7 +3401,7 @@ def expose_public_pdf(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as ex:
         return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
     return func.HttpResponse(pdf_bytes, status_code=200, mimetype="application/pdf",
-                             headers={**CORS, "Content-Disposition": f'attachment; filename="Expose_{t.get("mbNr","")}.pdf"'})
+                             headers={**CORS, "Content-Disposition": f`inline; filename="Expose_{t.get("mbNr","")}.pdf"'})
 
 
 @app.route(route="nda-public-send-code", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
@@ -3755,7 +3755,7 @@ def loi_pdf(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as ex:
         return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
     return func.HttpResponse(pdf_bytes, status_code=200, mimetype="application/pdf",
-                             headers={**CORS, "Content-Disposition": f'attachment; filename="LOI_{body.get("mbNr","")}.pdf"'})
+                             headers={**CORS, "Content-Disposition": f`inline; filename="LOI_{body.get("mbNr","")}.pdf"'})
 
 
 @app.route(route="expose-pdf", methods=["POST", "OPTIONS"])
@@ -3771,7 +3771,7 @@ def expose_pdf(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as ex:
         return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
     return func.HttpResponse(pdf_bytes, status_code=200, mimetype="application/pdf",
-                             headers={**CORS, "Content-Disposition": f'attachment; filename="Expose_{body.get("mbNr","")}.pdf"'})
+                             headers={**CORS, "Content-Disposition": f`inline; filename="Expose_{body.get("mbNr","")}.pdf"'})
 
 
 @app.route(route="dokument-upload-url", methods=["POST", "OPTIONS"])

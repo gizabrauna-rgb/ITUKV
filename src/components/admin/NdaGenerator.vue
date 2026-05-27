@@ -213,7 +213,8 @@ async function openPreview() {
     })
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
     if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
-    previewUrl.value = URL.createObjectURL(await r.blob())
+    const ab = await r.arrayBuffer()
+    previewUrl.value = URL.createObjectURL(new Blob([ab], { type: 'application/pdf' }))
   } catch (e) { toast.error('Vorschau fehlgeschlagen: ' + e.message) }
   finally { previewLoading.value = false }
 }
