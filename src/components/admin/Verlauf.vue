@@ -91,6 +91,7 @@
           <div class="flex items-start justify-between mb-1">
             <div class="flex items-center gap-2 flex-wrap">
               <span :class="typBadge(entry.typ)" class="text-xs px-2 py-0.5 rounded-full font-medium">{{ typLabel(entry.typ) }}</span>
+              <span v-if="entry.createdByKI" class="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">KI</span>
               <span class="text-xs text-gray-400">{{ formatDateTime(entry.datum) }}</span>
               <span v-if="entry.autor" class="text-xs text-gray-500">· {{ entry.autor }}</span>
             </div>
@@ -183,7 +184,7 @@
 import { ref, computed, onMounted } from 'vue'
 import {
   Mail, Phone, Calendar, MessageSquare, FileText, AlertCircle,
-  Plus, Pencil, Trash2, X, Users
+  Plus, Pencil, Trash2, X, Users, Sparkles
 } from '@lucide/vue'
 import { authFetch, verlaufSendMail, verlaufMarkRead, getMailvorlagen } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
@@ -266,6 +267,7 @@ const typFilters = [
   { value: 'telefon', label: 'Telefonat', icon: Phone, activeClass: 'bg-purple-500' },
   { value: 'termin', label: 'Termin', icon: Calendar, activeClass: 'bg-amber-500' },
   { value: 'notiz', label: 'Notiz', icon: FileText, activeClass: 'bg-gray-500' },
+  { value: 'ki_analyse', label: 'KI-Analyse', icon: Sparkles, activeClass: 'bg-fuchsia-500' },
   { value: 'wichtig', label: 'Wichtig', icon: AlertCircle, activeClass: 'bg-red-500' },
 ]
 
@@ -281,11 +283,11 @@ function countByTyp(t) {
 
 function typLabel(t) { return typFilters.find(f => f.value === t)?.label || t }
 function typIcon(t) {
-  const map = { mail_in: Mail, mail_out: Mail, telefon: Phone, termin: Calendar, notiz: FileText, wichtig: AlertCircle }
+  const map = { mail_in: Mail, mail_out: Mail, telefon: Phone, termin: Calendar, notiz: FileText, ki_analyse: Sparkles, wichtig: AlertCircle }
   return map[t] || FileText
 }
 function typBg(t) {
-  const map = { mail_in: 'bg-blue-500', mail_out: 'bg-[#0088ba]', telefon: 'bg-purple-500', termin: 'bg-amber-500', notiz: 'bg-gray-500', wichtig: 'bg-red-500' }
+  const map = { mail_in: 'bg-blue-500', mail_out: 'bg-[#0088ba]', telefon: 'bg-purple-500', termin: 'bg-amber-500', notiz: 'bg-gray-500', ki_analyse: 'bg-fuchsia-500', wichtig: 'bg-red-500' }
   return map[t] || 'bg-gray-500'
 }
 function typBadge(t) {
@@ -295,6 +297,7 @@ function typBadge(t) {
     telefon: 'bg-purple-50 text-purple-700',
     termin: 'bg-amber-50 text-amber-700',
     notiz: 'bg-gray-100 text-gray-600',
+    ki_analyse: 'bg-fuchsia-50 text-fuchsia-700',
     wichtig: 'bg-red-50 text-red-700',
   }
   return map[t] || 'bg-gray-100 text-gray-600'

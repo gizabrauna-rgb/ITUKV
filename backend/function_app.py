@@ -5384,13 +5384,28 @@ def backup_list(req: func.HttpRequest) -> func.HttpResponse:
 # Beschraenkter Schreibumfang, jede Aktion ins Audit-Log
 # ============================================================
 
-# Felder die ein KI-Agent setzen darf (kein Status, keine User-Daten, keine Phasen)
+# Felder die ein KI-Agent setzen darf.
+# Tabu: alles was Mandats-Stammdaten ist (mbNr, status, projekttyp, Phasen, Mandatslaufzeit),
+# und alles was Auth/Berechtigung beruehrt.
 AI_WRITABLE_KONTAKT_FIELDS = {
+    # Stammdaten zur Anreicherung
+    "geschaeftsfuehrer", "name", "telefon", "email", "website",
+    "plz", "ort", "region", "branche",
+    # Geschaeftskennzahlen
     "mitarbeiter", "umsatzTeur", "ebitMarge", "recurringPct",
-    "branche", "geschaeftsfuehrer", "bietet", "sucht", "kommentar", "website",
+    # Klassifizierung / Notizen
+    "bietet", "sucht", "kommentar", "kommentarKI", "investorTyp",
+    # Strukturierte JSON-Blobs (z.B. weitere Ansprechpartner, Handelsregister-Daten)
+    "ansprechpartnerJson", "handelsregisterJson", "bewertungKIJson",
 }
 AI_WRITABLE_TARGET_FIELDS = {
-    "mitarbeiter", "umsatz", "branche", "beschreibung",
+    # Adresse + Stammdaten-Anreicherung (NICHT mbNr, NICHT status)
+    "region", "plz", "branche", "mitarbeiter", "umsatz", "beschreibung",
+    # Bewertung + Fragebogen + Notizen
+    "bewertungJson", "fragebogenJson", "suchprofilJson",
+    "kommentarKI", "bewertungKIJson",
+    # Geschaeftsfuehrer kann ergaenzt werden, Name aber nicht
+    "geschaeftsfuehrer",
 }
 
 
@@ -5451,6 +5466,58 @@ def ai_bulk_update(req: func.HttpRequest) -> func.HttpResponse:
         except Exception as ex:
             errors.append({"id": tid, "error": str(ex)[:200]})
     return ok_({"updated": ok_count, "failed": len(errors), "errors": errors[:20]})
+
+
+@app.route(route="ai-verlauf-add", methods=["POST", "OPTIONS"])
+def ai_verlauf_add(req: func.HttpRequest) -> func.HttpResponse:
+    """KI-Agent haengt einen Verlauf-Eintrag an ein Target an.
+    Erlaubte Typen: 'notiz', 'ki_analyse'.
+    Body: { targetId, betreff, beschreibung, typ?='ki_analyse', beteiligte? }"""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") not in ("ai-agent", "admin"):
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    tid = (body.get("targetId") or "").strip()
+    betreff = (body.get("betreff") or "").strip()
+    beschreibung = (body.get("beschreibung") or "").strip()
+    typ = body.get("typ") or "ki_analyse"
+    if typ not in ("notiz", "ki_analyse"):
+        return err_("Erlaubte Typen: 'notiz' oder 'ki_analyse'", 400)
+    if not (tid and (betreff or beschreibung)):
+        return err_("targetId + (betreff oder beschreibung) erforderlich", 400)
+    try:
+        ent = dict(table_("targets").get_entity("target", tid))
+    except Exception:
+        return err_("Target nicht gefunden", 404)
+    try:
+        verlauf = json.loads(ent.get("kommunikationJson", "[]") or "[]")
+    except Exception:
+        verlauf = []
+    if not isinstance(verlauf, list):
+        verlauf = []
+    new_entry = {
+        "id": "ai" + str(int(datetime.utcnow().timestamp() * 1000)),
+        "typ": typ,
+        "datum": datetime.utcnow().isoformat(),
+        "autor": "KI-Coworker",
+        "betreff": betreff[:300],
+        "beschreibung": beschreibung[:10000],
+        "beteiligte": body.get("beteiligte", "") or "",
+        "createdBy": p.get("id", ""),  # damit eigene Mails nicht als ungelesen flaggen
+        "createdByKI": True,            # UI-Marker: das war die KI
+    }
+    verlauf.append(new_entry)
+    ent["kommunikationJson"] = json.dumps(verlauf, ensure_ascii=False)
+    try:
+        table_("targets").update_entity(ent)
+    except Exception as ex:
+        return err_(f"Speichern fehlgeschlagen: {ex}", 500)
+    log_audit(p, "ai_verlauf_add", "target", tid, {
+        "typ": typ, "betreff": betreff[:100],
+    })
+    return ok_({"ok": True, "entry": new_entry})
 
 
 @app.route(route="ai-stats", methods=["GET", "OPTIONS"])
