@@ -237,9 +237,9 @@
           <CrmTab />
         </div>
 
-        <!-- Ausschreibungen -->
+        <!-- Veröffentlichte Mandate (Landing-Pages) -->
         <div v-else-if="tab === 'ausschreibungen'">
-          <AusschreibungenTab />
+          <AusschreibungenTab @open-akte="e => openAkteWithTab(e.targetId, e.tab || 'landing')" />
         </div>
 
         <!-- Dokumente -->
@@ -341,7 +341,7 @@ const navItems = [
   { tab: 'targets', label: 'Projekte', icon: Briefcase },
   { tab: 'pipeline', label: 'Pipeline', icon: GitBranch },
   { tab: 'crm', label: 'Kundenstamm', icon: Users },
-  { tab: 'ausschreibungen', label: 'Ausschreibungen', icon: Megaphone },
+  { tab: 'ausschreibungen', label: 'Veröffentlichte Mandate', icon: Megaphone },
   { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
   { tab: 'mailvorlagen', label: 'E-Mail-Vorlagen', icon: Mail },
   { tab: 'controlling', label: 'Controlling', icon: BarChart3 },

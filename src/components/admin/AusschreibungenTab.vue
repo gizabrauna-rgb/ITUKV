@@ -1,97 +1,64 @@
 <template>
   <div>
-    <div class="flex items-center justify-between mb-6">
-      <h2 class="text-xl font-bold text-gray-900">Ausschreibungen</h2>
-      <button @click="showModal = true" class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8]">
-        <Plus class="w-4 h-4" /> Neue Ausschreibung
+    <div>
+      <h2 class="text-xl font-bold text-gray-900">Veröffentlichte Mandate</h2>
+      <p class="text-sm text-gray-500 mt-1">Übersicht aller Landing-Pages. Schnell-Schalter zum Veröffentlichen oder Zurückziehen.</p>
+    </div>
+
+    <!-- Filter -->
+    <div class="flex items-center gap-2 my-5">
+      <button v-for="f in filterOptions" :key="f.key" @click="filter = f.key"
+        :class="['px-3 py-1.5 rounded-full text-xs font-medium border', filter === f.key ? 'bg-[#0088ba] border-[#0088ba] text-white' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50']">
+        {{ f.label }}<span v-if="counts[f.key] != null" class="ml-1.5 opacity-70">({{ counts[f.key] }})</span>
       </button>
     </div>
 
-    <div v-if="loading" class="text-center text-gray-400 text-sm py-10">Lade Ausschreibungen…</div>
-    <div v-else-if="!items.length" class="bg-white rounded-xl border border-gray-100 p-8 text-center text-gray-400 text-sm">Noch keine Ausschreibungen vorhanden.</div>
+    <div v-if="loading" class="text-center text-gray-400 text-sm py-10">Lade…</div>
+    <div v-else-if="!filtered.length" class="bg-white rounded-xl border border-gray-100 p-10 text-center text-gray-400 text-sm">
+      <Megaphone class="w-8 h-8 mx-auto mb-3 opacity-30" />
+      <div v-if="!items.length">Noch keine Landing-Pages angelegt. Lege eine in einer Akte unter dem Tab „Marktansprache → Landing" an.</div>
+      <div v-else>Keine Mandate in dieser Auswahl.</div>
+    </div>
 
-    <div v-else class="space-y-4">
-      <div v-for="a in items" :key="a.RowKey" class="bg-white rounded-xl border border-gray-100 p-5">
-        <div class="flex items-start justify-between">
-          <div>
-            <div class="flex items-center gap-2 mb-1">
-              <span class="font-mono text-xs bg-blue-50 text-blue-800 px-2 py-0.5 rounded">{{ a.mbNr }}</span>
-              <span :class="a.status === 'aktiv' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'" class="text-xs font-medium px-2 py-0.5 rounded-full">{{ a.status }}</span>
+    <div v-else class="space-y-3">
+      <div v-for="it in filtered" :key="it.targetId" class="bg-white rounded-xl border border-gray-100 p-5 hover:border-gray-200 transition-colors">
+        <div class="flex items-start justify-between gap-4">
+          <!-- Links: Status + Inhalt -->
+          <div class="flex items-start gap-3 min-w-0 flex-1">
+            <div :class="['w-2.5 h-2.5 rounded-full mt-2 flex-shrink-0', it.published ? 'bg-green-500' : 'bg-gray-300']"></div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <span class="font-mono text-xs bg-blue-50 text-blue-800 px-2 py-0.5 rounded">{{ it.mbNr || '—' }}</span>
+                <span :class="it.published ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'" class="text-[11px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wide">
+                  {{ it.published ? 'Online' : 'Entwurf' }}
+                </span>
+                <span class="text-xs text-gray-400">{{ it.verkaueferName }}</span>
+              </div>
+              <h3 class="font-semibold text-gray-900 truncate">{{ it.headline || '(noch keine Headline)' }}</h3>
+              <p class="text-sm text-gray-500 mt-0.5 truncate">{{ it.subheadline || '—' }}</p>
+              <div class="flex items-center gap-3 mt-2 text-xs text-gray-400">
+                <span v-if="it.branche">{{ it.branche }}</span>
+                <span v-if="it.region">· {{ it.region }}</span>
+                <span v-if="it.umsatz">· {{ it.umsatz }}</span>
+                <a v-if="it.published" :href="it.liveUrl" target="_blank" rel="noopener" class="text-[#0088ba] hover:underline inline-flex items-center gap-1">
+                  <ExternalLink class="w-3 h-3" /> {{ it.liveUrl.replace(/^https?:\/\//, '') }}
+                </a>
+              </div>
             </div>
-            <h3 class="font-semibold text-gray-900">{{ a.titel }}</h3>
-            <p class="text-sm text-gray-500 mt-0.5">{{ a.region }} · {{ a.mitarbeiter }} Mitarbeiter · {{ a.umsatz }}</p>
-            <p class="text-sm text-gray-500 mt-1 max-w-xl">{{ a.kurzprofil }}</p>
           </div>
-          <div class="flex gap-2">
-            <button @click="openDetail(a)" class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-xs hover:bg-gray-50">
-              <Users class="w-3.5 h-3.5" /> Interessenten
+
+          <!-- Rechts: Toggle + Aktionen -->
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <button @click="togglePublish(it)" :disabled="it._busy"
+              :class="['relative inline-flex items-center h-6 w-11 rounded-full transition-colors', it.published ? 'bg-green-500' : 'bg-gray-300', it._busy ? 'opacity-50' : '']"
+              :title="it.published ? 'Klick: zurückziehen' : 'Klick: veröffentlichen'">
+              <span :class="['inline-block w-5 h-5 bg-white rounded-full shadow transform transition-transform', it.published ? 'translate-x-5' : 'translate-x-0.5']"></span>
             </button>
-            <select v-model="a.status" @change="updateStatus(a)" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5">
-              <option value="aktiv">Aktiv</option>
-              <option value="pausiert">Pausiert</option>
-              <option value="abgeschlossen">Abgeschlossen</option>
-            </select>
+            <button @click="$emit('open-akte', { targetId: it.targetId, tab: 'landing' })"
+              class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-xs hover:bg-gray-50">
+              <Pencil class="w-3.5 h-3.5" /> Bearbeiten
+            </button>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Interessenten-Panel -->
-    <div v-if="detailAusschr" class="fixed inset-0 bg-black/40 flex items-start justify-end z-50" @click.self="detailAusschr = null">
-      <div class="bg-white h-full w-full max-w-md shadow-2xl overflow-y-auto">
-        <div class="flex items-center justify-between p-5 border-b border-gray-100">
-          <h3 class="font-bold text-gray-900">Interessenten: {{ detailAusschr.mbNr }}</h3>
-          <button @click="detailAusschr = null"><X class="w-5 h-5 text-gray-400" /></button>
-        </div>
-        <div class="p-5">
-          <div v-if="!detailInteressenten.length" class="text-sm text-gray-400">Noch keine Interessenten registriert.</div>
-          <div v-for="i in detailInteressenten" :key="i.RowKey" class="border border-gray-100 rounded-xl p-4 mb-3">
-            <div class="font-medium text-sm text-gray-800">{{ i.firma || i.name }}</div>
-            <div class="text-xs text-gray-500">{{ i.email }} · {{ i.plz }} {{ i.ort }}</div>
-            <div class="flex items-center gap-2 mt-2">
-              <span :class="ndaClass(i.ndaStatus)" class="text-xs px-2 py-0.5 rounded-full font-medium">{{ ndaLabel(i.ndaStatus) }}</span>
-              <span v-if="i.veto" class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">VETO</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Neue Ausschreibung Modal -->
-    <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
-      <div class="bg-white rounded-2xl p-6 w-full max-w-lg">
-        <div class="flex items-center justify-between mb-5">
-          <h3 class="font-bold text-gray-900">Neue Ausschreibung</h3>
-          <button @click="showModal = false"><X class="w-5 h-5 text-gray-400" /></button>
-        </div>
-        <div class="space-y-3">
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="field-label">Target *</label>
-              <select v-model="form.targetId" @change="prefillFromTarget" class="input">
-                <option value="">— auswählen —</option>
-                <option v-for="t in targets" :key="t.RowKey" :value="t.RowKey">{{ t.mbNr }} · {{ t.verkaueferName }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="field-label">mb-Nummer</label>
-              <input v-model="form.mbNr" class="input" />
-            </div>
-          </div>
-          <div><label class="field-label">Titel der Ausschreibung</label><input v-model="form.titel" placeholder="IT-Systemhaus · Managed Services" class="input" /></div>
-          <div class="grid grid-cols-2 gap-3">
-            <div><label class="field-label">Region</label><input v-model="form.region" class="input" /></div>
-            <div><label class="field-label">Branche</label><input v-model="form.branche" class="input" /></div>
-            <div><label class="field-label">Mitarbeiter</label><input v-model="form.mitarbeiter" class="input" /></div>
-            <div><label class="field-label">Umsatz (ca.)</label><input v-model="form.umsatz" class="input" /></div>
-          </div>
-          <div><label class="field-label">Kurzprofil (anonymisiert)</label><textarea v-model="form.kurzprofil" rows="3" class="input resize-none" placeholder="Anonymisierte Beschreibung für Investoren…"></textarea></div>
-        </div>
-        <div class="flex gap-3 mt-5">
-          <button @click="showModal = false" class="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50">Abbrechen</button>
-          <button @click="create" :disabled="saving" class="flex-1 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium disabled:opacity-50">
-            {{ saving ? 'Erstelle…' : 'Ausschreibung erstellen' }}
-          </button>
         </div>
       </div>
     </div>
@@ -99,65 +66,99 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { Plus, Users, X } from '@lucide/vue'
-import { getAusschreibungen, createAusschreibung, updateAusschreibung, getTargets, getInteressenten } from '../../api.js'
+import { ref, computed, onMounted } from 'vue'
+import { Megaphone, Pencil, ExternalLink } from '@lucide/vue'
+import { getTargets, updateTarget } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 
-const items = ref([])
-const targets = ref([])
-const loading = ref(true)
-const showModal = ref(false)
-const saving = ref(false)
-const detailAusschr = ref(null)
-const detailInteressenten = ref([])
-const form = ref({ targetId: '', mbNr: '', titel: '', region: '', branche: '', mitarbeiter: '', umsatz: '', kurzprofil: '' })
+defineEmits(['open-akte'])
 
-onMounted(async () => {
-  try { targets.value = await getTargets() } catch (e) { console.error('getTargets failed', e) }
-  try { items.value = await getAusschreibungen() } catch (e) { items.value = [] }
-  loading.value = false
+const LANDING_BASE = 'https://targets.itukv.de'
+
+const loading = ref(true)
+const items = ref([])
+const filter = ref('online')
+
+const filterOptions = [
+  { key: 'online', label: 'Online' },
+  { key: 'entwurf', label: 'Entwürfe' },
+  { key: 'alle', label: 'Alle' },
+]
+
+const counts = computed(() => ({
+  online: items.value.filter(i => i.published).length,
+  entwurf: items.value.filter(i => !i.published).length,
+  alle: items.value.length,
+}))
+
+const filtered = computed(() => {
+  if (filter.value === 'online') return items.value.filter(i => i.published)
+  if (filter.value === 'entwurf') return items.value.filter(i => !i.published)
+  return items.value
 })
 
-function prefillFromTarget() {
-  const t = targets.value.find(t => t.RowKey === form.value.targetId)
-  if (t) { form.value.mbNr = t.mbNr; form.value.region = t.region; form.value.mitarbeiter = t.mitarbeiter; form.value.umsatz = t.umsatz; form.value.branche = t.branche }
+function parseLanding(t) {
+  let landing = {}
+  try { landing = JSON.parse(t.landingJson || '{}') } catch { landing = {} }
+  return landing
 }
 
-async function create() {
-  saving.value = true
+function buildItem(t) {
+  const landing = parseLanding(t)
+  return {
+    targetId: t.RowKey,
+    mbNr: t.mbNr || '',
+    verkaueferName: t.verkaueferName || '',
+    branche: t.branche || '',
+    region: t.region || '',
+    umsatz: t.umsatz || '',
+    headline: landing.headline || '',
+    subheadline: landing.subheadline || '',
+    published: landing.status === 'published',
+    landing,
+    liveUrl: `${LANDING_BASE}/${(t.mbNr || '').toLowerCase()}`,
+    _busy: false,
+  }
+}
+
+onMounted(async () => {
   try {
-    const a = await createAusschreibung(form.value)
-    items.value.push(a)
-    showModal.value = false
-    form.value = { targetId: '', mbNr: '', titel: '', region: '', branche: '', mitarbeiter: '', umsatz: '', kurzprofil: '' }
-  } catch (e) { toast.error('Anlegen fehlgeschlagen') }
-  finally { saving.value = false }
-}
+    const targets = await getTargets()
+    items.value = (targets || [])
+      .map(buildItem)
+      // Nur Targets mit Landing-Inhalt zeigen (verhindert Flut leerer Akten)
+      .filter(it => it.headline || it.subheadline || it.published)
+      .sort((a, b) => {
+        if (a.published !== b.published) return a.published ? -1 : 1
+        return (b.mbNr || '').localeCompare(a.mbNr || '')
+      })
+  } catch (e) {
+    console.error(e)
+    toast?.error?.('Mandate konnten nicht geladen werden.')
+  } finally {
+    loading.value = false
+  }
+})
 
-async function updateStatus(a) {
-  try { await updateAusschreibung(a.RowKey, { status: a.status }) } catch (e) { console.error(e) }
-}
-
-async function openDetail(a) {
-  detailAusschr.value = a
-  detailInteressenten.value = await getInteressenten(a.targetId || a.RowKey)
-}
-
-function ndaClass(s) {
-  if (s === 'unterzeichnet') return 'bg-green-100 text-green-700'
-  if (s === 'gesendet') return 'bg-yellow-100 text-yellow-700'
-  if (s === 'abgelehnt') return 'bg-red-100 text-red-700'
-  return 'bg-gray-100 text-gray-500'
-}
-function ndaLabel(s) {
-  const map = { unterzeichnet: 'NDA unterzeichnet', gesendet: 'NDA gesendet', abgelehnt: 'NDA abgelehnt', ausstehend: 'NDA ausstehend' }
-  return map[s] || 'NDA ausstehend'
+async function togglePublish(it) {
+  const willPublish = !it.published
+  if (willPublish && (!it.headline || !it.subheadline)) {
+    toast?.warn?.('Headline und Sub-Headline müssen gesetzt sein, bevor du veröffentlichst. Bitte „Bearbeiten" klicken.')
+    return
+  }
+  if (!willPublish && !confirm(`Landing-Page „${it.headline}" zurückziehen? Sie ist dann nicht mehr öffentlich erreichbar.`)) return
+  it._busy = true
+  try {
+    const newLanding = { ...it.landing, status: willPublish ? 'published' : 'draft' }
+    await updateTarget(it.targetId, { landingJson: JSON.stringify(newLanding) })
+    it.landing = newLanding
+    it.published = willPublish
+    toast?.success?.(willPublish ? 'Landing-Page ist jetzt online.' : 'Landing-Page zurückgezogen.')
+  } catch (e) {
+    console.error(e)
+    toast?.error?.('Speichern fehlgeschlagen.')
+  } finally {
+    it._busy = false
+  }
 }
 </script>
-
-<style scoped>
-@reference "tailwindcss";
-.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
-.field-label { @apply block text-xs font-medium text-gray-600 mb-1; }
-</style>
