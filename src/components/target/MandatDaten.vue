@@ -53,6 +53,9 @@
       </div>
     </section>
 
+    <!-- Termine & Erinnerungen -->
+    <TermineSection :target-id="targetId" :termine-json="termineJson" :read-only="!!readOnly" @updated="onTermineUpdated" />
+
     <!-- Mandatslaufzeit -->
     <section class="bg-white rounded-xl border border-gray-100 mb-4">
       <header class="px-5 py-3 border-b border-gray-50 flex items-center gap-2">
@@ -92,6 +95,7 @@
 import { ref, computed, onMounted, h, defineComponent } from 'vue'
 import { User, Database, Clock } from '@lucide/vue'
 import { authFetch } from '../../api.js'
+import TermineSection from './TermineSection.vue'
 
 const props = defineProps({ targetId: String, readOnly: Boolean })
 
@@ -101,6 +105,11 @@ const data = ref({
   kundennummer: '', transaktionsnummer: '',
   mandatStart: '', mandatLaufzeitMonate: 12,
 })
+const termineJson = ref('')
+
+function onTermineUpdated(arr) {
+  termineJson.value = JSON.stringify(arr || [])
+}
 
 const mandatEnde = computed(() => {
   if (!data.value.mandatStart || !data.value.mandatLaufzeitMonate) return ''
@@ -130,6 +139,7 @@ onMounted(async () => {
     for (const k of Object.keys(data.value)) {
       if (target[k] !== undefined) data.value[k] = target[k]
     }
+    termineJson.value = target.termineJson || ''
   } catch (e) { console.error(e) }
 })
 

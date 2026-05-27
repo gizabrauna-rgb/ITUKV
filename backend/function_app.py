@@ -3972,6 +3972,168 @@ def expose_pdf(req: func.HttpRequest) -> func.HttpResponse:
                              headers={**CORS, "Content-Disposition": f'inline; filename="Expose_{body.get("mbNr","")}.pdf"'})
 
 
+@app.route(route="status-report-pdf", methods=["POST", "OPTIONS"])
+def status_report_pdf(req: func.HttpRequest) -> func.HttpResponse:
+    """Generiert einen Status-Bericht als PDF fuer einen Verkaeufer.
+    Inhalt: Stammdaten, aktuelle Phase, abgeschlossene + offene Aufgaben,
+    juengste Verlauf-Eintraege, anstehende Termine."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    tid = (body.get("targetId") or "").strip()
+    if not tid:
+        return err_("targetId erforderlich", 400)
+    if p.get("role") != "admin" and p.get("targetId") != tid:
+        return err_("Nicht autorisiert", 403)
+    try:
+        t = dict(table_("targets").get_entity("target", tid))
+    except Exception:
+        return err_("Target nicht gefunden", 404)
+
+    # Phasen
+    try: phasen = json.loads(t.get("phasenJson", "[]") or "[]")
+    except Exception: phasen = []
+    # Aktuelle Phase = erste mit offenen Aufgaben, oder letzte abgeschlossene + 1
+    aktuelle = None
+    abgeschlossen = []
+    for ph in phasen:
+        aufgs = ph.get("aufgaben", []) or []
+        if aufgs and all(a.get("done") for a in aufgs):
+            abgeschlossen.append(ph)
+        elif aufgs and not aktuelle:
+            aktuelle = ph
+    if not aktuelle and phasen:
+        aktuelle = phasen[len(abgeschlossen)] if len(abgeschlossen) < len(phasen) else phasen[-1]
+
+    # Verlauf (letzte 8)
+    try: verlauf = json.loads(t.get("kommunikationJson", "[]") or "[]")
+    except Exception: verlauf = []
+    verlauf_recent = sorted(verlauf, key=lambda e: e.get("datum", ""), reverse=True)[:8]
+
+    # Termine
+    try: termine = json.loads(t.get("termineJson", "[]") or "[]")
+    except Exception: termine = []
+    termine_kommend = sorted(
+        [tm for tm in termine if (tm.get("datum", "") >= datetime.utcnow().date().isoformat()) and not tm.get("erledigt")],
+        key=lambda x: x.get("datum", "")
+    )[:10]
+
+    # Interessenten-Stats
+    try:
+        ints = list(table_("interessenten").query_entities("targetId eq @t", parameters={"t": tid}))
+        anzahl_int = len(ints)
+        anzahl_nda = sum(1 for i in ints if i.get("ndaStatus") == "unterzeichnet")
+    except Exception:
+        anzahl_int = 0; anzahl_nda = 0
+
+    # Mandatslaufzeit
+    mandat_text = ""
+    try:
+        if t.get("mandatStart") and t.get("mandatLaufzeitMonate"):
+            start = datetime.fromisoformat(t["mandatStart"][:10])
+            mo = int(t["mandatLaufzeitMonate"])
+            ende = start + timedelta(days=mo * 30)
+            mandat_text = f"{start.date().strftime('%d.%m.%Y')} – {ende.date().strftime('%d.%m.%Y')} ({mo} Monate)"
+    except Exception:
+        pass
+
+    # HTML rendern
+    from html import escape as _esc
+    def fmt_date(s):
+        try: return datetime.fromisoformat(s[:10]).strftime("%d.%m.%Y")
+        except Exception: return s
+    now_str = datetime.utcnow().strftime("%d.%m.%Y")
+
+    aktuelle_aufg_html = ""
+    if aktuelle:
+        aufgs = aktuelle.get("aufgaben", []) or []
+        aktuelle_aufg_html = "<ul>" + "".join(
+            f"<li>{'✓ ' if a.get('done') else '◯ '}{_esc(a.get('label',''))}</li>"
+            for a in aufgs
+        ) + "</ul>"
+
+    verlauf_html = "<p style='color:#999'>Keine Aktivitäten erfasst.</p>" if not verlauf_recent else (
+        "<ul>" + "".join(
+            f"<li><strong>{fmt_date(e.get('datum',''))}</strong> – {_esc(e.get('betreff') or e.get('typ',''))}</li>"
+            for e in verlauf_recent
+        ) + "</ul>"
+    )
+
+    termine_html = "<p style='color:#999'>Keine anstehenden Termine.</p>" if not termine_kommend else (
+        "<ul>" + "".join(
+            f"<li><strong>{fmt_date(tm.get('datum',''))}</strong> – {_esc(tm.get('titel',''))} <em style='color:#888'>({_esc(tm.get('typ','sonstiges'))})</em></li>"
+            for tm in termine_kommend
+        ) + "</ul>"
+    )
+
+    html = f"""<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@page {{ size: A4; margin: 18mm 16mm; }}
+body {{ font-family: Helvetica, Arial, sans-serif; color: #161e2a; font-size: 11pt; line-height: 1.45; }}
+h1 {{ color: #097e92; font-size: 20pt; margin: 0 0 4px; }}
+h2 {{ color: #0088ba; font-size: 13pt; margin: 18px 0 6px; padding-bottom: 3px; border-bottom: 1.5px solid #0088ba33; }}
+.meta {{ color: #666; font-size: 10pt; margin-bottom: 16px; }}
+.box {{ background: #f0fdfa; border-left: 3px solid #0088ba; padding: 10px 14px; margin: 8px 0; }}
+table.stats {{ width: 100%; border-collapse: collapse; margin: 8px 0; }}
+table.stats td {{ padding: 6px 8px; border-bottom: 1px solid #eee; font-size: 10.5pt; }}
+table.stats td:first-child {{ color: #666; width: 45%; }}
+ul {{ margin: 4px 0 8px 18px; padding: 0; }}
+li {{ margin: 3px 0; font-size: 10.5pt; }}
+.footer {{ color: #999; font-size: 9pt; margin-top: 24px; border-top: 1px solid #eee; padding-top: 8px; }}
+</style></head>
+<body>
+  <h1>Status-Bericht Verkaufsmandat</h1>
+  <div class="meta">Stand: {now_str} &middot; {_esc(t.get('mbNr',''))} &middot; {_esc(t.get('verkaueferName',''))}</div>
+
+  <h2>Stammdaten</h2>
+  <table class="stats">
+    <tr><td>mb-Nummer</td><td>{_esc(t.get('mbNr',''))}</td></tr>
+    <tr><td>Verkäufer</td><td>{_esc(t.get('verkaueferName',''))}</td></tr>
+    <tr><td>Branche</td><td>{_esc(t.get('branche',''))}</td></tr>
+    <tr><td>Region</td><td>{_esc(t.get('region',''))}</td></tr>
+    <tr><td>Mitarbeiter</td><td>{_esc(str(t.get('mitarbeiter','') or ''))}</td></tr>
+    <tr><td>Umsatz</td><td>{_esc(t.get('umsatz',''))}</td></tr>
+    <tr><td>Mandatslaufzeit</td><td>{_esc(mandat_text or 'noch nicht erfasst')}</td></tr>
+  </table>
+
+  <h2>Aktueller Stand im Prozess</h2>
+  <div class="box">
+    <strong>{_esc(aktuelle.get('titel','—') if aktuelle else '—')}</strong>
+    {aktuelle_aufg_html}
+  </div>
+  <p style="font-size:10.5pt;color:#666">Phasen abgeschlossen: {len(abgeschlossen)} von {len(phasen)}</p>
+
+  <h2>Interessenten</h2>
+  <table class="stats">
+    <tr><td>Gesamt angesprochen</td><td>{anzahl_int}</td></tr>
+    <tr><td>Davon NDA unterzeichnet</td><td>{anzahl_nda}</td></tr>
+  </table>
+
+  <h2>Anstehende Termine</h2>
+  {termine_html}
+
+  <h2>Letzte Aktivitäten</h2>
+  {verlauf_html}
+
+  <div class="footer">
+    Erstellt durch das mibeca ITUKV Dashboard &middot; Vertraulich &middot; nur für den Mandanten bestimmt
+  </div>
+</body></html>"""
+
+    try:
+        from weasyprint import HTML
+        pdf_bytes = HTML(string=html, base_url="/").write_pdf()
+    except Exception as ex:
+        return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
+    filename = f"Statusbericht_{(t.get('mbNr','') or 'mandat')}_{datetime.utcnow().date().isoformat()}.pdf"
+    return func.HttpResponse(pdf_bytes, status_code=200, mimetype="application/pdf",
+                             headers={**CORS, "Content-Disposition": f'inline; filename="{filename}"'})
+
+
 @app.route(route="dokument-upload-url", methods=["POST", "OPTIONS"])
 def dokument_upload_url(req: func.HttpRequest) -> func.HttpResponse:
     """Generiert SAS-URL für direkten Blob-Upload (auch Videos, beliebige Groesse)."""
@@ -4300,6 +4462,7 @@ def dashboard_uebersicht(req: func.HttpRequest) -> func.HttpResponse:
         "exposeFreigabeAusstehend": [], # Exposé wurde an Kunden gesendet, wartet auf seine Freigabe
         "mandateLaufenAus": [],         # Mandat laeuft in <=60 Tagen aus oder ist abgelaufen
     }
+    termine_anstehend = []  # alle Termine aus termineJson aller Targets (ueberfaellig + naechste 14 Tage)
 
     today = datetime.utcnow().date().isoformat()
     try:
@@ -4342,6 +4505,32 @@ def dashboard_uebersicht(req: func.HttpRequest) -> func.HttpResponse:
         wv = t.get("wiedervorlage", "")
         if wv and wv <= today:
             wartet["wiedervorlage"].append({"targetId": tid, "mbNr": mb_nr, "firma": firma, "datum": wv})
+        # Termine: alles aus termineJson, was in den naechsten 14 Tagen liegt oder ueberfaellig ist
+        try:
+            termine_list = json.loads(t.get("termineJson", "[]") or "[]")
+        except Exception:
+            termine_list = []
+        for tm in termine_list:
+            datum = tm.get("datum", "")
+            if not datum:
+                continue
+            try:
+                d = datetime.fromisoformat(datum[:10]).date()
+            except Exception:
+                continue
+            tage = (d - datetime.utcnow().date()).days
+            if tm.get("erledigt"):
+                continue
+            if tage <= 14:
+                termine_anstehend.append({
+                    "targetId": tid, "mbNr": mb_nr, "firma": firma,
+                    "id": tm.get("id", ""),
+                    "datum": datum,
+                    "titel": tm.get("titel", ""),
+                    "typ": tm.get("typ", "sonstiges"),
+                    "tageBisDatum": tage,
+                    "ueberfaellig": tage < 0,
+                })
         # Mandatslaufzeit: warnen wenn <=60 Tage bis Ende
         try:
             mandat_start = t.get("mandatStart", "") or ""
@@ -4400,10 +4589,12 @@ def dashboard_uebersicht(req: func.HttpRequest) -> func.HttpResponse:
     except Exception: pass
 
     feed.sort(key=lambda x: x.get("datum", ""), reverse=True)
+    termine_anstehend.sort(key=lambda x: x.get("datum", ""))
     return ok_({
         "feed": feed[:30],
         "wartet": wartet,
         "totalWartet": sum(len(v) for v in wartet.values()),
+        "termineAnstehend": termine_anstehend,
     })
 
 

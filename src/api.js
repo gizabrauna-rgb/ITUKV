@@ -39,6 +39,24 @@ export const deleteUser = (id) => authFetch('/user-delete', { method: 'POST', da
 export const resetUserPassword = (id, data = {}) => authFetch('/user-reset-password', { method: 'POST', data: { id, ...data } })
 export const passwordForgot = (email) => authFetch('/password-forgot', { method: 'POST', data: { email } })
 export const passwordResetConfirm = (token, password) => authFetch('/password-reset-confirm', { method: 'POST', data: { token, password } })
+
+// Status-Report PDF: gibt application/pdf zurueck (Blob)
+export const statusReportPdf = async (targetId) => {
+  const token = sessionStorage.getItem('customerJwt') || sessionStorage.getItem('msalToken') || ''
+  const FUNC_KEY = import.meta.env.VITE_FUNC_KEY || ''
+  const API_BASE = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
+  const r = await fetch(`${API_BASE}/status-report-pdf`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(FUNC_KEY && { 'x-functions-key': FUNC_KEY }),
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    body: JSON.stringify({ targetId }),
+  })
+  if (!r.ok) throw new Error(`PDF-Erstellung fehlgeschlagen (${r.status})`)
+  return await r.blob()
+}
 export const updateUser = (id, data) => createUser(data)
 
 // Targets (Mandate) – KIwerk-Style action endpoints

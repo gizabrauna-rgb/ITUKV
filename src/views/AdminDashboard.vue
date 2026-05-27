@@ -216,6 +216,37 @@
             </div>
           </div>
 
+          <!-- Anstehende Termine -->
+          <div class="bg-white rounded-xl border border-gray-100 p-5 mb-6">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
+                <CalendarClock class="w-4 h-4 text-[#0088ba]" /> Anstehende Termine (14 Tage)
+              </h3>
+              <span v-if="ueberblick.termineAnstehend?.length" class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
+                {{ ueberblick.termineAnstehend.length }}
+              </span>
+            </div>
+            <div v-if="!ueberblick.termineAnstehend?.length" class="text-sm text-gray-400 py-3 text-center">Keine anstehenden Termine ✓</div>
+            <div v-else class="grid grid-cols-2 gap-2">
+              <button v-for="tm in ueberblick.termineAnstehend" :key="tm.id+tm.targetId" @click="openAkteWithTab(tm.targetId, 'mandat')"
+                :class="['text-left flex items-start gap-2 p-2.5 rounded-lg border hover:shadow-sm transition-all',
+                  tm.ueberfaellig ? 'bg-red-50 border-red-200' : tm.tageBisDatum <= 3 ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100 hover:border-[#0088ba]/30']">
+                <div :class="['text-[11px] font-mono px-1.5 py-0.5 rounded flex-shrink-0',
+                  tm.ueberfaellig ? 'bg-red-200 text-red-800' : tm.tageBisDatum <= 3 ? 'bg-amber-200 text-amber-800' : 'bg-blue-100 text-blue-800']">
+                  {{ formatDateShort(tm.datum) }}
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-1 text-[11px] mb-0.5">
+                    <span class="font-mono bg-gray-100 px-1 rounded">{{ tm.mbNr }}</span>
+                    <span class="text-gray-500 truncate">{{ tm.firma }}</span>
+                  </div>
+                  <div class="text-xs font-medium text-gray-800 truncate">{{ tm.titel }}</div>
+                  <div v-if="tm.ueberfaellig" class="text-[10px] text-red-700 font-semibold">überfällig ({{ -tm.tageBisDatum }} T)</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
           <div class="bg-white rounded-xl border border-gray-100 p-6">
             <h3 class="font-semibold text-gray-800 mb-4 text-sm">Schnellzugriff</h3>
             <div class="grid grid-cols-3 gap-3">
@@ -281,7 +312,7 @@
 import { ref, computed, onMounted } from 'vue'
 import {
   Building2, LogOut, LayoutDashboard, Briefcase, GitBranch,
-  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow, Bell, BarChart3, AlertCircle, Activity, Mail
+  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow, Bell, BarChart3, AlertCircle, Activity, Mail, CalendarClock,
 } from '@lucide/vue'
 import { authFetch, verlaufUnreadCount, verlaufMarkRead } from '../api.js'
 import TargetsTab from '../components/admin/TargetsTab.vue'
@@ -418,6 +449,13 @@ function formatRel(iso) {
   if (d < 86400) return `${Math.floor(d/3600)} Std`
   if (d < 7*86400) return `${Math.floor(d/86400)} Tg`
   return new Date(iso).toLocaleDateString('de-DE')
+}
+
+function formatDateShort(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
 }
 
 onMounted(async () => {

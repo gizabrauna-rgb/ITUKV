@@ -16,9 +16,17 @@
             <h2 class="text-lg font-bold text-gray-900 mt-1">{{ target?.verkaueferName || '—' }} <span class="text-gray-400 font-normal text-sm">· {{ target?.firma || '' }}</span></h2>
           </div>
         </div>
-        <div class="text-right">
-          <div class="text-xs text-gray-500">Aktuelle Phase</div>
-          <div class="font-semibold text-[#0088ba]">Phase {{ currentPhase }} / {{ phasen.length || 15 }} · {{ progressPercent }}%</div>
+        <div class="flex items-center gap-3">
+          <button @click="downloadStatusReport" :disabled="reportLoading"
+            class="flex items-center gap-1.5 px-3 py-1.5 border border-[#0088ba]/30 text-[#0088ba] rounded-lg text-xs font-medium hover:bg-[#0088ba]/5 disabled:opacity-50"
+            title="Status-Bericht als PDF erzeugen (für den Mandanten)">
+            <FileText class="w-3.5 h-3.5" />
+            {{ reportLoading ? 'Erzeuge…' : 'Status-Bericht (PDF)' }}
+          </button>
+          <div class="text-right">
+            <div class="text-xs text-gray-500">Aktuelle Phase</div>
+            <div class="font-semibold text-[#0088ba]">Phase {{ currentPhase }} / {{ phasen.length || 15 }} · {{ progressPercent }}%</div>
+          </div>
         </div>
       </div>
 
@@ -216,7 +224,7 @@ import {
   LayoutDashboard, Workflow, ClipboardList, FileEdit, ShieldCheck, Clock, TrendingUp, Trophy, BookOpen,
   CalendarClock, X, Globe, Handshake
 } from '@lucide/vue'
-import { authFetch } from '../../api.js'
+import { authFetch, statusReportPdf } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 import PhasenProzessEingebettet from './PhasenProzess.vue'
 import MandatDaten from '../target/MandatDaten.vue'
@@ -355,6 +363,29 @@ async function saveWiedervorlage(value) {
   } catch (e) {
     toast.error('Speichern fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
   } finally { wvSaving.value = false }
+}
+
+const reportLoading = ref(false)
+async function downloadStatusReport() {
+  if (!props.targetId || reportLoading.value) return
+  reportLoading.value = true
+  try {
+    const blob = await statusReportPdf(props.targetId)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const datum = new Date().toISOString().slice(0, 10)
+    a.download = `Statusbericht_${target.value?.mbNr || 'mandat'}_${datum}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    toast.success('Status-Bericht erstellt')
+  } catch (e) {
+    toast.error('PDF konnte nicht erstellt werden: ' + (e?.message || ''))
+  } finally {
+    reportLoading.value = false
+  }
 }
 
 function daysUntil(dateStr) {
