@@ -71,6 +71,7 @@ export const getAuditLog = (params = {}) => authFetch('/audit-log', { params })
 export const listBackups = () => authFetch('/backup-list')
 export const triggerBackup = () => authFetch('/backup-trigger', { method: 'POST' })
 export const aiAnalyzeDocument = (targetId, blobName) => authFetch('/ai-analyze-document', { method: 'POST', data: { targetId, blobName } })
+export const aiConfig = () => authFetch('/ai-config')
 
 // Interessenten
 export const getInteressenten = (targetId) => authFetch('/interessenten', { method: 'POST', data: { targetId } })

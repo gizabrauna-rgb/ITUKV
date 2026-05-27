@@ -384,6 +384,27 @@ const aiAcceptedCount = computed(() =>
 
 async function aiAnalyze(f) {
   if (!isPdf(f)) { toast.warn('KI-Analyse aktuell nur für PDFs'); return }
+  // 1) Pruefen ob Akte schon fuer KI freigegeben ist
+  try {
+    const target = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
+    if (!target.kiAnalyseErlaubt) {
+      const ok = confirm(
+        'KI-Analyse für diese Akte freigeben?\n\n' +
+        'Das PDF wird einmalig an Anthropic Claude (USA) übermittelt zur Auswertung. ' +
+        'Anthropic verarbeitet die Daten als Auftragsverarbeiter und nutzt sie NICHT zum Training. ' +
+        'Aufbewahrung bei Anthropic max. 30 Tage. AVV liegt vor.\n\n' +
+        'Klicke OK um diese Akte einmalig für KI-Analyse freizugeben.'
+      )
+      if (!ok) return
+      await updateTarget(props.targetId, {
+        kiAnalyseErlaubt: true,
+        kiAnalyseErlaubtSeit: new Date().toISOString(),
+        kiAnalyseErlaubtVon: sessionStorage.getItem('userName') || '',
+      })
+      toast.success('Akte für KI-Analyse freigegeben')
+    }
+  } catch (e) { /* nicht-blockierend */ }
+
   toast.info('KI analysiert das Dokument… kann 10-30 Sekunden dauern')
   try {
     const r = await aiAnalyzeDocument(props.targetId, f.blobName)

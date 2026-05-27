@@ -464,6 +464,8 @@ TARGET_WRITABLE_FIELDS = {
     "lessonsLearnedJson", "loiJson", "suchprofilJson", "fuerKaeuferIdsJson",
     "longListManuellJson", "longListDecisionsJson", "presseJson", "bewertungKIJson",
     "geschaeftsfuehrer", "kommentarKI",
+    # Compliance-Schalter (pro Akte KI-Freigabe)
+    "kiAnalyseErlaubt", "kiAnalyseErlaubtSeit", "kiAnalyseErlaubtVon",
     # Diverse Workflow-Felder
     "exposeToken", "ndaTemplateUrl",
 }
@@ -5521,6 +5523,24 @@ def ai_verlauf_add(req: func.HttpRequest) -> func.HttpResponse:
     return ok_({"ok": True, "entry": new_entry})
 
 
+@app.route(route="ai-config", methods=["GET", "OPTIONS"])
+def ai_config(req: func.HttpRequest) -> func.HttpResponse:
+    """Liefert den Compliance-Status der KI-Analyse:
+    - aktiv: ist der globale Schalter im Azure-Setting an?
+    - keyVorhanden: ist ANTHROPIC_API_KEY gesetzt?
+    Beide muessen true sein, damit ein User die KI-Analyse nutzen kann."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    return ok_({
+        "globalAktiv": os.environ.get("AI_ANALYSE_AKTIV", "false").lower() == "true",
+        "keyVorhanden": bool(os.environ.get("ANTHROPIC_API_KEY", "")),
+        "hinweis": "Aktivierung erfolgt durch Setzen von AI_ANALYSE_AKTIV=true in Azure-Function-App-Settings. Vor Aktivierung: AVV mit Anthropic, DSFA, Mandanten-Information.",
+    })
+
+
 @app.route(route="ai-analyze-document", methods=["POST", "OPTIONS"])
 def ai_analyze_document(req: func.HttpRequest) -> func.HttpResponse:
     """Analysiert ein hochgeladenes Dokument (PDF) mit Claude und schlaegt
@@ -5538,11 +5558,22 @@ def ai_analyze_document(req: func.HttpRequest) -> func.HttpResponse:
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not api_key:
         return err_("KI-Analyse ist noch nicht konfiguriert. Bitte ANTHROPIC_API_KEY in Azure-Function-App-Settings hinterlegen.", 503)
+    # Globaler Sicherheits-Schalter: KI-Analyse muss in Settings explizit aktiviert sein.
+    # Default = aus, bis AVV + DSFA abgeschlossen sind.
+    if os.environ.get("AI_ANALYSE_AKTIV", "false").lower() != "true":
+        return err_("KI-Analyse ist im Dashboard deaktiviert (Compliance-Schalter). Aktivierung durch Admin in Einstellungen.", 403)
     body = req.get_json() or {}
     tid = (body.get("targetId") or "").strip()
     blob_name = (body.get("blobName") or "").strip()
     if not (tid and blob_name):
         return err_("targetId + blobName erforderlich", 400)
+    # Pro-Akte-Opt-In: User muss diese Akte explizit fuer KI-Analyse freigegeben haben
+    try:
+        target_ent = dict(table_("targets").get_entity("target", tid))
+    except Exception:
+        return err_("Target nicht gefunden", 404)
+    if not target_ent.get("kiAnalyseErlaubt"):
+        return err_("Diese Akte ist nicht fuer KI-Analyse freigegeben. Bitte in der Akte oben den KI-Schalter aktivieren.", 403)
     # PDF aus Blob laden
     try:
         from azure.storage.blob import BlobServiceClient
@@ -5551,8 +5582,11 @@ def ai_analyze_document(req: func.HttpRequest) -> func.HttpResponse:
         pdf_bytes = blob.download_blob().readall()
     except Exception as ex:
         return err_(f"Dokument nicht ladbar: {ex}", 404)
-    if len(pdf_bytes) > 30 * 1024 * 1024:
-        return err_("PDF zu gross (max 30 MB)", 400)
+    # PDF-Limit auf 10 MB reduziert (vorher 30): bei groesseren Dateien
+    # ist die Wahrscheinlichkeit hoeher, dass sensible Anhaenge enthalten sind,
+    # die nicht zur reinen Kennzahlen-Analyse gebraucht werden.
+    if len(pdf_bytes) > 10 * 1024 * 1024:
+        return err_("PDF zu gross (max 10 MB fuer KI-Analyse). Bitte gezielt auswaehlen.", 400)
 
     # Claude aufrufen
     try:

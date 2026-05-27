@@ -104,12 +104,53 @@
 
       </div>
     </div>
+
+    <!-- KI-Analyse Compliance-Status -->
+    <div class="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden mt-6">
+      <div class="border-b border-gray-100 px-6 py-4 flex items-start gap-3">
+        <Sparkles class="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <h3 class="text-lg font-semibold text-gray-900">KI-Analyse (Compliance-Status)</h3>
+          <p class="text-xs text-gray-500 mt-1">Dokument-Analyse durch Anthropic Claude. Default: deaktiviert. Aktivierung erfordert AVV + DSFA.</p>
+        </div>
+      </div>
+      <div class="p-6 space-y-3">
+        <div v-if="aiCfgLoading" class="text-xs text-gray-400">Lade Status…</div>
+        <template v-else>
+          <div class="flex items-center justify-between p-3 rounded-lg border" :class="aiCfg.keyVorhanden ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'">
+            <div class="flex items-center gap-2 text-sm">
+              <component :is="aiCfg.keyVorhanden ? CheckCircle2 : AlertTriangle" :class="['w-4 h-4', aiCfg.keyVorhanden ? 'text-green-600' : 'text-amber-600']" />
+              <span class="font-medium">Anthropic API-Key</span>
+            </div>
+            <span :class="['text-xs px-2 py-0.5 rounded-full font-semibold', aiCfg.keyVorhanden ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700']">
+              {{ aiCfg.keyVorhanden ? 'hinterlegt' : 'fehlt' }}
+            </span>
+          </div>
+          <div class="flex items-center justify-between p-3 rounded-lg border" :class="aiCfg.globalAktiv ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'">
+            <div class="flex items-center gap-2 text-sm">
+              <component :is="aiCfg.globalAktiv ? CheckCircle2 : EyeOff" :class="['w-4 h-4', aiCfg.globalAktiv ? 'text-green-600' : 'text-gray-500']" />
+              <span class="font-medium">Globaler Compliance-Schalter (AI_ANALYSE_AKTIV)</span>
+            </div>
+            <span :class="['text-xs px-2 py-0.5 rounded-full font-semibold', aiCfg.globalAktiv ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600']">
+              {{ aiCfg.globalAktiv ? 'aktiv' : 'deaktiviert' }}
+            </span>
+          </div>
+          <div class="p-3 rounded-lg bg-blue-50 border border-blue-100 text-xs text-blue-900">
+            <strong>Aktivierung:</strong> erfolgt durch Setzen von <code class="bg-white px-1 rounded">AI_ANALYSE_AKTIV=true</code> in Azure-Function-App-Settings. Vor dem Umlegen: AVV mit Anthropic abgeschlossen, DSFA durchgeführt, Mandanten-Information ergänzt.
+          </div>
+          <div v-if="aiCfg.globalAktiv && aiCfg.keyVorhanden" class="p-3 rounded-lg bg-purple-50 border border-purple-100 text-xs text-purple-900">
+            <strong>Hinweis:</strong> KI-Analyse ist verfügbar. Pro Akte muss zusätzlich der „KI-freigeben"-Toggle gesetzt werden (passiert beim ersten Klick auf „KI-Analyse" mit Bestätigungs-Dialog).
+          </div>
+        </template>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Webhook, Copy, Check, Eye, EyeOff, AlertTriangle, Info } from '@lucide/vue'
+import { Webhook, Copy, Check, Eye, EyeOff, AlertTriangle, Info, Sparkles, CheckCircle2 } from '@lucide/vue'
+import { aiConfig } from '../../api.js'
 import { authFetch } from '../../api.js'
 
 const data = ref({ url: '', token: '', headerName: 'X-Webhook-Token' })
@@ -154,10 +195,16 @@ const curlExample = computed(() => `curl -X POST ${data.value.url} \\
     "notizen": "Über Mike kennengelernt"
   }'`)
 
+const aiCfg = ref({ globalAktiv: false, keyVorhanden: false })
+const aiCfgLoading = ref(true)
+
 onMounted(async () => {
   try {
     data.value = await authFetch('/settings/webhook')
   } finally { loading.value = false }
+  try {
+    aiCfg.value = await aiConfig()
+  } catch {} finally { aiCfgLoading.value = false }
 })
 
 async function copy(text, key) {
