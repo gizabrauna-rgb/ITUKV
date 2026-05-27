@@ -30,7 +30,7 @@
               <div class="flex items-center gap-2 mb-1 flex-wrap">
                 <span class="font-mono text-xs bg-blue-50 text-blue-800 px-2 py-0.5 rounded">{{ it.mbNr || '—' }}</span>
                 <span :class="it.published ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'" class="text-[11px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wide">
-                  {{ it.published ? 'Online' : 'Entwurf' }}
+                  {{ it.published ? 'Online' : 'Offline' }}
                 </span>
                 <span class="text-xs text-gray-400">{{ it.verkaueferName }}</span>
               </div>
@@ -81,19 +81,19 @@ const filter = ref('online')
 
 const filterOptions = [
   { key: 'online', label: 'Online' },
-  { key: 'entwurf', label: 'Entwürfe' },
+  { key: 'offline', label: 'Offline' },
   { key: 'alle', label: 'Alle' },
 ]
 
 const counts = computed(() => ({
   online: items.value.filter(i => i.published).length,
-  entwurf: items.value.filter(i => !i.published).length,
+  offline: items.value.filter(i => !i.published).length,
   alle: items.value.length,
 }))
 
 const filtered = computed(() => {
   if (filter.value === 'online') return items.value.filter(i => i.published)
-  if (filter.value === 'entwurf') return items.value.filter(i => !i.published)
+  if (filter.value === 'offline') return items.value.filter(i => !i.published)
   return items.value
 })
 
