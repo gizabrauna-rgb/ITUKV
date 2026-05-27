@@ -447,10 +447,16 @@ const visibleList = computed(() => {
   if (filterTyp.value) r = r.filter(k => k.typ === filterTyp.value)
   // Status-Filter
   if (filterStatus.value) r = r.filter(k => {
-    if (filterStatus.value === 'Kunde') return k.istKunde === true || k.kundenstatus === 'Kunde'
-    if (filterStatus.value === 'Ex-Kunde') return k.istExKunde === true || k.kundenstatus === 'Ex-Kunde'
-    if (filterStatus.value === 'Investor') return k.istInvestor === true || k.kundenstatus === 'Investor' || ['PE','Systemhausgruppe','Strategisch'].includes(k.typ)
-    if (filterStatus.value === 'Nichtkunde') return k.istNichtkunde === true || k.kundenstatus === 'Nichtkunde' || (!k.istKunde && !k.istExKunde && !k.istInvestor && !k.istTarget && !k.kundenstatus)
+    // Klassifizierungs-Hilfsfunktionen — jeder Kontakt landet in genau einer Kategorie
+    const isKunde = k.istKunde === true || k.kundenstatus === 'Kunde'
+    const isExKunde = k.istExKunde === true || k.kundenstatus === 'Ex-Kunde'
+    const isInvestor = k.istInvestor === true || k.kundenstatus === 'Investor' || ['PE','Systemhausgruppe','Strategisch'].includes(k.typ)
+    if (filterStatus.value === 'Kunde') return isKunde
+    if (filterStatus.value === 'Ex-Kunde') return isExKunde
+    if (filterStatus.value === 'Investor') return isInvestor
+    // Nichtkunde = alles, was NICHT in den anderen drei Kategorien ist
+    // (umfasst „Nichtkunde", „potenzieller Kunde", „Partner", „nicht geeignet", etc.)
+    if (filterStatus.value === 'Nichtkunde') return !(isKunde || isExKunde || isInvestor)
     return true
   })
   if (filterTyp.value && filterStatus.value === 'Investor') {
