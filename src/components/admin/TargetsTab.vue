@@ -56,6 +56,7 @@
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Letzte Aktivität</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Wiedervorlage</th>
+            <th class="text-left px-2 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-8"></th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-50">
@@ -102,6 +103,11 @@
               <input v-model="t.wiedervorlage" type="date" @change="updateWiedervorlage(t)"
                 :class="['text-xs border rounded-lg px-2 py-1 focus:outline-none', wvInputClass(t.wiedervorlage)]" />
               <button v-if="t.wiedervorlage" @click="t.wiedervorlage = ''; updateWiedervorlage(t)" class="ml-1 text-xs text-gray-400 hover:text-red-500">✕</button>
+            </td>
+            <td class="px-2 py-3" @click.stop>
+              <button @click="askDelete(t)" class="text-gray-400 hover:text-red-500 p-1" title="Mandat löschen">
+                <Trash2 class="w-4 h-4" />
+              </button>
             </td>
           </tr>
         </tbody>
@@ -177,8 +183,9 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Plus, X, Search } from '@lucide/vue'
-import { getTargets, createTarget as apiCreateTarget, updateTarget } from '../../api.js'
+import { Plus, X, Search, Trash2 } from '@lucide/vue'
+import { getTargets, createTarget as apiCreateTarget, updateTarget, deleteTarget } from '../../api.js'
+import { toast } from '../../composables/useToast.js'
 
 const emit = defineEmits(['open-detail'])
 const targets = ref([])
@@ -252,6 +259,18 @@ async function createTarget() {
 
 async function updateStatus(t) {
   await updateTarget(t.RowKey, { status: t.status })
+}
+
+async function askDelete(t) {
+  const label = `${t.mbNr || ''} – ${t.verkaueferName || t.firma || ''}`
+  if (!confirm(`Mandat „${label}" wirklich löschen? Inkl. zugeordneter Interessenten und Dokumente. Lässt sich nicht rückgängig machen.`)) return
+  try {
+    await deleteTarget(t.RowKey)
+    targets.value = targets.value.filter(x => x.RowKey !== t.RowKey)
+    toast.success('Mandat gelöscht')
+  } catch (e) {
+    toast.error('Löschen fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
+  }
 }
 
 async function updateWiedervorlage(t) {

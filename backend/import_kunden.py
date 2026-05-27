@@ -78,6 +78,15 @@ print(f"Indizes: Vorname={COL_VORNAME}, Email={COL_EMAIL}, Firma={COL_FIRMA}, mb
 
 targets_created = 0
 targets_seen_mbnr = set()
+
+# Bestehende Targets nach mb-Nr einlesen (verhindert Duplikate bei Re-Import)
+print("Lade bestehende Targets für Dedup…")
+existing_targets_by_mbnr = {}
+for et in tc_targets.list_entities():
+    mb = (et.get("mbNr") or "").strip().lower()
+    if mb:
+        existing_targets_by_mbnr[mb] = et.get("RowKey")
+print(f"  {len(existing_targets_by_mbnr)} bestehende Targets")
 kontakte_created = 0
 kontakte_updated = 0
 kontakte_seen_email = set()
@@ -157,7 +166,8 @@ for row_idx, row in enumerate(rows, start=2):
         # Nur anlegen wenn auch sinnvolle Daten vorhanden
         if firma or name:
             targets_seen_mbnr.add(mbNr)
-            tid = str(uuid.uuid4())
+            # Bestehende RowKey wiederverwenden (kein Duplikat anlegen)
+            tid = existing_targets_by_mbnr.get(mbNr.lower()) or str(uuid.uuid4())
             entity = {
                 "PartitionKey": "target", "RowKey": tid,
                 "mbNr": mbNr,
@@ -178,9 +188,19 @@ for row_idx, row in enumerate(rows, start=2):
                 "createdAt": now,
             }
             try:
-                tc_targets.upsert_entity(entity)
-                targets_created += 1
-                print(f"  TARGET: {mbNr} – {entity['verkaueferName']} ({firma})")
+                # Bei Update bestehenden Records: User-Daten (Phasen, Termine etc.) NICHT ueberschreiben
+                if mbNr.lower() in existing_targets_by_mbnr:
+                    existing_t = dict(tc_targets.get_entity("target", tid))
+                    # Nur Stammdaten ergaenzen wenn leer
+                    for key in ["mbNr", "verkaueferName", "firma", "email", "telefon",
+                                "website", "region", "plz", "branche", "umsatz", "beschreibung", "projekttyp"]:
+                        if not existing_t.get(key) and entity.get(key):
+                            existing_t[key] = entity[key]
+                    tc_targets.update_entity(existing_t)
+                else:
+                    tc_targets.create_entity(entity)
+                    targets_created += 1
+                    print(f"  TARGET: {mbNr} – {entity['verkaueferName']} ({firma})")
             except Exception as e:
                 print(f"  ERROR Target {mbNr}: {e}")
 

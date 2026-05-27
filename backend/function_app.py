@@ -450,6 +450,49 @@ TARGET_WRITABLE_FIELDS = {
 }
 
 
+@app.route(route="target-delete", methods=["POST", "OPTIONS"])
+def target_delete(req: func.HttpRequest) -> func.HttpResponse:
+    """Loescht ein Target (Verkaufs-/Kauf-Mandat). Admin-only.
+    Loescht zugehoerige Interessenten, Dokumente und Signaturen mit."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    tid = (body.get("id") or body.get("RowKey") or "").strip()
+    if not tid:
+        return err_("id erforderlich", 400)
+    # Target selbst loeschen
+    try:
+        table_("targets").delete_entity("target", tid)
+    except Exception as ex:
+        return err_(f"Target-Loeschung fehlgeschlagen: {ex}", 500)
+    # Aufraeumen: Interessenten dieses Targets
+    deleted_int = 0
+    try:
+        for i in table_("interessenten").query_entities("targetId eq @t", parameters={"t": tid}):
+            try:
+                table_("interessenten").delete_entity(i["PartitionKey"], i["RowKey"])
+                deleted_int += 1
+            except Exception:
+                pass
+    except Exception:
+        pass
+    # Aufraeumen: Dokumente dieses Targets (PartitionKey == targetId)
+    deleted_docs = 0
+    try:
+        for d in table_("dokumente").query_entities("PartitionKey eq @pk", parameters={"pk": tid}):
+            try:
+                table_("dokumente").delete_entity(d["PartitionKey"], d["RowKey"])
+                deleted_docs += 1
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return ok_({"deleted": tid, "interessentenGeloescht": deleted_int, "dokumenteGeloescht": deleted_docs})
+
+
 @app.route(route="target-update", methods=["POST", "OPTIONS"])
 def target_update(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":

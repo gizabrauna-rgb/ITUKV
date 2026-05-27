@@ -64,6 +64,7 @@ export const getTargets = () => authFetch('/targets')
 export const getTarget = (id) => authFetch('/target-get', { method: 'POST', data: { id } })
 export const createTarget = (data) => authFetch('/targets', { method: 'POST', data })
 export const updateTarget = (id, data) => authFetch('/target-update', { method: 'POST', data: { id, ...data } })
+export const deleteTarget = (id) => authFetch('/target-delete', { method: 'POST', data: { id } })
 
 // Interessenten
 export const getInteressenten = (targetId) => authFetch('/interessenten', { method: 'POST', data: { targetId } })
