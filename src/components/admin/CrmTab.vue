@@ -28,7 +28,6 @@
         </div>
         <select v-model="filterStatus" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
           <option value="">Status (alle)</option>
-          <option>Target</option>
           <option>Investor</option>
           <option>Kunde</option>
           <option>Ex-Kunde</option>
@@ -450,8 +449,7 @@ const visibleList = computed(() => {
   if (filterStatus.value) r = r.filter(k => {
     if (filterStatus.value === 'Kunde') return k.istKunde === true || k.kundenstatus === 'Kunde'
     if (filterStatus.value === 'Ex-Kunde') return k.istExKunde === true || k.kundenstatus === 'Ex-Kunde'
-    if (filterStatus.value === 'Investor') return k.istInvestor === true || k.kundenstatus === 'Investor' || ['PE','Systemhausgruppe','Strategisch','Sonstige'].includes(k.typ)
-    if (filterStatus.value === 'Target') return k.istTarget === true || k.kundenstatus === 'Target'
+    if (filterStatus.value === 'Investor') return k.istInvestor === true || k.kundenstatus === 'Investor' || ['PE','Systemhausgruppe','Strategisch'].includes(k.typ)
     if (filterStatus.value === 'Nichtkunde') return k.istNichtkunde === true || k.kundenstatus === 'Nichtkunde' || (!k.istKunde && !k.istExKunde && !k.istInvestor && !k.istTarget && !k.kundenstatus)
     return true
   })
