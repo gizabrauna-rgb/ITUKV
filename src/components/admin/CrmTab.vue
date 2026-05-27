@@ -273,12 +273,25 @@
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div class="col-span-2"><label class="field-label">Firma</label><input v-model="form.firma" class="input" /></div>
+          <div><label class="field-label">Geschäftsführer</label><input v-model="form.geschaeftsfuehrer" placeholder="z.B. Max Mustermann" class="input" /></div>
           <div><label class="field-label">Name (Ansprechpartner)</label><input v-model="form.name" class="input" /></div>
           <div><label class="field-label">E-Mail</label><input v-model="form.email" type="email" class="input" /></div>
           <div><label class="field-label">Telefon</label><input v-model="form.telefon" class="input" /></div>
           <div><label class="field-label">Website</label><input v-model="form.website" class="input" /></div>
+          <div><label class="field-label">Branche</label><input v-model="form.branche" placeholder="z.B. IT-Systemhaus" class="input" /></div>
           <div><label class="field-label">PLZ</label><input v-model="form.plz" class="input" /></div>
           <div><label class="field-label">Ort</label><input v-model="form.ort" class="input" /></div>
+
+          <!-- Geschäftskennzahlen (für Kandidaten-Match) -->
+          <div class="col-span-2 border-t border-gray-100 pt-4 mt-2">
+            <div class="text-xs font-semibold text-gray-700 mb-2">Geschäftskennzahlen <span class="text-gray-400 font-normal">– für Kandidaten-Match</span></div>
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="field-label">Mitarbeiter (Anzahl)</label><input v-model.number="form.mitarbeiter" type="number" min="0" placeholder="z.B. 25" class="input" /></div>
+              <div><label class="field-label">Umsatz (TEUR)</label><input v-model.number="form.umsatzTeur" type="number" min="0" placeholder="z.B. 2500" class="input" /></div>
+              <div><label class="field-label">EBIT-Marge (%)</label><input v-model.number="form.ebitMarge" type="number" step="0.5" placeholder="z.B. 8" class="input" /></div>
+              <div><label class="field-label">Wiederkehrende Umsätze (%)</label><input v-model.number="form.recurringPct" type="number" min="0" max="100" placeholder="z.B. 30" class="input" /></div>
+            </div>
+          </div>
 
           <!-- Multi-Rollen Checkboxen -->
           <div class="col-span-2">
@@ -626,7 +639,9 @@ const importing = ref(false)
 const saving = ref(false)
 const form = ref({
   firma: '', name: '', email: '', telefon: '', website: '',
+  geschaeftsfuehrer: '', branche: '',
   plz: '', ort: '', sucht: '', bietet: '', kommentar: '',
+  mitarbeiter: '', umsatzTeur: '', ebitMarge: '', recurringPct: '',
   istKunde: false, istExKunde: false, istInvestor: false, istTarget: false,
   investorTyp: '',
   typ: '',  // backward compat
@@ -698,7 +713,13 @@ function openEdit(k) {
 function closeModal() {
   showNewModal.value = false
   editKontakt.value = null
-  form.value = { firma:'',name:'',email:'',telefon:'',plz:'',ort:'',typ:'Sonstige',sucht:'',bietet:'',kommentar:'' }
+  form.value = {
+    firma:'', name:'', email:'', telefon:'', website:'',
+    geschaeftsfuehrer:'', branche:'',
+    plz:'', ort:'', sucht:'', bietet:'', kommentar:'', typ:'Sonstige',
+    mitarbeiter:'', umsatzTeur:'', ebitMarge:'', recurringPct:'',
+    istKunde:false, istExKunde:false, istInvestor:false, istTarget:false, investorTyp:'',
+  }
   ansprechpartner.value = []
 }
 

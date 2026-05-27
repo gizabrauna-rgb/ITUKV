@@ -46,6 +46,10 @@
                 <div class="text-sm text-gray-800">{{ kontakt.firma || '—' }}</div>
               </div>
               <div>
+                <div class="text-[11px] uppercase tracking-wide text-gray-400 font-semibold mb-0.5">Geschäftsführer</div>
+                <div class="text-sm text-gray-800">{{ kontakt.geschaeftsfuehrer || '—' }}</div>
+              </div>
+              <div>
                 <div class="text-[11px] uppercase tracking-wide text-gray-400 font-semibold mb-0.5">Ansprechpartner</div>
                 <div class="text-sm text-gray-800">{{ kontakt.name || '—' }}</div>
               </div>
@@ -68,8 +72,24 @@
                 <div class="text-sm text-gray-800">{{ `${kontakt.plz || ''} ${kontakt.ort || ''}`.trim() || '—' }}</div>
               </div>
               <div>
-                <div class="text-[11px] uppercase tracking-wide text-gray-400 font-semibold mb-0.5">Typ</div>
-                <div class="text-sm text-gray-800">{{ kontakt.typ || '—' }}</div>
+                <div class="text-[11px] uppercase tracking-wide text-gray-400 font-semibold mb-0.5">Branche</div>
+                <div class="text-sm text-gray-800">{{ kontakt.branche || '—' }}</div>
+              </div>
+              <div>
+                <div class="text-[11px] uppercase tracking-wide text-gray-400 font-semibold mb-0.5">Mitarbeiter</div>
+                <div class="text-sm text-gray-800">{{ kontakt.mitarbeiter || '—' }}</div>
+              </div>
+              <div>
+                <div class="text-[11px] uppercase tracking-wide text-gray-400 font-semibold mb-0.5">Umsatz (TEUR)</div>
+                <div class="text-sm text-gray-800">{{ kontakt.umsatzTeur || '—' }}</div>
+              </div>
+              <div v-if="kontakt.ebitMarge">
+                <div class="text-[11px] uppercase tracking-wide text-gray-400 font-semibold mb-0.5">EBIT-Marge</div>
+                <div class="text-sm text-gray-800">{{ kontakt.ebitMarge }} %</div>
+              </div>
+              <div v-if="kontakt.recurringPct">
+                <div class="text-[11px] uppercase tracking-wide text-gray-400 font-semibold mb-0.5">Wiederkehrende Umsätze</div>
+                <div class="text-sm text-gray-800">{{ kontakt.recurringPct }} %</div>
               </div>
               <div class="col-span-2" v-if="kontakt.sucht">
                 <div class="text-[11px] uppercase tracking-wide text-gray-400 font-semibold mb-0.5">Sucht</div>

@@ -246,7 +246,9 @@ function scoreFor(kontakt, suchprofil) {
   const dislikes = []
   const ist = (n, min, max) => (!min || n >= min) && (!max || n <= max)
   const ma = parseInt(kontakt.mitarbeiter) || 0
-  const umsatzNum = parseFloat((kontakt.umsatz || '').toString().replace(/[^\d.,]/g, '').replace(',', '.')) || 0
+  // CRM-Kontakte haben „umsatzTeur" (Zahl), interne Targets haben „umsatz" (Freitext „ca. 2,1 Mio. €")
+  const umsatzNum = parseFloat(kontakt.umsatzTeur) ||
+                    parseFloat((kontakt.umsatz || '').toString().replace(/[^\d.,]/g, '').replace(',', '.')) || 0
   const ebitMarge = parseFloat(kontakt.ebitMarge) || 0
   const recurring = parseFloat(kontakt.recurringPct || kontakt.recurring) || 0
 
