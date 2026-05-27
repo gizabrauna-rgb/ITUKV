@@ -136,12 +136,63 @@ async function abschicken() {
   finally { sending.value = false }
 }
 
+function setMeta(name, content) {
+  if (!content) return
+  let el = document.querySelector(`meta[name="${name}"]`)
+  if (!el) {
+    el = document.createElement('meta')
+    el.setAttribute('name', name)
+    document.head.appendChild(el)
+  }
+  el.setAttribute('content', content)
+}
+function setOgMeta(property, content) {
+  if (!content) return
+  let el = document.querySelector(`meta[property="${property}"]`)
+  if (!el) {
+    el = document.createElement('meta')
+    el.setAttribute('property', property)
+    document.head.appendChild(el)
+  }
+  el.setAttribute('content', content)
+}
+
+function applySeo(d) {
+  if (!d) {
+    document.title = 'Projekt nicht gefunden · mibeca'
+    return
+  }
+  const fallbackTitle = `${d.headline || ''}`.trim()
+  const title = (d.seoTitle && d.seoTitle.trim()) ||
+    (fallbackTitle ? `${fallbackTitle} · ${(d.mbNr || mbNr).toUpperCase()} | mibeca` : `${(d.mbNr || mbNr).toUpperCase()} · IT-Unternehmen zum Verkauf | mibeca`)
+  const description = (d.seoDescription && d.seoDescription.trim()) ||
+    d.subheadline ||
+    (d.description ? d.description.slice(0, 160) : 'Diskretes Verkaufsangebot von Mike Bergmann Akademie - IT-Unternehmenstransaktionen.')
+
+  document.title = title
+  setMeta('description', description)
+  // Open Graph (für Social-Media-Vorschau)
+  setOgMeta('og:title', title)
+  setOgMeta('og:description', description)
+  setOgMeta('og:type', 'website')
+  setOgMeta('og:url', window.location.href)
+  // Twitter
+  setMeta('twitter:card', 'summary')
+  setMeta('twitter:title', title)
+  setMeta('twitter:description', description)
+}
+
 onMounted(async () => {
-  if (!mbNr) { loading.value = false; return }
+  if (!mbNr) {
+    document.title = 'Projekt nicht gefunden · mibeca'
+    loading.value = false
+    return
+  }
   try {
     const res = await fetch(`${apiBase}/landing-public?mbNr=${mbNr}`)
     if (res.ok) data.value = await res.json()
   } catch (e) { console.error(e) }
+  applySeo(data.value)
   loading.value = false
 })
 </script>

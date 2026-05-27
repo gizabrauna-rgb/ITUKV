@@ -49,6 +49,22 @@
       </div>
     </div>
 
+    <!-- SEO Meta -->
+    <div class="bg-white rounded-xl border border-gray-100 p-5 mb-3">
+      <h4 class="font-semibold text-gray-800 text-sm mb-1">SEO &amp; Browser-Tab</h4>
+      <p class="text-xs text-gray-500 mb-3">Wird im Browser-Tab + bei Google/Social-Media-Vorschau angezeigt. Falls leer, nutzen wir automatisch Headline + Sub-Headline.</p>
+      <div class="mb-3">
+        <label class="lbl">Seitentitel <span class="text-gray-400 font-normal">(max. ~60 Zeichen)</span></label>
+        <input v-model="landing.seoTitle" @blur="save" maxlength="80" placeholder="z.B. IT-Systemhaus Nürnberg zum Verkauf · mb-XXX | mibeca" class="input" />
+        <p v-if="landing.seoTitle" class="text-[11px] text-gray-400 mt-1">{{ landing.seoTitle.length }} Zeichen</p>
+      </div>
+      <div>
+        <label class="lbl">Meta-Beschreibung <span class="text-gray-400 font-normal">(max. ~160 Zeichen)</span></label>
+        <textarea v-model="landing.seoDescription" @blur="save" rows="2" maxlength="200" placeholder="Etabliertes IT-Systemhaus in Bayern sucht Nachfolger. 15 MA, starke Marktposition, hoher wiederkehrender Umsatz. Diskrete Anfrage möglich." class="input resize-none"></textarea>
+        <p v-if="landing.seoDescription" class="text-[11px] text-gray-400 mt-1">{{ landing.seoDescription.length }} Zeichen</p>
+      </div>
+    </div>
+
     <!-- Teaser-Text -->
     <div class="bg-white rounded-xl border border-gray-100 p-5 mb-3">
       <h4 class="font-semibold text-gray-800 text-sm mb-3">Teaser-Text</h4>
@@ -130,6 +146,8 @@ const landing = ref({
   exposeUrl: '',
   ndaTemplateUrl: '',
   terminBookingUrl: '',
+  seoTitle: '',
+  seoDescription: '',
 })
 
 const liveUrl = computed(() => `${LANDING_BASE}/${(target.value?.mbNr || 'mb-xxx').toLowerCase()}`)

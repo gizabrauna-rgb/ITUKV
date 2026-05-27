@@ -3231,6 +3231,8 @@ def landing_public(req: func.HttpRequest) -> func.HttpResponse:
         "description": landing.get("description", ""),
         "keyFacts": landing.get("keyFacts", []),
         "highlights": landing.get("highlights", []),
+        "seoTitle": landing.get("seoTitle", ""),
+        "seoDescription": landing.get("seoDescription", ""),
         "published": True,
     })
 
