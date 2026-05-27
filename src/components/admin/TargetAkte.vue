@@ -305,6 +305,12 @@ watch(tabs, (newTabs) => {
   }
 }, { immediate: false })
 
+// Wenn von außen (z.B. Glocke, Übersicht-Klick) ein neuer initialTab kommt,
+// schalte aktiv um - sonst bleibt die Akte beim vorherigen Tab haengen.
+watch(() => props.initialTab, (v) => {
+  if (v && v !== tab.value) tab.value = v
+})
+
 // =============== Tab-Gruppen (Haupt-Kategorien + Unter-Tabs) ===============
 const TAB_GROUP_DEFS = [
   { key: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard, tabs: ['uebersicht', 'prozess'] },

@@ -421,6 +421,8 @@ function formatRelative(iso) {
 }
 async function openTarget(item) {
   showBell.value = false
+  akteInitialTab.value = 'verlauf'  // direkt in den Verlauf der Akte springen
+  akteInitialDoc.value = null
   akteTargetId.value = item.targetId
   tab.value = 'targets'
   try {
