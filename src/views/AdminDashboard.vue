@@ -85,14 +85,14 @@
             <button
               @click="tab = item.tab"
               :class="[
-                'w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors',
+                'w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors text-left',
                 tab === item.tab
                   ? 'bg-[#0088ba]/10 text-[#0088ba] font-semibold'
                   : 'text-gray-600 hover:bg-gray-50'
               ]"
             >
               <component :is="item.icon" class="w-4 h-4 flex-shrink-0" />
-              {{ item.label }}
+              <span class="leading-tight">{{ item.label }}</span>
             </button>
           </li>
         </ul>
