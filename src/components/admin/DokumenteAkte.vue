@@ -216,20 +216,26 @@ async function previewFile(f) {
   if (previewType.value === 'other') return
   previewLoading.value = true
   try {
-    const base = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
-    const token = sessionStorage.getItem('customerJwt') || sessionStorage.getItem('msalToken') || ''
-    const r = await fetch(`${base}/dokument-download?targetId=${props.targetId}&id=${f.RowKey}`, {
-      headers: { 'Authorization': 'Bearer ' + token }
-    })
-    if (!r.ok) throw new Error(`HTTP ${r.status}`)
-    if (previewType.value === 'text') {
-      previewText.value = await r.text()
+    // Bei Video/Audio: direkte SAS-URL fürs Streaming (Range-Requests, Seeking).
+    // Bei PDF/Bild/Text: download via API + blob (kleinere Dateien, einfacher Auth).
+    if (previewType.value === 'video' || previewType.value === 'audio') {
+      const sas = await authFetch('/dokument-stream-url', { method: 'POST', data: { targetId: props.targetId, id: f.RowKey } })
+      previewUrl.value = sas.streamUrl
     } else {
-      // MIME explizit setzen — Server liefert manchmal application/octet-stream
-      const mimeMap = { pdf: 'application/pdf', image: f.contentType || 'image/jpeg', video: f.contentType || 'video/mp4', audio: f.contentType || 'audio/mpeg' }
-      const ab = await r.arrayBuffer()
-      const blob = new Blob([ab], { type: mimeMap[previewType.value] || f.contentType || 'application/octet-stream' })
-      previewUrl.value = URL.createObjectURL(blob)
+      const base = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
+      const token = sessionStorage.getItem('customerJwt') || sessionStorage.getItem('msalToken') || ''
+      const r = await fetch(`${base}/dokument-download?targetId=${props.targetId}&id=${f.RowKey}`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      })
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      if (previewType.value === 'text') {
+        previewText.value = await r.text()
+      } else {
+        const mimeMap = { pdf: 'application/pdf', image: f.contentType || 'image/jpeg' }
+        const ab = await r.arrayBuffer()
+        const blob = new Blob([ab], { type: mimeMap[previewType.value] || f.contentType || 'application/octet-stream' })
+        previewUrl.value = URL.createObjectURL(blob)
+      }
     }
   } catch (e) { toast.error('Vorschau fehlgeschlagen: ' + e.message) }
   finally { previewLoading.value = false }

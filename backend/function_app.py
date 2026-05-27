@@ -3809,6 +3809,60 @@ def dokument_upload_url(req: func.HttpRequest) -> func.HttpResponse:
     })
 
 
+@app.route(route="dokument-stream-url", methods=["GET", "POST", "OPTIONS"])
+def dokument_stream_url(req: func.HttpRequest) -> func.HttpResponse:
+    """Generiert eine kurzlebige SAS-URL fuer direktes Browser-Streaming
+    (Videos, große PDFs). Liefert URL inkl. content-type + inline-Disposition,
+    damit <video src=...>/<iframe src=...> direkt streamen koennen mit
+    Range-Requests + Seeking."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    target_id = req.params.get("targetId", "") or ((req.get_json() or {}).get("targetId", "") if req.method == "POST" else "")
+    doc_id = req.params.get("id", "") or ((req.get_json() or {}).get("id", "") if req.method == "POST" else "")
+    if not (target_id and doc_id):
+        return err_("targetId + id erforderlich", 400)
+    if p.get("role") == "target":
+        if p.get("targetId") and p.get("targetId") != target_id:
+            return err_("Nicht autorisiert", 403)
+    if p.get("role") != "admin" and target_id and p.get("targetId") != target_id:
+        return err_("Nicht autorisiert", 403)
+    try:
+        ent = dict(table_("dokumente").get_entity(target_id, doc_id))
+    except Exception:
+        return err_("Dokument nicht gefunden", 404)
+    # NDAs sind nur fuer Admin (Datenschutz)
+    if ent.get("ordner") == "NDA" and p.get("role") != "admin":
+        return err_("Nicht autorisiert", 403)
+    file_name = ent.get("fileName", "file") or "file"
+    ct = ent.get("contentType") or ""
+    if not ct or ct == "application/octet-stream":
+        ext = file_name.lower().rsplit(".", 1)[-1] if "." in file_name else ""
+        ct = {
+            "pdf": "application/pdf", "png": "image/png", "jpg": "image/jpeg",
+            "jpeg": "image/jpeg", "gif": "image/gif", "svg": "image/svg+xml",
+            "webp": "image/webp", "mp4": "video/mp4", "mov": "video/quicktime",
+            "webm": "video/webm", "mp3": "audio/mpeg", "wav": "audio/wav",
+            "m4a": "audio/mp4",
+        }.get(ext, "application/octet-stream")
+    from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
+    svc = BlobServiceClient.from_connection_string(TABLE_CONN)
+    sas = generate_blob_sas(
+        account_name=svc.account_name, container_name="datenraum",
+        blob_name=ent["blobName"], account_key=svc.credential.account_key,
+        permission=BlobSasPermissions(read=True),
+        expiry=datetime.utcnow() + timedelta(minutes=60),
+        content_type=ct,
+        content_disposition=f'inline; filename="{file_name}"',
+    )
+    return ok_({
+        "streamUrl": f"https://{svc.account_name}.blob.core.windows.net/datenraum/{ent['blobName']}?{sas}",
+        "contentType": ct, "fileName": file_name,
+    })
+
+
 @app.route(route="dokument-register", methods=["POST", "OPTIONS"])
 def dokument_register(req: func.HttpRequest) -> func.HttpResponse:
     """Nach SAS-Upload: Metadaten in Tabelle anlegen."""
