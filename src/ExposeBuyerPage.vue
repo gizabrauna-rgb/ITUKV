@@ -369,13 +369,35 @@ function copyMbNr() {
 }
 
 // PDF-Preview-Modal (Inline-iframe)
+// Wir laden das PDF immer als Blob und bauen eine Object-URL daraus -
+// so ist die Vorschau unabhaengig davon ob der Server Content-Type
+// korrekt setzt (Robustheit gegen Header-Bugs).
 const previewUrl = ref(null)
 const previewKind = ref('')
-function openPreview(kind) {
+const previewLoading = ref(false)
+async function openPreview(kind) {
   previewKind.value = kind
-  previewUrl.value = kind === 'nda' ? ndaDownloadUrl.value : exposeDownloadUrl.value
+  previewLoading.value = true
+  const url = kind === 'nda' ? ndaDownloadUrl.value : exposeDownloadUrl.value
+  try {
+    const r = await fetch(url)
+    if (!r.ok) throw new Error('PDF nicht ladbar: ' + r.status)
+    const ab = await r.arrayBuffer()
+    previewUrl.value = URL.createObjectURL(new Blob([ab], { type: 'application/pdf' }))
+  } catch (e) {
+    console.error(e)
+    // Fallback: direkter Link
+    previewUrl.value = url
+  } finally {
+    previewLoading.value = false
+  }
 }
-function closePreview() { previewUrl.value = null }
+function closePreview() {
+  if (previewUrl.value && previewUrl.value.startsWith('blob:')) {
+    URL.revokeObjectURL(previewUrl.value)
+  }
+  previewUrl.value = null
+}
 
 // ========== Canvas-Signatur ==========
 let ctx = null

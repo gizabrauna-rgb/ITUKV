@@ -75,6 +75,22 @@ def err_(msg, status=400):
 def opt_():
     return func.HttpResponse("", status_code=204, headers=CORS)
 
+
+def pdf_response(pdf_bytes, filename, inline=True):
+    """Liefert ein PDF mit korrekten Headern.
+    WICHTIG: Setzt Content-Type explizit auf application/pdf, weil das
+    globale CORS-Dict den Default 'application/json' enthaelt - sonst
+    rendert der Browser die Bytes als Text."""
+    safe_name = (filename or "datei.pdf").replace('"', '_')
+    disposition = "inline" if inline else "attachment"
+    headers = {
+        **CORS,
+        "Content-Type": "application/pdf",
+        "Content-Disposition": f'{disposition}; filename="{safe_name}"',
+        "Cache-Control": "private, no-store",
+    }
+    return func.HttpResponse(pdf_bytes, status_code=200, headers=headers)
+
 def table_(name):
     svc = TableServiceClient.from_connection_string(TABLE_CONN)
     svc.create_table_if_not_exists(name)
@@ -1807,8 +1823,7 @@ def nda_pdf(req: func.HttpRequest) -> func.HttpResponse:
         pdf_bytes = _render_nda_pdf_bytes(body.get("form", {}), body.get("variante", "investor"))
     except Exception as ex:
         return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
-    return func.HttpResponse(pdf_bytes, status_code=200, mimetype="application/pdf",
-                             headers={**CORS, "Content-Disposition": 'inline; filename="NDA.pdf"'})
+    return pdf_response(pdf_bytes, "NDA.pdf")
 
 
 @app.route(route="nda-zur-signatur", methods=["POST", "OPTIONS"])
@@ -3689,8 +3704,7 @@ def nda_public_pdf(req: func.HttpRequest) -> func.HttpResponse:
         pdf_bytes = _render_nda_pdf_bytes(form, "investor")
     except Exception as ex:
         return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
-    return func.HttpResponse(pdf_bytes, status_code=200, mimetype="application/pdf",
-                             headers={**CORS, "Content-Disposition": f'inline; filename="NDA_{t.get("mbNr","")}.pdf"'})
+    return pdf_response(pdf_bytes, f'NDA_{t.get("mbNr","")}.pdf')
 
 
 @app.route(route="expose-public-pdf", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
@@ -3717,8 +3731,7 @@ def expose_public_pdf(req: func.HttpRequest) -> func.HttpResponse:
         pdf_bytes = _render_expose_pdf_bytes(expose_data)
     except Exception as ex:
         return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
-    return func.HttpResponse(pdf_bytes, status_code=200, mimetype="application/pdf",
-                             headers={**CORS, "Content-Disposition": f'inline; filename="Expose_{t.get("mbNr","")}.pdf"'})
+    return pdf_response(pdf_bytes, f'Expose_{t.get("mbNr","")}.pdf')
 
 
 @app.route(route="nda-public-send-code", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
@@ -4073,8 +4086,7 @@ def loi_pdf(req: func.HttpRequest) -> func.HttpResponse:
         pdf_bytes = HTML(string=html, base_url="/").write_pdf()
     except Exception as ex:
         return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
-    return func.HttpResponse(pdf_bytes, status_code=200, mimetype="application/pdf",
-                             headers={**CORS, "Content-Disposition": f'inline; filename="LOI_{body.get("mbNr","")}.pdf"'})
+    return pdf_response(pdf_bytes, f'LOI_{body.get("mbNr","")}.pdf')
 
 
 @app.route(route="expose-pdf", methods=["POST", "OPTIONS"])
@@ -4089,8 +4101,7 @@ def expose_pdf(req: func.HttpRequest) -> func.HttpResponse:
         pdf_bytes = _render_expose_pdf_bytes(body)
     except Exception as ex:
         return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
-    return func.HttpResponse(pdf_bytes, status_code=200, mimetype="application/pdf",
-                             headers={**CORS, "Content-Disposition": f'inline; filename="Expose_{body.get("mbNr","")}.pdf"'})
+    return pdf_response(pdf_bytes, f'Expose_{body.get("mbNr","")}.pdf')
 
 
 @app.route(route="status-report-pdf", methods=["POST", "OPTIONS"])
@@ -4120,8 +4131,7 @@ def status_report_pdf(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as ex:
         return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
     filename = f"Statusbericht_{(t.get('mbNr','') or 'mandat')}_{datetime.utcnow().date().isoformat()}.pdf"
-    return func.HttpResponse(pdf_bytes, status_code=200, mimetype="application/pdf",
-                             headers={**CORS, "Content-Disposition": f'inline; filename="{filename}"'})
+    return pdf_response(pdf_bytes, filename)
 
 
 
