@@ -34,6 +34,17 @@ def odata_quote(s):
         return ""
     return str(s).replace("'", "''")
 
+
+def is_valid_public_token(token, min_len=24):
+    """Sanity-Check fuer oeffentliche Tokens (Brute-Force-Schutz).
+    Tokens unter 24 Zeichen oder mit ungueltigen Zeichen werden ohne DB-Lookup abgewiesen."""
+    if not token or not isinstance(token, str):
+        return False
+    if len(token) < min_len or len(token) > 256:
+        return False
+    # URL-safe base64 chars: A-Z a-z 0-9 - _ (kein /, +, =)
+    return all(c.isalnum() or c in "-_" for c in token)
+
 # Erlaubte Frontend-Origins (kein Wildcard mehr - schuetzt vor cross-site API-Calls).
 # Falls weitere Domains noetig werden, FRONTEND_BASE_URL (Komma-Liste) in Azure-App-Settings setzen.
 _ALLOWED_ORIGINS = set(filter(None, [
@@ -415,6 +426,30 @@ def target_get(req: func.HttpRequest) -> func.HttpResponse:
         return err_("Target nicht gefunden", 404)
 
 
+# Allowlist: nur diese Felder duerfen ueber target-update gesetzt werden.
+# Mass-Assignment-Schutz - unbekannte Felder werden ignoriert statt blind durchgereicht.
+TARGET_WRITABLE_FIELDS = {
+    # Stammdaten
+    "mbNr", "verkaueferName", "firma", "region", "plz", "branche", "mitarbeiter",
+    "umsatz", "beschreibung", "projekttyp", "status",
+    # Persoenliche Kontaktdaten
+    "vorname", "name", "privatEmail", "privatHandy",
+    # Vorgangsnummern
+    "kundennummer", "transaktionsnummer",
+    # Mandatslaufzeit
+    "mandatStart", "mandatLaufzeitMonate", "wiedervorlage",
+    # Workflow-Status
+    "fragebogenStatus", "fragebogenAbgegebenAm",
+    # JSON-Blobs
+    "phasenJson", "exposeJson", "fragebogenJson", "bewertungJson", "landingJson",
+    "vertragJson", "kommunikationJson", "termineJson", "kaeuferFeedbackJson",
+    "lessonsLearnedJson", "loiJson", "suchprofilJson", "fuerKaeuferIdsJson",
+    "longListManuellJson", "longListDecisionsJson", "presseJson",
+    # Diverse Workflow-Felder
+    "exposeToken", "ndaTemplateUrl",
+}
+
+
 @app.route(route="target-update", methods=["POST", "OPTIONS"])
 def target_update(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
@@ -422,7 +457,7 @@ def target_update(req: func.HttpRequest) -> func.HttpResponse:
     p = auth_user(req)
     if not p:
         return err_("Nicht autorisiert", 401)
-    body = req.get_json()
+    body = req.get_json() or {}
     tid = body.pop("id", "")
     if not tid:
         return err_("id erforderlich", 400)
@@ -434,8 +469,9 @@ def target_update(req: func.HttpRequest) -> func.HttpResponse:
         entity = tc.get_entity("target", tid)
     except Exception:
         return err_("Target nicht gefunden", 404)
+    # Mass-Assignment-Schutz: nur Felder aus der Allowlist uebernehmen
     for k, v in body.items():
-        if k not in ("PartitionKey", "RowKey"):
+        if k in TARGET_WRITABLE_FIELDS:
             entity[k] = v
     tc.update_entity(dict(entity))
     return ok_(dict(entity))
@@ -1112,7 +1148,7 @@ def _hash_code_sig(code, salt):
 
 
 def _lookup_signature_by_token(token):
-    if not token:
+    if not is_valid_public_token(token):
         return None
     tc = table_("vertragsignaturen")
     items = list(tc.query_entities("token eq @t", parameters={"t": token}))
@@ -3268,8 +3304,8 @@ def expose_public(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return opt_()
     token = (req.params.get("token") or "").strip()
-    if not token:
-        return err_("token erforderlich", 400)
+    if not is_valid_public_token(token):
+        return err_("Token ungueltig", 400)
     items = list(table_("interessenten").query_entities("exposeToken eq @t", parameters={"t": token}))
     if not items:
         return err_("Token ungueltig", 404)
@@ -3308,8 +3344,10 @@ def nda_upload(req: func.HttpRequest) -> func.HttpResponse:
     token = (body.get("token") or "").strip()
     file_data = body.get("fileData", "")
     file_name = body.get("fileName", "nda.pdf")
-    if not (token and file_data):
-        return err_("token + fileData erforderlich", 400)
+    if not file_data:
+        return err_("fileData erforderlich", 400)
+    if not is_valid_public_token(token):
+        return err_("Token ungueltig", 400)
     items = list(table_("interessenten").query_entities("exposeToken eq @t", parameters={"t": token}))
     if not items:
         return err_("Token ungueltig", 404)
@@ -3555,8 +3593,8 @@ def nda_public_pdf(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return opt_()
     token = (req.params.get("token") or "").strip()
-    if not token:
-        return err_("token erforderlich", 400)
+    if not is_valid_public_token(token):
+        return err_("Token ungueltig", 400)
     items = list(table_("interessenten").query_entities("exposeToken eq @t", parameters={"t": token}))
     if not items:
         return err_("Token ungueltig", 404)
@@ -3580,8 +3618,8 @@ def expose_public_pdf(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return opt_()
     token = (req.params.get("token") or "").strip()
-    if not token:
-        return err_("token erforderlich", 400)
+    if not is_valid_public_token(token):
+        return err_("Token ungueltig", 400)
     items = list(table_("interessenten").query_entities("exposeToken eq @t", parameters={"t": token}))
     if not items:
         return err_("Token ungueltig", 404)
@@ -3609,8 +3647,8 @@ def nda_public_send_code(req: func.HttpRequest) -> func.HttpResponse:
         return opt_()
     body = req.get_json() or {}
     token = (body.get("token") or "").strip()
-    if not token:
-        return err_("token erforderlich", 400)
+    if not is_valid_public_token(token):
+        return err_("Token ungueltig", 400)
     items = list(table_("interessenten").query_entities("exposeToken eq @t", parameters={"t": token}))
     if not items:
         return err_("Token ungültig", 404)
@@ -3663,8 +3701,10 @@ def nda_public_sign(req: func.HttpRequest) -> func.HttpResponse:
     token = (body.get("token") or "").strip()
     sig_data = body.get("signatureDataUrl", "")
     code = (body.get("code") or "").strip()
-    if not (token and sig_data and code):
-        return err_("token, signatureDataUrl und code erforderlich", 400)
+    if not (sig_data and code):
+        return err_("signatureDataUrl und code erforderlich", 400)
+    if not is_valid_public_token(token):
+        return err_("Token ungueltig", 400)
     items = list(table_("interessenten").query_entities("exposeToken eq @t", parameters={"t": token}))
     if not items:
         return err_("Token ungültig", 404)
@@ -3993,145 +4033,15 @@ def status_report_pdf(req: func.HttpRequest) -> func.HttpResponse:
     except Exception:
         return err_("Target nicht gefunden", 404)
 
-    # Phasen
-    try: phasen = json.loads(t.get("phasenJson", "[]") or "[]")
-    except Exception: phasen = []
-    # Aktuelle Phase = erste mit offenen Aufgaben, oder letzte abgeschlossene + 1
-    aktuelle = None
-    abgeschlossen = []
-    for ph in phasen:
-        aufgs = ph.get("aufgaben", []) or []
-        if aufgs and all(a.get("done") for a in aufgs):
-            abgeschlossen.append(ph)
-        elif aufgs and not aktuelle:
-            aktuelle = ph
-    if not aktuelle and phasen:
-        aktuelle = phasen[len(abgeschlossen)] if len(abgeschlossen) < len(phasen) else phasen[-1]
-
-    # Verlauf (letzte 8)
-    try: verlauf = json.loads(t.get("kommunikationJson", "[]") or "[]")
-    except Exception: verlauf = []
-    verlauf_recent = sorted(verlauf, key=lambda e: e.get("datum", ""), reverse=True)[:8]
-
-    # Termine
-    try: termine = json.loads(t.get("termineJson", "[]") or "[]")
-    except Exception: termine = []
-    termine_kommend = sorted(
-        [tm for tm in termine if (tm.get("datum", "") >= datetime.utcnow().date().isoformat()) and not tm.get("erledigt")],
-        key=lambda x: x.get("datum", "")
-    )[:10]
-
-    # Interessenten-Stats
+    # PDF generieren via Helper (auch von Monthly-Cron genutzt)
     try:
-        ints = list(table_("interessenten").query_entities("targetId eq @t", parameters={"t": tid}))
-        anzahl_int = len(ints)
-        anzahl_nda = sum(1 for i in ints if i.get("ndaStatus") == "unterzeichnet")
-    except Exception:
-        anzahl_int = 0; anzahl_nda = 0
-
-    # Mandatslaufzeit
-    mandat_text = ""
-    try:
-        if t.get("mandatStart") and t.get("mandatLaufzeitMonate"):
-            start = datetime.fromisoformat(t["mandatStart"][:10])
-            mo = int(t["mandatLaufzeitMonate"])
-            ende = start + timedelta(days=mo * 30)
-            mandat_text = f"{start.date().strftime('%d.%m.%Y')} – {ende.date().strftime('%d.%m.%Y')} ({mo} Monate)"
-    except Exception:
-        pass
-
-    # HTML rendern
-    from html import escape as _esc
-    def fmt_date(s):
-        try: return datetime.fromisoformat(s[:10]).strftime("%d.%m.%Y")
-        except Exception: return s
-    now_str = datetime.utcnow().strftime("%d.%m.%Y")
-
-    aktuelle_aufg_html = ""
-    if aktuelle:
-        aufgs = aktuelle.get("aufgaben", []) or []
-        aktuelle_aufg_html = "<ul>" + "".join(
-            f"<li>{'✓ ' if a.get('done') else '◯ '}{_esc(a.get('label',''))}</li>"
-            for a in aufgs
-        ) + "</ul>"
-
-    verlauf_html = "<p style='color:#999'>Keine Aktivitäten erfasst.</p>" if not verlauf_recent else (
-        "<ul>" + "".join(
-            f"<li><strong>{fmt_date(e.get('datum',''))}</strong> – {_esc(e.get('betreff') or e.get('typ',''))}</li>"
-            for e in verlauf_recent
-        ) + "</ul>"
-    )
-
-    termine_html = "<p style='color:#999'>Keine anstehenden Termine.</p>" if not termine_kommend else (
-        "<ul>" + "".join(
-            f"<li><strong>{fmt_date(tm.get('datum',''))}</strong> – {_esc(tm.get('titel',''))} <em style='color:#888'>({_esc(tm.get('typ','sonstiges'))})</em></li>"
-            for tm in termine_kommend
-        ) + "</ul>"
-    )
-
-    html = f"""<!doctype html>
-<html><head><meta charset="utf-8">
-<style>
-@page {{ size: A4; margin: 18mm 16mm; }}
-body {{ font-family: Helvetica, Arial, sans-serif; color: #161e2a; font-size: 11pt; line-height: 1.45; }}
-h1 {{ color: #097e92; font-size: 20pt; margin: 0 0 4px; }}
-h2 {{ color: #0088ba; font-size: 13pt; margin: 18px 0 6px; padding-bottom: 3px; border-bottom: 1.5px solid #0088ba33; }}
-.meta {{ color: #666; font-size: 10pt; margin-bottom: 16px; }}
-.box {{ background: #f0fdfa; border-left: 3px solid #0088ba; padding: 10px 14px; margin: 8px 0; }}
-table.stats {{ width: 100%; border-collapse: collapse; margin: 8px 0; }}
-table.stats td {{ padding: 6px 8px; border-bottom: 1px solid #eee; font-size: 10.5pt; }}
-table.stats td:first-child {{ color: #666; width: 45%; }}
-ul {{ margin: 4px 0 8px 18px; padding: 0; }}
-li {{ margin: 3px 0; font-size: 10.5pt; }}
-.footer {{ color: #999; font-size: 9pt; margin-top: 24px; border-top: 1px solid #eee; padding-top: 8px; }}
-</style></head>
-<body>
-  <h1>Status-Bericht Verkaufsmandat</h1>
-  <div class="meta">Stand: {now_str} &middot; {_esc(t.get('mbNr',''))} &middot; {_esc(t.get('verkaueferName',''))}</div>
-
-  <h2>Stammdaten</h2>
-  <table class="stats">
-    <tr><td>mb-Nummer</td><td>{_esc(t.get('mbNr',''))}</td></tr>
-    <tr><td>Verkäufer</td><td>{_esc(t.get('verkaueferName',''))}</td></tr>
-    <tr><td>Branche</td><td>{_esc(t.get('branche',''))}</td></tr>
-    <tr><td>Region</td><td>{_esc(t.get('region',''))}</td></tr>
-    <tr><td>Mitarbeiter</td><td>{_esc(str(t.get('mitarbeiter','') or ''))}</td></tr>
-    <tr><td>Umsatz</td><td>{_esc(t.get('umsatz',''))}</td></tr>
-    <tr><td>Mandatslaufzeit</td><td>{_esc(mandat_text or 'noch nicht erfasst')}</td></tr>
-  </table>
-
-  <h2>Aktueller Stand im Prozess</h2>
-  <div class="box">
-    <strong>{_esc(aktuelle.get('titel','—') if aktuelle else '—')}</strong>
-    {aktuelle_aufg_html}
-  </div>
-  <p style="font-size:10.5pt;color:#666">Phasen abgeschlossen: {len(abgeschlossen)} von {len(phasen)}</p>
-
-  <h2>Interessenten</h2>
-  <table class="stats">
-    <tr><td>Gesamt angesprochen</td><td>{anzahl_int}</td></tr>
-    <tr><td>Davon NDA unterzeichnet</td><td>{anzahl_nda}</td></tr>
-  </table>
-
-  <h2>Anstehende Termine</h2>
-  {termine_html}
-
-  <h2>Letzte Aktivitäten</h2>
-  {verlauf_html}
-
-  <div class="footer">
-    Erstellt durch das mibeca ITUKV Dashboard &middot; Vertraulich &middot; nur für den Mandanten bestimmt
-  </div>
-</body></html>"""
-
-    try:
-        from weasyprint import HTML
-        pdf_bytes = HTML(string=html, base_url="/").write_pdf()
+        pdf_bytes = _build_status_report_pdf(t)
     except Exception as ex:
         return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
     filename = f"Statusbericht_{(t.get('mbNr','') or 'mandat')}_{datetime.utcnow().date().isoformat()}.pdf"
     return func.HttpResponse(pdf_bytes, status_code=200, mimetype="application/pdf",
                              headers={**CORS, "Content-Disposition": f'inline; filename="{filename}"'})
+
 
 
 @app.route(route="dokument-upload-url", methods=["POST", "OPTIONS"])
@@ -4152,6 +4062,23 @@ def dokument_upload_url(req: func.HttpRequest) -> func.HttpResponse:
     if p.get("role") == "target":
         if p.get("targetId") and p.get("targetId") != target_id:
             return err_("Nicht autorisiert", 403)
+    # Path-Traversal-Schutz: keine Slashes/Backslashes/Punkt-Sequenzen in
+    # ordner und fileName erlauben (sonst koennte ein Angreifer in fremde Container schreiben)
+    def _sanitize_path_segment(s, default):
+        if not s:
+            return default
+        # Entferne Pfad-Trenner und Punkt-Sequenzen
+        s = s.replace("\\", "_").replace("/", "_")
+        while ".." in s:
+            s = s.replace("..", "_")
+        # Auf druckbare Zeichen + Umlaute begrenzen
+        s = "".join(c for c in s if c.isprintable())
+        return s.strip() or default
+    ordner = _sanitize_path_segment(ordner, "Sonstiges")
+    file_name = _sanitize_path_segment(file_name, "datei")
+    # Target-Id muss UUID-Format haben (verhindert Container-Sprünge)
+    if not all(c.isalnum() or c == "-" for c in target_id):
+        return err_("Ungueltige targetId", 400)
     from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
     svc = BlobServiceClient.from_connection_string(TABLE_CONN)
     try: svc.create_container("datenraum")
@@ -4883,3 +4810,302 @@ def mailvorlage_delete(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         return err_(f"Loeschen fehlgeschlagen: {e}", 500)
     return ok_({"deleted": rk})
+
+
+# ============================================================
+# Geplante Hintergrund-Jobs (Daily/Monthly via TimerTrigger)
+# ============================================================
+
+def _send_email_html(to_address, subject, html_body, plain_body=""):
+    """Sendet eine HTML-Mail via Azure Communication Services.
+    Stiller Failover wenn ACS nicht konfiguriert ist."""
+    if not (ACS_CONN and to_address):
+        return False
+    try:
+        from azure.communication.email import EmailClient
+        client = EmailClient.from_connection_string(ACS_CONN)
+        client.begin_send({
+            "senderAddress": ACS_SENDER,
+            "recipients": {"to": [{"address": to_address}]},
+            "content": {
+                "subject": subject,
+                "plainText": plain_body or subject,
+                "html": html_body,
+            },
+        })
+        return True
+    except Exception as ex:
+        logging.warning(f"Mail-Versand an {to_address} fehlgeschlagen: {ex}")
+        return False
+
+
+def _list_admin_emails():
+    """Liefert E-Mail-Adressen aller aktiven Admins (fuer interne Benachrichtigungen)."""
+    out = []
+    try:
+        for u in table_("users").list_entities():
+            if u.get("role") == "admin" and u.get("email"):
+                out.append(u["email"])
+    except Exception:
+        pass
+    return out
+
+
+@app.timer_trigger(schedule="0 0 6 * * *", arg_name="dailyTimer", run_on_startup=False, use_monitor=True)
+def daily_termin_reminders(dailyTimer: func.TimerRequest) -> None:
+    """Laeuft taeglich um 06:00 UTC (=08:00 Berlin Sommer / 07:00 Winter).
+    Schickt Erinnerungs-Mails fuer Termine, die heute oder in 3 Tagen anstehen.
+    Tracking ueber `reminderSent` im Termin-Objekt verhindert Duplikate."""
+    logging.info("[CRON] daily_termin_reminders gestartet")
+    today = datetime.utcnow().date()
+    admin_mails = _list_admin_emails()
+    if not admin_mails:
+        logging.info("[CRON] Keine Admin-Mails gefunden - Reminder uebersprungen")
+        return
+
+    try:
+        targets = list(table_("targets").list_entities())
+    except Exception as ex:
+        logging.error(f"[CRON] Targets nicht abrufbar: {ex}")
+        return
+
+    reminders_sent = 0
+    for t in targets:
+        try:
+            termine = json.loads(t.get("termineJson", "[]") or "[]")
+        except Exception:
+            continue
+        if not termine:
+            continue
+        changed = False
+        mb_nr = t.get("mbNr", "")
+        firma = t.get("verkaueferName", "") or t.get("firma", "")
+        for tm in termine:
+            if tm.get("erledigt"):
+                continue
+            datum = tm.get("datum", "")
+            if not datum:
+                continue
+            try:
+                d = datetime.fromisoformat(datum[:10]).date()
+            except Exception:
+                continue
+            tage = (d - today).days
+            # Reminder-Fenster: 3 Tage vorher + Tag selbst
+            if tage not in (0, 3):
+                continue
+            # Schon erinnert heute?
+            last_reminder = tm.get("lastReminderDate", "")
+            if last_reminder == today.isoformat():
+                continue
+            # Mail rausschicken
+            label_zeit = "HEUTE" if tage == 0 else "in 3 Tagen"
+            titel = tm.get("titel", "(ohne Titel)")
+            typ = tm.get("typ", "sonstiges")
+            notiz = tm.get("notiz", "")
+            akte_url = f"{FRONTEND_BASE.rstrip('/')}/"
+            html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.5">
+                <h2 style="color:#097e92">Termin-Erinnerung: {label_zeit}</h2>
+                <table cellpadding="6" style="background:#f0fdfa;border-radius:8px;border-collapse:separate;margin:10px 0">
+                  <tr><td>Datum:</td><td><strong>{d.strftime('%d.%m.%Y')}</strong></td></tr>
+                  <tr><td>Mandat:</td><td>{mb_nr} &middot; {firma}</td></tr>
+                  <tr><td>Typ:</td><td>{typ}</td></tr>
+                  <tr><td>Titel:</td><td><strong>{titel}</strong></td></tr>
+                  {f'<tr><td>Notiz:</td><td>{notiz}</td></tr>' if notiz else ''}
+                </table>
+                <p><a href="{akte_url}" style="background:#097e92;color:white;padding:10px 18px;border-radius:8px;text-decoration:none">Zur Akte</a></p>
+                <p style="font-size:11px;color:#888">Automatische Erinnerung des ITUKV Dashboards.</p>
+            </body></html>"""
+            subject = f"[ITUKV] Termin {label_zeit}: {titel} ({mb_nr})"
+            for mail in admin_mails:
+                _send_email_html(mail, subject, html, plain_body=f"{titel} – {d.strftime('%d.%m.%Y')} – {mb_nr} {firma}")
+                reminders_sent += 1
+            tm["lastReminderDate"] = today.isoformat()
+            changed = True
+        if changed:
+            try:
+                t["termineJson"] = json.dumps(termine, ensure_ascii=False)
+                table_("targets").update_entity(dict(t))
+            except Exception as ex:
+                logging.warning(f"[CRON] Konnte Reminder-Status nicht speichern: {ex}")
+    logging.info(f"[CRON] daily_termin_reminders fertig - {reminders_sent} Mails verschickt")
+
+
+@app.timer_trigger(schedule="0 0 7 1 * *", arg_name="monthlyTimer", run_on_startup=False, use_monitor=True)
+def monthly_status_reports(monthlyTimer: func.TimerRequest) -> None:
+    """Laeuft am 1. jedes Monats um 07:00 UTC.
+    Schickt fuer jedes aktive Mandat einen Status-Bericht-PDF an die
+    hinterlegten Admin-Mails (nicht an Verkaeufer - Jenny prueft erst,
+    bevor sie es weitergibt)."""
+    logging.info("[CRON] monthly_status_reports gestartet")
+    admin_mails = _list_admin_emails()
+    if not admin_mails or not ACS_CONN:
+        logging.info("[CRON] Keine Admin-Mails / kein ACS - Reports uebersprungen")
+        return
+
+    try:
+        targets = list(table_("targets").list_entities())
+    except Exception as ex:
+        logging.error(f"[CRON] Targets nicht abrufbar: {ex}")
+        return
+
+    sent = 0
+    for t in targets:
+        status = (t.get("status") or "").lower()
+        if status in ("verkauft", "abgebrochen"):
+            continue
+        tid = t.get("RowKey", "")
+        mb_nr = t.get("mbNr", "") or "mandat"
+        firma = t.get("verkaueferName", "") or t.get("firma", "")
+        # PDF generieren via interne Hilfsroutine
+        try:
+            pdf_bytes = _build_status_report_pdf(dict(t))
+        except Exception as ex:
+            logging.warning(f"[CRON] PDF-Generierung fuer {mb_nr} fehlgeschlagen: {ex}")
+            continue
+        # Mail mit Attachment
+        filename = f"Statusbericht_{mb_nr}_{datetime.utcnow().date().isoformat()}.pdf"
+        html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.5">
+            <h2 style="color:#097e92">Monats-Statusbericht: {mb_nr}</h2>
+            <p>Anbei der automatische Statusbericht fuer das Mandat <strong>{firma}</strong>.</p>
+            <p style="color:#666;font-size:12px">Pruefe vor dem Weiterleiten an den Mandanten ob der Bericht den aktuellen Stand korrekt wiedergibt.</p>
+        </body></html>"""
+        try:
+            from azure.communication.email import EmailClient
+            client = EmailClient.from_connection_string(ACS_CONN)
+            pdf_b64 = base64.b64encode(pdf_bytes).decode()
+            for mail in admin_mails:
+                client.begin_send({
+                    "senderAddress": ACS_SENDER,
+                    "recipients": {"to": [{"address": mail}]},
+                    "content": {
+                        "subject": f"[ITUKV] Monats-Statusbericht {mb_nr} – {firma}",
+                        "plainText": f"Anbei der Monatsbericht zu {mb_nr} ({firma}).",
+                        "html": html,
+                    },
+                    "attachments": [{
+                        "name": filename,
+                        "contentType": "application/pdf",
+                        "contentInBase64": pdf_b64,
+                    }],
+                })
+                sent += 1
+        except Exception as ex:
+            logging.warning(f"[CRON] Mail-Versand fuer {mb_nr} fehlgeschlagen: {ex}")
+    logging.info(f"[CRON] monthly_status_reports fertig - {sent} Mails")
+
+
+def _build_status_report_pdf(t):
+    """Wird vom Cronjob UND vom HTTP-Endpoint genutzt. Liefert PDF-Bytes."""
+    tid = t.get("RowKey", "")
+    try: phasen = json.loads(t.get("phasenJson", "[]") or "[]")
+    except Exception: phasen = []
+    aktuelle = None
+    abgeschlossen = []
+    for ph in phasen:
+        aufgs = ph.get("aufgaben", []) or []
+        if aufgs and all(a.get("done") for a in aufgs):
+            abgeschlossen.append(ph)
+        elif aufgs and not aktuelle:
+            aktuelle = ph
+    if not aktuelle and phasen:
+        aktuelle = phasen[len(abgeschlossen)] if len(abgeschlossen) < len(phasen) else phasen[-1]
+    try: verlauf = json.loads(t.get("kommunikationJson", "[]") or "[]")
+    except Exception: verlauf = []
+    verlauf_recent = sorted(verlauf, key=lambda e: e.get("datum", ""), reverse=True)[:8]
+    try: termine = json.loads(t.get("termineJson", "[]") or "[]")
+    except Exception: termine = []
+    today_iso = datetime.utcnow().date().isoformat()
+    termine_kommend = sorted(
+        [tm for tm in termine if (tm.get("datum", "") >= today_iso) and not tm.get("erledigt")],
+        key=lambda x: x.get("datum", "")
+    )[:10]
+    try:
+        ints = list(table_("interessenten").query_entities("targetId eq @t", parameters={"t": tid}))
+        anzahl_int = len(ints)
+        anzahl_nda = sum(1 for i in ints if i.get("ndaStatus") == "unterzeichnet")
+    except Exception:
+        anzahl_int = 0; anzahl_nda = 0
+    mandat_text = ""
+    try:
+        if t.get("mandatStart") and t.get("mandatLaufzeitMonate"):
+            start = datetime.fromisoformat(t["mandatStart"][:10])
+            mo = int(t["mandatLaufzeitMonate"])
+            ende = start + timedelta(days=mo * 30)
+            mandat_text = f"{start.date().strftime('%d.%m.%Y')} – {ende.date().strftime('%d.%m.%Y')} ({mo} Monate)"
+    except Exception:
+        pass
+    from html import escape as _esc
+    def fmt_date(s):
+        try: return datetime.fromisoformat(s[:10]).strftime("%d.%m.%Y")
+        except Exception: return s
+    now_str = datetime.utcnow().strftime("%d.%m.%Y")
+    aktuelle_aufg_html = ""
+    if aktuelle:
+        aufgs = aktuelle.get("aufgaben", []) or []
+        aktuelle_aufg_html = "<ul>" + "".join(
+            f"<li>{'✓ ' if a.get('done') else '◯ '}{_esc(a.get('label',''))}</li>"
+            for a in aufgs
+        ) + "</ul>"
+    verlauf_html = "<p style='color:#999'>Keine Aktivitäten erfasst.</p>" if not verlauf_recent else (
+        "<ul>" + "".join(
+            f"<li><strong>{fmt_date(e.get('datum',''))}</strong> – {_esc(e.get('betreff') or e.get('typ',''))}</li>"
+            for e in verlauf_recent
+        ) + "</ul>"
+    )
+    termine_html = "<p style='color:#999'>Keine anstehenden Termine.</p>" if not termine_kommend else (
+        "<ul>" + "".join(
+            f"<li><strong>{fmt_date(tm.get('datum',''))}</strong> – {_esc(tm.get('titel',''))} <em style='color:#888'>({_esc(tm.get('typ','sonstiges'))})</em></li>"
+            for tm in termine_kommend
+        ) + "</ul>"
+    )
+    html_doc = f"""<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@page {{ size: A4; margin: 18mm 16mm; }}
+body {{ font-family: Helvetica, Arial, sans-serif; color: #161e2a; font-size: 11pt; line-height: 1.45; }}
+h1 {{ color: #097e92; font-size: 20pt; margin: 0 0 4px; }}
+h2 {{ color: #0088ba; font-size: 13pt; margin: 18px 0 6px; padding-bottom: 3px; border-bottom: 1.5px solid #0088ba33; }}
+.meta {{ color: #666; font-size: 10pt; margin-bottom: 16px; }}
+.box {{ background: #f0fdfa; border-left: 3px solid #0088ba; padding: 10px 14px; margin: 8px 0; }}
+table.stats {{ width: 100%; border-collapse: collapse; margin: 8px 0; }}
+table.stats td {{ padding: 6px 8px; border-bottom: 1px solid #eee; font-size: 10.5pt; }}
+table.stats td:first-child {{ color: #666; width: 45%; }}
+ul {{ margin: 4px 0 8px 18px; padding: 0; }}
+li {{ margin: 3px 0; font-size: 10.5pt; }}
+.footer {{ color: #999; font-size: 9pt; margin-top: 24px; border-top: 1px solid #eee; padding-top: 8px; }}
+</style></head>
+<body>
+  <h1>Status-Bericht Verkaufsmandat</h1>
+  <div class="meta">Stand: {now_str} &middot; {_esc(t.get('mbNr',''))} &middot; {_esc(t.get('verkaueferName',''))}</div>
+  <h2>Stammdaten</h2>
+  <table class="stats">
+    <tr><td>mb-Nummer</td><td>{_esc(t.get('mbNr',''))}</td></tr>
+    <tr><td>Verkäufer</td><td>{_esc(t.get('verkaueferName',''))}</td></tr>
+    <tr><td>Branche</td><td>{_esc(t.get('branche',''))}</td></tr>
+    <tr><td>Region</td><td>{_esc(t.get('region',''))}</td></tr>
+    <tr><td>Mitarbeiter</td><td>{_esc(str(t.get('mitarbeiter','') or ''))}</td></tr>
+    <tr><td>Umsatz</td><td>{_esc(t.get('umsatz',''))}</td></tr>
+    <tr><td>Mandatslaufzeit</td><td>{_esc(mandat_text or 'noch nicht erfasst')}</td></tr>
+  </table>
+  <h2>Aktueller Stand im Prozess</h2>
+  <div class="box">
+    <strong>{_esc(aktuelle.get('titel','—') if aktuelle else '—')}</strong>
+    {aktuelle_aufg_html}
+  </div>
+  <p style="font-size:10.5pt;color:#666">Phasen abgeschlossen: {len(abgeschlossen)} von {len(phasen)}</p>
+  <h2>Interessenten</h2>
+  <table class="stats">
+    <tr><td>Gesamt angesprochen</td><td>{anzahl_int}</td></tr>
+    <tr><td>Davon NDA unterzeichnet</td><td>{anzahl_nda}</td></tr>
+  </table>
+  <h2>Anstehende Termine</h2>
+  {termine_html}
+  <h2>Letzte Aktivitäten</h2>
+  {verlauf_html}
+  <div class="footer">
+    Erstellt durch das mibeca ITUKV Dashboard &middot; Vertraulich &middot; nur für den Mandanten bestimmt
+  </div>
+</body></html>"""
+    from weasyprint import HTML
+    return HTML(string=html_doc, base_url="/").write_pdf()
