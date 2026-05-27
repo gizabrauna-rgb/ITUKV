@@ -34,6 +34,7 @@ import InvestorDashboard from './views/InvestorDashboard.vue'
 import SignPage from './SignPage.vue'
 import LandingPage from './LandingPage.vue'
 import ExposeBuyerPage from './ExposeBuyerPage.vue'
+import PasswordReset from './views/PasswordReset.vue'
 import ToastHost from './components/ToastHost.vue'
 import { msalInstance } from './authConfig.js'
 
@@ -41,6 +42,7 @@ import { msalInstance } from './authConfig.js'
 const isSignRoute = /^\/sign\/[^/?#]+/.test(window.location.pathname)
 const isLandingRoute = /^\/mb-[^/?#]+/i.test(window.location.pathname)
 const isExposeBuyerRoute = /^\/expose-[^/]+\/[^/?#]+/i.test(window.location.pathname)
+const isResetRoute = /^\/reset(\/|$|\?)/.test(window.location.pathname)
 
 const role = ref(sessionStorage.getItem('userRole') || '')
 const userName = ref(sessionStorage.getItem('userName') || '')
@@ -54,6 +56,7 @@ const KAUF_MANDAT_TYPS = ['Projekt Investoren', 'MC Investoren', 'Kauf-Mandat']
 const INVESTOR_TYPS = []  // Legacy: leer (alte Liste bleibt fuer Abwaertskompatibilitaet)
 
 const currentView = computed(() => {
+  if (isResetRoute) return PasswordReset
   if (isSignRoute) return SignPage
   if (isExposeBuyerRoute) return ExposeBuyerPage
   if (isLandingRoute) return LandingPage

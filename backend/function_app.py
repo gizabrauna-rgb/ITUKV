@@ -34,10 +34,23 @@ def odata_quote(s):
         return ""
     return str(s).replace("'", "''")
 
+# Erlaubte Frontend-Origins (kein Wildcard mehr - schuetzt vor cross-site API-Calls).
+# Falls weitere Domains noetig werden, FRONTEND_BASE_URL (Komma-Liste) in Azure-App-Settings setzen.
+_ALLOWED_ORIGINS = set(filter(None, [
+    "https://dashboard.itukv.de",
+    "https://www.itukv.de",
+    "https://itukv.de",
+    "http://localhost:5173",
+    "http://localhost:4173",
+] + [o.strip().rstrip("/") for o in os.environ.get("FRONTEND_BASE_URL", "").split(",") if o.strip()]))
+
+_DEFAULT_ALLOW_ORIGIN = "https://dashboard.itukv.de"
+
 CORS = {
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": _DEFAULT_ALLOW_ORIGIN,
+    "Vary": "Origin",
     "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, x-webhook-key",
     "Content-Type": "application/json",
 }
 
@@ -113,6 +126,38 @@ def _b64u(b):
 def _b64ud(s):
     pad = '=' * (-len(s) % 4)
     return base64.urlsafe_b64decode(s + pad)
+
+
+# PBKDF2-Iterationen (OWASP-Empfehlung 2024+).
+# Hash-Format: pbkdf2$ITER$salt_b64$hash_b64 (4 Felder, neu) ODER
+#              pbkdf2$salt_b64$hash_b64 (3 Felder, Legacy -> 100000 Iterationen).
+PBKDF2_ITER = 600000
+
+def hash_password(pw: str) -> str:
+    salt = secrets.token_bytes(16)
+    h = hashlib.pbkdf2_hmac('sha256', pw.encode(), salt, PBKDF2_ITER)
+    return f"pbkdf2${PBKDF2_ITER}${base64.b64encode(salt).decode()}${base64.b64encode(h).decode()}"
+
+def verify_password(pw: str, stored: str) -> bool:
+    """Akzeptiert beide Formate (3- und 4-Felder) damit Bestands-Logins nicht brechen."""
+    if not stored or not stored.startswith("pbkdf2$"):
+        return False
+    try:
+        parts = stored.split("$")
+        if len(parts) == 4:
+            _, iter_s, salt_b64, hash_b64 = parts
+            iters = int(iter_s)
+        elif len(parts) == 3:
+            _, salt_b64, hash_b64 = parts
+            iters = 100000  # Legacy
+        else:
+            return False
+        salt = base64.b64decode(salt_b64)
+        expected = base64.b64decode(hash_b64)
+        actual = hashlib.pbkdf2_hmac('sha256', pw.encode(), salt, iters)
+        return hmac.compare_digest(expected, actual)
+    except Exception:
+        return False
 
 
 def make_jwt(uid, role, name, email, target_id=""):
@@ -500,8 +545,7 @@ def user_create(req: func.HttpRequest) -> func.HttpResponse:
         return err_("E-Mail bereits registriert", 409)
     import string
     pw = body.get("password") or "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
-    salt = secrets.token_bytes(16)
-    pw_hash = "pbkdf2$" + base64.b64encode(salt).decode() + "$" + base64.b64encode(hashlib.pbkdf2_hmac('sha256', pw.encode(), salt, 100000)).decode()
+    pw_hash = hash_password(pw)
     uid = str(uuid.uuid4())
     entity = {
         "PartitionKey": "user", "RowKey": uid, "email": email,
@@ -563,15 +607,15 @@ def login_password(req: func.HttpRequest) -> func.HttpResponse:
     stored = u.get("passwordHash", "") or ""
     if not stored.startswith("pbkdf2$"):
         return err_("Kein Passwort-Login für diese E-Mail. Bitte über Microsoft anmelden.", 401)
-    try:
-        _, salt_b64, hash_b64 = stored.split("$")
-        salt = base64.b64decode(salt_b64)
-        expected = base64.b64decode(hash_b64)
-        actual = hashlib.pbkdf2_hmac('sha256', pw.encode(), salt, 100000)
-        if not hmac.compare_digest(expected, actual):
-            return err_("Login fehlgeschlagen", 401)
-    except Exception:
+    if not verify_password(pw, stored):
         return err_("Login fehlgeschlagen", 401)
+    # Opportunistisches Hash-Upgrade: alte Legacy-Hashes (100k) auf aktuellen Standard ziehen.
+    if not stored.startswith(f"pbkdf2${PBKDF2_ITER}$"):
+        try:
+            u["passwordHash"] = hash_password(pw)
+            tc.update_entity(dict(u))
+        except Exception:
+            pass
     token = make_jwt(u["RowKey"], u.get("role", "target"), u.get("name", ""), email, u.get("targetId", ""))
     return ok_({
         "token": token,
@@ -619,8 +663,7 @@ def user_reset_password(req: func.HttpRequest) -> func.HttpResponse:
         return err_("Benutzer nicht gefunden", 404)
     import string
     pw = body.get("password") or "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
-    salt = secrets.token_bytes(16)
-    entity["passwordHash"] = "pbkdf2$" + base64.b64encode(salt).decode() + "$" + base64.b64encode(hashlib.pbkdf2_hmac('sha256', pw.encode(), salt, 100000)).decode()
+    entity["passwordHash"] = hash_password(pw)
     tc.update_entity(dict(entity))
 
     mail_sent = False
@@ -654,8 +697,14 @@ def user_reset_password(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="password-forgot", methods=["POST", "OPTIONS"])
 def password_forgot(req: func.HttpRequest) -> func.HttpResponse:
-    """Self-Service Passwort-Reset: Nutzer gibt E-Mail ein, bekommt neues Passwort per Mail.
-    Aus Sicherheitsgründen geben wir IMMER 200 zurück, egal ob die E-Mail existiert."""
+    """Self-Service Passwort-Reset: Nutzer gibt E-Mail ein, bekommt einen
+    Reset-LINK (kein neues Passwort) per Mail. Erst nach Klick + neues
+    Passwort eingeben wird das Passwort wirklich gesetzt.
+
+    Aus Sicherheitsgründen geben wir IMMER 200 zurück, egal ob die
+    E-Mail existiert (verhindert User-Enumeration).
+
+    Rate-Limit: max 3 aktive Tokens pro User. Aeltere werden ignoriert."""
     if req.method == "OPTIONS":
         return opt_()
     body = req.get_json() or {}
@@ -668,37 +717,93 @@ def password_forgot(req: func.HttpRequest) -> func.HttpResponse:
         users = []
     if users:
         u = dict(users[0])
-        import string
-        pw = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
-        salt = secrets.token_bytes(16)
-        u["passwordHash"] = "pbkdf2$" + base64.b64encode(salt).decode() + "$" + base64.b64encode(hashlib.pbkdf2_hmac('sha256', pw.encode(), salt, 100000)).decode()
+        token = secrets.token_urlsafe(32)
+        now_iso = datetime.utcnow().isoformat()
+        exp = (datetime.utcnow() + timedelta(minutes=30)).isoformat()
         try:
-            table_("users").update_entity(u)
+            resets = table_("passwordresets")
+            # Rate-Limit: aktuelle aktive Tokens pro User zaehlen
+            active = list(resets.query_entities(
+                "userId eq @uid and exp gt @now",
+                parameters={"uid": u["RowKey"], "now": now_iso},
+            ))
+            if len(active) >= 3:
+                return ok_({"ok": True})  # silent stop - kein Hinweis fuer Angreifer
+            resets.create_entity({
+                "PartitionKey": "reset", "RowKey": token,
+                "userId": u["RowKey"], "email": u.get("email", ""),
+                "createdAt": now_iso, "exp": exp,
+            })
         except Exception:
             return ok_({"ok": True})
         if ACS_CONN:
             try:
                 from azure.communication.email import EmailClient
                 client = EmailClient.from_connection_string(ACS_CONN)
+                link = f"{FRONTEND_BASE.rstrip('/')}/reset?token={token}"
                 html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
                     <h2 style="color:#097e92">Passwort zurücksetzen</h2>
                     <p>Hallo {u.get('name') or ''},</p>
-                    <p>du hast ein neues Passwort für das ITUKV Dashboard angefordert.</p>
-                    <p><strong>Deine neuen Login-Daten:</strong></p>
-                    <table cellpadding="6" style="background:#f0fdfa;border-radius:8px;border-collapse:separate">
-                      <tr><td>E-Mail:</td><td><strong>{u.get('email')}</strong></td></tr>
-                      <tr><td>Neues Passwort:</td><td><strong style="font-family:monospace;font-size:15px">{pw}</strong></td></tr>
-                    </table>
-                    <p style="margin-top:24px"><a href="{FRONTEND_BASE}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Jetzt einloggen</a></p>
-                    <p style="font-size:12px;color:#666">Falls du dieses Passwort nicht angefordert hast, ignoriere diese Mail. Änderungen am Account werden nur über diesen Link aktiviert.</p>
+                    <p>du (oder jemand mit deiner E-Mail) hat einen Passwort-Reset für das ITUKV Dashboard angefordert.</p>
+                    <p>Klicke auf den Button, um ein neues Passwort zu setzen. Der Link ist <strong>30 Minuten gültig</strong> und nur einmal verwendbar.</p>
+                    <p style="margin:24px 0"><a href="{link}" style="background:#097e92;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600">Neues Passwort setzen</a></p>
+                    <p style="font-size:12px;color:#666">Wenn der Button nicht funktioniert, kopiere diesen Link in den Browser:<br/><span style="font-family:monospace;font-size:11px;word-break:break-all">{link}</span></p>
+                    <p style="font-size:12px;color:#666;margin-top:24px">Falls du dies nicht angefordert hast, kannst du diese Mail ignorieren - dein Passwort bleibt unveraendert.</p>
                     </body></html>"""
                 client.begin_send({
                     "senderAddress": ACS_SENDER,
                     "recipients": {"to": [{"address": u["email"]}]},
-                    "content": {"subject": "Passwort zurücksetzen – ITUKV Dashboard", "plainText": f"Neues Passwort: {pw} / URL: {FRONTEND_BASE}", "html": html},
+                    "content": {
+                        "subject": "Passwort zurücksetzen – ITUKV Dashboard",
+                        "plainText": f"Passwort zuruecksetzen (30 Min gueltig): {link}",
+                        "html": html,
+                    },
                 })
             except Exception:
                 pass
+    return ok_({"ok": True})
+
+
+@app.route(route="password-reset-confirm", methods=["POST", "OPTIONS"])
+def password_reset_confirm(req: func.HttpRequest) -> func.HttpResponse:
+    """Setzt das Passwort nach Klick auf den Reset-Link.
+    Erwartet: { token: str, password: str (>= 8 Zeichen) }
+    Token-Tabelle: passwordresets, PK='reset', RK=token, Felder userId/exp."""
+    if req.method == "OPTIONS":
+        return opt_()
+    body = req.get_json() or {}
+    token = (body.get("token") or "").strip()
+    pw = body.get("password") or ""
+    if not token or len(token) < 20:
+        return err_("Ungueltiger Token", 400)
+    if len(pw) < 8:
+        return err_("Passwort muss mindestens 8 Zeichen lang sein", 400)
+    try:
+        resets = table_("passwordresets")
+        rec = resets.get_entity("reset", token)
+    except Exception:
+        return err_("Token ungueltig oder bereits verbraucht", 400)
+    exp = rec.get("exp", "")
+    try:
+        if datetime.fromisoformat(exp) < datetime.utcnow():
+            try: resets.delete_entity("reset", token)
+            except Exception: pass
+            return err_("Token abgelaufen - bitte neu anfordern", 400)
+    except Exception:
+        return err_("Token ungueltig", 400)
+    uid = rec.get("userId", "")
+    if not uid:
+        return err_("Token ungueltig", 400)
+    try:
+        users = table_("users")
+        u = users.get_entity("user", uid)
+        u["passwordHash"] = hash_password(pw)
+        users.update_entity(dict(u))
+    except Exception:
+        return err_("Reset fehlgeschlagen", 500)
+    # Token verbrauchen
+    try: resets.delete_entity("reset", token)
+    except Exception: pass
     return ok_({"ok": True})
 
 
@@ -2443,7 +2548,18 @@ def inbound_mail(req: func.HttpRequest) -> func.HttpResponse:
     Body: multipart/form-data mit Feldern wie 'to', 'from', 'subject', 'text', 'html', 'envelope'.
     Wir extrahieren das Reply-Token aus der to-Adresse (verlauf+TOKEN@reply.itukv.de),
     schlagen das Token im Index nach und schreiben den Eintrag in den Verlauf.
+
+    Schutz: erfordert ?key=<INBOUND_WEBHOOK_SECRET> in der URL.
+    SendGrid-Webhook-URL muss diesen Key enthalten.
     """
+    # Webhook-Authentifizierung per Shared Secret (verhindert dass Fremde Verlaufseintraege faelschen)
+    expected = os.environ.get("INBOUND_WEBHOOK_SECRET", "")
+    given = req.params.get("key", "") or req.headers.get("x-webhook-key", "")
+    if not expected or not hmac.compare_digest(expected, given):
+        return func.HttpResponse(
+            json.dumps({"error": "Webhook nicht autorisiert"}),
+            status_code=401, headers=CORS,
+        )
     try:
         # SendGrid postet multipart/form-data
         form = req.form if hasattr(req, "form") else {}
@@ -3883,7 +3999,7 @@ def dokument_upload_url(req: func.HttpRequest) -> func.HttpResponse:
         account_name=svc.account_name, container_name="datenraum", blob_name=blob_name,
         account_key=svc.credential.account_key,
         permission=BlobSasPermissions(create=True, write=True),
-        expiry=datetime.utcnow() + timedelta(minutes=120),
+        expiry=datetime.utcnow() + timedelta(minutes=15),
     )
     return ok_({
         "uploadUrl": f"https://{svc.account_name}.blob.core.windows.net/datenraum/{blob_name}?{sas}",
@@ -3935,7 +4051,7 @@ def dokument_stream_url(req: func.HttpRequest) -> func.HttpResponse:
         account_name=svc.account_name, container_name="datenraum",
         blob_name=ent["blobName"], account_key=svc.credential.account_key,
         permission=BlobSasPermissions(read=True),
-        expiry=datetime.utcnow() + timedelta(minutes=60),
+        expiry=datetime.utcnow() + timedelta(minutes=10),
         content_type=ct,
         content_disposition=f'inline; filename="{file_name}"',
     )

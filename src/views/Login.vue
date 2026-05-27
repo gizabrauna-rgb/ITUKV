@@ -79,7 +79,7 @@
       <div v-if="showForgotModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4" @click.self="showForgotModal = false">
         <div class="bg-white rounded-2xl p-6 w-full max-w-md">
           <h3 class="font-bold text-gray-900 mb-2">Passwort zurücksetzen</h3>
-          <p class="text-xs text-gray-500 mb-4">Gib deine E-Mail ein – wir schicken dir ein neues Passwort.</p>
+          <p class="text-xs text-gray-500 mb-4">Gib deine E-Mail ein – wir schicken dir einen Link, ueber den du ein neues Passwort setzen kannst (30 Min gueltig).</p>
           <input v-model="forgotEmail" type="email" placeholder="ihre@email.de"
             class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30" />
           <div v-if="forgotMsg" :class="['text-xs mt-3 p-2 rounded', forgotMsgOk ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700']">
@@ -88,7 +88,7 @@
           <div class="flex gap-3 mt-4">
             <button @click="showForgotModal = false" class="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50">Schließen</button>
             <button @click="sendForgot" :disabled="forgotSending || !forgotEmail" class="flex-1 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium disabled:opacity-50">
-              {{ forgotSending ? 'Sende…' : 'Neues Passwort anfordern' }}
+              {{ forgotSending ? 'Sende…' : 'Reset-Link anfordern' }}
             </button>
           </div>
         </div>
@@ -159,7 +159,7 @@ async function sendForgot() {
   try {
     await passwordForgot(forgotEmail.value)
     forgotMsgOk.value = true
-    forgotMsg.value = 'Wenn die E-Mail bei uns hinterlegt ist, bekommst du in wenigen Augenblicken ein neues Passwort.'
+    forgotMsg.value = 'Wenn die E-Mail bei uns hinterlegt ist, bekommst du in wenigen Augenblicken einen Reset-Link.'
   } catch (e) {
     forgotMsgOk.value = false
     forgotMsg.value = 'Etwas ist schiefgegangen. Bitte später erneut versuchen.'
