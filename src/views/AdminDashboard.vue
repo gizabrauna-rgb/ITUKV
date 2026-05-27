@@ -374,7 +374,7 @@ function openNdaInAkte(v) {
 const navItems = [
   { tab: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard },
   { tab: 'targets', label: 'Projekte', icon: Briefcase },
-  { tab: 'crm', label: 'Kundenstamm', icon: Users },
+  { tab: 'crm', label: 'Kontakte', icon: Users },
   { tab: 'ausschreibungen', label: 'Veröffentlichte Mandate', icon: Megaphone },
   { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
   { tab: 'mailvorlagen', label: 'E-Mail-Vorlagen', icon: Mail },
