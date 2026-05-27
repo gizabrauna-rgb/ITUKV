@@ -95,6 +95,8 @@
                 <template v-else>
                   <option value="verfuegbar">Verfügbar</option>
                   <option value="in_verhandlung">In Verhandlung</option>
+                  <option value="pausiert">Pausiert</option>
+                  <option value="verkaufsstopp">Verkaufsstopp</option>
                   <option value="verkauft">Verkauft</option>
                 </template>
               </select>
@@ -238,12 +240,20 @@ onMounted(async () => {
 function statusClass(s) {
   if (s === 'verfuegbar') return 'bg-green-100 text-green-700'
   if (s === 'in_verhandlung') return 'bg-yellow-100 text-yellow-700'
+  if (s === 'pausiert') return 'bg-blue-100 text-blue-700'
+  if (s === 'verkaufsstopp') return 'bg-red-100 text-red-700'
+  if (s === 'verkauft') return 'bg-gray-100 text-gray-500'
+  if (s === 'abgebrochen') return 'bg-gray-100 text-gray-500'
   return 'bg-gray-100 text-gray-500'
 }
 function statusLabel(s) {
   if (s === 'verfuegbar') return 'Verfügbar'
   if (s === 'in_verhandlung') return 'In Verhandlung'
-  return 'Verkauft'
+  if (s === 'pausiert') return 'Pausiert'
+  if (s === 'verkaufsstopp') return 'Verkaufsstopp'
+  if (s === 'verkauft') return 'Verkauft'
+  if (s === 'abgebrochen') return 'Abgebrochen'
+  return s || 'Verkauft'
 }
 
 async function createTarget() {
@@ -338,6 +348,8 @@ function istKaufMandat(t) {
 function statusSelectClass(s) {
   if (s === 'verfuegbar') return 'border-green-200 bg-green-50 text-green-700'
   if (s === 'in_verhandlung') return 'border-yellow-200 bg-yellow-50 text-yellow-700'
+  if (s === 'pausiert') return 'border-blue-200 bg-blue-50 text-blue-700'
+  if (s === 'verkaufsstopp') return 'border-red-200 bg-red-50 text-red-700'
   return 'border-gray-200'
 }
 

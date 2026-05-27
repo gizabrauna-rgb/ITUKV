@@ -451,12 +451,18 @@ const progressPercent = computed(() => totalTasks.value ? Math.round((doneTasks.
 function statusClass(s) {
   if (s === 'verfuegbar') return 'bg-green-100 text-green-700'
   if (s === 'in_verhandlung') return 'bg-yellow-100 text-yellow-700'
+  if (s === 'pausiert') return 'bg-blue-100 text-blue-700'
+  if (s === 'verkaufsstopp') return 'bg-red-100 text-red-700'
   return 'bg-gray-100 text-gray-500'
 }
 function statusLabel(s) {
   if (s === 'verfuegbar') return 'Verfügbar'
   if (s === 'in_verhandlung') return 'In Verhandlung'
-  return 'Verkauft'
+  if (s === 'pausiert') return 'Pausiert'
+  if (s === 'verkaufsstopp') return 'Verkaufsstopp'
+  if (s === 'verkauft') return 'Verkauft'
+  if (s === 'abgebrochen') return 'Abgebrochen'
+  return s || 'Verkauft'
 }
 
 // Mini Info-Card
