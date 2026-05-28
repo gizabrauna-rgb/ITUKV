@@ -5,7 +5,8 @@ export const PHASEN_VORLAGE = () => ([
   { id: 1, titel: '1. UVE Start — Vorbereitungs-Checkliste', notiz: '', aufgaben: [
     { id: 'uve1', label: 'MB050: Videolektionen ansehen ("Wie läuft Verkauf von A bis Z ab?")', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
     { id: 'uve2', label: 'MB050: Fragebogen Unternehmensbewertung ausgefüllt', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'fragebogenAbgegeben' },
-    { id: 'uve3', label: 'MB050: Due-Diligence-Datenraum nach Muster anlegen', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'datenraumHatDokumente' },
+    { id: 'uve3a', label: 'MB050: Datenraum-Vorlage einrichten (Ordnerstruktur nach Muster)', done: false, verantwortlich: 'Jenny', datum: '', notiz: '' },
+    { id: 'uve3b', label: 'MB050: Unterlagen in den Datenraum hochladen (Bilanzen, Verträge, Personal …)', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'datenraumHatDokumente' },
     { id: 'uve4', label: 'MB041: Verkaufsstory entwickeln (Ziele, Wunsch-Exit, W-Fragen, Deal-Struktur)', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
     { id: 'uve5', label: 'Unternehmensexposé freigeben (von mibeca erstellt)', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'exposeApproved' },
     { id: 'uve6', label: 'Verkaufsmandat erteilen → Marktansprache durch mibeca', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
