@@ -1,0 +1,315 @@
+# Nutzerhandbuch: Käufer / Investor
+
+**Stand:** 2026-05-28
+**Zielgruppe:** Mandanten, die mit mibeca ein Unternehmen kaufen möchten
+**Voraussetzung:** Du hast eine Willkommens-Mail mit Zugangsdaten erhalten
+
+---
+
+## Willkommen!
+
+Schön, dass du das Dashboard nutzt. Hier hast du jederzeit den vollen Überblick
+über deine **Akquisitionssuche** – Suchprofil, gefundene Kandidaten, NDAs,
+Verhandlungen und Verträge zentral an einem Ort.
+
+**Daten-Schutz:** Du siehst ausschließlich deine eigene Akte. Andere Käufer
+oder Verkäufer-Mandanten haben keinen Einblick in deine Daten.
+
+---
+
+## Inhalt
+
+1. Login (zum ersten Mal)
+2. Deine Startseite – „Mein Projekt"
+3. Die Tabs im Überblick
+4. „Meine Daten" pflegen
+5. Mein Suchprofil definieren
+6. Akquisitionsstrategie & Ziele erfassen
+7. Target-Vorschläge bewerten
+8. Verträge online unterzeichnen
+9. Datenraum
+10. Verlauf – Nachrichten mit deiner Ansprechpartnerin
+11. Häufige Fragen
+
+---
+
+## 1. Login (zum ersten Mal)
+
+1. Öffne deinen Browser
+2. Gehe auf **https://dashboard.itukv.de**
+3. Trage deine **E-Mail-Adresse** und das **Initial-Passwort** aus der Willkommens-Mail
+   ein
+4. Klick auf **„Anmelden"**
+
+**Tipp:** Ändere dein Passwort beim ersten Login – über den
+„Passwort vergessen?"-Link kannst du einen Reset-Link anfordern.
+
+---
+
+## 2. Deine Startseite – „Mein Projekt"
+
+Nach dem Login siehst du deine **persönliche Käufer-Startseite**:
+
+- **„Guten Morgen, [Dein Name]"** – persönliche Begrüßung
+- Hinweis auf deinen Projekt-Typ (z. B. „Kauf-Mandat") + deine **mb-Nummer**
+- Rechts oben: deine **Ansprechpartnerin Jennifer Kaplan**
+
+Darunter:
+
+### „Was steht für dich an?"
+Liste deiner **persönlichen Aufgaben** in der aktuellen Phase. Beispiele aus Phase 1
+(Suchprofil definieren):
+- Suchkriterien erarbeiten (Region, Branche, Größe)
+- Suchprofil im Dashboard freigeben
+- Budget-Rahmen + Strategische Ziele dokumentieren
+
+Klick auf eine Aufgabe → führt direkt dorthin, wo du sie erledigst.
+
+### „Bereits erledigt – kannst du jederzeit anpassen"
+Was du schon ausgefüllt hast (Akquisitionsstrategie etc.). Kannst du jederzeit anpassen.
+
+### „Wo stehen wir gerade?"
+Visualisierung der **5 Hauptstufen** mit deinem aktuellen Fortschritt:
+- Briefing
+- Marktansprache (Kandidaten-Suche)
+- Erstgespräche
+- LOI & DD
+- Closing
+
+### „Was im Hintergrund läuft"
+Aufgaben, die mibeca/Anwalt/Steuerberater für dich übernehmen.
+
+---
+
+## 3. Die Tabs im Überblick
+
+| Tab | Wofür? |
+|---|---|
+| **Mein Projekt** | Deine Startseite mit Aufgaben + Status |
+| **Meine Daten** | Persönliche Kontaktdaten + Vorgangsnummern |
+| **Mein Suchprofil** | Definition: was suchst du genau? |
+| **Target-Vorschläge** | Konkrete Kandidaten von mibeca |
+| **Verträge** | NDA mit Verkäufer-Kandidaten + Mandatsvertrag |
+| **Dokumente** | Datenraum mit deinen Bewertungs-/DD-Materialien |
+| **Verlauf** | Chronologische Kommunikation mit Jenny |
+
+---
+
+## 4. „Meine Daten" pflegen
+
+### Was hier steht
+
+- **Persönliche Kontaktdaten** (Vorname, Name, Private Mail, Handy)
+- **Vorgangsnummern** (mb-Nr, Transaktionsnummer, Kundennummer) – **read-only**,
+  werden von mibeca vergeben
+- **Unternehmens-Stammdaten** (falls du als Firma kaufst)
+- **Mandatslaufzeit**
+
+Pflege alles, was du selbst angeben kannst. Auto-Save aktiv.
+
+---
+
+## 5. Mein Suchprofil definieren
+
+### Wofür?
+Damit mibeca **passende Verkaufs-Kandidaten** für dich finden kann, brauchen wir
+deine genauen Suchkriterien.
+
+### Tab „Mein Suchprofil"
+
+**Was du angibst:**
+- **Branche(n):** z. B. „IT-Dienstleister, Maschinenbau"
+- **Region:** z. B. „DACH" oder „200 km um Hannover"
+- **Größe:** Mitarbeiter-Range + Umsatz-Range
+- **Finanzielle Eckdaten:** EBIT-Marge mindestens, Recurring-Anteil
+- **Strategische Kriterien:** Wachstum vs. stabil, GF-Verbleib gewünscht, etc.
+- **No-Gos:** was darf auf keinen Fall sein
+
+### Freigabe
+Wenn dein Suchprofil komplett ist: **„Freigeben"** → mibeca beginnt mit der
+Kandidaten-Recherche.
+
+### Auto-Save
+Alles wird sofort gespeichert. Anpassungen jederzeit möglich – die nächste Recherche
+nutzt das aktuelle Profil.
+
+---
+
+## 6. Akquisitionsstrategie & Ziele erfassen
+
+### Wofür?
+Hilft Jenny, **wirklich passende Kandidaten** zu finden und Verhandlungen für dich
+zu führen.
+
+### Klick-Pfad
+Mein Projekt → Klick auf „Budget-Rahmen + Strategische Ziele dokumentieren"
+→ **Modal öffnet sich**
+
+### Was du angibst
+
+**Warum kaufen?** (mehrere Häkchen möglich):
+- Strategischer Zukauf (Wachstum / Marktanteil)
+- Diversifikation
+- Markteintritt neue Region
+- Buy-and-Build (Konsolidierung)
+- Nachfolge-Investment (operativ einsteigen)
+- Finanzinvestment (Rendite, kein operativer Einstieg)
+- Cross-Selling-Potenziale
+- Technologie / Know-how zukaufen
+
+**Geplante Hold-Period:**
+- 3–5 Jahre (Finanzinvestor)
+- 5–10 Jahre (strategisch)
+- 10+ Jahre (langfristig)
+- Buy-and-Build (mehrere Akquisitionen)
+- Lebenslang
+
+**Max. Kaufpreis-Range** (z. B. „500k – 2 Mio. €")
+
+**Finanzierung:**
+- Eigenkapital verfügbar
+- Bank-Finanzierung gewünscht? (Anteil)
+- Verkäuferdarlehen / Earn-Out denkbar?
+
+**Zielunternehmen-Profil:**
+- Branche, Region, Mitarbeiter-Größe, Umsatz-Größe
+
+**GF-Verbleib + Synergien:**
+- Soll der Verkäufer-GF bleiben?
+- Strategische Synergien
+
+**Deal-Breaker** (Freitext): was darf auf keinen Fall passieren
+
+### Auto-Save + Anpassen
+Alles wird sofort gespeichert. Du kannst das Formular jederzeit wieder öffnen
+über den Block **„Bereits erledigt – kannst du jederzeit anpassen"**.
+
+### Wer sieht das?
+Nur Anna und Jenny. **Nicht** an Verkäufer-Kandidaten weitergegeben.
+
+---
+
+## 7. Target-Vorschläge bewerten
+
+### Wofür?
+Sobald mibeca passende Kandidaten gefunden hat, siehst du sie hier.
+
+### Tab „Target-Vorschläge"
+
+**Was du siehst:**
+- Kandidaten-Karten (vor NDA: anonymisiert mit Branchen-/Größen-Angabe)
+- Pro Kandidat: Match-Score, kurze Beschreibung
+- Aktion: **Interesse / Rückfrage / Kein Interesse**
+
+### Dein Feedback
+Pro Kandidat klickst du:
+- **„Interesse"** → Jenny startet anonyme Ansprache + NDA-Prozess
+- **„Rückfrage"** → Jenny meldet sich, klärt deine Frage
+- **„Kein Interesse"** → Kandidat wird aussortiert
+
+### Long-List
+Alle vorgeschlagenen Kandidaten landen in deiner persönlichen **Long-List**. Bei
+„Interesse" rückt der Kandidat in die **Short-List** und in den Anbahnungs-Prozess.
+
+---
+
+## 8. Verträge online unterzeichnen
+
+### Welche Verträge?
+
+- **NDA mit potenziellen Verkäufern** – sobald du Interesse signalisierst und der
+  Verkäufer dich „freigibt", bekommst du das NDA zur Unterschrift
+- **Mandatsvertrag mit mibeca** – euer Kauf-Beratungs-Vertrag
+- **Eventuell: Kaufvertrag (SPA / Asset Deal)** – mit dem späteren Verkäufer
+
+### Anleitung
+1. Tab **„Verträge"** öffnen
+2. Den Vertrag wählen
+3. **„Jetzt online unterschreiben"** klicken
+4. SMS-Code auf dein Handy → Code eingeben
+5. Mit Maus oder Touch unterschreiben → **„Senden"**
+6. PDF-Kopie kommt per Mail
+7. Gegenpartei (Verkäufer / mibeca) gegenzeichnet → du bekommst die vollständig
+   unterzeichnete Version
+
+### Sicherheit
+- SMS-Code als 2-Faktor-Authentifizierung
+- Vertrag wird verschlüsselt in deinem Datenraum abgelegt
+
+---
+
+## 9. Datenraum
+
+### Wofür?
+Hier liegen **deine eigenen Dokumente** – z. B. Bewertungs-Materialien, DD-Berichte,
+Kaufvertrags-Entwürfe.
+
+### Ordner-Struktur (typisch)
+- DD-Berichte
+- Verträge
+- Korrespondenz
+- Sonstiges
+
+### Daten der Verkäufer-Kandidaten
+Nach NDA-Unterschrift bekommst du Einblick in den **Datenraum des Verkäufer-Kandidaten**
+(separater Bereich, Zugang per Token-Link).
+
+### Anleitung
+1. Tab **„Dokumente"** öffnen
+2. Ordner wählen
+3. **„Datei hochladen"** klicken oder per Drag-&-Drop
+4. Datei ist sofort gespeichert + bei Jenny sichtbar
+
+---
+
+## 10. Verlauf – Nachrichten mit deiner Ansprechpartnerin
+
+### Wofür?
+Statt E-Mail-Tausch: alles **chronologisch in deiner Akte**.
+
+### Was du siehst
+- Mails von/an Jenny
+- Telefonat-Notizen
+- Termin-Bestätigungen
+- Automatische Hinweise („Akquisitionsstrategie ausgefüllt")
+- Kandidaten-Feedback-Logs
+
+### Neue Nachricht an Jenny
+Direkt über das Verlauf-Eingabefeld → landet in ihrem Posteingang.
+
+---
+
+## 11. Häufige Fragen
+
+**Was wenn ich mein Passwort vergessen habe?**
+Login-Seite → „Passwort vergessen?" → Mail eingeben → Reset-Link (30 Min gültig).
+
+**Kann ich mehrere Geräte gleichzeitig nutzen?**
+Ja.
+
+**Sehen andere Käufer meine Daten?**
+Nein. Komplett isoliert.
+
+**Welche Kosten kommen auf mich zu?**
+Bei Käufer-Mandaten typische Kosten: mibeca-Honorar (Erfolgshonorar in % vom Kaufpreis),
+Anwalts-Kosten (SPA-Prüfung), Notarkosten, ggf. DD-Kosten (Steuerberater),
+Bürgschaftsbank-Gebühren bei Finanzierung. Konkrete Zahlen besprich mit Jenny.
+
+**Was wenn ich aufhöre / Mandate beenden möchte?**
+Sprich mit Jenny. Mandate-Vertrag hat eine Laufzeit, danach automatische Verlängerung
+oder Beendigung möglich.
+
+**Werden meine Daten an Verkäufer weitergegeben?**
+Erst nach NDA. Vor NDA bleibst du anonym.
+
+**Wie sicher ist das Dashboard?**
+Verschlüsselte Übertragung + Speicherung, wöchentliche Backups, Audit-Log.
+
+**Technisches Problem?**
+Mail an **ab@mike-bergmann.de** (Anna) oder **jk@mike-bergmann.de** (Jenny).
+
+---
+
+*Viel Erfolg bei deiner Akquisitionssuche! Wir begleiten dich.*
+
+– *Jennifer Kaplan + Anna Giza-Braun, mibeca GmbH*
