@@ -7,10 +7,16 @@
         </h2>
         <p class="text-sm text-gray-500 mt-1">Jahresübersicht aller M&A-Prozesse: Erfolgsquote, Deal-Dauer, Pipeline</p>
       </div>
-      <select v-model.number="year" @change="load" class="border border-gray-200 rounded-xl px-4 py-2 text-sm">
-        <option :value="0">Alle Jahre</option>
-        <option v-for="y in stats.yearsAvailable" :key="y" :value="y">{{ y }}</option>
-      </select>
+      <div class="flex items-center gap-2">
+        <button @click="downloadBeiratsbericht" :disabled="pdfLoading"
+          class="flex items-center gap-1.5 px-3 py-2 border border-[#0088ba] text-[#0088ba] rounded-xl text-sm font-medium hover:bg-[#0088ba]/5 disabled:opacity-50">
+          <FileText class="w-4 h-4" /> {{ pdfLoading ? 'Erzeuge…' : 'Beirats-Bericht (PDF)' }}
+        </button>
+        <select v-model.number="year" @change="load" class="border border-gray-200 rounded-xl px-4 py-2 text-sm">
+          <option :value="0">Alle Jahre</option>
+          <option v-for="y in stats.yearsAvailable" :key="y" :value="y">{{ y }}</option>
+        </select>
+      </div>
     </div>
 
     <div v-if="loading" class="text-center text-gray-400 py-10">Lade Daten…</div>
@@ -50,6 +56,44 @@
           <div class="text-3xl font-bold text-gray-900">{{ stats.prQuote }}%</div>
           <div class="text-xs text-gray-500 mt-1">{{ stats.prCount }}/{{ stats.closed }} mit Pressemitteilung</div>
         </div>
+      </div>
+
+      <!-- Pipeline-Wert + Provision (NEU für Beirats-Bericht) -->
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-gradient-to-br from-[#0088ba] to-[#00a0d8] text-white rounded-xl p-5">
+          <div class="text-xs uppercase tracking-wide opacity-80 mb-1">Pipeline-Wert (offen)</div>
+          <div class="text-3xl font-bold">{{ formatTeur(stats.pipelineWertTeur) }}</div>
+          <div class="text-xs opacity-90 mt-1">Summe Umsätze aktiver Mandate</div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-100 p-5">
+          <div class="text-xs uppercase tracking-wide text-gray-400 font-medium mb-1">Provisions-Forecast</div>
+          <div class="text-3xl font-bold text-[#0088ba]">{{ formatTeur(stats.provisionForecastTeur) }}</div>
+          <div class="text-xs text-gray-500 mt-1">bei {{ stats.provisionQuotePct || 4 }}% Erfolgshonorar</div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-100 p-5">
+          <div class="text-xs uppercase tracking-wide text-gray-400 font-medium mb-1">Realisierte Provision</div>
+          <div class="text-3xl font-bold text-green-600">{{ formatTeur(stats.provisionRealisiertTeur) }}</div>
+          <div class="text-xs text-gray-500 mt-1">{{ stats.closed || 0 }} abgeschlossene Mandate</div>
+        </div>
+      </div>
+
+      <!-- Top-Mandate -->
+      <div v-if="stats.topMandate?.length" class="bg-white rounded-xl border border-gray-100 p-5 mb-6">
+        <h3 class="font-semibold text-gray-800 text-sm mb-3">Top-Mandate nach Umsatz</h3>
+        <table class="w-full text-sm">
+          <thead class="text-xs text-gray-400 uppercase tracking-wide">
+            <tr><th class="text-left pb-2">mb-Nr</th><th class="text-left pb-2">Verkäufer</th><th class="text-right pb-2">Umsatz</th><th class="text-left pb-2">Phase</th><th class="text-left pb-2">Status</th></tr>
+          </thead>
+          <tbody class="divide-y divide-gray-50">
+            <tr v-for="m in stats.topMandate" :key="m.mbNr || m.verkaueferName" class="hover:bg-gray-50">
+              <td class="py-2 font-mono text-xs">{{ m.mbNr || '—' }}</td>
+              <td class="py-2">{{ m.verkaueferName || '—' }}</td>
+              <td class="py-2 text-right font-semibold">{{ m.umsatz || formatTeur(m.umsatzTeur) }}</td>
+              <td class="py-2 text-gray-600">Phase {{ m.phase || '-' }}</td>
+              <td class="py-2 text-gray-600">{{ m.status || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <!-- Pipeline-Funnel -->
@@ -144,8 +188,9 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { BarChart3, Briefcase, CheckCircle2, Clock, Megaphone, GitBranch, TrendingUp, BookOpen } from '@lucide/vue'
-import { authFetch } from '../../api.js'
+import { BarChart3, Briefcase, CheckCircle2, Clock, Megaphone, GitBranch, TrendingUp, BookOpen, FileText } from '@lucide/vue'
+import { authFetch, controllingPdf } from '../../api.js'
+import { toast } from '../../composables/useToast.js'
 
 const year = ref(new Date().getFullYear())
 const loading = ref(true)
@@ -169,6 +214,31 @@ async function load() {
     lessons.value = l.items || []
   } catch (e) { console.error(e) }
   finally { loading.value = false }
+}
+
+const pdfLoading = ref(false)
+async function downloadBeiratsbericht() {
+  pdfLoading.value = true
+  try {
+    const blob = await controllingPdf(year.value || '')
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `Beiratsbericht_${year.value || 'gesamt'}.pdf`
+    document.body.appendChild(a); a.click(); a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    toast.success('Beirats-Bericht erstellt')
+  } catch (e) {
+    toast.error('PDF-Erstellung fehlgeschlagen: ' + (e?.message || ''))
+  } finally {
+    pdfLoading.value = false
+  }
+}
+
+function formatTeur(n) {
+  if (!n) return '0 T€'
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace('.', ',')} Mio €`
+  return `${Math.round(n).toLocaleString('de-DE')} T€`
 }
 
 onMounted(load)

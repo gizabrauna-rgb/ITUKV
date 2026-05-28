@@ -80,6 +80,22 @@ export const deleteDripSequenz = (id) => authFetch('/dripsequenz-delete', { meth
 export const startDrip = (interessentId, sequenzId) => authFetch('/drip-start', { method: 'POST', data: { interessentId, sequenzId } })
 export const pauseDrip = (interessentId, action) => authFetch('/drip-pause', { method: 'POST', data: { interessentId, action } })
 
+// Controlling-PDF (Beiratsbericht)
+export const controllingPdf = async (year) => {
+  const token = sessionStorage.getItem('customerJwt') || sessionStorage.getItem('msalToken') || ''
+  const FUNC_KEY = import.meta.env.VITE_FUNC_KEY || ''
+  const API_BASE = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
+  const q = year ? `?year=${year}` : ''
+  const r = await fetch(`${API_BASE}/controlling-pdf${q}`, {
+    headers: {
+      ...(FUNC_KEY && { 'x-functions-key': FUNC_KEY }),
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  })
+  if (!r.ok) throw new Error(`PDF-Erstellung fehlgeschlagen (${r.status})`)
+  return await r.blob()
+}
+
 // Interessenten
 export const getInteressenten = (targetId) => authFetch('/interessenten', { method: 'POST', data: { targetId } })
 export const createInteressent = (data) => authFetch('/interessent-create', { method: 'POST', data })

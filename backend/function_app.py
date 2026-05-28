@@ -3169,6 +3169,56 @@ def controlling_stats(req: func.HttpRequest) -> func.HttpResponse:
             by_month[key]["closed"] += 1
     monthly = [{"month": k, **v} for k, v in sorted(by_month.items())]
 
+    # Pipeline-Wert + Provisions-Forecast (Schaetzung aus umsatz-Freitext)
+    import re as _re
+    def parse_umsatz_teur(s):
+        if not s: return 0
+        s = str(s).lower()
+        # "2,5 mio" -> 2500, "850 teur" -> 850, "12 mio €" -> 12000
+        m = _re.search(r'([\d.,]+)\s*mio', s)
+        if m:
+            try: return float(m.group(1).replace('.', '').replace(',', '.')) * 1000
+            except: pass
+        m = _re.search(r'([\d.,]+)\s*(teur|t€|k€)', s)
+        if m:
+            try: return float(m.group(1).replace('.', '').replace(',', '.'))
+            except: pass
+        # nur Zahl ohne Einheit: vermute TEUR
+        m = _re.search(r'([\d.,]+)', s)
+        if m:
+            try: return float(m.group(1).replace('.', '').replace(',', '.'))
+            except: pass
+        return 0
+
+    pipeline_wert = sum(parse_umsatz_teur(t.get("umsatz", "")) for t in open_)
+    closed_wert = sum(parse_umsatz_teur(t.get("umsatz", "")) for t in closed)
+    # Provisions-Forecast: 4% Erfolgshonorar als Faustregel
+    prov_quote_pct = 4.0
+    provision_offen = pipeline_wert * (prov_quote_pct / 100)
+    provision_realisiert = closed_wert * (prov_quote_pct / 100)
+
+    # Top-Mandate nach Umsatz
+    top_mandate = sorted(
+        [{"mbNr": t.get("mbNr",""), "verkaueferName": t.get("verkaueferName",""),
+          "umsatz": t.get("umsatz",""), "umsatzTeur": parse_umsatz_teur(t.get("umsatz","")),
+          "status": t.get("status",""), "phase": get_current_phase(t)}
+         for t in filtered],
+        key=lambda x: -x["umsatzTeur"]
+    )[:10]
+
+    # Quartals-Vergleich (innerhalb Jahres oder ueber alle Jahre)
+    by_quarter = {}
+    for t in filtered:
+        d = get_closed(t) or get_created(t)
+        if not d: continue
+        q = f"{d.year}-Q{(d.month - 1) // 3 + 1}"
+        by_quarter.setdefault(q, {"created": 0, "closed": 0})
+        if get_created(t) and ((get_created(t).year * 100 + get_created(t).month - 1) // 3 + 1) == ((d.year * 100 + d.month - 1) // 3 + 1):
+            by_quarter[q]["created"] += 1
+        if get_closed(t) and ((get_closed(t).year * 100 + get_closed(t).month - 1) // 3 + 1) == ((d.year * 100 + d.month - 1) // 3 + 1):
+            by_quarter[q]["closed"] += 1
+    quarterly = [{"quarter": k, **v} for k, v in sorted(by_quarter.items())]
+
     return ok_({
         "year": year_int,
         "total": len(filtered),
@@ -3183,11 +3233,119 @@ def controlling_stats(req: func.HttpRequest) -> func.HttpResponse:
         "prCount": pr_count,
         "prQuote": pr_quote,
         "monthly": monthly,
+        "quarterly": quarterly,
+        # Pipeline + Provision (Schaetzwerte)
+        "pipelineWertTeur": round(pipeline_wert),
+        "closedWertTeur": round(closed_wert),
+        "provisionForecastTeur": round(provision_offen),
+        "provisionRealisiertTeur": round(provision_realisiert),
+        "provisionQuotePct": prov_quote_pct,
+        "topMandate": top_mandate,
         "yearsAvailable": sorted({
             (get_created(t) or get_closed(t)).year for t in targets
             if (get_created(t) or get_closed(t))
         }, reverse=True),
     })
+
+
+@app.route(route="controlling-pdf", methods=["GET", "POST", "OPTIONS"])
+def controlling_pdf(req: func.HttpRequest) -> func.HttpResponse:
+    """Erstellt einen schicken Beirats-Bericht als PDF aus den Controlling-KPIs."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    # Stats holen via interner Aufruf (vereinfacht: wir simulieren ein GET)
+    class _ReqStub:
+        method = "GET"
+        params = {"year": req.params.get("year", "")}
+        headers = req.headers
+        def get_json(self): return {}
+    try:
+        stats_resp = controlling_stats(_ReqStub())  # type: ignore
+        stats = json.loads(stats_resp.get_body().decode())
+    except Exception as ex:
+        return err_(f"Statistik nicht ladbar: {ex}", 500)
+
+    year = stats.get("year") or datetime.utcnow().year
+    now_str = datetime.utcnow().strftime("%d.%m.%Y")
+    from html import escape as _esc
+
+    funnel = stats.get("pipelineFunnel", {})
+    top_html = "<p style='color:#999'>Keine Daten</p>" if not stats.get("topMandate") else (
+        "<table style='width:100%;border-collapse:collapse'><thead><tr style='border-bottom:1px solid #ddd'>"
+        "<th style='text-align:left;padding:6px'>mb-Nr</th><th style='text-align:left;padding:6px'>Verkäufer</th>"
+        "<th style='text-align:right;padding:6px'>Umsatz (TEUR)</th><th style='text-align:left;padding:6px'>Phase</th>"
+        "<th style='text-align:left;padding:6px'>Status</th></tr></thead><tbody>"
+        + "".join(
+            f"<tr style='border-bottom:1px solid #eee'><td style='padding:6px;font-family:monospace'>{_esc(m.get('mbNr',''))}</td>"
+            f"<td style='padding:6px'>{_esc(m.get('verkaueferName',''))}</td>"
+            f"<td style='padding:6px;text-align:right'>{int(m.get('umsatzTeur', 0)):,}</td>"
+            f"<td style='padding:6px'>Phase {m.get('phase','-')}</td>"
+            f"<td style='padding:6px'>{_esc(m.get('status',''))}</td></tr>"
+            for m in stats.get("topMandate", [])
+        ) + "</tbody></table>"
+    )
+
+    html = f"""<!doctype html><html><head><meta charset='utf-8'>
+<style>
+@page {{ size: A4; margin: 18mm 16mm; }}
+body {{ font-family: Helvetica, Arial, sans-serif; color: #161e2a; font-size: 11pt; line-height: 1.5; }}
+h1 {{ color: #097e92; font-size: 22pt; margin: 0 0 4px; }}
+h2 {{ color: #0088ba; font-size: 14pt; margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #0088ba33; }}
+.meta {{ color: #666; font-size: 10pt; margin-bottom: 24px; }}
+.grid {{ display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0; }}
+.kpi {{ flex: 1 1 30%; min-width: 30%; background: #f0fdfa; border-left: 4px solid #0088ba; padding: 12px 14px; }}
+.kpi .v {{ font-size: 22pt; font-weight: bold; color: #0088ba; }}
+.kpi .l {{ font-size: 10pt; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }}
+.kpi .s {{ font-size: 9pt; color: #999; margin-top: 4px; }}
+.funnel {{ background: #fafafa; border-radius: 6px; padding: 12px; }}
+.funnel-row {{ display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 10pt; }}
+.funnel-row .bar {{ background: #0088ba; height: 18px; border-radius: 3px; }}
+.funnel-row .lbl {{ width: 100px; }}
+.footer {{ color: #999; font-size: 9pt; margin-top: 36px; border-top: 1px solid #eee; padding-top: 10px; }}
+</style></head><body>
+  <h1>Beirats-Bericht M&amp;A {year}</h1>
+  <div class='meta'>Stand: {now_str} &middot; mibeca GmbH &middot; ITUKV Dashboard</div>
+
+  <h2>Auf einen Blick</h2>
+  <div class='grid'>
+    <div class='kpi'><div class='l'>Mandate gesamt</div><div class='v'>{stats.get('total', 0)}</div><div class='s'>{stats.get('verkaufAnzahl',0)} Verkauf · {stats.get('kaufAnzahl',0)} Kauf</div></div>
+    <div class='kpi'><div class='l'>Aktiv in der Pipeline</div><div class='v'>{stats.get('open', 0)}</div><div class='s'>laufende Mandate</div></div>
+    <div class='kpi'><div class='l'>Erfolgreich abgeschlossen</div><div class='v'>{stats.get('closed', 0)}</div><div class='s'>{stats.get('successRate',0)}% Erfolgsquote</div></div>
+    <div class='kpi'><div class='l'>Ø Deal-Dauer</div><div class='v'>{stats.get('avgDurationDays', 0)} T</div><div class='s'>vom Mandat zur Closing</div></div>
+    <div class='kpi'><div class='l'>Pipeline-Wert</div><div class='v'>{int(stats.get('pipelineWertTeur', 0)):,} T€</div><div class='s'>Summe Umsätze offener Mandate</div></div>
+    <div class='kpi'><div class='l'>Provisions-Forecast</div><div class='v'>{int(stats.get('provisionForecastTeur', 0)):,} T€</div><div class='s'>bei {stats.get('provisionQuotePct',4)}% Erfolgshonorar</div></div>
+  </div>
+
+  <h2>Pipeline-Funnel (offene Mandate nach Phase)</h2>
+  <div class='funnel'>
+    <div class='funnel-row'><span class='lbl'>Phase 1-3 (UVE):</span><span class='bar' style='width:{(funnel.get('1-3',0)*20)}px'></span><span>{funnel.get('1-3',0)}</span></div>
+    <div class='funnel-row'><span class='lbl'>Phase 4-6 (NDA):</span><span class='bar' style='width:{(funnel.get('4-6',0)*20)}px'></span><span>{funnel.get('4-6',0)}</span></div>
+    <div class='funnel-row'><span class='lbl'>Phase 7-9 (Angebot):</span><span class='bar' style='width:{(funnel.get('7-9',0)*20)}px'></span><span>{funnel.get('7-9',0)}</span></div>
+    <div class='funnel-row'><span class='lbl'>Phase 10-12 (LOI/DD):</span><span class='bar' style='width:{(funnel.get('10-12',0)*20)}px'></span><span>{funnel.get('10-12',0)}</span></div>
+    <div class='funnel-row'><span class='lbl'>Phase 13-15 (Closing):</span><span class='bar' style='width:{(funnel.get('13-15',0)*20)}px'></span><span>{funnel.get('13-15',0)}</span></div>
+  </div>
+
+  <h2>Top-10 Mandate nach Umsatz</h2>
+  {top_html}
+
+  <h2>Realisierte Provision {year}</h2>
+  <p><strong>{int(stats.get('provisionRealisiertTeur', 0)):,} T€</strong> realisiertes Erfolgshonorar aus {stats.get('closed',0)} abgeschlossenen Mandaten (geschätzt mit {stats.get('provisionQuotePct',4)}%).</p>
+  <p>Marktansprache-Quote: {stats.get('prQuote', 0)}% der abgeschlossenen Mandate hatten eine Presse-Erfolgsmeldung.</p>
+
+  <div class='footer'>
+    Automatisch erstellt durch das ITUKV Dashboard &middot; nur für den internen Gebrauch / Beirat
+  </div>
+</body></html>"""
+
+    try:
+        from weasyprint import HTML
+        pdf_bytes = HTML(string=html, base_url="/").write_pdf()
+    except Exception as ex:
+        return err_(f"PDF-Erstellung fehlgeschlagen: {ex}", 500)
+    return pdf_response(pdf_bytes, f"Beiratsbericht_{year}.pdf")
 
 
 @app.route(route="lessons-learned", methods=["GET", "OPTIONS"])
