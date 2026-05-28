@@ -73,6 +73,13 @@ export const triggerBackup = () => authFetch('/backup-trigger', { method: 'POST'
 export const aiAnalyzeDocument = (targetId, blobName) => authFetch('/ai-analyze-document', { method: 'POST', data: { targetId, blobName } })
 export const aiConfig = () => authFetch('/ai-config')
 
+// Drip-Sequenzen (Auto-Mail-Folge an Interessenten)
+export const getDripSequenzen = () => authFetch('/dripsequenzen')
+export const saveDripSequenz = (data) => authFetch('/dripsequenzen', { method: 'POST', data })
+export const deleteDripSequenz = (id) => authFetch('/dripsequenz-delete', { method: 'POST', data: { id } })
+export const startDrip = (interessentId, sequenzId) => authFetch('/drip-start', { method: 'POST', data: { interessentId, sequenzId } })
+export const pauseDrip = (interessentId, action) => authFetch('/drip-pause', { method: 'POST', data: { interessentId, action } })
+
 // Interessenten
 export const getInteressenten = (targetId) => authFetch('/interessenten', { method: 'POST', data: { targetId } })
 export const createInteressent = (data) => authFetch('/interessent-create', { method: 'POST', data })

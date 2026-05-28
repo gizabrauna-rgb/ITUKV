@@ -176,6 +176,40 @@
               <label class="text-xs text-gray-500 block mb-1">VETO-Begründung (wenn Veto gesetzt)</label>
               <textarea :value="detail.vetoBegruendung || ''" @blur="patch(detail, { vetoBegruendung: $event.target.value })" rows="2" class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30"></textarea>
             </div>
+
+            <!-- Drip-Sequenz Steuerung -->
+            <div class="border border-purple-100 bg-purple-50/40 rounded-xl p-4">
+              <div class="flex items-center gap-2 mb-3">
+                <Send class="w-4 h-4 text-purple-600" />
+                <div class="font-semibold text-gray-800">Auto-Mail-Sequenz (Drip)</div>
+              </div>
+              <div v-if="detail.dripSequenzId && !detail.dripPausiert" class="text-xs space-y-1 mb-3">
+                <div>Aktiv: <strong>{{ activeDripName(detail.dripSequenzId) }}</strong></div>
+                <div>Gestartet: {{ longDate(detail.dripGestartetAm) }}</div>
+                <div>Nächster Schritt: {{ (detail.dripNaechsterSchritt || 0) + 1 }} von {{ activeDripSchritte(detail.dripSequenzId).length }}</div>
+                <div v-if="detail.dripLetzterVersandAm">Letzter Versand: {{ longDate(detail.dripLetzterVersandAm) }}</div>
+              </div>
+              <div v-else-if="detail.dripSequenzId && detail.dripPausiert" class="text-xs mb-3 text-amber-700">
+                ⏸ Pausiert — <strong>{{ activeDripName(detail.dripSequenzId) }}</strong>
+              </div>
+              <div v-else class="text-xs text-gray-500 mb-3">Noch keine Sequenz gestartet</div>
+
+              <div class="flex gap-2 flex-wrap">
+                <select v-if="!detail.dripSequenzId" v-model="selectedSeqId" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 flex-1">
+                  <option value="">— Sequenz wählen —</option>
+                  <option v-for="s in dripSequenzen" :key="s.RowKey" :value="s.RowKey">{{ s.name }}</option>
+                </select>
+                <button v-if="!detail.dripSequenzId" @click="dripStart(detail)" :disabled="!selectedSeqId"
+                  class="text-xs px-3 py-1.5 bg-purple-600 text-white rounded-lg font-medium disabled:opacity-50">Starten</button>
+                <button v-if="detail.dripSequenzId && !detail.dripPausiert" @click="dripAction(detail, 'pause')"
+                  class="text-xs px-3 py-1.5 border border-amber-300 text-amber-700 rounded-lg">Pausieren</button>
+                <button v-if="detail.dripSequenzId && detail.dripPausiert" @click="dripAction(detail, 'resume')"
+                  class="text-xs px-3 py-1.5 border border-green-300 text-green-700 rounded-lg">Fortsetzen</button>
+                <button v-if="detail.dripSequenzId" @click="dripAction(detail, 'stop')"
+                  class="text-xs px-3 py-1.5 border border-red-300 text-red-700 rounded-lg">Stoppen</button>
+              </div>
+              <p class="text-[10px] text-gray-400 mt-2">Mails gehen täglich um 08:00 UTC raus (passend zum konfigurierten Tag-Offset)</p>
+            </div>
           </div>
         </aside>
       </div>
@@ -185,8 +219,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Users, Check, ChevronRight, X, Download, Maximize2, Minimize2 } from '@lucide/vue'
-import { authFetch } from '../../api.js'
+import { Users, Check, ChevronRight, X, Download, Maximize2, Minimize2, Send } from '@lucide/vue'
+import { authFetch, getDripSequenzen, startDrip, pauseDrip } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 
 const props = defineProps({ targetId: String })
@@ -203,7 +237,47 @@ async function load() {
   } catch (e) { toast.error('Laden fehlgeschlagen') }
   finally { loading.value = false }
 }
-onMounted(load)
+// ============= Drip-Sequenzen =============
+const dripSequenzen = ref([])
+const selectedSeqId = ref('')
+
+async function loadDrip() {
+  try { dripSequenzen.value = await getDripSequenzen() } catch {}
+}
+
+function activeDripName(sid) {
+  return dripSequenzen.value.find(s => s.RowKey === sid)?.name || '?'
+}
+function activeDripSchritte(sid) {
+  return dripSequenzen.value.find(s => s.RowKey === sid)?.schritte || []
+}
+
+async function dripStart(i) {
+  if (!selectedSeqId.value) return
+  try {
+    await startDrip(i.RowKey, selectedSeqId.value)
+    Object.assign(i, {
+      dripSequenzId: selectedSeqId.value,
+      dripGestartetAm: new Date().toISOString(),
+      dripNaechsterSchritt: 0,
+      dripPausiert: false,
+    })
+    selectedSeqId.value = ''
+    toast.success('Drip-Sequenz gestartet')
+  } catch (e) { toast.error('Start fehlgeschlagen') }
+}
+
+async function dripAction(i, action) {
+  try {
+    await pauseDrip(i.RowKey, action)
+    if (action === 'pause') i.dripPausiert = true
+    if (action === 'resume') i.dripPausiert = false
+    if (action === 'stop') i.dripSequenzId = ''
+    toast.success(action === 'pause' ? 'Pausiert' : action === 'resume' ? 'Fortgesetzt' : 'Gestoppt')
+  } catch (e) { toast.error('Aktion fehlgeschlagen') }
+}
+
+onMounted(() => { load(); loadDrip() })
 
 const sorted = computed(() => [...items.value].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')))
 

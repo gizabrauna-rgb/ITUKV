@@ -5681,3 +5681,275 @@ def ai_stats(req: func.HttpRequest) -> func.HttpResponse:
         "writableKontaktFields": sorted(AI_WRITABLE_KONTAKT_FIELDS),
         "writableTargetFields": sorted(AI_WRITABLE_TARGET_FIELDS),
     })
+
+
+# ============================================================
+# DRIP-SEQUENZEN — automatische Mail-Folge an Interessenten
+# ============================================================
+# Datenmodell:
+# - Tabelle 'dripsequenzen': PartitionKey='seq', RowKey=uuid
+#     name, schritte (JSON-Array: [{tag, vorlageRowKey, name}])
+# - Interessent-Felder:
+#     dripSequenzId, dripGestartetAm, dripPausiert, dripNaechsterSchritt,
+#     dripLetzterVersandAm
+
+@app.route(route="dripsequenzen", methods=["GET", "POST", "OPTIONS"])
+def dripsequenzen_route(req: func.HttpRequest) -> func.HttpResponse:
+    """GET: alle Drip-Sequenzen. POST: anlegen/aktualisieren."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    tc = table_("dripsequenzen")
+    if req.method == "GET":
+        items = [dict(i) for i in tc.list_entities()]
+        # Default-Sequenz seeden falls noch keine vorhanden
+        if not items:
+            default = {
+                "PartitionKey": "seq", "RowKey": str(uuid.uuid4()),
+                "name": "Standard 3-Stufen-Folge (3 / 7 / 14 Tage)",
+                "beschreibung": "Erste Erinnerung nach 3 Tagen, dann 7, dann 14 — automatisch via Tagestakt",
+                "schritte": json.dumps([
+                    {"tag": 3, "name": "Tag 3: freundliche Erinnerung", "vorlageRowKey": ""},
+                    {"tag": 7, "name": "Tag 7: zweiter Hinweis", "vorlageRowKey": ""},
+                    {"tag": 14, "name": "Tag 14: letzte Erinnerung", "vorlageRowKey": ""},
+                ], ensure_ascii=False),
+                "updatedAt": datetime.utcnow().isoformat(),
+            }
+            try:
+                tc.create_entity(default)
+                items = [default]
+            except Exception:
+                pass
+        for it in items:
+            try: it["schritte"] = json.loads(it.get("schritte", "[]") or "[]")
+            except: it["schritte"] = []
+        return ok_(items)
+    # POST – Sequenz anlegen/aktualisieren
+    body = req.get_json() or {}
+    sid = (body.get("id") or str(uuid.uuid4()))
+    schritte = body.get("schritte") or []
+    if not isinstance(schritte, list) or not schritte:
+        return err_("schritte erforderlich", 400)
+    ent = {
+        "PartitionKey": "seq", "RowKey": sid,
+        "name": body.get("name", "Unbenannt"),
+        "beschreibung": body.get("beschreibung", ""),
+        "schritte": json.dumps(schritte, ensure_ascii=False),
+        "updatedAt": datetime.utcnow().isoformat(),
+    }
+    try:
+        tc.upsert_entity(ent)
+        log_audit(p, "upsert", "dripsequenz", sid, {"schritte": len(schritte)})
+        return ok_({"id": sid, "ok": True})
+    except Exception as ex:
+        return err_(f"Speichern fehlgeschlagen: {ex}", 500)
+
+
+@app.route(route="dripsequenz-delete", methods=["POST", "OPTIONS"])
+def dripsequenz_delete(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    sid = body.get("id") or ""
+    if not sid: return err_("id erforderlich", 400)
+    try:
+        table_("dripsequenzen").delete_entity("seq", sid)
+        log_audit(p, "delete", "dripsequenz", sid)
+        return ok_({"deleted": sid})
+    except Exception as ex:
+        return err_(f"Loeschen fehlgeschlagen: {ex}", 500)
+
+
+@app.route(route="drip-start", methods=["POST", "OPTIONS"])
+def drip_start(req: func.HttpRequest) -> func.HttpResponse:
+    """Startet eine Drip-Sequenz fuer einen Interessenten."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    interessent_id = body.get("interessentId") or ""
+    sid = body.get("sequenzId") or ""
+    if not (interessent_id and sid):
+        return err_("interessentId + sequenzId erforderlich", 400)
+    tc = table_("interessenten")
+    try:
+        # Interessent suchen (PartitionKey ist variabel)
+        i_ent = None
+        for i in tc.list_entities():
+            if i.get("RowKey") == interessent_id:
+                i_ent = dict(i)
+                break
+        if not i_ent:
+            return err_("Interessent nicht gefunden", 404)
+        i_ent["dripSequenzId"] = sid
+        i_ent["dripGestartetAm"] = datetime.utcnow().isoformat()
+        i_ent["dripNaechsterSchritt"] = 0
+        i_ent["dripPausiert"] = False
+        i_ent["dripLetzterVersandAm"] = ""
+        tc.update_entity(i_ent)
+        log_audit(p, "start", "drip", interessent_id, {"sequenzId": sid})
+        return ok_({"ok": True})
+    except Exception as ex:
+        return err_(f"Start fehlgeschlagen: {ex}", 500)
+
+
+@app.route(route="drip-pause", methods=["POST", "OPTIONS"])
+def drip_pause(req: func.HttpRequest) -> func.HttpResponse:
+    """Pausiert oder stoppt eine Drip-Sequenz."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    interessent_id = body.get("interessentId") or ""
+    action = body.get("action") or "pause"  # pause/resume/stop
+    if not interessent_id: return err_("interessentId erforderlich", 400)
+    tc = table_("interessenten")
+    try:
+        i_ent = None
+        for i in tc.list_entities():
+            if i.get("RowKey") == interessent_id:
+                i_ent = dict(i)
+                break
+        if not i_ent: return err_("Interessent nicht gefunden", 404)
+        if action == "pause": i_ent["dripPausiert"] = True
+        elif action == "resume": i_ent["dripPausiert"] = False
+        elif action == "stop":
+            i_ent["dripSequenzId"] = ""
+            i_ent["dripPausiert"] = False
+        tc.update_entity(i_ent)
+        log_audit(p, action, "drip", interessent_id)
+        return ok_({"ok": True})
+    except Exception as ex:
+        return err_(f"Update fehlgeschlagen: {ex}", 500)
+
+
+@app.timer_trigger(schedule="0 0 8 * * *", arg_name="dripTimer", run_on_startup=False, use_monitor=True)
+def daily_drip_send(dripTimer: func.TimerRequest) -> None:
+    """Laeuft taeglich 08:00 UTC. Pruefe alle Interessenten mit aktiver
+    Drip-Sequenz und sende den naechsten Schritt wenn die Tage erreicht sind."""
+    logging.info("[DRIP] daily_drip_send start")
+    if not ACS_CONN:
+        logging.warning("[DRIP] ACS_CONN fehlt, breche ab")
+        return
+    today = datetime.utcnow().date()
+    # Sequenzen laden
+    sequenzen = {}
+    try:
+        for s in table_("dripsequenzen").list_entities():
+            try: schritte = json.loads(s.get("schritte", "[]") or "[]")
+            except: schritte = []
+            sequenzen[s["RowKey"]] = {
+                "name": s.get("name", ""),
+                "schritte": schritte,
+            }
+    except Exception as ex:
+        logging.error(f"[DRIP] Sequenzen nicht ladbar: {ex}")
+        return
+    # Mailvorlagen
+    vorlagen = {}
+    try:
+        for v in table_("mailvorlagen").list_entities():
+            vorlagen[v["RowKey"]] = dict(v)
+    except Exception:
+        pass
+
+    tc_i = table_("interessenten")
+    sent = 0
+    try:
+        from azure.communication.email import EmailClient
+        client = EmailClient.from_connection_string(ACS_CONN)
+    except Exception as ex:
+        logging.error(f"[DRIP] ACS-Client init fehlgeschlagen: {ex}")
+        return
+
+    for i in tc_i.list_entities():
+        sid = i.get("dripSequenzId", "") or ""
+        if not sid: continue
+        if i.get("dripPausiert"): continue
+        seq = sequenzen.get(sid)
+        if not seq: continue
+        schritte = seq.get("schritte", [])
+        naechster = int(i.get("dripNaechsterSchritt", 0) or 0)
+        if naechster >= len(schritte):
+            # Sequenz beendet → Feld zurücksetzen
+            try:
+                i_full = dict(i)
+                i_full["dripSequenzId"] = ""
+                tc_i.update_entity(i_full)
+            except Exception: pass
+            continue
+        schritt = schritte[naechster]
+        try:
+            gestartet = datetime.fromisoformat(i.get("dripGestartetAm", "")[:19]).date()
+        except Exception:
+            continue
+        tage_seit_start = (today - gestartet).days
+        if tage_seit_start < int(schritt.get("tag", 0) or 0):
+            continue  # noch nicht dran
+        # Versenden
+        empfaenger = i.get("email", "") or ""
+        if not empfaenger:
+            continue
+        vorlage = vorlagen.get(schritt.get("vorlageRowKey", "")) or {}
+        # Variablen-Ersetzung
+        target_id = i.get("targetId", "")
+        target = {}
+        try:
+            target = dict(table_("targets").get_entity("target", target_id))
+        except Exception: pass
+        vars_ = {
+            "firma": i.get("firma", "") or "",
+            "name": i.get("name", "") or "",
+            "vorname": (i.get("name", "") or "").split(" ")[0],
+            "mbNr": target.get("mbNr", ""),
+            "absender": "mibeca",
+        }
+        def sub(s):
+            import re as _r
+            return _r.sub(r"\{\{(\w+)\}\}", lambda m: vars_.get(m.group(1), ""), s or "")
+        subj = sub(vorlage.get("betreff", schritt.get("name", "Folge-Information")))
+        body_txt = sub(vorlage.get("body", ""))
+        html_body = f"<html><body style='font-family:Arial,sans-serif;color:#161e2a;line-height:1.5'><pre style='font-family:Arial;white-space:pre-wrap'>{body_txt}</pre></body></html>"
+        try:
+            client.begin_send({
+                "senderAddress": ACS_SENDER,
+                "recipients": {"to": [{"address": empfaenger}]},
+                "content": {"subject": subj, "plainText": body_txt, "html": html_body},
+            })
+            sent += 1
+            # Update Interessent
+            i_full = dict(i)
+            i_full["dripNaechsterSchritt"] = naechster + 1
+            i_full["dripLetzterVersandAm"] = datetime.utcnow().isoformat()
+            tc_i.update_entity(i_full)
+            # Verlauf-Eintrag
+            if target_id:
+                try:
+                    t_full = dict(table_("targets").get_entity("target", target_id))
+                    verlauf = json.loads(t_full.get("kommunikationJson", "[]") or "[]")
+                    verlauf.append({
+                        "id": "drip" + str(int(datetime.utcnow().timestamp() * 1000)),
+                        "typ": "mail_out",
+                        "datum": datetime.utcnow().isoformat(),
+                        "autor": "Drip-Sequenz",
+                        "betreff": f"Drip: {subj}",
+                        "beschreibung": f"Automatischer Versand (Schritt {naechster+1}/{len(schritte)}) an {empfaenger}",
+                        "beteiligte": i.get("firma", "") or i.get("name", ""),
+                        "createdBy": "system",
+                    })
+                    t_full["kommunikationJson"] = json.dumps(verlauf, ensure_ascii=False)
+                    table_("targets").update_entity(t_full)
+                except Exception as ex:
+                    logging.warning(f"[DRIP] Verlauf-Eintrag fehlgeschlagen: {ex}")
+        except Exception as ex:
+            logging.warning(f"[DRIP] Versand fehlgeschlagen an {empfaenger}: {ex}")
+    logging.info(f"[DRIP] fertig, {sent} Mails verschickt")
