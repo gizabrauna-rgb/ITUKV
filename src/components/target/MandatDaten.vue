@@ -48,8 +48,8 @@
         <h3 class="font-semibold text-gray-800 text-sm">Vorgangsnummern</h3>
       </header>
       <div class="p-5 grid grid-cols-2 gap-4">
-        <Field v-model="data.kundennummer" label="Kundennummer (mibeca)" @blur="save" />
-        <Field v-model="data.transaktionsnummer" label="Transaktionsnummer / mb-Nr." @blur="save" />
+        <Field v-model="data.kundennummer" label="Kundennummer (mibeca)" readonly hint="Wird von mibeca vergeben – nicht änderbar." />
+        <Field v-model="data.transaktionsnummer" label="Transaktionsnummer / mb-Nr." readonly hint="Wird von mibeca vergeben – nicht änderbar." />
       </div>
     </section>
 
@@ -177,7 +177,7 @@ async function save() {
 }
 
 const Field = defineComponent({
-  props: ['modelValue', 'label', 'type'],
+  props: ['modelValue', 'label', 'type', 'readonly', 'hint'],
   emits: ['update:modelValue', 'blur'],
   setup(props, { emit }) {
     return () => h('div', [
@@ -185,10 +185,13 @@ const Field = defineComponent({
       h('input', {
         type: props.type || 'text',
         value: props.modelValue,
-        onInput: e => emit('update:modelValue', e.target.value),
-        onBlur: () => emit('blur'),
-        class: 'w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]'
-      })
+        readonly: props.readonly || undefined,
+        onInput: e => !props.readonly && emit('update:modelValue', e.target.value),
+        onBlur: () => !props.readonly && emit('blur'),
+        class: 'w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba] '
+          + (props.readonly ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : '')
+      }),
+      props.hint ? h('p', { class: 'text-[10px] text-gray-400 mt-1' }, props.hint) : null,
     ])
   }
 })

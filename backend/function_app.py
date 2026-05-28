@@ -547,12 +547,23 @@ def target_update(req: func.HttpRequest) -> func.HttpResponse:
     except Exception:
         return err_("Target nicht gefunden", 404)
     # Mass-Assignment-Schutz: nur Felder aus der Allowlist uebernehmen
+    # Admin-only-Felder: Nicht-Admins (target/investor) duerfen diese NIE aendern,
+    # auch wenn sie ihr eigenes Target updaten.
+    ADMIN_ONLY_TARGET_FIELDS = {
+        "mbNr", "transaktionsnummer", "kundennummer",
+        "projekttyp", "status", "verkaueferName", "firma",
+        "mandatStart", "mandatLaufzeitMonate",
+    }
+    is_admin = p.get("role") == "admin"
     changed = []
     for k, v in body.items():
-        if k in TARGET_WRITABLE_FIELDS:
-            if entity.get(k) != v:
-                changed.append(k)
-            entity[k] = v
+        if k not in TARGET_WRITABLE_FIELDS:
+            continue
+        if k in ADMIN_ONLY_TARGET_FIELDS and not is_admin:
+            continue  # still ignorieren - keine Aenderung erlaubt
+        if entity.get(k) != v:
+            changed.append(k)
+        entity[k] = v
     tc.update_entity(dict(entity))
     if changed:
         log_audit(p, "update", "target", tid, {"fields": changed})
