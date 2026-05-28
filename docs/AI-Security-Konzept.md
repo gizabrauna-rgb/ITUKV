@@ -14,15 +14,43 @@
 
 ## 1. Zusammenfassung
 
-Das ITUKV Dashboard bietet eine optionale KI-gestützte Auswertung von hochgeladenen
-Dokumenten. Ein in den Datenraum hochgeladenes PDF kann auf Knopfdruck an Anthropic
-Claude übermittelt werden, das extrahiert strukturierte Kennzahlen (Mitarbeiter, Umsatz,
-EBIT, Geschäftsführer u. a.) und liefert Vorschläge zurück. Die Übernahme der Werte ins
-Dashboard erfolgt ausschließlich nach manueller Bestätigung durch einen Admin.
+Das ITUKV Dashboard bietet eine KI-gestützte Auswertung von hochgeladenen Dokumenten.
+Ein in den Datenraum hochgeladenes PDF kann auf Knopfdruck an Anthropic Claude
+übermittelt werden, das extrahiert strukturierte Kennzahlen (Mitarbeiter, Umsatz,
+EBIT, Geschäftsführer u. a.) und liefert Vorschläge zurück. Die Übernahme der Werte
+ins Dashboard erfolgt ausschließlich nach manueller Bestätigung durch einen Admin.
 
-Die Funktion ist **default deaktiviert** und mehrfach abgesichert. Eine Aktivierung darf
-erst nach Abschluss der vertraglichen und datenschutzrechtlichen Pflichten erfolgen
-(siehe Abschnitt 8).
+**Aktivierungsstatus (Stand 2026-05-28): AKTIV in Produktion.**
+Der globale Schalter `AI_ANALYSE_AKTIV` ist auf `true` gesetzt, der Anthropic-API-Key
+ist in den Azure App-Settings hinterlegt. Die Funktion kann von Admins genutzt werden.
+
+> Hinweis: Aktivierung erfolgte **vor** vollständigem Abschluss der vertraglichen und
+> datenschutzrechtlichen Schritte aus Abschnitt 8. Die offenen Punkte sind in §1a
+> dokumentiert und mit Priorität abzuarbeiten.
+
+### 1a Aktueller Compliance-Status
+
+| Pflicht | Status | Verantwortlich | Frist |
+|---|---|---|---|
+| Globaler Schalter aktiv | ✅ gesetzt | Anna | — |
+| API-Key Azure-seitig hinterlegt | ✅ vorhanden | Anna | — |
+| API-Key-Rotation (initialer Key kontextexponiert) | ⏳ ausstehend | Anna | umgehend |
+| AVV / DPA mit Anthropic abgeschlossen | ⏳ ausstehend | Anna + Anthropic | bis Q3 |
+| Verarbeitungsverzeichnis Art. 30 ergänzt | ⏳ ausstehend | DSB | bis Q3 |
+| DSFA Art. 35 DSGVO durchgeführt | ⏳ ausstehend | DSB | vor breitem Roll-out |
+| Mandanten-Information im Vertrag / Anlage | ⏳ ausstehend | Jenny + Anwalt | mit nächster Vertragsfassung |
+| Pro-Akte-Opt-In im Code implementiert | ✅ vorhanden | — | — |
+| Manuelle Übernahme zwingend | ✅ vorhanden | — | — |
+| Audit-Log pro KI-Aufruf | ✅ vorhanden | — | — |
+| Budget-Limit bei Anthropic | ⚠️ zu prüfen | Anna | innerhalb 7 Tagen |
+| Spending-Alert konfiguriert | ⚠️ zu prüfen | Anna | innerhalb 7 Tagen |
+
+**Bewertung:** Die technischen Schutzmaßnahmen sind vollständig (default-OFF-Architektur,
+Per-Akte-Opt-In, manuelle Übernahme, Audit, 2-stufiger Mass-Assignment-Schutz). Die
+**organisatorischen/vertraglichen Pflichten** sind noch nicht abgeschlossen – damit ist
+die Verarbeitung formell unvollständig abgesichert. Bis zum Abschluss empfohlen:
+zurückhaltende Nutzung (nur Test-Mandate, keine Live-Kunden-Akten mit besonders
+sensiblen Daten).
 
 ---
 
@@ -66,7 +94,7 @@ Die KI liest Dokumente und schlägt Werte vor – die finale Entscheidung über 
 
 | Maßnahme | Beschreibung |
 |---|---|
-| **Default-OFF (global)** | KI-Analyse ist nur aktiv, wenn in Azure App-Settings explizit `AI_ANALYSE_AKTIV=true` gesetzt ist. Sonst Backend-403. |
+| **Globaler Kill-Switch** | KI-Analyse ist nur aktiv, wenn in Azure App-Settings explizit `AI_ANALYSE_AKTIV=true` gesetzt ist (aktuell: aktiv). Bei `false` lehnt das Backend mit 403 ab – sofortige Notfall-Deaktivierung jederzeit möglich. |
 | **API-Key-Trennung** | `ANTHROPIC_API_KEY` ausschließlich in Azure App-Settings; nicht im Code, nicht im Frontend, nicht im Git-Repo. |
 | **Pro-Akte-Opt-In** | Pro Akte muss `kiAnalyseErlaubt=true` gesetzt werden. Wird beim ersten Klick auf „KI-Analyse" über einen expliziten Bestätigungs-Dialog gesetzt. |
 | **Manuelle Übernahme** | KI schreibt NICHTS automatisch ins Dashboard. Antwort wird als Vorschlag im Modal angezeigt; Admin wählt einzeln pro Feld und bestätigt. |
@@ -139,20 +167,26 @@ informiert werden, dass:
 
 ---
 
-## 8. Aktivierungs-Checkliste (Go-Live)
+## 8. Aktivierungs-Checkliste (Soll-Zustand bei aktiver KI)
 
-Bevor der globale Schalter `AI_ANALYSE_AKTIV=true` gesetzt wird:
+Stand 2026-05-28: KI ist bereits **aktiv**. Folgende Punkte sind noch nachzuholen:
 
+- [x] Technische Sicherheits-Maßnahmen umgesetzt (siehe §4.1)
+- [x] Pro-Akte-Opt-In implementiert
+- [x] Audit-Log für jeden KI-Aufruf aktiv
 - [ ] AVV mit Anthropic abgeschlossen und unterzeichnet
 - [ ] Anthropic im Verarbeitungsverzeichnis ergänzt (Art. 30 DSGVO)
 - [ ] DSFA (Art. 35 DSGVO) durchgeführt und dokumentiert
 - [ ] Mandanten-Information ergänzt (Mandatsvertrag oder Beilage)
 - [ ] Budget-Limit bei Anthropic gesetzt (Empfehlung 20–50 €/Monat)
 - [ ] Spending-Alert konfiguriert
+- [ ] API-Key rotiert (initialer Key wurde kontextuell exponiert)
 - [ ] Datenschutzbeauftragter / Anwalt hat zugestimmt
 - [ ] Jenny + Anna sind zu „Vier-Augen-Bestätigung" bei sensiblen Akten geschult
 
-Erst nach Abhakung dieser Punkte den Schalter umlegen.
+Bis zur Abhakung aller Punkte gilt **vorsorglich**: KI-Analyse nur an Test- oder
+Nicht-Hochrisiko-Mandate anwenden, keine Verarbeitung besonders sensibler personen-
+bezogener Daten ohne explizite Freigabe durch DSB.
 
 ---
 
