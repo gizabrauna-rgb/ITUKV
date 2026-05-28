@@ -379,7 +379,7 @@ function openNdaInAkte(v) {
 
 const navItems = [
   { tab: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard },
-  { tab: 'targets', label: 'Mandate', icon: Briefcase },
+  { tab: 'targets', label: 'Projekte', icon: Briefcase },
   { tab: 'crm', label: 'Kontakte', icon: Users },
   { tab: 'ausschreibungen', label: 'Veröffentlichte Mandate', icon: Megaphone },
   { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
@@ -391,7 +391,7 @@ const navItems = [
 ]
 
 const quickAccess = [
-  { tab: 'targets', label: 'Mandate', desc: 'Cockpit + Verwaltung', icon: Briefcase },
+  { tab: 'targets', label: 'Projekte', desc: 'Cockpit + Verwaltung', icon: Briefcase },
   { tab: 'crm', label: 'Investoren', desc: 'CRM & Karte', icon: Users },
 ]
 
