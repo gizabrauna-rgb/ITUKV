@@ -24,12 +24,44 @@
     </header>
 
     <div class="max-w-7xl mx-auto px-6 py-8">
-      <!-- Projekttyp-Label -->
-      <div v-if="projekttyp" class="mb-3">
-        <span class="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#0088ba]/10 text-[#0088ba] px-2.5 py-1 rounded-full">
-          <Briefcase class="w-3 h-3" />
-          {{ projekttyp }}
-        </span>
+      <!-- Begrüßungs-Card -->
+      <div class="bg-gradient-to-br from-white to-[#0088ba]/5 border border-[#0088ba]/10 rounded-2xl p-6 mb-5">
+        <div class="flex items-start gap-4">
+          <div class="flex-1">
+            <div v-if="projekttyp" class="mb-2">
+              <span class="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#0088ba]/10 text-[#0088ba] px-2.5 py-1 rounded-full">
+                <Briefcase class="w-3 h-3" />
+                {{ projekttyp }}
+              </span>
+              <span v-if="targetData?.mbNr" class="ml-2 inline-flex items-center text-xs font-mono bg-gray-100 text-gray-700 px-2 py-1 rounded">{{ targetData.mbNr }}</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900">{{ greetingTime }}, {{ firstName || userName }}!</h1>
+            <p class="text-sm text-gray-600 mt-1">Hier ist dein aktueller Stand bei deinem M&A-Projekt mit mibeca.</p>
+          </div>
+        </div>
+        <!-- Status-Kacheln -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+          <div class="bg-white rounded-xl border border-gray-100 p-3">
+            <div class="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Phase</div>
+            <div class="text-lg font-bold text-gray-900 mt-0.5">{{ currentPhase }}/{{ phasen.length || 15 }}</div>
+            <div class="text-[11px] text-gray-500 truncate">{{ currentPhaseTitle || '—' }}</div>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-100 p-3">
+            <div class="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Offene Aufgaben</div>
+            <div class="text-lg font-bold text-gray-900 mt-0.5">{{ offeneAufgaben }}</div>
+            <div class="text-[11px] text-gray-500">noch zu erledigen</div>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-100 p-3">
+            <div class="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Nächster Termin</div>
+            <div class="text-lg font-bold text-gray-900 mt-0.5">{{ naechsterTerminLabel }}</div>
+            <div class="text-[11px] text-gray-500 truncate">{{ naechsterTerminText }}</div>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-100 p-3">
+            <div class="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Ansprechpartnerin</div>
+            <div class="text-sm font-bold text-gray-900 mt-0.5">Jennifer Kaplan</div>
+            <a href="mailto:jk@mike-bergmann.de" class="text-[11px] text-[#0088ba] hover:underline">jk@mike-bergmann.de</a>
+          </div>
+        </div>
       </div>
 
       <!-- Tab Nav -->
@@ -443,6 +475,43 @@ const currentPhaseTitle = computed(() => {
 })
 const donePhasen = computed(() => phasen.value.filter(isPhaseDone).length)
 const phasenProgress = computed(() => !phasen.value.length ? 0 : Math.round(donePhasen.value / phasen.value.length * 100))
+
+// Begruessungs-Card
+const targetData = computed(() => target.value)
+const firstName = computed(() => {
+  const n = target.value?.vorname || (props.userName || '').split(' ')[0] || ''
+  return n.trim()
+})
+const greetingTime = computed(() => {
+  const h = new Date().getHours()
+  if (h < 11) return 'Guten Morgen'
+  if (h < 17) return 'Guten Tag'
+  return 'Guten Abend'
+})
+const offeneAufgaben = computed(() => {
+  let count = 0
+  for (const p of phasen.value) {
+    if (!Array.isArray(p.aufgaben)) continue
+    for (const t of p.aufgaben) if (!t.done) count++
+  }
+  return count
+})
+const naechsterTermin = computed(() => {
+  let termine = []
+  try { termine = JSON.parse(target.value?.termineJson || '[]') } catch { termine = [] }
+  const today = new Date().toISOString().slice(0, 10)
+  return termine
+    .filter(t => !t.erledigt && t.datum && t.datum >= today)
+    .sort((a, b) => (a.datum || '').localeCompare(b.datum || ''))[0]
+})
+const naechsterTerminLabel = computed(() => {
+  if (!naechsterTermin.value) return '—'
+  const d = new Date(naechsterTermin.value.datum)
+  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
+})
+const naechsterTerminText = computed(() => {
+  return naechsterTermin.value?.titel || 'keiner geplant'
+})
 function phasenStatus(p) {
   if (isPhaseDone(p)) return 'done'
   if (phasen.value[currentPhase.value - 1]?.id === p.id) return 'current'
