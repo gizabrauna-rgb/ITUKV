@@ -95,6 +95,28 @@
           </div>
         </div>
 
+        <!-- 1b) Bereits erledigt (kannst du jederzeit anpassen) -->
+        <div v-if="meineErledigteAufgaben.length" class="bg-white rounded-2xl border border-gray-100 p-5 mb-4">
+          <div class="flex items-center gap-2 mb-3">
+            <Check class="w-4 h-4 text-green-600" />
+            <h4 class="text-sm font-semibold text-gray-700">Bereits erledigt – kannst du jederzeit anpassen</h4>
+          </div>
+          <div class="space-y-2">
+            <button v-for="a in meineErledigteAufgaben" :key="a.id" @click="onAufgabeClick(a)"
+              class="w-full flex items-center justify-between gap-3 p-2.5 border border-gray-100 rounded-xl hover:border-[#0088ba] hover:bg-[#0088ba]/5 text-left transition-colors group">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                  <Check class="w-2.5 h-2.5 text-white" />
+                </div>
+                <span class="text-sm text-gray-500 truncate group-hover:text-gray-800">{{ cleanLabel(a.label) }}</span>
+              </div>
+              <span class="text-xs text-gray-400 group-hover:text-[#0088ba] flex items-center gap-1 flex-shrink-0">
+                Anpassen <ChevronRight class="w-3 h-3" />
+              </span>
+            </button>
+          </div>
+        </div>
+
         <!-- 2) Wo stehen wir gerade? (Stufen-Leiste + was mibeca gerade macht) -->
         <div v-if="phasen.length" class="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-4">
           <!-- Header mit Stufen-Leiste -->
@@ -638,6 +660,19 @@ const meineOffenenAufgaben = computed(() => {
   // Nur Aufgaben mit EXPLIZITEM Verantwortlich = Kunde/Verkäufer/Käufer; leere Verantwortung
   // ist immer mibeca-intern und darf nicht hier landen.
   return ph.aufgaben.filter(a => !isTaskDone(a) && a.verantwortlich && isMineResponsibility(a.verantwortlich))
+})
+
+// Aufgaben, die der Mandant bereits erledigt hat UND die ein editierbares Formular/Modal haben
+// Diese werden in der „Bereits erledigt – kannst du jederzeit anpassen"-Sektion gezeigt.
+const REDITIERBARE_AUFGABEN_IDS = ['uve4', 'uve7', 'k3']
+const meineErledigteAufgaben = computed(() => {
+  const ph = aktuellePhaseObj.value
+  if (!ph || !Array.isArray(ph.aufgaben)) return []
+  return ph.aufgaben.filter(a =>
+    isTaskDone(a) &&
+    a.verantwortlich && isMineResponsibility(a.verantwortlich) &&
+    REDITIERBARE_AUFGABEN_IDS.includes(a.id)
+  )
 })
 
 // Aufgaben der aktuellen Phase, die NICHT der Mandant zu erledigen hat
