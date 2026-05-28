@@ -37,6 +37,11 @@
           </div>
         </div>
 
+        <button @click="showHilfe = true" class="flex items-center gap-1.5 text-xs text-gray-300 hover:text-white" title="Hilfe & Handbuch">
+          <HelpCircle class="w-4 h-4" />
+          <span class="hidden sm:inline">Hilfe</span>
+        </button>
+
         <!-- Posteingang / Ungelesen-Badge mit Dropdown -->
         <div class="relative">
           <button @click="showBell = !showBell" class="relative flex items-center gap-1.5 text-xs text-gray-300 hover:text-white">
@@ -310,6 +315,9 @@
       </main>
     </div>
 
+    <!-- Hilfe SlideOver -->
+    <HilfeSlideOver v-if="showHilfe" role="admin" @close="showHilfe = false" />
+
   </div>
 </template>
 
@@ -317,10 +325,11 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import {
   Building2, LogOut, LayoutDashboard, Briefcase, GitBranch,
-  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow, Bell, BarChart3, AlertCircle, Activity, Mail, CalendarClock, ShieldCheck,
+  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow, Bell, BarChart3, AlertCircle, Activity, Mail, CalendarClock, ShieldCheck, HelpCircle,
 } from '@lucide/vue'
 import { authFetch, verlaufUnreadCount, verlaufMarkRead } from '../api.js'
 import TargetsTab from '../components/admin/TargetsTab.vue'
+import HilfeSlideOver from '../components/HilfeSlideOver.vue'
 import CrmTab from '../components/admin/CrmTab.vue'
 import AusschreibungenTab from '../components/admin/AusschreibungenTab.vue'
 import DokumenteTab from '../components/admin/DokumenteTab.vue'
@@ -336,6 +345,7 @@ const emit = defineEmits(['logout', 'switch-view'])
 
 const tab = ref(sessionStorage.getItem('admin.tab') || 'uebersicht')
 watch(tab, v => sessionStorage.setItem('admin.tab', v))
+const showHilfe = ref(false)
 const showSwitcher = ref(false)
 
 const targetTypes = ['UVE Target', 'Projekt Target', 'MC Target']

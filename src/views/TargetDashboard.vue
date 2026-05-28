@@ -10,6 +10,10 @@
         </div>
       </div>
       <div class="flex items-center gap-4">
+        <button @click="showHilfe = true" class="flex items-center gap-1.5 text-xs text-gray-300 hover:text-white" title="Hilfe & Handbuch">
+          <HelpCircle class="w-4 h-4" />
+          <span class="hidden sm:inline">Hilfe</span>
+        </button>
         <button @click="openVerlauf" class="relative flex items-center gap-1.5 text-xs text-gray-300 hover:text-white" :title="`${unreadTotal} ungelesene Nachrichten`">
           <Bell class="w-4 h-4" />
           <span v-if="unreadTotal > 0" class="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
@@ -393,6 +397,9 @@
       </div>
     </div>
 
+    <!-- Hilfe SlideOver -->
+    <HilfeSlideOver v-if="showHilfe" :role="hilfeRole" @close="showHilfe = false" />
+
     <!-- Kosten-Info Modal -->
     <KostenInfo v-if="showKostenModal" :target-id="targetId" :bestaetigt-am="target?.kostenInfoBestaetigtAm" @close="showKostenModal = false" @confirmed="onKostenBestaetigt" />
 
@@ -423,13 +430,14 @@ import {
   Building2, LogOut, Briefcase, Users, FolderOpen, Check, CheckCircle, Circle,
   Star, UserCheck, Ban, Folder, ChevronLeft, Upload, FileText, Download,
   Link as LinkIcon, Plus, Trash2, X, ClipboardList, FileEdit, MessageSquare, TrendingUp, Clock, Bell,
-  User, ChevronRight
+  User, ChevronRight, HelpCircle
 } from '@lucide/vue'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
 import MandatDaten from '../components/target/MandatDaten.vue'
 import PressetextFreigabe from '../components/target/PressetextFreigabe.vue'
 import KostenInfo from '../components/target/KostenInfo.vue'
+import HilfeSlideOver from '../components/HilfeSlideOver.vue'
 import ZieleMotivationen from '../components/target/ZieleMotivationen.vue'
 import AkquisitionsstrategieKaeufer from '../components/target/AkquisitionsstrategieKaeufer.vue'
 import KaeuferVorschlaege from '../components/target/KaeuferVorschlaege.vue'
@@ -448,6 +456,13 @@ const targetId = sessionStorage.getItem('targetId') || ''
 
 const tab = ref(sessionStorage.getItem('target.tab') || 'projekt')
 watch(tab, v => sessionStorage.setItem('target.tab', v))
+
+// Hilfe-SlideOver
+const showHilfe = ref(false)
+const hilfeRole = computed(() => {
+  const typ = props.projekttyp || target.value?.projekttyp || ''
+  return /kauf|investor/i.test(typ) ? 'kaeufer' : 'verkaeufer'
+})
 const checkliste = ref([])
 const interessenten = ref([])
 const dokumente = ref([])
