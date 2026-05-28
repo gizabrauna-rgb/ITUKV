@@ -322,7 +322,7 @@ watch(() => props.initialTab, (v) => {
 // =============== Tab-Gruppen (Haupt-Kategorien + Unter-Tabs) ===============
 const TAB_GROUP_DEFS = [
   { key: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard, tabs: ['uebersicht', 'prozess'] },
-  { key: 'mandat', label: 'Mandat', icon: ClipboardList, tabs: ['mandat', 'fragebogen', 'bewertung', 'suchprofil'] },
+  { key: 'mandat', label: 'Mandat', icon: ClipboardList, tabs: ['mandat', 'ziele', 'fragebogen', 'bewertung', 'suchprofil'] },
   { key: 'vertraege', label: 'Verträge', icon: ShieldCheck, tabs: ['nda'] },
   { key: 'markt', label: 'Marktansprache', icon: Users, tabs: ['expose', 'landing', 'interessenten', 'longlist'] },
   { key: 'datenraum', label: 'Datenraum', icon: Folder, tabs: ['dokumente'] },
