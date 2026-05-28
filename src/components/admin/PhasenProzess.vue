@@ -115,25 +115,25 @@ const PHASEN_VORLAGE = () => ([
   { id: 1, titel: '1. UVE Start — Vorbereitungs-Checkliste', notiz: '', aufgaben: [
     { id: 'uve1', label: 'MB050: Videolektionen ansehen ("Wie läuft Verkauf von A bis Z ab?")', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
     { id: 'uve2', label: 'MB050: Fragebogen Unternehmensbewertung ausgefüllt', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'fragebogenAbgegeben' },
-    { id: 'uve3', label: 'MB050: Due-Diligence-Datenraum nach Muster anlegen', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
+    { id: 'uve3', label: 'MB050: Due-Diligence-Datenraum nach Muster anlegen', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'datenraumHatDokumente' },
     { id: 'uve4', label: 'MB041: Verkaufsstory entwickeln (Ziele, Wunsch-Exit, W-Fragen, Deal-Struktur)', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
     { id: 'uve5', label: 'Eigenes Unternehmensexposé erstellen + vom Verkäufer freigegeben', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'exposeApproved' },
     { id: 'uve6', label: 'Verkaufsmandat erteilen → Marktansprache durch mibeca', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
     { id: 'uve7', label: 'Kosten-Tabelle ansehen ("Welche Kosten kommen auf Dich zu")', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
-    { id: 't1', label: 'Zahlen, Daten, Fakten zusammentragen', done: false, verantwortlich: '', datum: '', notiz: '' },
-    { id: 't2', label: 'Unternehmensbewertung erstellen', done: false, verantwortlich: '', datum: '', notiz: '' },
-    { id: 't3', label: 'Exposé-Entwurf erstellen', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 't1', label: 'Zahlen, Daten, Fakten zusammentragen', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'stammdatenZdfVorhanden' },
+    { id: 't2', label: 'Unternehmensbewertung erstellen', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'bewertungVorhanden' },
+    { id: 't3', label: 'Exposé-Entwurf erstellen', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'exposeEntwurfVorhanden' },
   ]},
   { id: 2, titel: '2. UVE Abschluss — Verkaufsmandat-Eröffnung', notiz: '', aufgaben: [
     { id: 't1', label: 'Verkaufsmandat unterzeichnet (12 Monate)', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'mandatGegengezeichnet' },
     { id: 't2', label: 'Standard-Ordner anlegen: ITUKV/UVE/mb-XX', done: false, verantwortlich: '', datum: '', notiz: '' },
     { id: 't3', label: 'Onboarding durch Jenny (+ Content)', done: false, verantwortlich: 'Jenny', datum: '', notiz: '' },
-    { id: 't4', label: 'Kundenakte angelegt', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 't4', label: 'Kundenakte angelegt', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'kundenakteAngelegt' },
   ]},
   { id: 3, titel: '3. Marktansprache — Interessenten anschreiben', notiz: '', aufgaben: [
     { id: 't1', label: 'Landing-Page online (targets.itukv.de/mb-XX)', done: false, verantwortlich: 'Marketing', datum: '', notiz: '', auto: 'landingPublished' },
-    { id: 't2', label: 'Erstinteressenten aus Kundenstamm filtern (PLZ-Radius)', done: false, verantwortlich: '', datum: '', notiz: '' },
-    { id: 't3', label: 'Anschreiben über zahlreiche Kanäle (Mail/Brief/Telefon)', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 't2', label: 'Erstinteressenten aus Kundenstamm filtern (PLZ-Radius)', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'interessentenAngelegt' },
+    { id: 't3', label: 'Anschreiben über zahlreiche Kanäle (Mail/Brief/Telefon)', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'anschreibenVerschickt' },
     { id: 't4', label: 'KEINE Exklusivität zugesagt!', done: false, verantwortlich: '', datum: '', notiz: '' },
   ]},
   { id: 4, titel: '4. NDA von Interessenten abholen', notiz: '', aufgaben: [
@@ -142,8 +142,8 @@ const PHASEN_VORLAGE = () => ([
     { id: 't3', label: 'Signierte NDAs in Akte ablegen', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'ndaInDatenraum' },
   ]},
   { id: 5, titel: '5. Erstes Kennenlernen — Interessent ↔ Verkäufer', notiz: '', aufgaben: [
-    { id: 't1', label: 'Termin koordinieren (3er-Gespräch)', done: false, verantwortlich: '', datum: '', notiz: '' },
-    { id: 't2', label: 'Gespräch durchgeführt + Notizen', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 't1', label: 'Termin koordinieren (3er-Gespräch)', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'kennenlernenGeplant' },
+    { id: 't2', label: 'Gespräch durchgeführt + Notizen', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'kennenlernenErfolgt' },
     { id: 't3', label: 'Eindruck dokumentieren', done: false, verantwortlich: '', datum: '', notiz: '' },
   ]},
   { id: 6, titel: '6. Datenraum / Kommunikationsraum in Element', notiz: '', aufgaben: [
@@ -170,7 +170,7 @@ const PHASEN_VORLAGE = () => ([
     { id: 't2', label: 'LOI vollständig verhandelt (alle Punkte final)', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'loiFinal' },
   ]},
   { id: 11, titel: '11. Due Diligence', notiz: '', aufgaben: [
-    { id: 'ddprep', label: 'Datenraum vollständig befüllt', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 'ddprep', label: 'Datenraum vollständig befüllt', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'datenraumGefuellt' },
     { id: 'dda', label: 'A. Allgemeines: Ansprechpartner geklärt (Veräußerer + Erwerber)', done: false, verantwortlich: '', datum: '', notiz: '' },
     { id: 'ddb', label: 'B. Rechtliche DD: Gesellschaftsunterlagen, Verträge, Arbeitsrecht (~58 Items)', done: false, verantwortlich: 'Anwalt', datum: '', notiz: '' },
     { id: 'ddc', label: 'C. Steuerliche DD: Veranlagung, Betriebsprüfungen, Verlustvorträge (~35 Items)', done: false, verantwortlich: 'Steuerberater', datum: '', notiz: '' },
@@ -188,8 +188,8 @@ const PHASEN_VORLAGE = () => ([
     { id: 't6', label: 'Finale Version abgestimmt zwischen Käufer und Verkäufer', done: false, verantwortlich: '', datum: '', notiz: '' },
   ]},
   { id: 13, titel: '13. Notartermin & Closing', notiz: '', aufgaben: [
-    { id: 't1', label: 'Notartermin koordiniert', done: false, verantwortlich: '', datum: '', notiz: '' },
-    { id: 't2', label: 'Unterzeichnung beim Notar', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 't1', label: 'Notartermin koordiniert', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'notarGeplant' },
+    { id: 't2', label: 'Unterzeichnung beim Notar', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'notarErfolgt' },
     { id: 't3', label: 'Kaufpreis überwiesen', done: false, verantwortlich: '', datum: '', notiz: '' },
     { id: 't4', label: 'Anteilsübertragung vollzogen', done: false, verantwortlich: '', datum: '', notiz: '' },
   ]},
@@ -241,8 +241,8 @@ const PHASEN_KAUF = () => ([
     { id: 'k2', label: 'Anonymität aufgelöst', done: false, verantwortlich: '', datum: '', notiz: '' },
   ]},
   { id: 7, titel: '7. Erstes Kennenlernen', notiz: '', aufgaben: [
-    { id: 'k1', label: 'Termin zwischen Käufer und Verkäufer-Kandidat', done: false, verantwortlich: 'Jenny', datum: '', notiz: '' },
-    { id: 'k2', label: 'Gespräch durchgeführt + Bewertung', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 'k1', label: 'Termin zwischen Käufer und Verkäufer-Kandidat', done: false, verantwortlich: 'Jenny', datum: '', notiz: '', auto: 'kennenlernenGeplant' },
+    { id: 'k2', label: 'Gespräch durchgeführt + Bewertung', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'kennenlernenErfolgt' },
   ]},
   { id: 8, titel: '8. LOI / Indikatives Angebot', notiz: '', aufgaben: [
     { id: 'k1', label: 'LOI mit Verkäufer-Kandidat verhandelt', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'loiGestartet' },
@@ -258,7 +258,7 @@ const PHASEN_KAUF = () => ([
   { id: 10, titel: '10. Vertrag & Closing', notiz: '', aufgaben: [
     { id: 'k1', label: 'Kaufvertrag (SPA/Asset Deal) verhandelt', done: false, verantwortlich: 'Anwalt', datum: '', notiz: '' },
     { id: 'k2', label: 'Mandatsvertrag mit mibeca unterzeichnet', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'mandatGegengezeichnet' },
-    { id: 'k3', label: 'Notartermin und Closing', done: false, verantwortlich: 'Notar', datum: '', notiz: '' },
+    { id: 'k3', label: 'Notartermin und Closing', done: false, verantwortlich: 'Notar', datum: '', notiz: '', auto: 'notarErfolgt' },
     { id: 'k4', label: 'Erfolgshonorar abgerechnet', done: false, verantwortlich: 'Claudia', datum: '', notiz: '' },
   ]},
 ])
@@ -271,6 +271,7 @@ const phasen = ref(PHASEN_VORLAGE())
 const expanded = ref({})
 const currentTarget = ref(null)
 const interessentenList = ref([])
+const dokumenteCount = ref(0)
 
 onMounted(async () => {
   if (!embedded.value) {
@@ -292,19 +293,38 @@ onMounted(async () => {
 // System-Ereignisse die Aufgaben automatisch als erledigt markieren
 const autoChecks = computed(() => {
   const t = currentTarget.value || {}
-  let vertrag = {}, expose = {}, landing = {}, presse = {}, loi = {}, suchprofil = {}, longlist = [], kaeuferFb = {}
+  let vertrag = {}, expose = {}, landing = {}, presse = {}, loi = {}, bewertung = {}
+  let suchprofil = {}, longlist = [], kaeuferFb = {}, verlauf = [], termine = []
   try { vertrag = JSON.parse(t.vertragJson || '{}') } catch {}
   try { expose = JSON.parse(t.exposeJson || '{}') } catch {}
   try { landing = JSON.parse(t.landingJson || '{}') } catch {}
   try { presse = JSON.parse(t.presseJson || '{}') } catch {}
   try { loi = JSON.parse(t.loiJson || '{}') } catch {}
+  try { bewertung = JSON.parse(t.bewertungJson || '{}') } catch {}
   try { suchprofil = JSON.parse(t.suchprofilJson || '{}') } catch {}
   try { longlist = JSON.parse(t.longlistJson || '[]') } catch {}
   try { kaeuferFb = JSON.parse(t.kaeuferFeedbackJson || '{}') } catch {}
+  try { verlauf = JSON.parse(t.kommunikationJson || '[]') } catch {}
+  try { termine = JSON.parse(t.termineJson || '[]') } catch {}
+
   const ndas = (interessentenList.value || []).filter(i => i.ndaStatus === 'unterzeichnet')
   const loiPunkte = loi.punkte || []
+  const docCount = dokumenteCount.value || 0
+
+  // Termine nach Typ + Status
+  const terminVorhanden = (typ) => termine.some(tm => (tm.typ || '') === typ)
+  const terminErledigt = (typ) => termine.some(tm => (tm.typ || '') === typ && (tm.erledigt || (tm.datum && tm.datum < new Date().toISOString().slice(0, 10))))
+
+  // Verlauf
+  const mailOutVorhanden = verlauf.some(e => e.typ === 'mail_out')
+  const telefonatVorhanden = verlauf.some(e => e.typ === 'telefon')
+
+  // Datenwerte
+  const stammdatenVorhanden = !!(t.mitarbeiter && t.umsatz && t.branche)
+  const ebitVorhanden = !!(t.ebitMarge || (bewertung.adjustedEbit && Number(bewertung.adjustedEbit) > 0))
+
   return {
-    // Verkauf
+    // Bestand (Verkauf)
     fragebogenAbgegeben: t.fragebogenStatus === 'abgegeben',
     mandatGegengezeichnet: !!vertrag.gegengezeichnetAm,
     landingPublished: landing.status === 'published',
@@ -314,13 +334,36 @@ const autoChecks = computed(() => {
     pressetextErstellt: !!presse.text,
     pressetextFreigegeben: presse.freigabeStatus === 'freigegeben',
     presseVersand: !!presse.versendetAm,
-    // Kauf
+    // Bestand (Kauf)
     suchprofilFreigegeben: !!suchprofil.freigegeben || (suchprofil.kriterien && Object.keys(suchprofil.kriterien).length > 0),
     longListHatEintraege: Array.isArray(longlist) && longlist.length > 0,
     kaeuferFeedbackVorhanden: Object.keys(kaeuferFb).length > 0,
-    // Beide
+    // Bestand (beide)
     loiGestartet: loiPunkte.some(p => p.einigung || p.angebotKaeufer || p.angebotVerkaeufer),
     loiFinal: loiPunkte.length > 0 && loiPunkte.every(p => p.final),
+
+    // ---- NEU: Datenraum & Stammdaten ----
+    datenraumHatDokumente: docCount > 0,
+    datenraumGefuellt: docCount >= 5,
+    stammdatenZdfVorhanden: stammdatenVorhanden,
+    bewertungVorhanden: ebitVorhanden,
+    exposeEntwurfVorhanden: !!(expose.headline || expose.beschreibung || expose.kennzahlenJson),
+    kundenakteAngelegt: !!t.RowKey,
+
+    // ---- NEU: Marktansprache ----
+    mailOutVorhanden,
+    anschreibenVerschickt: mailOutVorhanden || telefonatVorhanden,
+
+    // ---- NEU: Termine ----
+    kennenlernenGeplant: terminVorhanden('kennenlernen'),
+    kennenlernenErfolgt: terminErledigt('kennenlernen'),
+    ddTerminGeplant: terminVorhanden('dd'),
+    ddTerminErfolgt: terminErledigt('dd'),
+    notarGeplant: terminVorhanden('notar'),
+    notarErfolgt: terminErledigt('notar'),
+
+    // ---- NEU: NDA & Interessenten ----
+    interessentenAngelegt: (interessentenList.value || []).length > 0,
   }
 })
 
@@ -402,6 +445,11 @@ async function loadTarget() {
     currentTarget.value = target
     try { interessentenList.value = await authFetch('/interessenten', { method: 'POST', data: { targetId: selectedTargetId.value } }) }
     catch { interessentenList.value = [] }
+    // Dokument-Anzahl fuer auto-checks
+    try {
+      const dr = await authFetch('/dokument-list', { method: 'POST', data: { targetId: selectedTargetId.value } })
+      dokumenteCount.value = (dr.items || []).length
+    } catch { dokumenteCount.value = 0 }
     const defaultVorlage = vorlageFuer(target)
     if (target.phasenJson) {
       try {
