@@ -128,6 +128,11 @@
         <MandatDaten :target-id="targetId" />
       </div>
 
+      <!-- Ziele & Strategie (Verkäufer: Ziele/Motivation, Käufer: Akquisitionsstrategie) -->
+      <div v-else-if="tab === 'ziele'">
+        <ZieleStrategieAnzeige :target-id="targetId" />
+      </div>
+
       <!-- Fragebogen (Read-only von Kunde, Jenny sieht alle Antworten) -->
       <div v-else-if="tab === 'fragebogen'">
         <Fragebogen :target-id="targetId" />
@@ -222,12 +227,13 @@ import {
   ArrowLeft, MapPin, Tag, Users, Euro, Hash, Mail,
   Sparkles, Circle, Folder, FileText, MessageSquare,
   LayoutDashboard, Workflow, ClipboardList, FileEdit, ShieldCheck, Clock, TrendingUp, Trophy, BookOpen,
-  CalendarClock, X, Globe, Handshake
+  CalendarClock, X, Globe, Handshake, Target
 } from '@lucide/vue'
 import { authFetch, statusReportPdf } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 import PhasenProzessEingebettet from './PhasenProzess.vue'
 import MandatDaten from '../target/MandatDaten.vue'
+import ZieleStrategieAnzeige from './ZieleStrategieAnzeige.vue'
 import Fragebogen from '../target/Fragebogen.vue'
 import Unternehmensbewertung from '../target/Unternehmensbewertung.vue'
 import Suchprofil from './Suchprofil.vue'
@@ -263,6 +269,7 @@ const tabs = computed(() => {
     return [
       { tab: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard },
       { tab: 'prozess', label: 'Master-Prozess', icon: Workflow },
+      { tab: 'ziele', label: 'Strategie & Ziele', icon: Target },
       { tab: 'suchprofil', label: 'Suchprofil', icon: FileEdit },
       { tab: 'mandat', label: 'Mandat-Daten', icon: ClipboardList },
       { tab: 'nda', label: 'Verträge', icon: ShieldCheck },
@@ -279,6 +286,7 @@ const tabs = computed(() => {
   return [
     { tab: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard },
     { tab: 'prozess', label: 'Master-Prozess', icon: Workflow },
+    { tab: 'ziele', label: 'Ziele & Motivation', icon: Target },
     { tab: 'fragebogen', label: 'Fragebogen', icon: FileEdit },
     { tab: 'bewertung', label: 'Bewertung', icon: TrendingUp },
     { tab: 'mandat', label: 'Mandat-Daten', icon: ClipboardList },

@@ -3,19 +3,6 @@
     <h2 class="text-xl font-bold text-gray-900 mb-1">Meine Daten</h2>
     <p class="text-sm text-gray-500 mb-5">Stammdaten zu deinem Mandat – persönliche Kontaktdaten und Vorgangsnummern.</p>
 
-    <!-- Hinweis-Banner: wo finde ich die anderen Sachen -->
-    <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-5 text-sm text-blue-900">
-      <strong class="block mb-1">📍 Wo finde ich was?</strong>
-      <ul class="text-xs space-y-0.5 ml-1">
-        <li>· Fragebogen → eigener <strong>Fragebogen</strong>-Tab</li>
-        <li>· Unternehmensbewertung → eigener <strong>Bewertung</strong>-Tab</li>
-        <li>· Exposé → eigener <strong>Mein Exposé</strong>-Tab</li>
-        <li>· NDA &amp; Mandatsvertrag → eigener <strong>Verträge</strong>-Tab (in der Akte)</li>
-        <li>· Datenraum &amp; Dokumente → eigener <strong>Dokumente</strong>-Tab</li>
-        <li>· Interessenten &amp; Käufer → eigener <strong>Interessenten</strong>-Tab</li>
-      </ul>
-    </div>
-
     <!-- Fortschritts-Übersicht -->
     <div class="bg-white rounded-xl border border-gray-100 p-5 mb-6">
       <div class="flex items-center justify-between mb-2">
