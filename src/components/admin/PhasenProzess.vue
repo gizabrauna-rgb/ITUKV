@@ -111,6 +111,7 @@ import { Check, ChevronDown, Plus, Trash2, Workflow } from '@lucide/vue'
 import { getTargets, authFetch } from '../../api.js'
 
 // Master-Prozess Vorlage (13 Phasen aus Jennys Doku)
+// HINWEIS: identische Templates sind auch in src/lib/phasenTemplates.js fuer TargetDashboard.vue
 const PHASEN_VORLAGE = () => ([
   { id: 1, titel: '1. UVE Start — Vorbereitungs-Checkliste', notiz: '', aufgaben: [
     { id: 'uve1', label: 'MB050: Videolektionen ansehen ("Wie läuft Verkauf von A bis Z ab?")', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },

@@ -75,21 +75,8 @@
 
       <!-- Tab: Mein Projekt -->
       <div v-if="tab === 'projekt'">
-        <!-- Fallback wenn noch keine Phasen vorhanden -->
-        <div v-if="!phasen.length" class="bg-white rounded-2xl border border-gray-100 p-8 text-center">
-          <div class="w-12 h-12 rounded-full bg-[#0088ba]/10 flex items-center justify-center mx-auto mb-4">
-            <Briefcase class="w-6 h-6 text-[#0088ba]" />
-          </div>
-          <h3 class="font-bold text-gray-900 mb-2">Dein Mandat wird gerade vorbereitet</h3>
-          <p class="text-sm text-gray-600 max-w-md mx-auto">
-            Deine M&A-Beraterin bei mibeca legt aktuell die Prozess-Schritte für dein Mandat an.
-            Sobald das fertig ist, siehst du hier deine konkreten Aufgaben und den aktuellen Stand.
-          </p>
-          <p class="text-xs text-gray-400 mt-4">Bei Fragen: <a href="mailto:jk@mike-bergmann.de" class="text-[#0088ba] hover:underline">jk@mike-bergmann.de</a></p>
-        </div>
-
         <!-- 1) Was steht für DICH an? -->
-        <div v-else-if="meineOffenenAufgaben.length" class="bg-white rounded-2xl border-2 border-[#0088ba]/20 p-6 mb-4">
+        <div v-if="meineOffenenAufgaben.length" class="bg-white rounded-2xl border-2 border-[#0088ba]/20 p-6 mb-4">
           <div class="flex items-start gap-3 mb-4">
             <div class="w-10 h-10 rounded-full bg-[#0088ba]/10 flex items-center justify-center flex-shrink-0">
               <CheckCircle class="w-5 h-5 text-[#0088ba]" />
@@ -431,6 +418,7 @@ import Unternehmensbewertung from '../components/target/Unternehmensbewertung.vu
 import ExposeFreigabe from '../components/target/ExposeFreigabe.vue'
 import Verlauf from '../components/admin/Verlauf.vue'
 import { authFetch, getInteressenten, updateInteressent, verlaufUnreadCount, verlaufMarkRead } from '../api.js'
+import { getPhasenVorlage } from '../lib/phasenTemplates.js'
 
 const props = defineProps({ userName: String, projekttyp: String, impersonating: Boolean })
 const emit = defineEmits(['logout'])
@@ -500,7 +488,15 @@ const progress = computed(() => !checkliste.value.length ? 0 : Math.round(doneCo
 
 // --- Master-Prozess (Phasen-Sicht für Kunden) ---
 const phasen = computed(() => {
-  try { return JSON.parse(target.value?.phasenJson || '[]') } catch { return [] }
+  let stored = []
+  try { stored = JSON.parse(target.value?.phasenJson || '[]') } catch { stored = [] }
+  // Fallback: wenn am Target noch keine Phasen gespeichert sind, nutze die
+  // Standard-Vorlage (Verkauf oder Kauf) - so sieht der Mandant sofort
+  // den vordefinierten Prozess, auch wenn das Admin-Setup noch nicht ausgefuehrt wurde
+  if (!Array.isArray(stored) || stored.length === 0) {
+    return getPhasenVorlage(props.projekttyp || target.value?.projekttyp || '')
+  }
+  return stored
 })
 function isPhaseDone(p) { return p.aufgaben && p.aufgaben.length && p.aufgaben.every(t => t.done) }
 const currentPhase = computed(() => {
