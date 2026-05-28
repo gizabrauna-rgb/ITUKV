@@ -554,10 +554,60 @@ function isMineResponsibility(verantwortlich) {
   return v === 'kunde' || v === 'käufer' || v === 'kaeufer' || v === 'verkäufer' || v === 'verkaeufer'
 }
 
+// Auto-Check: System-Ereignisse die Aufgaben automatisch als erledigt markieren
+// (vereinfachte Version – sync mit PhasenProzess.vue)
+const autoChecks = computed(() => {
+  const t = target.value || {}
+  let vertrag = {}, expose = {}, landing = {}, presse = {}, loi = {}, bewertung = {}
+  let suchprofil = {}, longlist = [], verlauf = [], termine = []
+  try { vertrag = JSON.parse(t.vertragJson || '{}') } catch {}
+  try { expose = JSON.parse(t.exposeJson || '{}') } catch {}
+  try { landing = JSON.parse(t.landingJson || '{}') } catch {}
+  try { presse = JSON.parse(t.presseJson || '{}') } catch {}
+  try { loi = JSON.parse(t.loiJson || '{}') } catch {}
+  try { bewertung = JSON.parse(t.bewertungJson || '{}') } catch {}
+  try { suchprofil = JSON.parse(t.suchprofilJson || '{}') } catch {}
+  try { longlist = JSON.parse(t.longlistJson || '[]') } catch {}
+  try { verlauf = JSON.parse(t.kommunikationJson || '[]') } catch {}
+  try { termine = JSON.parse(t.termineJson || '[]') } catch {}
+  const loiPunkte = loi.punkte || []
+  const stammdatenVorhanden = !!(t.mitarbeiter && t.umsatz && t.branche)
+  const ebitVorhanden = !!(t.ebitMarge || (bewertung.adjustedEbit && Number(bewertung.adjustedEbit) > 0))
+  const terminVorhanden = (typ) => termine.some(tm => (tm.typ || '') === typ)
+  const terminErledigt = (typ) => termine.some(tm => (tm.typ || '') === typ && (tm.erledigt || (tm.datum && tm.datum < new Date().toISOString().slice(0, 10))))
+  return {
+    fragebogenAbgegeben: t.fragebogenStatus === 'abgegeben',
+    mandatGegengezeichnet: !!vertrag.gegengezeichnetAm,
+    landingPublished: landing.status === 'published',
+    exposeApproved: expose.status === 'approved',
+    pressetextErstellt: !!presse.text,
+    pressetextFreigegeben: presse.freigabeStatus === 'freigegeben',
+    presseVersand: !!presse.versendetAm,
+    suchprofilFreigegeben: !!suchprofil.freigegeben || (suchprofil.kriterien && Object.keys(suchprofil.kriterien).length > 0),
+    longListHatEintraege: Array.isArray(longlist) && longlist.length > 0,
+    loiGestartet: loiPunkte.some(p => p.einigung || p.angebotKaeufer || p.angebotVerkaeufer),
+    loiFinal: loiPunkte.length > 0 && loiPunkte.every(p => p.final),
+    stammdatenZdfVorhanden: stammdatenVorhanden,
+    bewertungVorhanden: ebitVorhanden,
+    exposeEntwurfVorhanden: !!(expose.headline || expose.beschreibung || expose.kennzahlenJson),
+    kundenakteAngelegt: !!t.RowKey,
+    kennenlernenGeplant: terminVorhanden('kennenlernen'),
+    kennenlernenErfolgt: terminErledigt('kennenlernen'),
+  }
+})
+
+function isTaskDone(a) {
+  if (!a) return false
+  if (a.auto && autoChecks.value[a.auto]) return true
+  return !!a.done
+}
+
 const meineOffenenAufgaben = computed(() => {
   const ph = aktuellePhaseObj.value
   if (!ph || !Array.isArray(ph.aufgaben)) return []
-  return ph.aufgaben.filter(a => !a.done && (!a.verantwortlich || isMineResponsibility(a.verantwortlich)))
+  // Nur Aufgaben mit EXPLIZITEM Verantwortlich = Kunde/Verkäufer/Käufer; leere Verantwortung
+  // ist immer mibeca-intern und darf nicht hier landen.
+  return ph.aufgaben.filter(a => !isTaskDone(a) && a.verantwortlich && isMineResponsibility(a.verantwortlich))
 })
 
 // Aufgaben der aktuellen Phase, die NICHT der Mandant zu erledigen hat
@@ -565,7 +615,8 @@ const meineOffenenAufgaben = computed(() => {
 const aufgabenOhneMich = computed(() => {
   const ph = aktuellePhaseObj.value
   if (!ph || !Array.isArray(ph.aufgaben)) return []
-  return ph.aufgaben.filter(a => a.verantwortlich && !isMineResponsibility(a.verantwortlich))
+  return ph.aufgaben.map(a => ({ ...a, done: isTaskDone(a) }))
+    .filter(a => !a.verantwortlich || !isMineResponsibility(a.verantwortlich))
 })
 
 // Mapping: Aufgaben-Label → Ziel-Tab
