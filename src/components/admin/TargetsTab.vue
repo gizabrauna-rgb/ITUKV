@@ -203,6 +203,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { Plus, X, Search, Trash2 } from '@lucide/vue'
 import { getTargets, createTarget as apiCreateTarget, updateTarget, deleteTarget } from '../../api.js'
+import { getPhasenVorlage } from '../../lib/phasenTemplates.js'
 import { toast } from '../../composables/useToast.js'
 
 const emit = defineEmits(['open-detail'])
@@ -370,19 +371,15 @@ function statusSelectClass(s) {
 }
 
 function phaseProgress(t) {
-  try {
-    const phasen = t.phasenJson ? JSON.parse(t.phasenJson) : []
-    const gesamt = phasen.length || 15
-    let aktuell = 0
-    for (const p of phasen) {
-      const aufg = p.aufgaben || []
-      if (aufg.length && aufg.every(a => a.done)) aktuell++
-    }
-    const percent = gesamt > 0 ? Math.round((aktuell / gesamt) * 100) : 0
-    return { aktuell, gesamt, percent }
-  } catch {
-    return { aktuell: 0, gesamt: 15, percent: 0 }
+  const phasen = getPhasen(t)
+  const gesamt = phasen.length || 15
+  let aktuell = 0
+  for (const p of phasen) {
+    const aufg = p.aufgaben || []
+    if (aufg.length && aufg.every(a => a.done)) aktuell++
   }
+  const percent = gesamt > 0 ? Math.round((aktuell / gesamt) * 100) : 0
+  return { aktuell, gesamt, percent }
 }
 
 function lastActivityDate(t) {
@@ -433,14 +430,21 @@ function istMandantAufgabe(v) {
   return x === 'kunde' || x === 'käufer' || x === 'kaeufer' || x === 'verkäufer' || x === 'verkaeufer'
 }
 
-function currentPhase(t) {
+function getPhasen(t) {
+  // Wenn phasenJson leer/ungueltig -> aktuelle Vorlage fuer den Projekttyp laden
   try {
     const ph = JSON.parse(t.phasenJson || '[]')
-    for (let i = 0; i < ph.length; i++) {
-      if ((ph[i].aufgaben || []).some(a => !a.done)) return { idx: i + 1, obj: ph[i], total: ph.length }
-    }
-    return { idx: ph.length || 1, obj: ph[ph.length - 1] || null, total: ph.length }
-  } catch { return { idx: 1, obj: null, total: 0 } }
+    if (Array.isArray(ph) && ph.length) return ph
+  } catch {}
+  return getPhasenVorlage(t.projekttyp || '')
+}
+
+function currentPhase(t) {
+  const ph = getPhasen(t)
+  for (let i = 0; i < ph.length; i++) {
+    if ((ph[i].aufgaben || []).some(a => !a.done)) return { idx: i + 1, obj: ph[i], total: ph.length }
+  }
+  return { idx: ph.length || 1, obj: ph[ph.length - 1] || null, total: ph.length }
 }
 function currentPhaseTitle(t) {
   const o = currentPhase(t).obj
