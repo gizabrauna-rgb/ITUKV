@@ -120,7 +120,7 @@ const PHASEN_VORLAGE = () => ([
     { id: 'uve4', label: 'MB041: Verkaufsstory entwickeln (Ziele, Wunsch-Exit, W-Fragen, Deal-Struktur)', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
     { id: 'uve5', label: 'Eigenes Unternehmensexposé erstellen + vom Verkäufer freigegeben', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'exposeApproved' },
     { id: 'uve6', label: 'Verkaufsmandat erteilen → Marktansprache durch mibeca', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
-    { id: 'uve7', label: 'Kosten-Tabelle ansehen ("Welche Kosten kommen auf Dich zu")', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
+    { id: 'uve7', label: 'Kosten-Tabelle ansehen ("Welche Kosten kommen auf Dich zu")', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'kostenZurKenntnis' },
     { id: 't1', label: 'Zahlen, Daten, Fakten zusammentragen', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'stammdatenZdfVorhanden' },
     { id: 't2', label: 'Unternehmensbewertung erstellen', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'bewertungVorhanden' },
     { id: 't3', label: 'Exposé-Entwurf erstellen', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'exposeEntwurfVorhanden' },
@@ -365,6 +365,9 @@ const autoChecks = computed(() => {
 
     // ---- NEU: NDA & Interessenten ----
     interessentenAngelegt: (interessentenList.value || []).length > 0,
+
+    // ---- NEU: Kosten zur Kenntnis genommen ----
+    kostenZurKenntnis: !!t.kostenInfoBestaetigtAm,
   }
 })
 

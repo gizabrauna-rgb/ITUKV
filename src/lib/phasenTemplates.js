@@ -10,7 +10,7 @@ export const PHASEN_VORLAGE = () => ([
     { id: 'uve4', label: 'MB041: Verkaufsstory entwickeln (Ziele, Wunsch-Exit, W-Fragen, Deal-Struktur)', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
     { id: 'uve5', label: 'Unternehmensexposé freigeben (von mibeca erstellt)', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'exposeApproved' },
     { id: 'uve6', label: 'Verkaufsmandat erteilen → Marktansprache durch mibeca', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
-    { id: 'uve7', label: 'Kosten-Tabelle ansehen ("Welche Kosten kommen auf Dich zu")', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
+    { id: 'uve7', label: 'Kosten-Tabelle ansehen ("Welche Kosten kommen auf Dich zu")', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'kostenZurKenntnis' },
     { id: 't1', label: 'Zahlen, Daten, Fakten zusammentragen', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'stammdatenZdfVorhanden' },
     { id: 't2', label: 'Unternehmensbewertung erstellen', done: false, verantwortlich: 'Jenny', datum: '', notiz: '', auto: 'bewertungVorhanden' },
     { id: 't3', label: 'Exposé-Entwurf erstellen', done: false, verantwortlich: 'Jenny', datum: '', notiz: '', auto: 'exposeEntwurfVorhanden' },

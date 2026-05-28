@@ -465,6 +465,7 @@ TARGET_WRITABLE_FIELDS = {
     "mandatStart", "mandatLaufzeitMonate", "wiedervorlage",
     # Workflow-Status
     "fragebogenStatus", "fragebogenAbgegebenAm",
+    "kostenInfoBestaetigtAm",
     # JSON-Blobs
     "phasenJson", "exposeJson", "fragebogenJson", "bewertungJson", "landingJson",
     "vertragJson", "kommunikationJson", "termineJson", "kaeuferFeedbackJson",

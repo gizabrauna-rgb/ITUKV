@@ -75,7 +75,7 @@
             </div>
           </div>
           <div class="space-y-2">
-            <button v-for="a in meineOffenenAufgaben" :key="a.id" @click="goToTab(tabForAufgabe(a.label))"
+            <button v-for="a in meineOffenenAufgaben" :key="a.id" @click="onAufgabeClick(a)"
               class="w-full flex items-center justify-between gap-3 p-3 border border-gray-100 rounded-xl hover:border-[#0088ba] hover:bg-[#0088ba]/5 text-left transition-colors">
               <div class="flex items-center gap-3 min-w-0">
                 <Circle class="w-4 h-4 text-gray-300 flex-shrink-0" />
@@ -371,6 +371,9 @@
       </div>
     </div>
 
+    <!-- Kosten-Info Modal -->
+    <KostenInfo v-if="showKostenModal" :target-id="targetId" :bestaetigt-am="target?.kostenInfoBestaetigtAm" @close="showKostenModal = false" @confirmed="onKostenBestaetigt" />
+
     <!-- VETO Modal -->
     <div v-if="vetoTarget" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
       <div class="bg-white rounded-2xl p-6 w-full max-w-sm">
@@ -398,6 +401,7 @@ import {
 const apiBaseUrl = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
 import MandatDaten from '../components/target/MandatDaten.vue'
 import PressetextFreigabe from '../components/target/PressetextFreigabe.vue'
+import KostenInfo from '../components/target/KostenInfo.vue'
 import KaeuferVorschlaege from '../components/target/KaeuferVorschlaege.vue'
 import Suchprofil from '../components/admin/Suchprofil.vue'
 import DokumenteAkte from '../components/admin/DokumenteAkte.vue'
@@ -593,6 +597,7 @@ const autoChecks = computed(() => {
     kundenakteAngelegt: !!t.RowKey,
     kennenlernenGeplant: terminVorhanden('kennenlernen'),
     kennenlernenErfolgt: terminErledigt('kennenlernen'),
+    kostenZurKenntnis: !!t.kostenInfoBestaetigtAm,
   }
 })
 
@@ -638,6 +643,21 @@ function goToTab(t) {
   if (!t) return
   tab.value = t
   window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// Klick auf eine Aufgabe in „Was steht für dich an?"
+// Spezialfall: uve7 (Kosten-Tabelle) → öffnet Modal statt Tab-Wechsel
+const showKostenModal = ref(false)
+function onAufgabeClick(a) {
+  if (a.id === 'uve7' || (a.label || '').toLowerCase().includes('kosten-tabelle')) {
+    showKostenModal.value = true
+    return
+  }
+  goToTab(tabForAufgabe(a.label))
+}
+function onKostenBestaetigt(ts) {
+  if (target.value) target.value.kostenInfoBestaetigtAm = ts
+  showKostenModal.value = false
 }
 
 // Stufen-Visualisierung (4 Hauptstufen statt 15 Detail-Phasen)
