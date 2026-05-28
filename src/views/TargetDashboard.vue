@@ -446,7 +446,8 @@ const props = defineProps({ userName: String, projekttyp: String, impersonating:
 const emit = defineEmits(['logout'])
 const targetId = sessionStorage.getItem('targetId') || ''
 
-const tab = ref('projekt')
+const tab = ref(sessionStorage.getItem('target.tab') || 'projekt')
+watch(tab, v => sessionStorage.setItem('target.tab', v))
 const checkliste = ref([])
 const interessenten = ref([])
 const dokumente = ref([])

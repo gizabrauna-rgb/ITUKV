@@ -314,7 +314,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import {
   Building2, LogOut, LayoutDashboard, Briefcase, GitBranch,
   Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow, Bell, BarChart3, AlertCircle, Activity, Mail, CalendarClock, ShieldCheck,
@@ -334,7 +334,8 @@ import MailvorlagenTab from '../components/admin/MailvorlagenTab.vue'
 const props = defineProps({ userName: String })
 const emit = defineEmits(['logout', 'switch-view'])
 
-const tab = ref('uebersicht')
+const tab = ref(sessionStorage.getItem('admin.tab') || 'uebersicht')
+watch(tab, v => sessionStorage.setItem('admin.tab', v))
 const showSwitcher = ref(false)
 
 const targetTypes = ['UVE Target', 'Projekt Target', 'MC Target']
