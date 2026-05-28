@@ -262,16 +262,10 @@
           </div>
         </div>
 
-        <!-- Targets -->
+        <!-- Mandate (Cockpit + Liste kombiniert) -->
         <div v-else-if="tab === 'targets'">
           <TargetAkte v-if="akteTargetId" :target-id="akteTargetId" :initial-tab="akteInitialTab" :initial-doc="akteInitialDoc" @close="akteTargetId = null" />
-          <TargetsTab v-else @open-detail="openAkte" />
-        </div>
-
-        <!-- Mandate-Cockpit -->
-        <div v-else-if="tab === 'cockpit'">
-          <TargetAkte v-if="akteTargetId" :target-id="akteTargetId" :initial-tab="akteInitialTab" :initial-doc="akteInitialDoc" @close="akteTargetId = null" />
-          <MandateCockpit v-else @open-akte="id => openAkte({ RowKey: id })" />
+          <MandateTab v-else @open-detail="openAkte" />
         </div>
 
         <!-- CRM -->
@@ -326,8 +320,7 @@ import {
   Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow, Bell, BarChart3, AlertCircle, Activity, Mail, CalendarClock, ShieldCheck,
 } from '@lucide/vue'
 import { authFetch, verlaufUnreadCount, verlaufMarkRead } from '../api.js'
-import TargetsTab from '../components/admin/TargetsTab.vue'
-import MandateCockpit from '../components/admin/MandateCockpit.vue'
+import MandateTab from '../components/admin/MandateTab.vue'
 import CrmTab from '../components/admin/CrmTab.vue'
 import AusschreibungenTab from '../components/admin/AusschreibungenTab.vue'
 import DokumenteTab from '../components/admin/DokumenteTab.vue'
@@ -386,8 +379,7 @@ function openNdaInAkte(v) {
 
 const navItems = [
   { tab: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard },
-  { tab: 'cockpit', label: 'Mandate-Cockpit', icon: Workflow },
-  { tab: 'targets', label: 'Projekte', icon: Briefcase },
+  { tab: 'targets', label: 'Mandate', icon: Briefcase },
   { tab: 'crm', label: 'Kontakte', icon: Users },
   { tab: 'ausschreibungen', label: 'Veröffentlichte Mandate', icon: Megaphone },
   { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
@@ -399,7 +391,7 @@ const navItems = [
 ]
 
 const quickAccess = [
-  { tab: 'targets', label: 'Targets', desc: 'Mandate verwalten', icon: Briefcase },
+  { tab: 'targets', label: 'Mandate', desc: 'Cockpit + Verwaltung', icon: Briefcase },
   { tab: 'crm', label: 'Investoren', desc: 'CRM & Karte', icon: Users },
 ]
 
