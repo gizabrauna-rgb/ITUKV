@@ -75,91 +75,108 @@
 
       <!-- Tab: Mein Projekt -->
       <div v-if="tab === 'projekt'">
-        <h2 class="text-xl font-bold text-gray-900 mb-5">Mein Verkaufsprojekt</h2>
-
-        <!-- Pressetext zur Freigabe -->
-        <PressetextFreigabe :target-id="targetId" />
-
-        <!-- Mandatsvertrag-Status -->
-        <div v-if="vertragInfo" class="mb-4">
-          <div v-if="vertragInfo.gegengezeichnetAm" class="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
-            <CheckCircle class="w-6 h-6 text-green-600 flex-shrink-0" />
-            <div class="flex-1">
-              <p class="font-semibold text-green-900 text-sm">Mandatsvertrag vollständig unterschrieben</p>
-              <p class="text-xs text-green-700">Gegengezeichnet am {{ formatDate(vertragInfo.gegengezeichnetAm) }} durch {{ vertragInfo.gegengezeichnetVon }}.</p>
+        <!-- 1) Was steht für DICH an? -->
+        <div v-if="meineOffenenAufgaben.length" class="bg-white rounded-2xl border-2 border-[#0088ba]/20 p-6 mb-4">
+          <div class="flex items-start gap-3 mb-4">
+            <div class="w-10 h-10 rounded-full bg-[#0088ba]/10 flex items-center justify-center flex-shrink-0">
+              <CheckCircle class="w-5 h-5 text-[#0088ba]" />
             </div>
-            <a v-if="vertragInfo.signToken" :href="`${apiBaseUrl}/sign-pdf?token=${vertragInfo.signToken}`" target="_blank" rel="noopener" class="px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8] flex items-center gap-2">
-              <Download class="w-4 h-4" /> Mein Exemplar herunterladen
-            </a>
-          </div>
-          <div v-else-if="vertragInfo.signiertAm" class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-center gap-3">
-            <Clock class="w-6 h-6 text-yellow-600 flex-shrink-0" />
             <div>
-              <p class="font-semibold text-yellow-900 text-sm">Vertrag unterschrieben – wartet auf Gegenzeichnung durch mibeca</p>
-              <p class="text-xs text-yellow-700">Sobald mibeca gegenzeichnet, bekommst du dein finales Exemplar.</p>
+              <h3 class="font-bold text-gray-900">Was steht für dich an?</h3>
+              <p class="text-xs text-gray-500">{{ meineOffenenAufgaben.length }} {{ meineOffenenAufgaben.length === 1 ? 'Aufgabe' : 'Aufgaben' }} aus der aktuellen Phase</p>
             </div>
+          </div>
+          <div class="space-y-2">
+            <button v-for="a in meineOffenenAufgaben" :key="a.id" @click="goToTab(tabForAufgabe(a.label))"
+              class="w-full flex items-center justify-between gap-3 p-3 border border-gray-100 rounded-xl hover:border-[#0088ba] hover:bg-[#0088ba]/5 text-left transition-colors">
+              <div class="flex items-center gap-3 min-w-0">
+                <Circle class="w-4 h-4 text-gray-300 flex-shrink-0" />
+                <span class="text-sm text-gray-800 truncate">{{ cleanLabel(a.label) }}</span>
+              </div>
+              <span class="text-xs text-[#0088ba] flex items-center gap-1 flex-shrink-0">
+                Erledigen <ChevronRight class="w-3 h-3" />
+              </span>
+            </button>
+          </div>
+        </div>
+        <div v-else-if="phasen.length" class="bg-green-50 border border-green-200 rounded-2xl p-6 mb-4 flex items-start gap-3">
+          <CheckCircle class="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 class="font-bold text-green-900">Aktuell brauchen wir nichts von dir</h3>
+            <p class="text-sm text-green-800 mt-1">mibeca arbeitet im Hintergrund. Du wirst informiert sobald wir dich brauchen — z.B. bei Erstkennenlernen, NDA-Freigabe oder Vertragsverhandlung.</p>
           </div>
         </div>
 
-        <!-- Master-Prozess: Aktuelle Phase -->
-        <div v-if="phasen.length" class="bg-gradient-to-br from-[#0088ba] to-[#00a0d8] rounded-xl p-5 mb-4 text-white">
-          <div class="text-xs uppercase tracking-wide opacity-80 mb-1">Aktuelle Phase</div>
-          <div class="text-xl font-bold mb-3">Phase {{ currentPhase }} von {{ phasen.length }}: {{ currentPhaseTitle }}</div>
-          <div class="w-full bg-white/20 rounded-full h-2 mb-1">
-            <div class="bg-white h-2 rounded-full transition-all" :style="`width: ${phasenProgress}%`"></div>
+        <!-- 2) Wo stehen wir gerade? (Stufen-Visualisierung) -->
+        <div v-if="phasen.length" class="bg-gradient-to-br from-[#0088ba] to-[#00a0d8] rounded-2xl p-6 mb-4 text-white">
+          <div class="text-xs uppercase tracking-wide opacity-80 mb-1">Wo stehen wir gerade?</div>
+          <div class="text-xl font-bold mb-1">{{ aktuelleStufeName }}</div>
+          <div class="text-sm opacity-90 mb-4">{{ aktuelleStufeBeschreibung }}</div>
+          <!-- Stufen-Leiste -->
+          <div class="flex items-center gap-2 mt-4">
+            <div v-for="(stufe, idx) in stufenListe" :key="stufe.key" class="flex-1">
+              <div :class="['h-2 rounded-full transition-all',
+                idx < aktuelleStufeIdx ? 'bg-white' : idx === aktuelleStufeIdx ? 'bg-white' : 'bg-white/20']"></div>
+              <div :class="['text-[10px] mt-1.5 text-center font-medium',
+                idx === aktuelleStufeIdx ? 'text-white' : 'text-white/60']">{{ stufe.name }}</div>
+            </div>
           </div>
-          <div class="text-xs opacity-90">{{ donePhasen }} von {{ phasen.length }} Phasen abgeschlossen</div>
-          <button @click="showAllPhasen = !showAllPhasen" class="text-xs underline opacity-90 hover:opacity-100 mt-3">
-            {{ showAllPhasen ? 'Phasen-Übersicht ausblenden' : 'Alle Phasen anzeigen →' }}
+          <button @click="showAllPhasen = !showAllPhasen" class="text-xs underline opacity-90 hover:opacity-100 mt-4">
+            {{ showAllPhasen ? 'Alle Schritte ausblenden' : 'Alle Schritte anzeigen →' }}
           </button>
         </div>
 
-        <!-- Phasen-Liste (passive Sicht) -->
+        <!-- Detailansicht: Aktuelle Phase mit allen Aufgaben (read-only) -->
+        <div v-if="aktuellePhaseObj" class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
+          <h3 class="text-sm font-semibold text-gray-700 mb-3">Aktueller Schritt: {{ cleanLabel(aktuellePhaseObj.titel) }}</h3>
+          <ul class="space-y-2">
+            <li v-for="t in (aktuellePhaseObj.aufgaben || [])" :key="t.id" class="flex items-center gap-3 text-sm">
+              <div :class="['w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0', t.done ? 'bg-green-500' : 'bg-gray-200']">
+                <Check v-if="t.done" class="w-3 h-3 text-white" />
+              </div>
+              <span :class="t.done ? 'text-gray-400 line-through' : 'text-gray-700'">{{ cleanLabel(t.label) }}</span>
+              <span v-if="t.verantwortlich" :class="['ml-auto text-[10px] px-2 py-0.5 rounded-full font-medium',
+                isMineResponsibility(t.verantwortlich) ? 'bg-[#0088ba] text-white' : 'bg-gray-100 text-gray-500']">
+                {{ t.verantwortlich }}
+              </span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Alle Phasen (eingeklappt) -->
         <div v-if="phasen.length && showAllPhasen" class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
-          <h3 class="text-sm font-semibold text-gray-700 mb-3">Alle Phasen</h3>
+          <h3 class="text-sm font-semibold text-gray-700 mb-3">Alle Schritte im Überblick</h3>
           <ul class="space-y-2">
             <li v-for="(p, idx) in phasen" :key="p.id" class="flex items-center gap-3 text-sm">
               <div :class="['w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0', phasenStatus(p) === 'done' ? 'bg-green-100 text-green-700' : phasenStatus(p) === 'current' ? 'bg-[#0088ba] text-white' : 'bg-gray-100 text-gray-400']">
                 <Check v-if="phasenStatus(p) === 'done'" class="w-3.5 h-3.5" />
                 <span v-else>{{ idx + 1 }}</span>
               </div>
-              <span :class="phasenStatus(p) === 'done' ? 'text-gray-400 line-through' : phasenStatus(p) === 'current' ? 'font-semibold text-gray-900' : 'text-gray-500'">{{ p.titel.replace(/^\d+\.\s*/, '') }}</span>
+              <span :class="phasenStatus(p) === 'done' ? 'text-gray-400 line-through' : phasenStatus(p) === 'current' ? 'font-semibold text-gray-900' : 'text-gray-500'">{{ cleanLabel(p.titel) }}</span>
             </li>
           </ul>
-          <p class="text-xs text-gray-400 mt-4">Die Phasen werden von deinem M&A-Berater bei mibeca aktualisiert.</p>
+          <p class="text-xs text-gray-400 mt-4">Die Schritte werden von deiner Ansprechpartnerin bei mibeca aktualisiert.</p>
         </div>
 
-        <!-- Fortschritt -->
-        <div class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-sm font-medium text-gray-700">Gesamtfortschritt</span>
-            <span class="text-sm font-bold text-[#0088ba]">{{ doneCount }} / {{ checkliste.length }} erledigt</span>
+        <!-- Mandatsvertrag-Status (nur wenn vorhanden + relevant) -->
+        <div v-if="vertragInfo && (vertragInfo.signiertAm || vertragInfo.gegengezeichnetAm || vertragInfo.signToken)" class="mb-4">
+          <div v-if="vertragInfo.gegengezeichnetAm" class="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+            <CheckCircle class="w-6 h-6 text-green-600 flex-shrink-0" />
+            <div class="flex-1">
+              <p class="font-semibold text-green-900 text-sm">Mandatsvertrag vollständig unterschrieben</p>
+              <p class="text-xs text-green-700">Gegengezeichnet am {{ formatDate(vertragInfo.gegengezeichnetAm) }}</p>
+            </div>
           </div>
-          <div class="w-full bg-gray-100 rounded-full h-2">
-            <div class="bg-[#0088ba] h-2 rounded-full transition-all" :style="`width: ${progress}%`"></div>
+          <div v-else-if="vertragInfo.signiertAm" class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-center gap-3">
+            <Clock class="w-6 h-6 text-yellow-600 flex-shrink-0" />
+            <div>
+              <p class="font-semibold text-yellow-900 text-sm">Vertrag unterschrieben – wartet auf Gegenzeichnung durch mibeca</p>
+            </div>
           </div>
-          <div class="text-xs text-gray-400 mt-1">{{ progress }}% abgeschlossen</div>
         </div>
 
-        <!-- Checkliste -->
-        <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
-          <div class="px-5 py-3 border-b border-gray-50">
-            <h3 class="text-sm font-semibold text-gray-700">Aufgaben-Checkliste</h3>
-          </div>
-          <div v-if="loadingCheck" class="p-6 text-center text-gray-400 text-sm">Lade Checkliste…</div>
-          <ul v-else class="divide-y divide-gray-50">
-            <li v-for="item in checkliste" :key="item.id"
-              class="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 cursor-pointer"
-              @click="toggleItem(item)">
-              <div :class="['w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors', item.done ? 'bg-[#0088ba] border-[#0088ba]' : 'border-gray-300 hover:border-[#0088ba]']">
-                <Check v-if="item.done" class="w-3 h-3 text-white" />
-              </div>
-              <span :class="['text-sm', item.done ? 'line-through text-gray-400' : 'text-gray-700']">{{ item.label }}</span>
-              <CheckCircle v-if="item.done" class="w-4 h-4 text-green-500 ml-auto" />
-              <Circle v-else class="w-4 h-4 text-gray-200 ml-auto" />
-            </li>
-          </ul>
-        </div>
+        <!-- Pressetext nur in spaeten Phasen (Phase 13+) -->
+        <PressetextFreigabe v-if="currentPhase >= 13" :target-id="targetId" />
       </div>
 
       <!-- Tab: Fragebogen Unternehmensbewertung -->
@@ -521,6 +538,98 @@ const naechsterTerminLabel = computed(() => {
 })
 const naechsterTerminText = computed(() => {
   return naechsterTermin.value?.titel || 'keiner geplant'
+})
+
+// =========== Aktuelle Aufgaben + Stufen-Logik (Mein Projekt) ===========
+const aktuellePhaseObj = computed(() => phasen.value[currentPhase.value - 1] || null)
+
+function cleanLabel(s) {
+  if (!s) return ''
+  return s
+    .replace(/^MB\d+:\s*/i, '')           // "MB050: ..." entfernen
+    .replace(/^\d+\.\s*/, '')              // "1. ..." entfernen
+    .replace(/\s*\(.+?Vorlage:.+?\)/i, '') // "(Vorlage: ...)" entfernen
+}
+
+function isMineResponsibility(verantwortlich) {
+  if (!verantwortlich) return false
+  const v = verantwortlich.toLowerCase()
+  return v === 'kunde' || v === 'käufer' || v === 'kaeufer' || v === 'verkäufer' || v === 'verkaeufer'
+}
+
+const meineOffenenAufgaben = computed(() => {
+  const ph = aktuellePhaseObj.value
+  if (!ph || !Array.isArray(ph.aufgaben)) return []
+  return ph.aufgaben.filter(a => !a.done && (!a.verantwortlich || isMineResponsibility(a.verantwortlich)))
+})
+
+// Mapping: Aufgaben-Label → Ziel-Tab
+function tabForAufgabe(label) {
+  const l = (label || '').toLowerCase()
+  if (l.includes('fragebogen')) return 'fragebogen'
+  if (l.includes('bewertung')) return 'bewertung'
+  if (l.includes('expos')) return 'expose'
+  if (l.includes('mandat') && (l.includes('unterz') || l.includes('vertrag') || l.includes('signier'))) return 'vertraege'
+  if (l.includes('vertrag') || l.includes('signatur') || l.includes('unterschr')) return 'vertraege'
+  if (l.includes('datenraum') || l.includes('dokument') || l.includes('bilanz') || l.includes('jahresabschluss')) return 'dokumente'
+  if (l.includes('suchprofil') || l.includes('such')) return 'suchprofil'
+  if (l.includes('kandidat') || l.includes('vorschlag') || l.includes('long-list')) return 'vorschlaege'
+  if (l.includes('interessent') || l.includes('nda') || l.includes('veto')) return 'interessenten'
+  return 'mandat'
+}
+
+function goToTab(t) {
+  if (!t) return
+  tab.value = t
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// Stufen-Visualisierung (4 Hauptstufen statt 15 Detail-Phasen)
+const stufenListe = computed(() => {
+  const istKauf = /kauf|investor/i.test(props.projekttyp || target.value?.projekttyp || '')
+  if (istKauf) {
+    return [
+      { key: 'briefing', name: 'Briefing', range: [1, 2] },
+      { key: 'markt', name: 'Marktansprache', range: [3, 5] },
+      { key: 'kontakt', name: 'Erstgespräche', range: [6, 7] },
+      { key: 'verhandlung', name: 'LOI & DD', range: [8, 9] },
+      { key: 'closing', name: 'Closing', range: [10, 10] },
+    ]
+  }
+  return [
+    { key: 'vorbereitung', name: 'Vorbereitung', range: [1, 2] },
+    { key: 'markt', name: 'Marktansprache', range: [3, 7] },
+    { key: 'verhandlung', name: 'Verhandlung', range: [8, 12] },
+    { key: 'closing', name: 'Closing', range: [13, 15] },
+  ]
+})
+
+const aktuelleStufeIdx = computed(() => {
+  const cp = currentPhase.value
+  return stufenListe.value.findIndex(s => cp >= s.range[0] && cp <= s.range[1])
+})
+
+const aktuelleStufeName = computed(() => {
+  const s = stufenListe.value[aktuelleStufeIdx.value]
+  return s ? s.name : '—'
+})
+
+const aktuelleStufeBeschreibung = computed(() => {
+  const istKauf = /kauf|investor/i.test(props.projekttyp || target.value?.projekttyp || '')
+  const key = stufenListe.value[aktuelleStufeIdx.value]?.key
+  const txt = istKauf ? {
+    briefing: 'Wir klären gemeinsam Suchkriterien, Region und Größenklasse.',
+    markt: 'mibeca screent den Markt und stellt dir passende Kandidaten vor.',
+    kontakt: 'Du lernst die spannendsten Kandidaten kennen.',
+    verhandlung: 'LOI verhandeln und Due Diligence prüfen.',
+    closing: 'Vertrag und Notartermin.',
+  } : {
+    vorbereitung: 'Wir bereiten dein Mandat vor: Unterlagen, Exposé, Mandatsvertrag.',
+    markt: 'mibeca spricht Interessenten an, holt NDAs ein und koordiniert Erstgespräche.',
+    verhandlung: 'Indikative Angebote, LOI und Due Diligence stehen an.',
+    closing: 'Vertragsunterzeichnung, Notartermin, Erfolgsmeldung.',
+  }
+  return txt[key] || ''
 })
 function phasenStatus(p) {
   if (isPhaseDone(p)) return 'done'
