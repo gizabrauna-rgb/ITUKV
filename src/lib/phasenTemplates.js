@@ -7,7 +7,7 @@ export const PHASEN_VORLAGE = () => ([
     { id: 'uve2', label: 'MB050: Fragebogen Unternehmensbewertung ausgefüllt', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'fragebogenAbgegeben' },
     { id: 'uve3a', label: 'MB050: Datenraum-Vorlage einrichten (Ordnerstruktur nach Muster)', done: false, verantwortlich: 'Jenny', datum: '', notiz: '' },
     { id: 'uve3b', label: 'MB050: Unterlagen in den Datenraum hochladen (Bilanzen, Verträge, Personal …)', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'datenraumHatDokumente' },
-    { id: 'uve4', label: 'MB041: Verkaufsstory entwickeln (Ziele, Wunsch-Exit, W-Fragen, Deal-Struktur)', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
+    { id: 'uve4', label: 'Ziele & Motivationen erfassen (Wunsch-Exit, Rolle nach Verkauf, Deal-Struktur)', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'zieleErfasst' },
     { id: 'uve5', label: 'Unternehmensexposé freigeben (von mibeca erstellt)', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'exposeApproved' },
     { id: 'uve6', label: 'Verkaufsmandat erteilen → Marktansprache durch mibeca', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
     { id: 'uve7', label: 'Kosten-Tabelle ansehen ("Welche Kosten kommen auf Dich zu")', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'kostenZurKenntnis' },

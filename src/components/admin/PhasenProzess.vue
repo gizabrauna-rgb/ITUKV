@@ -117,7 +117,7 @@ const PHASEN_VORLAGE = () => ([
     { id: 'uve1', label: 'MB050: Videolektionen ansehen ("Wie läuft Verkauf von A bis Z ab?")', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
     { id: 'uve2', label: 'MB050: Fragebogen Unternehmensbewertung ausgefüllt', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'fragebogenAbgegeben' },
     { id: 'uve3', label: 'MB050: Due-Diligence-Datenraum nach Muster anlegen', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'datenraumHatDokumente' },
-    { id: 'uve4', label: 'MB041: Verkaufsstory entwickeln (Ziele, Wunsch-Exit, W-Fragen, Deal-Struktur)', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
+    { id: 'uve4', label: 'Ziele & Motivationen erfassen (Wunsch-Exit, Rolle nach Verkauf, Deal-Struktur)', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'zieleErfasst' },
     { id: 'uve5', label: 'Eigenes Unternehmensexposé erstellen + vom Verkäufer freigegeben', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'exposeApproved' },
     { id: 'uve6', label: 'Verkaufsmandat erteilen → Marktansprache durch mibeca', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
     { id: 'uve7', label: 'Kosten-Tabelle ansehen ("Welche Kosten kommen auf Dich zu")', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'kostenZurKenntnis' },
@@ -368,6 +368,14 @@ const autoChecks = computed(() => {
 
     // ---- NEU: Kosten zur Kenntnis genommen ----
     kostenZurKenntnis: !!t.kostenInfoBestaetigtAm,
+
+    // ---- NEU: Ziele & Motivationen ausgefuellt ----
+    zieleErfasst: (() => {
+      try {
+        const d = JSON.parse(t.zieleMotivationenJson || '{}')
+        return !!(d.motivation?.length || d.zeitrahmen || d.bleibedauer || d.wunschErloes)
+      } catch { return false }
+    })(),
   }
 })
 

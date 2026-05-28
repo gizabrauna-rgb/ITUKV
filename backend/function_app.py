@@ -466,6 +466,7 @@ TARGET_WRITABLE_FIELDS = {
     # Workflow-Status
     "fragebogenStatus", "fragebogenAbgegebenAm",
     "kostenInfoBestaetigtAm",
+    "zieleMotivationenJson",
     # JSON-Blobs
     "phasenJson", "exposeJson", "fragebogenJson", "bewertungJson", "landingJson",
     "vertragJson", "kommunikationJson", "termineJson", "kaeuferFeedbackJson",

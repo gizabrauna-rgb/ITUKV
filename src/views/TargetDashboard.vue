@@ -374,6 +374,9 @@
     <!-- Kosten-Info Modal -->
     <KostenInfo v-if="showKostenModal" :target-id="targetId" :bestaetigt-am="target?.kostenInfoBestaetigtAm" @close="showKostenModal = false" @confirmed="onKostenBestaetigt" />
 
+    <!-- Ziele & Motivationen Modal -->
+    <ZieleMotivationen v-if="showZieleModal" :target-id="targetId" :initial="zieleInitial" @close="showZieleModal = false" @saved="onZieleSaved" />
+
     <!-- VETO Modal -->
     <div v-if="vetoTarget" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
       <div class="bg-white rounded-2xl p-6 w-full max-w-sm">
@@ -402,6 +405,7 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azure
 import MandatDaten from '../components/target/MandatDaten.vue'
 import PressetextFreigabe from '../components/target/PressetextFreigabe.vue'
 import KostenInfo from '../components/target/KostenInfo.vue'
+import ZieleMotivationen from '../components/target/ZieleMotivationen.vue'
 import KaeuferVorschlaege from '../components/target/KaeuferVorschlaege.vue'
 import Suchprofil from '../components/admin/Suchprofil.vue'
 import DokumenteAkte from '../components/admin/DokumenteAkte.vue'
@@ -598,8 +602,17 @@ const autoChecks = computed(() => {
     kennenlernenGeplant: terminVorhanden('kennenlernen'),
     kennenlernenErfolgt: terminErledigt('kennenlernen'),
     kostenZurKenntnis: !!t.kostenInfoBestaetigtAm,
+    zieleErfasst: zieleAusgefuellt(t.zieleMotivationenJson),
   }
 })
+
+function zieleAusgefuellt(json) {
+  try {
+    const d = JSON.parse(json || '{}')
+    // Als ausgefuellt gilt: mind. Motivation oder Zeitrahmen oder Rolle
+    return !!(d.motivation?.length || d.zeitrahmen || d.bleibedauer || d.wunschErloes)
+  } catch { return false }
+}
 
 function isTaskDone(a) {
   if (!a) return false
@@ -646,11 +659,19 @@ function goToTab(t) {
 }
 
 // Klick auf eine Aufgabe in „Was steht für dich an?"
-// Spezialfall: uve7 (Kosten-Tabelle) → öffnet Modal statt Tab-Wechsel
+// Spezialfälle: uve7 (Kosten-Tabelle), uve4 (Verkaufsstory/Ziele) → Modal statt Tab-Wechsel
 const showKostenModal = ref(false)
+const showZieleModal = ref(false)
+const zieleInitial = computed(() => {
+  try { return JSON.parse(target.value?.zieleMotivationenJson || '{}') } catch { return {} }
+})
 function onAufgabeClick(a) {
   if (a.id === 'uve7' || (a.label || '').toLowerCase().includes('kosten-tabelle')) {
     showKostenModal.value = true
+    return
+  }
+  if (a.id === 'uve4' || (a.label || '').toLowerCase().includes('verkaufsstory')) {
+    showZieleModal.value = true
     return
   }
   goToTab(tabForAufgabe(a.label))
@@ -658,6 +679,9 @@ function onAufgabeClick(a) {
 function onKostenBestaetigt(ts) {
   if (target.value) target.value.kostenInfoBestaetigtAm = ts
   showKostenModal.value = false
+}
+function onZieleSaved(daten) {
+  if (target.value) target.value.zieleMotivationenJson = JSON.stringify(daten)
 }
 
 // Stufen-Visualisierung (4 Hauptstufen statt 15 Detail-Phasen)
