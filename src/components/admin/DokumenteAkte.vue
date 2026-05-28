@@ -362,6 +362,11 @@ function isPdf(f) {
   return ct === 'application/pdf' || n.endsWith('.pdf')
 }
 
+// Warnen wenn PDF gross ist (>5 MB) – kann das Tier-1-Limit der KI-Analyse sprengen
+function pdfWarn(f) {
+  return (f?.size || 0) > 5 * 1024 * 1024
+}
+
 const aiResult = ref(null)        // { extracted: {...}, dokumentTyp, tokens }
 const aiAccept = ref({})          // { feldname: true/false }
 const aiApplying = ref(false)
