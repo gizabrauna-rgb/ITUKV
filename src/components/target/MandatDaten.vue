@@ -66,7 +66,7 @@
         <Field v-model="data.gruendungsjahr" label="Gründungsjahr" type="number" @blur="save" />
         <Field v-model="data.branche" label="Branche" @blur="save" />
         <Field v-model="data.mitarbeiter" label="Mitarbeiter (Anzahl)" type="number" @blur="save" />
-        <Field v-model="data.umsatz" label="Umsatz (Freitext, z.B. „2,5 Mio. €")" @blur="save" />
+        <Field v-model="data.umsatz" label="Umsatz (z.B. 2,5 Mio. €)" @blur="save" />
         <Field v-model="data.ebitMarge" label="EBIT-Marge (%)" type="number" @blur="save" />
         <Field v-model="data.recurringPct" label="Wiederkehrende Umsätze (%)" type="number" @blur="save" />
       </div>
