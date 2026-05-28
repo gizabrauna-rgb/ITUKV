@@ -95,55 +95,54 @@
           </div>
         </div>
 
-        <!-- 2) Wo stehen wir gerade? (Stufen-Visualisierung) -->
-        <div v-if="phasen.length" class="bg-gradient-to-br from-[#0088ba] to-[#00a0d8] rounded-2xl p-6 mb-4 text-white">
-          <div class="text-xs uppercase tracking-wide opacity-80 mb-1">Wo stehen wir gerade?</div>
-          <div class="text-xl font-bold mb-1">{{ aktuelleStufeName }}</div>
-          <div class="text-sm opacity-90 mb-4">{{ aktuelleStufeBeschreibung }}</div>
-          <!-- Stufen-Leiste -->
-          <div class="flex items-center gap-2 mt-4">
-            <div v-for="(stufe, idx) in stufenListe" :key="stufe.key" class="flex-1">
-              <div :class="['h-2 rounded-full transition-all',
-                idx < aktuelleStufeIdx ? 'bg-white' : idx === aktuelleStufeIdx ? 'bg-white' : 'bg-white/20']"></div>
-              <div :class="['text-[10px] mt-1.5 text-center font-medium',
-                idx === aktuelleStufeIdx ? 'text-white' : 'text-white/60']">{{ stufe.name }}</div>
+        <!-- 2) Wo stehen wir gerade? (Stufen-Leiste + was mibeca gerade macht) -->
+        <div v-if="phasen.length" class="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-4">
+          <!-- Header mit Stufen-Leiste -->
+          <div class="bg-gradient-to-br from-[#0088ba] to-[#00a0d8] p-6 text-white">
+            <div class="text-xs uppercase tracking-wide opacity-80 mb-1">Wo stehen wir gerade?</div>
+            <div class="text-xl font-bold mb-1">{{ aktuelleStufeName }}</div>
+            <div class="text-sm opacity-90 mb-4">{{ aktuelleStufeBeschreibung }}</div>
+            <div class="flex items-center gap-2 mt-4">
+              <div v-for="(stufe, idx) in stufenListe" :key="stufe.key" class="flex-1">
+                <div :class="['h-2 rounded-full transition-all',
+                  idx < aktuelleStufeIdx ? 'bg-white' : idx === aktuelleStufeIdx ? 'bg-white' : 'bg-white/20']"></div>
+                <div :class="['text-[10px] mt-1.5 text-center font-medium',
+                  idx === aktuelleStufeIdx ? 'text-white' : 'text-white/60']">{{ stufe.name }}</div>
+              </div>
             </div>
           </div>
-          <button @click="showAllPhasen = !showAllPhasen" class="text-xs underline opacity-90 hover:opacity-100 mt-4">
-            {{ showAllPhasen ? 'Alle Schritte ausblenden' : 'Alle Schritte anzeigen →' }}
-          </button>
-        </div>
-
-        <!-- Detailansicht: Aktuelle Phase mit allen Aufgaben (read-only) -->
-        <div v-if="aktuellePhaseObj" class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
-          <h3 class="text-sm font-semibold text-gray-700 mb-3">Aktueller Schritt: {{ cleanLabel(aktuellePhaseObj.titel) }}</h3>
-          <ul class="space-y-2">
-            <li v-for="t in (aktuellePhaseObj.aufgaben || [])" :key="t.id" class="flex items-center gap-3 text-sm">
-              <div :class="['w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0', t.done ? 'bg-green-500' : 'bg-gray-200']">
-                <Check v-if="t.done" class="w-3 h-3 text-white" />
-              </div>
-              <span :class="t.done ? 'text-gray-400 line-through' : 'text-gray-700'">{{ cleanLabel(t.label) }}</span>
-              <span v-if="t.verantwortlich" :class="['ml-auto text-[10px] px-2 py-0.5 rounded-full font-medium',
-                isMineResponsibility(t.verantwortlich) ? 'bg-[#0088ba] text-white' : 'bg-gray-100 text-gray-500']">
-                {{ t.verantwortlich }}
-              </span>
-            </li>
-          </ul>
-        </div>
-
-        <!-- Alle Phasen (eingeklappt) -->
-        <div v-if="phasen.length && showAllPhasen" class="bg-white rounded-xl border border-gray-100 p-5 mb-4">
-          <h3 class="text-sm font-semibold text-gray-700 mb-3">Alle Schritte im Überblick</h3>
-          <ul class="space-y-2">
-            <li v-for="(p, idx) in phasen" :key="p.id" class="flex items-center gap-3 text-sm">
-              <div :class="['w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0', phasenStatus(p) === 'done' ? 'bg-green-100 text-green-700' : phasenStatus(p) === 'current' ? 'bg-[#0088ba] text-white' : 'bg-gray-100 text-gray-400']">
-                <Check v-if="phasenStatus(p) === 'done'" class="w-3.5 h-3.5" />
-                <span v-else>{{ idx + 1 }}</span>
-              </div>
-              <span :class="phasenStatus(p) === 'done' ? 'text-gray-400 line-through' : phasenStatus(p) === 'current' ? 'font-semibold text-gray-900' : 'text-gray-500'">{{ cleanLabel(p.titel) }}</span>
-            </li>
-          </ul>
-          <p class="text-xs text-gray-400 mt-4">Die Schritte werden von deiner Ansprechpartnerin bei mibeca aktualisiert.</p>
+          <!-- Im Hintergrund: was mibeca / andere gerade machen (ohne deine eigenen Aufgaben) -->
+          <div v-if="aufgabenOhneMich.length" class="p-5 border-t border-gray-100">
+            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Was im Hintergrund läuft</h4>
+            <ul class="space-y-2">
+              <li v-for="t in aufgabenOhneMich" :key="t.id" class="flex items-center gap-3 text-sm">
+                <div :class="['w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0', t.done ? 'bg-green-500' : 'bg-gray-200']">
+                  <Check v-if="t.done" class="w-3 h-3 text-white" />
+                </div>
+                <span :class="t.done ? 'text-gray-400 line-through' : 'text-gray-700'">{{ cleanLabel(t.label) }}</span>
+                <span v-if="t.verantwortlich" class="ml-auto text-[10px] px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">
+                  {{ t.verantwortlich }}
+                </span>
+              </li>
+            </ul>
+          </div>
+          <!-- Toggle: Alle Schritte -->
+          <div class="px-5 py-3 border-t border-gray-100 bg-gray-50">
+            <button @click="showAllPhasen = !showAllPhasen" class="text-xs text-[#0088ba] font-medium hover:underline flex items-center gap-1">
+              {{ showAllPhasen ? 'Alle Schritte ausblenden' : 'Alle Schritte anzeigen' }}
+              <ChevronRight :class="['w-3 h-3 transition-transform', showAllPhasen ? 'rotate-90' : '']" />
+            </button>
+            <ul v-if="showAllPhasen" class="space-y-2 mt-3">
+              <li v-for="(p, idx) in phasen" :key="p.id" class="flex items-center gap-3 text-sm">
+                <div :class="['w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0', phasenStatus(p) === 'done' ? 'bg-green-100 text-green-700' : phasenStatus(p) === 'current' ? 'bg-[#0088ba] text-white' : 'bg-gray-100 text-gray-400']">
+                  <Check v-if="phasenStatus(p) === 'done'" class="w-3.5 h-3.5" />
+                  <span v-else>{{ idx + 1 }}</span>
+                </div>
+                <span :class="phasenStatus(p) === 'done' ? 'text-gray-400 line-through' : phasenStatus(p) === 'current' ? 'font-semibold text-gray-900' : 'text-gray-500'">{{ cleanLabel(p.titel) }}</span>
+              </li>
+            </ul>
+            <p v-if="showAllPhasen" class="text-xs text-gray-400 mt-3">Die Schritte werden von deiner Ansprechpartnerin bei mibeca aktualisiert.</p>
+          </div>
         </div>
 
         <!-- Mandatsvertrag-Status (nur wenn vorhanden + relevant) -->
@@ -559,6 +558,14 @@ const meineOffenenAufgaben = computed(() => {
   const ph = aktuellePhaseObj.value
   if (!ph || !Array.isArray(ph.aufgaben)) return []
   return ph.aufgaben.filter(a => !a.done && (!a.verantwortlich || isMineResponsibility(a.verantwortlich)))
+})
+
+// Aufgaben der aktuellen Phase, die NICHT der Mandant zu erledigen hat
+// (also: mibeca, Steuerberater, externe Partner – damit der Mandant sieht, was im Hintergrund läuft)
+const aufgabenOhneMich = computed(() => {
+  const ph = aktuellePhaseObj.value
+  if (!ph || !Array.isArray(ph.aufgaben)) return []
+  return ph.aufgaben.filter(a => a.verantwortlich && !isMineResponsibility(a.verantwortlich))
 })
 
 // Mapping: Aufgaben-Label → Ziel-Tab
