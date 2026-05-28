@@ -262,10 +262,10 @@
           </div>
         </div>
 
-        <!-- Mandate (Cockpit + Liste kombiniert) -->
+        <!-- Projekte (Cockpit + Liste in einer Tabelle) -->
         <div v-else-if="tab === 'targets'">
           <TargetAkte v-if="akteTargetId" :target-id="akteTargetId" :initial-tab="akteInitialTab" :initial-doc="akteInitialDoc" @close="akteTargetId = null" />
-          <MandateTab v-else @open-detail="openAkte" />
+          <TargetsTab v-else @open-detail="openAkte" />
         </div>
 
         <!-- CRM -->
@@ -320,7 +320,7 @@ import {
   Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow, Bell, BarChart3, AlertCircle, Activity, Mail, CalendarClock, ShieldCheck,
 } from '@lucide/vue'
 import { authFetch, verlaufUnreadCount, verlaufMarkRead } from '../api.js'
-import MandateTab from '../components/admin/MandateTab.vue'
+import TargetsTab from '../components/admin/TargetsTab.vue'
 import CrmTab from '../components/admin/CrmTab.vue'
 import AusschreibungenTab from '../components/admin/AusschreibungenTab.vue'
 import DokumenteTab from '../components/admin/DokumenteTab.vue'

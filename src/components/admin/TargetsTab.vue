@@ -52,8 +52,9 @@
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Name / Firma</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Region</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Typ</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Fortschritt</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Letzte Aktivität</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Aktuelle Phase</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Mandant zuletzt</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nächster Schritt für dich</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Wiedervorlage</th>
             <th class="text-left px-2 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-8"></th>
@@ -65,7 +66,10 @@
               <span :class="['inline-block w-2.5 h-2.5 rounded-full', wvDotClass(t.wiedervorlage)]" :title="wvTooltip(t.wiedervorlage)"></span>
             </td>
             <td class="px-4 py-3">
-              <span class="font-mono text-xs bg-blue-50 text-blue-800 px-2 py-0.5 rounded">{{ t.mbNr }}</span>
+              <div class="flex items-center gap-1.5">
+                <span class="font-mono text-xs bg-blue-50 text-blue-800 px-2 py-0.5 rounded">{{ t.mbNr }}</span>
+                <span v-if="isNeu(t)" class="bg-green-100 text-green-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">NEU</span>
+              </div>
             </td>
             <td class="px-4 py-3 text-sm">
               <div class="font-medium text-gray-800">{{ t.verkaueferName }}</div>
@@ -74,15 +78,27 @@
             <td class="px-4 py-3 text-sm text-gray-600">{{ t.region }}</td>
             <td class="px-4 py-3 text-sm text-gray-600">{{ t.projekttyp }}</td>
             <td class="px-4 py-3">
-              <div class="flex items-center gap-2">
-                <div class="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden w-24">
+              <div class="text-xs text-gray-700 truncate max-w-[180px]">{{ currentPhaseTitle(t) }}</div>
+              <div class="flex items-center gap-2 mt-1">
+                <div class="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden w-20">
                   <div class="bg-[#0088ba] h-full" :style="`width: ${phaseProgress(t).percent}%`"></div>
                 </div>
-                <span class="text-xs text-gray-500 whitespace-nowrap">{{ phaseProgress(t).aktuell }}/{{ phaseProgress(t).gesamt }}</span>
+                <span class="text-[10px] text-gray-400 whitespace-nowrap">{{ phaseProgress(t).aktuell }}/{{ phaseProgress(t).gesamt }}</span>
               </div>
             </td>
-            <td class="px-4 py-3 text-xs">
-              <span :class="lastActivityClass(t)">{{ lastActivityLabel(t) }}</span>
+            <td class="px-4 py-3 text-xs max-w-[200px]">
+              <div v-if="mandantLastAction(t).label" class="text-gray-700 truncate">{{ mandantLastAction(t).label }}</div>
+              <div v-else class="text-gray-400 italic">noch nichts</div>
+              <div v-if="mandantLastAction(t).datum" class="text-[10px] text-gray-400 mt-0.5">{{ formatRel(mandantLastAction(t).datum) }}</div>
+            </td>
+            <td class="px-4 py-3 text-xs max-w-[240px]">
+              <div v-if="nextStep(t).label" :class="['p-2 rounded-lg border text-[11px]', nextStep(t).dringend ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-100']">
+                <div class="text-gray-800 truncate">{{ nextStep(t).label }}</div>
+                <div v-if="nextStep(t).verantwortlich" class="text-[10px] text-gray-500 mt-0.5">
+                  Verantwortlich: <strong>{{ nextStep(t).verantwortlich }}</strong>
+                </div>
+              </div>
+              <div v-else class="text-gray-400 italic">—</div>
             </td>
             <td class="px-4 py-3" @click.stop>
               <select v-model="t.status" @change="updateStatus(t)" :class="['text-xs border rounded-lg px-2 py-1 focus:outline-none', statusSelectClass(t.status)]">
@@ -403,6 +419,98 @@ function lastActivityClass(t) {
   if (tg > 30) return 'text-red-600 font-medium'
   if (tg > 14) return 'text-amber-600'
   return 'text-gray-500'
+}
+
+// =============== Cockpit-Helfer (Mandanten-Aktivitaet + Naechster Schritt) ===============
+const MIBECA_VERANTWORTLICH = ['jenny', 'mibeca', 'marketing', 'claudia', 'admin', 'anwalt', 'steuerberater', 'notar']
+function istMibecaAufgabe(v) {
+  if (!v) return false
+  return MIBECA_VERANTWORTLICH.includes(v.toLowerCase())
+}
+function istMandantAufgabe(v) {
+  if (!v) return false
+  const x = v.toLowerCase()
+  return x === 'kunde' || x === 'käufer' || x === 'kaeufer' || x === 'verkäufer' || x === 'verkaeufer'
+}
+
+function currentPhase(t) {
+  try {
+    const ph = JSON.parse(t.phasenJson || '[]')
+    for (let i = 0; i < ph.length; i++) {
+      if ((ph[i].aufgaben || []).some(a => !a.done)) return { idx: i + 1, obj: ph[i], total: ph.length }
+    }
+    return { idx: ph.length || 1, obj: ph[ph.length - 1] || null, total: ph.length }
+  } catch { return { idx: 1, obj: null, total: 0 } }
+}
+function currentPhaseTitle(t) {
+  const o = currentPhase(t).obj
+  return o ? (o.titel || '').replace(/^\d+\.\s*/, '') : '—'
+}
+
+function mandantLastAction(t) {
+  let label = '', datum = null
+  function maybe(l, d) {
+    if (!d) return
+    const dd = new Date(d)
+    if (isNaN(dd.getTime())) return
+    if (!datum || dd > datum) { label = l; datum = dd }
+  }
+  if (t.kostenInfoBestaetigtAm) maybe('Kosten zur Kenntnis genommen', t.kostenInfoBestaetigtAm)
+  if (t.fragebogenAbgegebenAm) maybe('Fragebogen abgegeben', t.fragebogenAbgegebenAm)
+  if (t.zieleMotivationenJson && t.zieleMotivationenJson !== '{}' && !label) label = 'Ziele & Motivationen ausgefüllt'
+  if (t.akquisitionsstrategieJson && t.akquisitionsstrategieJson !== '{}' && !label) label = 'Akquisitionsstrategie ausgefüllt'
+  try {
+    const verlauf = JSON.parse(t.kommunikationJson || '[]')
+    const mandant = verlauf.filter(e => !e.createdByMibeca && !e.createdByKI).sort((a, b) => (b.datum || '').localeCompare(a.datum || ''))
+    if (mandant.length) maybe(mandant[0].betreff || (mandant[0].beschreibung || '').slice(0, 50) || 'Nachricht', mandant[0].datum)
+  } catch {}
+  return { label, datum }
+}
+
+function isNeu(t) {
+  const d = mandantLastAction(t).datum
+  if (!d) return false
+  return (Date.now() - d.getTime()) < 3 * 86400000
+}
+
+function nextStep(t) {
+  const ph = currentPhase(t).obj
+  if (!ph) return { label: '', verantwortlich: '', dringend: false }
+  const offen = (ph.aufgaben || []).filter(a => !a.done)
+  const mibecaTask = offen.find(a => istMibecaAufgabe(a.verantwortlich))
+  if (mibecaTask) {
+    return {
+      label: (mibecaTask.label || '').replace(/^MB\d+:\s*/, ''),
+      verantwortlich: mibecaTask.verantwortlich,
+      dringend: true,
+    }
+  }
+  const wartetAufMandant = offen.find(a => istMandantAufgabe(a.verantwortlich))
+  if (wartetAufMandant) {
+    return {
+      label: 'Warte auf Mandant: ' + (wartetAufMandant.label || '').replace(/^MB\d+:\s*/, ''),
+      verantwortlich: wartetAufMandant.verantwortlich,
+      dringend: false,
+    }
+  }
+  if (offen.length) {
+    return { label: (offen[0].label || '').replace(/^MB\d+:\s*/, ''), verantwortlich: offen[0].verantwortlich || '—', dringend: false }
+  }
+  return { label: '', verantwortlich: '', dringend: false }
+}
+
+function formatRel(d) {
+  if (!d) return ''
+  const ms = Date.now() - d.getTime()
+  const min = Math.floor(ms / 60000)
+  if (min < 1) return 'gerade eben'
+  if (min < 60) return `vor ${min} Min`
+  const h = Math.floor(min / 60)
+  if (h < 24) return `vor ${h} Std`
+  const tage = Math.floor(h / 24)
+  if (tage === 1) return 'gestern'
+  if (tage < 7) return `vor ${tage} Tagen`
+  return d.toLocaleDateString('de-DE')
 }
 </script>
 
