@@ -80,13 +80,83 @@
         </div>
       </div>
     </div>
+
+    <!-- Drip-Sequenzen -->
+    <div class="mt-10 border-t border-gray-100 pt-8">
+      <div class="flex items-start justify-between mb-4">
+        <div>
+          <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <Send class="w-5 h-5 text-purple-600" /> Drip-Sequenzen (Auto-Mail-Folge)
+          </h2>
+          <p class="text-sm text-gray-500 mt-1">Definiere Mail-Folgen für Interessenten — z.B. „nach 3 Tagen Erinnerung, nach 7 Tagen Nachfrage". Versand läuft automatisch täglich.</p>
+        </div>
+        <button @click="newSequenz" class="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-xl text-sm font-medium hover:bg-purple-700">
+          <Plus class="w-4 h-4" /> Neue Sequenz
+        </button>
+      </div>
+
+      <div v-if="sequenzen.length === 0" class="bg-white rounded-xl border border-gray-100 p-8 text-center text-sm text-gray-400">
+        Keine Sequenzen vorhanden.
+      </div>
+
+      <div v-else class="space-y-3">
+        <div v-for="s in sequenzen" :key="s.RowKey" class="bg-white rounded-xl border border-purple-100 p-5">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex-1">
+              <input v-model="s.name" @blur="saveSeq(s)" class="font-semibold text-gray-900 bg-transparent border-b border-transparent hover:border-gray-200 focus:border-purple-300 focus:outline-none px-1 -mx-1" />
+              <div class="text-xs text-gray-400 mt-0.5">{{ s.schritte?.length || 0 }} Schritte</div>
+            </div>
+            <button @click="removeSeq(s)" class="text-gray-300 hover:text-red-500 p-1" title="Sequenz löschen">
+              <Trash2 class="w-4 h-4" />
+            </button>
+          </div>
+          <div class="space-y-2">
+            <div v-for="(sch, idx) in s.schritte" :key="idx" class="grid grid-cols-12 gap-2 items-center">
+              <div class="col-span-1 text-xs text-gray-500 font-mono">#{{ idx + 1 }}</div>
+              <div class="col-span-2">
+                <label class="text-[10px] text-gray-400 block">Tag</label>
+                <input v-model.number="sch.tag" @blur="saveSeq(s)" type="number" min="0" class="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
+              </div>
+              <div class="col-span-4">
+                <label class="text-[10px] text-gray-400 block">Schritt-Name</label>
+                <input v-model="sch.name" @blur="saveSeq(s)" placeholder="z.B. Erste Erinnerung" class="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
+              </div>
+              <div class="col-span-4">
+                <label class="text-[10px] text-gray-400 block">Mail-Vorlage</label>
+                <select v-model="sch.vorlageRowKey" @change="saveSeq(s)" class="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-300">
+                  <option value="">— bitte Vorlage wählen —</option>
+                  <option v-for="v in vorlagen" :key="v.RowKey" :value="v.RowKey">{{ v.name }}</option>
+                </select>
+              </div>
+              <div class="col-span-1">
+                <button @click="removeSchritt(s, idx)" class="text-gray-300 hover:text-red-500 p-1" title="Schritt entfernen">
+                  <Trash2 class="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3 flex items-center justify-between">
+            <button @click="addSchritt(s)" class="text-xs text-purple-600 hover:underline flex items-center gap-1">
+              <Plus class="w-3 h-3" /> Schritt hinzufügen
+            </button>
+            <div v-if="s.schritte?.some(x => !x.vorlageRowKey)" class="text-xs text-amber-700 flex items-center gap-1">
+              <AlertCircle class="w-3 h-3" /> Einer oder mehrere Schritte ohne Mail-Vorlage — bitte zuweisen
+            </div>
+            <div v-else class="text-xs text-green-600 flex items-center gap-1">
+              <Check class="w-3 h-3" /> Alle Schritte sind verknüpft
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { Plus, FileText, Trash2, Download } from '@lucide/vue'
-import { getMailvorlagen, saveMailvorlage, deleteMailvorlage, reseedMailvorlagen } from '../../api.js'
+import { Plus, FileText, Trash2, Download, Send, AlertCircle, Check } from '@lucide/vue'
+import { getMailvorlagen, saveMailvorlage, deleteMailvorlage, reseedMailvorlagen,
+         getDripSequenzen, saveDripSequenz, deleteDripSequenz } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 
 const platzhalter = ['{{firma}}', '{{name}}', '{{mbNr}}', '{{absender}}', '{{datum}}', '{{anfrageLink}}']
@@ -154,5 +224,52 @@ async function remove() {
   }
 }
 
-onMounted(load)
+// ============= Drip-Sequenzen =============
+const sequenzen = ref([])
+
+async function loadSeq() {
+  try { sequenzen.value = await getDripSequenzen() } catch {}
+}
+
+function newSequenz() {
+  sequenzen.value.push({
+    RowKey: '',
+    name: 'Neue Sequenz',
+    schritte: [{ tag: 3, name: 'Schritt 1', vorlageRowKey: '' }],
+  })
+}
+
+let saveTimer = null
+async function saveSeq(s) {
+  clearTimeout(saveTimer)
+  saveTimer = setTimeout(async () => {
+    try {
+      const payload = { name: s.name, beschreibung: s.beschreibung || '', schritte: s.schritte || [] }
+      if (s.RowKey) payload.id = s.RowKey
+      const r = await saveDripSequenz(payload)
+      if (r.id && !s.RowKey) s.RowKey = r.id
+    } catch (e) { toast.error('Speichern fehlgeschlagen') }
+  }, 400)
+}
+
+async function removeSeq(s) {
+  if (!confirm(`Sequenz „${s.name}" wirklich löschen?`)) return
+  if (s.RowKey) {
+    try { await deleteDripSequenz(s.RowKey) } catch {}
+  }
+  sequenzen.value = sequenzen.value.filter(x => x !== s)
+}
+
+function addSchritt(s) {
+  const last = s.schritte[s.schritte.length - 1]
+  s.schritte.push({ tag: (last?.tag || 0) + 7, name: `Schritt ${s.schritte.length + 1}`, vorlageRowKey: '' })
+  saveSeq(s)
+}
+
+function removeSchritt(s, idx) {
+  s.schritte.splice(idx, 1)
+  saveSeq(s)
+}
+
+onMounted(() => { load(); loadSeq() })
 </script>
