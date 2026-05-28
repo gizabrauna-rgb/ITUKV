@@ -557,6 +557,12 @@ def target_update(req: func.HttpRequest) -> func.HttpResponse:
     }
     is_admin = p.get("role") == "admin"
     changed = []
+    # Vorherige Werte merken, um Mandant-Aktionen im Verlauf zu loggen
+    prev_kosten = entity.get("kostenInfoBestaetigtAm", "")
+    prev_ziele = entity.get("zieleMotivationenJson", "") or ""
+    prev_akq = entity.get("akquisitionsstrategieJson", "") or ""
+    prev_fb_status = entity.get("fragebogenStatus", "") or ""
+
     for k, v in body.items():
         if k not in TARGET_WRITABLE_FIELDS:
             continue
@@ -565,6 +571,46 @@ def target_update(req: func.HttpRequest) -> func.HttpResponse:
         if entity.get(k) != v:
             changed.append(k)
         entity[k] = v
+
+    # Auto-Verlauf-Eintraege fuer Mandanten-Aktionen (nur Nicht-Admin)
+    if not is_admin and changed:
+        verlauf_eintraege = []
+        def _add_eintrag(betreff):
+            verlauf_eintraege.append({
+                "id": "auto" + str(int(datetime.utcnow().timestamp() * 1000)) + str(len(verlauf_eintraege)),
+                "typ": "aufgabe",
+                "datum": datetime.utcnow().isoformat(),
+                "autor": p.get("name") or p.get("email") or "Mandant",
+                "betreff": betreff,
+                "beschreibung": "",
+                "createdBy": p.get("id", ""),
+                "createdByMandant": True,
+            })
+        # Kosten-Tabelle bestaetigt
+        if "kostenInfoBestaetigtAm" in changed and entity.get("kostenInfoBestaetigtAm") and not prev_kosten:
+            _add_eintrag("Aufgabe erledigt: Kosten-Tabelle zur Kenntnis genommen")
+        # Ziele & Motivationen erstmals oder veraendert
+        if "zieleMotivationenJson" in changed and entity.get("zieleMotivationenJson"):
+            label = "ausgefüllt" if not prev_ziele or prev_ziele == "{}" else "angepasst"
+            _add_eintrag(f"Aufgabe erledigt: Ziele & Motivationen {label}")
+        # Akquisitionsstrategie (Kaeufer) erstmals oder veraendert
+        if "akquisitionsstrategieJson" in changed and entity.get("akquisitionsstrategieJson"):
+            label = "ausgefüllt" if not prev_akq or prev_akq == "{}" else "angepasst"
+            _add_eintrag(f"Aufgabe erledigt: Akquisitionsstrategie {label}")
+        # Fragebogen abgegeben
+        if "fragebogenStatus" in changed and entity.get("fragebogenStatus") == "abgegeben" and prev_fb_status != "abgegeben":
+            _add_eintrag("Aufgabe erledigt: Fragebogen abgegeben")
+
+        if verlauf_eintraege:
+            try:
+                verlauf = json.loads(entity.get("kommunikationJson", "[]") or "[]")
+                if not isinstance(verlauf, list):
+                    verlauf = []
+            except Exception:
+                verlauf = []
+            verlauf.extend(verlauf_eintraege)
+            entity["kommunikationJson"] = json.dumps(verlauf, ensure_ascii=False)
+
     tc.update_entity(dict(entity))
     if changed:
         log_audit(p, "update", "target", tid, {"fields": changed})
