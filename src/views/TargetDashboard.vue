@@ -727,12 +727,21 @@ function onAufgabeClick(a) {
   }
   goToTab(tabForAufgabe(a.label))
 }
+async function refreshTarget() {
+  if (!targetId) return
+  try {
+    target.value = await authFetch('/target-get', { method: 'POST', data: { id: targetId } })
+  } catch {}
+}
+
 function onKostenBestaetigt(ts) {
   if (target.value) target.value.kostenInfoBestaetigtAm = ts
   showKostenModal.value = false
+  refreshTarget()
 }
 function onZieleSaved(daten) {
   if (target.value) target.value.zieleMotivationenJson = JSON.stringify(daten)
+  refreshTarget()
 }
 
 // Käufer: Akquisitionsstrategie
@@ -742,6 +751,7 @@ const akqInitial = computed(() => {
 })
 function onAkqSaved(daten) {
   if (target.value) target.value.akquisitionsstrategieJson = JSON.stringify(daten)
+  refreshTarget()
 }
 
 // Stufen-Visualisierung (4 Hauptstufen statt 15 Detail-Phasen)
