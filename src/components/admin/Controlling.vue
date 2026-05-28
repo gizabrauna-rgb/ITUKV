@@ -96,7 +96,7 @@
         </table>
       </div>
 
-      <!-- Pipeline-Funnel -->
+      <!-- Pipeline-Funnel (grober Ueberblick) -->
       <div class="bg-white rounded-xl border border-gray-100 p-5 mb-6">
         <h3 class="font-semibold text-gray-800 text-sm mb-4 flex items-center gap-2">
           <GitBranch class="w-4 h-4 text-[#0088ba]" /> Pipeline – wo stehen die offenen Mandate?
@@ -114,6 +114,60 @@
           </div>
         </div>
         <p class="text-xs text-gray-400 mt-3">{{ phaseLegende }}</p>
+      </div>
+
+      <!-- Phasen-Verteilung Detail (NEU) -->
+      <div v-if="stats.pipelineByPhaseVerkauf?.length || stats.pipelineByPhaseKauf?.length" class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <!-- Verkäufer -->
+        <div v-if="stats.pipelineByPhaseVerkauf?.length" class="bg-white rounded-xl border border-gray-100 p-5">
+          <h3 class="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
+            <Briefcase class="w-4 h-4 text-blue-600" /> Verkäufer-Mandate pro Phase
+          </h3>
+          <div class="space-y-2">
+            <div v-for="p in stats.pipelineByPhaseVerkauf" :key="'v'+p.phase" class="flex items-start gap-2 text-xs">
+              <span class="w-6 flex-shrink-0 font-mono text-gray-400 mt-1">P{{ p.phase }}</span>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-gray-700 truncate">{{ cleanTitel(p.titel) }}</span>
+                  <span class="font-semibold text-blue-700">{{ p.count }}</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-1.5 mt-1">
+                  <div class="bg-blue-500 h-1.5 rounded-full" :style="`width: ${maxPhaseVerkauf ? (p.count/maxPhaseVerkauf)*100 : 0}%`"></div>
+                </div>
+                <div class="flex flex-wrap gap-1 mt-1">
+                  <span v-for="m in p.mandate" :key="m.targetId" class="bg-blue-50 text-blue-700 text-[10px] font-mono px-1.5 py-0.5 rounded">
+                    {{ m.mbNr || '—' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Käufer -->
+        <div v-if="stats.pipelineByPhaseKauf?.length" class="bg-white rounded-xl border border-gray-100 p-5">
+          <h3 class="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
+            <Users class="w-4 h-4 text-purple-600" /> Käufer-Mandate pro Phase
+          </h3>
+          <div class="space-y-2">
+            <div v-for="p in stats.pipelineByPhaseKauf" :key="'k'+p.phase" class="flex items-start gap-2 text-xs">
+              <span class="w-6 flex-shrink-0 font-mono text-gray-400 mt-1">P{{ p.phase }}</span>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-gray-700 truncate">{{ cleanTitel(p.titel) }}</span>
+                  <span class="font-semibold text-purple-700">{{ p.count }}</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-1.5 mt-1">
+                  <div class="bg-purple-500 h-1.5 rounded-full" :style="`width: ${maxPhaseKauf ? (p.count/maxPhaseKauf)*100 : 0}%`"></div>
+                </div>
+                <div class="flex flex-wrap gap-1 mt-1">
+                  <span v-for="m in p.mandate" :key="m.targetId" class="bg-purple-50 text-purple-700 text-[10px] font-mono px-1.5 py-0.5 rounded">
+                    {{ m.mbNr || '—' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Deal-Dauer pro Projekttyp -->
@@ -188,7 +242,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { BarChart3, Briefcase, CheckCircle2, Clock, Megaphone, GitBranch, TrendingUp, BookOpen, FileText } from '@lucide/vue'
+import { BarChart3, Briefcase, CheckCircle2, Clock, Megaphone, GitBranch, TrendingUp, BookOpen, FileText, Users } from '@lucide/vue'
 import { authFetch, controllingPdf } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 
@@ -200,6 +254,12 @@ const lessons = ref([])
 const maxBucket = computed(() => Math.max(...Object.values(stats.value.pipelineFunnel || {}), 1))
 const maxDauer = computed(() => Math.max(...Object.values(stats.value.dauerProTyp || {}), 1))
 const maxMonth = computed(() => Math.max(...(stats.value.monthly || []).map(m => m.created + m.closed), 1))
+const maxPhaseVerkauf = computed(() => Math.max(...(stats.value.pipelineByPhaseVerkauf || []).map(p => p.count), 1))
+const maxPhaseKauf = computed(() => Math.max(...(stats.value.pipelineByPhaseKauf || []).map(p => p.count), 1))
+
+function cleanTitel(t) {
+  return (t || '').replace(/^\d+\.\s*/, '')
+}
 
 const phaseLegende = computed(() => stats.value.kaufAnzahl > 0
   ? 'Verkauf-Mandate: 1-3 Start/Vorbereitung · 4-6 Marktansprache · 7-9 Verhandlung · 10-12 LOI/DD · 13-15 Closing · Kauf-Mandate: kürzerer 10-Phasen-Prozess (im selben Schema gruppiert)'

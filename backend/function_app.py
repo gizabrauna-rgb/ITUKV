@@ -3169,8 +3169,12 @@ def controlling_stats(req: func.HttpRequest) -> func.HttpResponse:
             durations.append((d - c).days)
     avg_duration = round(sum(durations) / len(durations)) if durations else 0
 
-    # Pipeline-Funnel: aktuelle Phase pro offenes Mandat
+    # Pipeline-Funnel: aktuelle Phase pro offenes Mandat (grobe Buckets fuer Vergleich)
     phase_buckets = {"1-3": 0, "4-6": 0, "7-9": 0, "10-12": 0, "13-15": 0}
+    # Detailliertes Phasen-Mapping pro Mandat-Typ + Mandat-Liste je Phase
+    phase_detail_verkauf: dict = {}  # phase_idx -> {count, mandate: [{mbNr, firma}]}
+    phase_detail_kauf: dict = {}
+    is_kauf_t = lambda t: any(k in (t.get("projekttyp","") or "") for k in ("Kauf", "Investor"))
     for t in open_:
         ph = get_current_phase(t)
         if 1 <= ph <= 3: phase_buckets["1-3"] += 1
@@ -3178,6 +3182,24 @@ def controlling_stats(req: func.HttpRequest) -> func.HttpResponse:
         elif 7 <= ph <= 9: phase_buckets["7-9"] += 1
         elif 10 <= ph <= 12: phase_buckets["10-12"] += 1
         elif ph >= 13: phase_buckets["13-15"] += 1
+        # Phasen-Titel aus phasenJson auslesen (falls vorhanden)
+        try:
+            ph_arr = json.loads(t.get("phasenJson") or "[]")
+            titel = ph_arr[ph - 1].get("titel", "") if 1 <= ph <= len(ph_arr) else ""
+        except Exception:
+            titel = ""
+        target_dict = phase_detail_kauf if is_kauf_t(t) else phase_detail_verkauf
+        entry = target_dict.setdefault(ph, {"phase": ph, "titel": titel, "count": 0, "mandate": []})
+        entry["count"] += 1
+        entry["titel"] = entry["titel"] or titel
+        if len(entry["mandate"]) < 10:
+            entry["mandate"].append({
+                "targetId": t.get("RowKey", ""),
+                "mbNr": t.get("mbNr", ""),
+                "firma": t.get("firma", "") or t.get("verkaueferName", ""),
+            })
+    phase_detail_verkauf_list = sorted(phase_detail_verkauf.values(), key=lambda x: x["phase"])
+    phase_detail_kauf_list = sorted(phase_detail_kauf.values(), key=lambda x: x["phase"])
 
     # Dauer pro Variante / Projekttyp
     by_typ = {}
@@ -3270,6 +3292,8 @@ def controlling_stats(req: func.HttpRequest) -> func.HttpResponse:
         "successRate": success_rate,
         "avgDurationDays": avg_duration,
         "pipelineFunnel": phase_buckets,
+        "pipelineByPhaseVerkauf": phase_detail_verkauf_list,
+        "pipelineByPhaseKauf": phase_detail_kauf_list,
         "dauerProTyp": dauer_pro_typ,
         "kaufAnzahl": kauf_anzahl,
         "verkaufAnzahl": verkauf_anzahl,

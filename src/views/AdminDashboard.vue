@@ -268,6 +268,12 @@
           <TargetsTab v-else @open-detail="openAkte" />
         </div>
 
+        <!-- Mandate-Cockpit -->
+        <div v-else-if="tab === 'cockpit'">
+          <TargetAkte v-if="akteTargetId" :target-id="akteTargetId" :initial-tab="akteInitialTab" :initial-doc="akteInitialDoc" @close="akteTargetId = null" />
+          <MandateCockpit v-else @open-akte="id => openAkte({ RowKey: id })" />
+        </div>
+
         <!-- CRM -->
         <div v-else-if="tab === 'crm'">
           <CrmTab />
@@ -321,6 +327,7 @@ import {
 } from '@lucide/vue'
 import { authFetch, verlaufUnreadCount, verlaufMarkRead } from '../api.js'
 import TargetsTab from '../components/admin/TargetsTab.vue'
+import MandateCockpit from '../components/admin/MandateCockpit.vue'
 import CrmTab from '../components/admin/CrmTab.vue'
 import AusschreibungenTab from '../components/admin/AusschreibungenTab.vue'
 import DokumenteTab from '../components/admin/DokumenteTab.vue'
@@ -379,6 +386,7 @@ function openNdaInAkte(v) {
 
 const navItems = [
   { tab: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard },
+  { tab: 'cockpit', label: 'Mandate-Cockpit', icon: Workflow },
   { tab: 'targets', label: 'Projekte', icon: Briefcase },
   { tab: 'crm', label: 'Kontakte', icon: Users },
   { tab: 'ausschreibungen', label: 'Veröffentlichte Mandate', icon: Megaphone },
