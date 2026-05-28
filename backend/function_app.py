@@ -363,6 +363,13 @@ def targets_route(req: func.HttpRequest) -> func.HttpResponse:
     tc = table_("targets")
     if req.method == "GET":
         items = [dict(i) for i in tc.list_entities()]
+        # IDOR-Schutz: target/investor sehen nur die eigene Akte
+        role = p.get("role", "")
+        if role in ("target", "investor"):
+            my_tid = p.get("targetId", "")
+            items = [i for i in items if i.get("RowKey") == my_tid]
+        elif role != "admin" and role != "ai-agent":
+            return err_("Nicht autorisiert", 401)
         return ok_(items)
     # POST – neues Target: nur Admins
     if p.get("role") != "admin":

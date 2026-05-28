@@ -66,7 +66,9 @@ const currentView = computed(() => {
   if (role.value === 'admin' && KAUF_MANDAT_TYPS.includes(impersonating.value)) return TargetDashboard
   if (role.value === 'admin') return AdminDashboard
   if (role.value === 'target') return TargetDashboard
-  if (role.value === 'investor') return InvestorDashboard
+  // Käufer/Investoren bekommen ebenfalls TargetDashboard - dort wird
+  // automatisch der Kauf-Mandat-Tab-Set angezeigt (Suchprofil, Vorschlaege, etc.)
+  if (role.value === 'investor') return TargetDashboard
   return Login
 })
 

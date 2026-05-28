@@ -169,7 +169,7 @@
 
       <!-- Tab: Bewertung (Scoring auf Basis 33 Fragen) -->
       <div v-else-if="tab === 'bewertung'">
-        <Unternehmensbewertung :target-id="targetId" :read-only="impersonating" />
+        <Unternehmensbewertung :target-id="targetId" :read-only="true" />
       </div>
 
       <!-- Tab: Target-Vorschläge (nur bei Kauf-Mandat) -->
@@ -200,9 +200,18 @@
               <span v-else-if="vertragInfo.gesendetAm" class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">📩 Zur Signatur gesendet</span>
               <span v-else class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Entwurf</span>
             </div>
-            <a v-if="vertragInfo.signToken" :href="`${apiBaseUrl}/sign-pdf?token=${vertragInfo.signToken}`" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8]">
+            <!-- Sign-CTA: wenn Vertrag gesendet aber noch nicht unterschrieben -->
+            <a v-if="vertragInfo.signToken && !vertragInfo.signiertAm" :href="`${apiBaseUrl?.replace(/\/api$/, '')}/sign/${vertragInfo.signToken}`" target="_blank" rel="noopener"
+              class="inline-flex items-center gap-2 px-5 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 mr-2">
+              <FileText class="w-4 h-4" /> Jetzt online unterschreiben
+            </a>
+            <a v-if="vertragInfo.signToken" :href="`${apiBaseUrl}/sign-pdf?token=${vertragInfo.signToken}`" target="_blank" rel="noopener"
+              class="inline-flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">
               <Download class="w-4 h-4" /> Vertrag herunterladen
             </a>
+            <p v-if="vertragInfo.signToken && !vertragInfo.signiertAm" class="text-xs text-gray-500 mt-3">
+              Klick auf „Jetzt online unterschreiben" — der Vertrag öffnet sich, du unterschreibst per Maus oder Finger, fertig.
+            </p>
           </div>
         </div>
         <div v-else class="bg-white rounded-xl border border-gray-100 p-10 text-center text-sm text-gray-400">
@@ -353,7 +362,8 @@
       <div v-else-if="tab === 'dokumente'">
         <h2 class="text-xl font-bold text-gray-900 mb-2">Meine Dokumente</h2>
         <p class="text-sm text-gray-500 mb-5">Du kannst Dateien hochladen. Löschen können nur die mibeca-Berater (zur Sicherheit deiner Daten).</p>
-        <DokumenteAkte :target-id="targetId" :read-only="true" />
+        <!-- Verkäufer darf hochladen, aber NDAs sind im DokumenteAkte ohnehin admin-only via Backend -->
+        <DokumenteAkte :target-id="targetId" :read-only="false" />
       </div>
     </div>
 
@@ -390,7 +400,7 @@ import Fragebogen from '../components/target/Fragebogen.vue'
 import Unternehmensbewertung from '../components/target/Unternehmensbewertung.vue'
 import ExposeFreigabe from '../components/target/ExposeFreigabe.vue'
 import Verlauf from '../components/admin/Verlauf.vue'
-import { authFetch, getInteressenten, updateInteressent, getDokumente, verlaufUnreadCount, verlaufMarkRead } from '../api.js'
+import { authFetch, getInteressenten, updateInteressent, verlaufUnreadCount, verlaufMarkRead } from '../api.js'
 
 const props = defineProps({ userName: String, projekttyp: String, impersonating: Boolean })
 const emit = defineEmits(['logout'])
@@ -640,14 +650,4 @@ function ndaLabel(s) {
 }
 
 async function openOrdner(o) { selectedOrdner.value = o }
-async function uploadFile(e) {
-  const file = e.target.files[0]; if (!file) return
-  await authFetch(`/targets/${targetId}/dokumente/upload?ordner=${encodeURIComponent(selectedOrdner.value)}&dateiname=${encodeURIComponent(file.name)}`, { method: 'POST', data: file, headers: { 'Content-Type': file.type } })
-  dokumente.value = await getDokumente(targetId)
-  e.target.value = ''
-}
-async function downloadDok(dok) {
-  const r = await authFetch(`/targets/${targetId}/dokumente/${dok.RowKey}/download`)
-  window.open(r.url, '_blank')
-}
 </script>
