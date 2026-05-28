@@ -1,10 +1,16 @@
-# Security- & Compliance-Konzept
-# ITUKV Dashboard – mibeca GmbH
+# Security- & Compliance-Konzept – ITUKV Dashboard (mibeca GmbH)
 
-**Version:** 1.0
-**Stand:** 2026-05-27
+**Version:** 1.1
+**Stand:** 2026-05-28
 **Verantwortlich:** Anna Giza-Braun (mibeca)
 **Klassifizierung:** Vertraulich – nur für mibeca + Datenschutzberater
+
+> Änderungen zur Vorversion (1.0 → 1.1):
+> - Mass-Assignment: zusätzliche ADMIN-only-Allowlist für `mbNr`, Vorgangsnummern, Mandatslaufzeit
+> - Microsoft-Auto-Detection beim User-Anlegen: keine Passwort-Vergabe für interne Domains
+> - Neue strukturierte Mandanten-Felder (Ziele, Akquisitionsstrategie, Kosten-Bestätigung)
+> - Auto-Verlauf-Logging bei Mandant-Self-Service-Aktionen
+> - UX-Persistenz via sessionStorage (Tab-Wahl) – keine sensiblen Daten
 
 ---
 
@@ -168,6 +174,14 @@ Hash-Format: `pbkdf2$ITERATIONS$salt$hash`. Beim Login werden alte Hashes
 (3-Feld-Format mit 100.000 Iterationen) automatisch auf den aktuellen Standard
 hochgezogen.
 
+**Microsoft-Auto-Detection beim User-Anlegen (seit v1.1):**
+Der `user-create`-Endpoint erkennt interne Mitarbeiter automatisch (Rolle = `admin`
+oder Mailadresse endet auf `@mike-bergmann.de` / `@mibeca.de`). Für diese User wird
+**kein Passwort generiert und kein Passwort-Hash gespeichert**. Der Login erfolgt
+ausschließlich über Microsoft Entra ID. Vorteil: keine ungenutzten Passwörter, die
+abhandenkommen könnten. Externe Mandanten (Verkäufer/Investor) bekommen wie bisher
+ein 12-stelliges Initial-Passwort + Begrüßungs-Mail.
+
 ### 4.5 Rollen-Modell
 
 | Rolle | Rechte |
@@ -187,6 +201,27 @@ Es gibt keine f-String-basierten Queries mit User-Input.
 Routen mit personen- oder akten-bezogenen Daten (`target-get`, `target-update`,
 `dokument-stream-url` u. a.) prüfen explizit: wenn `role != admin`, muss
 `p.targetId == requestedTargetId` sein. Andernfalls 403.
+
+### 4.7a Mass-Assignment – Admin-only-Felder (seit v1.1)
+
+Über die generelle `TARGET_WRITABLE_FIELDS`-Allowlist hinaus gibt es eine zusätzliche
+**Admin-only-Allowlist** im `target-update`-Endpoint. Selbst ein eingeloggter Mandant
+mit Schreibrecht auf seine eigene Akte (IDOR-konform) darf folgende Felder **nicht**
+ändern – das Backend ignoriert solche Mitlieferungen stillschweigend:
+
+- `mbNr` (Vorgangsnummer / Mandatsnummer)
+- `transaktionsnummer`
+- `kundennummer`
+- `projekttyp`
+- `status`
+- `verkaueferName`
+- `firma`
+- `mandatStart`, `mandatLaufzeitMonate`
+
+Hintergrund: Diese Felder sind organisationsseitig vergeben (Jenny/Anna) und dürfen
+nicht durch ein manipuliertes Client-Payload überschrieben werden. Im Frontend sind
+die zugehörigen Eingabefelder zusätzlich `readonly` markiert, der Backend-Schutz ist
+aber die maßgebliche Schutzschicht.
 
 ### 4.8 CORS
 
@@ -232,6 +267,36 @@ direkt aus dem Browser aufrufen.
 ### 5.4 Datenfelder im Detail
 
 Siehe Anhang A für eine vollständige Liste der gespeicherten Felder pro Tabelle.
+
+### 5.5 Auto-Verlauf-Logging bei Mandant-Self-Service-Aktionen (seit v1.1)
+
+Wenn ein Verkäufer/Käufer im Mandanten-Portal eine Self-Service-Aufgabe abschließt,
+schreibt das Backend automatisch einen Verlauf-Eintrag in die Akte. Das gibt der
+Beraterin Jenny eine Echtzeit-Sicht auf Mandanten-Aktivität, ohne extra Push-Logik.
+
+Aktuell getrackt:
+- **Kosten-Tabelle zur Kenntnis genommen** → `kostenInfoBestaetigtAm`
+- **Ziele & Motivationen ausgefüllt/angepasst** (Verkäufer) → `zieleMotivationenJson`
+- **Akquisitionsstrategie ausgefüllt/angepasst** (Käufer) → `akquisitionsstrategieJson`
+- **Fragebogen abgegeben** → `fragebogenStatus = abgegeben`
+
+Eintrag-Struktur (in `kommunikationJson` an die Akte angehängt):
+
+```json
+{
+  "id": "auto<timestamp>",
+  "typ": "aufgabe",
+  "datum": "<ISO 8601 UTC>",
+  "autor": "<User-Name oder Mailadresse>",
+  "betreff": "Aufgabe erledigt: <Beschreibung>",
+  "createdBy": "<User-RowKey>",
+  "createdByMandant": true
+}
+```
+
+Datenschutz: Der Eintrag enthält keine Inhalte des Formulars, nur die Tatsache des
+Abschlusses. Ein Mandant kann den Eintrag nicht selbst nachträglich verändern – das
+Logging passiert ausschließlich serverseitig im `target-update`-Endpoint.
 
 ---
 
@@ -288,6 +353,22 @@ mibeca selbst hat keinen physischen Zugriff auf Server.
 - Test- und Produktivdaten getrennt (Staging-Umgebung in Planung)
 - Mandanten-Daten gegen Cross-Access geschützt (IDOR)
 - Logische Trennung über `targetId` und Rolle
+
+### 6.9 Client-seitige UX-Persistenz (seit v1.1)
+
+Das Frontend nutzt `sessionStorage` für UX-Komfort:
+
+| Schlüssel | Inhalt | Lebensdauer |
+|---|---|---|
+| `target.tab` | aktiver Tab im Mandanten-Portal | bis Browser-Tab geschlossen |
+| `admin.tab` | aktiver Tab im Admin-Portal | bis Browser-Tab geschlossen |
+| `mandate.view` | gewählte Ansicht (Cockpit/Liste) | bis Browser-Tab geschlossen |
+| `targetId` / `userRole` / `userName` / `partnerJwt` | bestehende Auth-Werte | bis Browser-Tab geschlossen |
+
+`sessionStorage` ist domain-gebunden, beim Schließen des Browser-Tabs automatisch
+gelöscht und nicht über andere Tabs/Browser geteilt. Keine besonderen Datenkategorien.
+Tokens (JWT) liegen ebenfalls in `sessionStorage`, nicht in `localStorage` – damit
+keine persistenten Spuren auf gemeinsam genutzten Rechnern bleiben.
 
 ---
 
@@ -465,8 +546,22 @@ passwordHash (PBKDF2 600k), targetId, createdAt, lastSeen, lastSeenVerlauf (JSON
 **Tabelle `targets`:**
 RowKey (UUID), mbNr, verkaueferName, firma, region, plz, branche, mitarbeiter,
 umsatz, projekttyp, status, mandatStart, mandatLaufzeitMonate, geschaeftsfuehrer,
-diverse JSON-Blobs (phasen, fragebogen, bewertung, expose, landing, kommunikation,
-termine, vertrag, loi, lessonsLearned, suchprofil, kiAnalyseErlaubt …)
+kundennummer, transaktionsnummer, kostenInfoBestaetigtAm,
+diverse JSON-Blobs (phasenJson, fragebogenJson, bewertungJson, exposeJson, landingJson,
+kommunikationJson, termineJson, vertragJson, loiJson, lessonsLearnedJson, suchprofilJson,
+zieleMotivationenJson, akquisitionsstrategieJson, kiAnalyseErlaubt …)
+
+Mandanten-Self-Service-Felder (seit v1.1, durch das Backend in der target-Tabelle gespeichert):
+
+| Feld | Wer schreibt? | Inhalt |
+|---|---|---|
+| `kostenInfoBestaetigtAm` | Verkäufer (Self-Service) | ISO-Zeitstempel der Kosten-Bestätigung |
+| `zieleMotivationenJson` | Verkäufer (Self-Service) | Strukturierte Antworten: Motivation, Zeitrahmen, Wunsch-Rolle, Deal-Struktur, Deal-Breaker |
+| `akquisitionsstrategieJson` | Käufer (Self-Service) | Strukturierte Antworten: Motivation, Hold-Period, Budget, Finanzierung, Zielprofil, Synergien, Deal-Breaker |
+
+Alle Felder sind in `TARGET_WRITABLE_FIELDS` enthalten, also durch den allgemeinen
+Mass-Assignment-Schutz abgedeckt. Sie liegen außerhalb der `ADMIN_ONLY_TARGET_FIELDS`-
+Allowlist, weil der Mandant sie selbst pflegen darf.
 
 **Tabelle `kontakte`:**
 RowKey (UUID), firma, name, geschaeftsfuehrer, email, telefon, plz, ort, website,
@@ -498,6 +593,7 @@ Wöchentliche JSON-Snapshots, 12-Wochen-Rotation
 | Datum | Audit-Art | Findings | Status |
 |---|---|---|---|
 | 2026-05-27 | Initial-Audit | 4 kritische, 4 hohe, mehrere Hygiene-Findings | alle geschlossen, siehe Git-Commits |
+| 2026-05-28 | Hardening-Iteration | Mandant kann mbNr/Vorgangsnummern setzen; Microsoft-User bekommen unnötig Passwort; fehlendes Self-Service-Aktivitäts-Logging | alle geschlossen, siehe Commits e482320, user-create-Patch, d050e2f |
 
 Detail-Findings dieses Audits:
 - Login-Bypass über unverifizierten MSAL-Token (BEHOBEN)
@@ -549,7 +645,7 @@ adressiert (manuell, Automatisierung in Planung).
 
 *Dieses Dokument ist ein lebendes Dokument und wird mindestens jährlich aktualisiert
 oder bei wesentlichen Änderungen an Architektur, Datenfluss oder rechtlichen
-Rahmenbedingungen. Stand 2026-05-27.*
+Rahmenbedingungen. Stand 2026-05-28.*
 
 *Es ersetzt nicht die rechtliche Bewertung durch einen Datenschutzbeauftragten
 oder Fachanwalt für IT-Recht.*

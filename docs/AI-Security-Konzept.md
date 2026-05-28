@@ -2,8 +2,13 @@
 
 **Projekt:** ITUKV Dashboard (mibeca GmbH)
 **Modul:** KI-Analyse von hochgeladenen Dokumenten (BWA, Jahresabschluss, Exposé, Handelsregister)
-**Stand:** 2026-05-27
+**Version:** 1.1
+**Stand:** 2026-05-28
 **Verantwortlich:** Anna Giza-Braun (mibeca)
+
+> Änderungen zur Vorversion (1.0 → 1.1):
+> - KI-Service-Account-Schreibrechte sind jetzt zusätzlich durch die Mandanten-Schutz-Allowlist eingegrenzt (kein Setzen von `mbNr`, `status`, `projekttyp` etc.)
+> - Auto-Verlauf-Eintrag wird bei KI-Analyse-Übernahmen weiterhin geschrieben (unverändert), zusätzlich existiert jetzt parallel ein Auto-Verlauf für Mandant-Self-Service-Aktionen (siehe Dashboard-Konzept §5.5)
 
 ---
 
@@ -68,7 +73,7 @@ Die KI liest Dokumente und schlägt Werte vor – die finale Entscheidung über 
 | **PDF-Limit** | Max. 10 MB pro Datei. |
 | **Audit-Trail** | Jeder KI-Aufruf wird in der `auditlog`-Tabelle mit User-ID, Zeitstempel, Dokument-Name und Token-Verbrauch protokolliert. |
 | **Verlauf-Eintrag** | Jede KI-Analyse erzeugt einen sichtbaren Verlauf-Eintrag in der Akte mit Marker „KI-Analyse". |
-| **Mass-Assignment-Schutz** | KI darf nur eine definierte Allowlist von Feldern schreiben (keine Status-, Mandats- oder User-Daten). |
+| **Mass-Assignment-Schutz (2-stufig)** | KI darf nur eine definierte Allowlist von Feldern schreiben (`AI_WRITABLE_TARGET_FIELDS` / `AI_WRITABLE_KONTAKT_FIELDS`). Zusätzlich wirkt seit v1.1 die `ADMIN_ONLY_TARGET_FIELDS`-Sperre: selbst die KI darf z.B. nicht `mbNr`, `status`, `projekttyp`, `verkaueferName`, `firma`, `mandatStart` oder `mandatLaufzeitMonate` setzen. |
 | **Rollen-Trennung** | Eigener Service-Account `ai-agent` mit reduziertem Schreibumfang für externe KI-Anbindung. |
 | **Authentifizierung** | Microsoft Entra ID (MSAL) + JWT (HMAC-SHA256, 600.000 PBKDF2-Iterationen) + Token-Längen-Check + IDOR-Schutz |
 | **Transport-Verschlüsselung** | TLS 1.2+ erzwungen auf allen Wegen (Browser → Azure → Anthropic) |
@@ -175,3 +180,5 @@ Erst nach Abhakung dieser Punkte den Schalter umlegen.
 *Dieses Dokument wurde durch das Entwicklerteam erstellt und ersetzt nicht die rechtliche
 Beratung durch einen Datenschutzbeauftragten oder Fachanwalt. Es dient als Diskussions-
 und Audit-Grundlage.*
+
+*Stand 2026-05-28.*
