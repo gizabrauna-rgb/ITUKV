@@ -13,7 +13,8 @@ oder ein anderes Wiki kopiert werden.
 |---|---|---|
 | **Security-Konzept-Dashboard.md** | Gesamtkonzept: Architektur, Auth, Datenfluss, TOM, Backup, Risiken | ✅ Pflicht (DSGVO Art. 30 Grundlage) |
 | **AI-Security-Konzept.md** | KI-spezifisches Konzept inkl. AI-Act-Bewertung | ✅ Pflicht solange KI aktiv |
-| **1-Mandanten-Info-KI-Anlage.md** | Mustertext für Mandatsvertrags-Anlage | An Anwalt geben |
+| **1-Mandanten-Info-KI-Anlage.md** | Mustertext: separate Info-Beilage Art. 13 DSGVO | Vom DSB freigeben lassen (kein Anwalt nötig) |
+| **7-Checkliste-Chef.md** | Aktions-Checkliste für die Geschäftsführung | An GF weiterleiten |
 | **2-DSFA-Vorlage.md** | Datenschutz-Folgenabschätzung (Art. 35 DSGVO) | An DSB geben zur Prüfung |
 | **3-Verarbeitungsverzeichnis-Anthropic.md** | Eintrag fürs zentrale Art-30-Verzeichnis | Ins bestehende Art-30-Register übernehmen |
 | **4-AVV-Anfrage-Anthropic.md** | Anleitung + Mail-Vorlage für DPA-Anforderung | Selbst durchführen |

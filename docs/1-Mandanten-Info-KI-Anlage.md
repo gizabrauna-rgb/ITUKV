@@ -1,8 +1,9 @@
 # Mandanten-Information zur KI-gestützten Dokumenten-Analyse
 
-**Dokument-Art:** Anlage zum Mandatsvertrag bzw. separate Datenschutz-Information
+**Dokument-Art:** Separate Datenschutz-Information nach Art. 13 DSGVO (eigenständige Beilage)
 **Adressat:** Mandanten von mibeca (Verkäufer & Käufer)
-**Status:** Vorlage – vor Verwendung durch Anwalt prüfen lassen
+**Status:** Vorlage – durch DSB freigeben lassen, Anwalt nicht zwingend nötig
+**Verwendung:** als separate 1-seitige Beilage zum Mandatsvertrag (kein Vertragsbestandteil)
 **Stand:** 2026-05-28
 
 ---
@@ -75,5 +76,7 @@ Anthropic PBC, 548 Market St #94234, San Francisco, CA 94104, USA
 
 ---
 
-*Hinweis: Diese Vorlage ist vor Verwendung durch einen IT-Recht-Anwalt zu prüfen.
-Die Mandantin/der Mandant sollte die Information schriftlich oder per E-Mail bestätigen.*
+*Hinweis: Diese Vorlage ist eine reine Datenschutz-Information nach Art. 13 DSGVO
+und kein Vertragsbestandteil. Sie kann ohne Anwalt-Beteiligung verwendet werden, sollte
+aber vom Datenschutzbeauftragten kurz geprüft werden. Die Mandantin/der Mandant sollte
+den Erhalt schriftlich oder per E-Mail bestätigen.*
