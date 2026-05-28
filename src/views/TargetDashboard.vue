@@ -42,9 +42,9 @@
         <!-- Status-Kacheln -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
           <div class="bg-white rounded-xl border border-gray-100 p-3">
-            <div class="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Phase</div>
-            <div class="text-lg font-bold text-gray-900 mt-0.5">{{ currentPhase }}/{{ phasen.length || 15 }}</div>
-            <div class="text-[11px] text-gray-500 truncate">{{ currentPhaseTitle || '—' }}</div>
+            <div class="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Aktuelle Stufe</div>
+            <div class="text-lg font-bold text-gray-900 mt-0.5">{{ aktuelleStufeName }}</div>
+            <div class="text-[11px] text-gray-500 truncate">{{ phasen.length ? `Schritt ${currentPhase} von ${phasen.length}` : 'noch nicht gestartet' }}</div>
           </div>
           <div class="bg-white rounded-xl border border-gray-100 p-3">
             <div class="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Offene Aufgaben</div>
@@ -75,8 +75,21 @@
 
       <!-- Tab: Mein Projekt -->
       <div v-if="tab === 'projekt'">
+        <!-- Fallback wenn noch keine Phasen vorhanden -->
+        <div v-if="!phasen.length" class="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+          <div class="w-12 h-12 rounded-full bg-[#0088ba]/10 flex items-center justify-center mx-auto mb-4">
+            <Briefcase class="w-6 h-6 text-[#0088ba]" />
+          </div>
+          <h3 class="font-bold text-gray-900 mb-2">Dein Mandat wird gerade vorbereitet</h3>
+          <p class="text-sm text-gray-600 max-w-md mx-auto">
+            Deine M&A-Beraterin bei mibeca legt aktuell die Prozess-Schritte für dein Mandat an.
+            Sobald das fertig ist, siehst du hier deine konkreten Aufgaben und den aktuellen Stand.
+          </p>
+          <p class="text-xs text-gray-400 mt-4">Bei Fragen: <a href="mailto:jk@mike-bergmann.de" class="text-[#0088ba] hover:underline">jk@mike-bergmann.de</a></p>
+        </div>
+
         <!-- 1) Was steht für DICH an? -->
-        <div v-if="meineOffenenAufgaben.length" class="bg-white rounded-2xl border-2 border-[#0088ba]/20 p-6 mb-4">
+        <div v-else-if="meineOffenenAufgaben.length" class="bg-white rounded-2xl border-2 border-[#0088ba]/20 p-6 mb-4">
           <div class="flex items-start gap-3 mb-4">
             <div class="w-10 h-10 rounded-full bg-[#0088ba]/10 flex items-center justify-center flex-shrink-0">
               <CheckCircle class="w-5 h-5 text-[#0088ba]" />
@@ -610,8 +623,9 @@ const aktuelleStufeIdx = computed(() => {
 })
 
 const aktuelleStufeName = computed(() => {
+  if (!phasen.value.length) return 'In Vorbereitung'
   const s = stufenListe.value[aktuelleStufeIdx.value]
-  return s ? s.name : '—'
+  return s ? s.name : 'In Vorbereitung'
 })
 
 const aktuelleStufeBeschreibung = computed(() => {
