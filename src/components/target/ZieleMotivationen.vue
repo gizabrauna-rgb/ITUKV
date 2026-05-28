@@ -153,7 +153,7 @@
             Was sind absolute Deal-Breaker für dich?
           </h4>
           <textarea v-model="data.dealBreaker" @blur="save" rows="3"
-            placeholder="z.B. „Standort darf nicht verlagert werden", „Kein Verkauf an Konkurrent X", „Marke muss erhalten bleiben"…"
+            placeholder="z.B. Standort darf nicht verlagert werden / Kein Verkauf an Konkurrent X / Marke muss erhalten bleiben"
             class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none"></textarea>
         </section>
       </div>

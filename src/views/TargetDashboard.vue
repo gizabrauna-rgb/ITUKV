@@ -374,8 +374,11 @@
     <!-- Kosten-Info Modal -->
     <KostenInfo v-if="showKostenModal" :target-id="targetId" :bestaetigt-am="target?.kostenInfoBestaetigtAm" @close="showKostenModal = false" @confirmed="onKostenBestaetigt" />
 
-    <!-- Ziele & Motivationen Modal -->
+    <!-- Ziele & Motivationen Modal (Verkäufer) -->
     <ZieleMotivationen v-if="showZieleModal" :target-id="targetId" :initial="zieleInitial" @close="showZieleModal = false" @saved="onZieleSaved" />
+
+    <!-- Akquisitionsstrategie Modal (Käufer) -->
+    <AkquisitionsstrategieKaeufer v-if="showAkqModal" :target-id="targetId" :initial="akqInitial" @close="showAkqModal = false" @saved="onAkqSaved" />
 
     <!-- VETO Modal -->
     <div v-if="vetoTarget" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
@@ -406,6 +409,7 @@ import MandatDaten from '../components/target/MandatDaten.vue'
 import PressetextFreigabe from '../components/target/PressetextFreigabe.vue'
 import KostenInfo from '../components/target/KostenInfo.vue'
 import ZieleMotivationen from '../components/target/ZieleMotivationen.vue'
+import AkquisitionsstrategieKaeufer from '../components/target/AkquisitionsstrategieKaeufer.vue'
 import KaeuferVorschlaege from '../components/target/KaeuferVorschlaege.vue'
 import Suchprofil from '../components/admin/Suchprofil.vue'
 import DokumenteAkte from '../components/admin/DokumenteAkte.vue'
@@ -603,8 +607,16 @@ const autoChecks = computed(() => {
     kennenlernenErfolgt: terminErledigt('kennenlernen'),
     kostenZurKenntnis: !!t.kostenInfoBestaetigtAm,
     zieleErfasst: zieleAusgefuellt(t.zieleMotivationenJson),
+    akquisitionsstrategieErfasst: akqAusgefuellt(t.akquisitionsstrategieJson),
   }
 })
+
+function akqAusgefuellt(json) {
+  try {
+    const d = JSON.parse(json || '{}')
+    return !!(d.motivation?.length || d.holdPeriod || d.maxKaufpreis || d.branche)
+  } catch { return false }
+}
 
 function zieleAusgefuellt(json) {
   try {
@@ -670,8 +682,12 @@ function onAufgabeClick(a) {
     showKostenModal.value = true
     return
   }
-  if (a.id === 'uve4' || (a.label || '').toLowerCase().includes('verkaufsstory')) {
+  if (a.id === 'uve4' || (a.label || '').toLowerCase().includes('ziele & motivationen')) {
     showZieleModal.value = true
+    return
+  }
+  if (a.id === 'k3' || (a.label || '').toLowerCase().includes('budget-rahmen')) {
+    showAkqModal.value = true
     return
   }
   goToTab(tabForAufgabe(a.label))
@@ -682,6 +698,15 @@ function onKostenBestaetigt(ts) {
 }
 function onZieleSaved(daten) {
   if (target.value) target.value.zieleMotivationenJson = JSON.stringify(daten)
+}
+
+// Käufer: Akquisitionsstrategie
+const showAkqModal = ref(false)
+const akqInitial = computed(() => {
+  try { return JSON.parse(target.value?.akquisitionsstrategieJson || '{}') } catch { return {} }
+})
+function onAkqSaved(daten) {
+  if (target.value) target.value.akquisitionsstrategieJson = JSON.stringify(daten)
 }
 
 // Stufen-Visualisierung (4 Hauptstufen statt 15 Detail-Phasen)

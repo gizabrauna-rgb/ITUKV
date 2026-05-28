@@ -376,6 +376,14 @@ const autoChecks = computed(() => {
         return !!(d.motivation?.length || d.zeitrahmen || d.bleibedauer || d.wunschErloes)
       } catch { return false }
     })(),
+
+    // ---- NEU: Akquisitionsstrategie (Käufer) ausgefuellt ----
+    akquisitionsstrategieErfasst: (() => {
+      try {
+        const d = JSON.parse(t.akquisitionsstrategieJson || '{}')
+        return !!(d.motivation?.length || d.holdPeriod || d.maxKaufpreis || d.branche)
+      } catch { return false }
+    })(),
   }
 })
 

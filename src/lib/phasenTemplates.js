@@ -107,7 +107,7 @@ export const PHASEN_KAUF = () => ([
   { id: 1, titel: '1. Suchprofil definieren', notiz: '', aufgaben: [
     { id: 'k1', label: 'Suchkriterien erarbeiten (Region, Branche, Größe)', done: false, verantwortlich: 'Käufer', datum: '', notiz: '' },
     { id: 'k2', label: 'Suchprofil im Dashboard freigeben', done: false, verantwortlich: 'Käufer', datum: '', notiz: '', auto: 'suchprofilFreigegeben' },
-    { id: 'k3', label: 'Budget-Rahmen + Strategische Ziele dokumentieren', done: false, verantwortlich: 'Käufer', datum: '', notiz: '' },
+    { id: 'k3', label: 'Budget-Rahmen + Strategische Ziele dokumentieren', done: false, verantwortlich: 'Käufer', datum: '', notiz: '', auto: 'akquisitionsstrategieErfasst' },
   ]},
   { id: 2, titel: '2. Markt-Screening (mibeca)', notiz: '', aufgaben: [
     { id: 'k1', label: 'Kandidaten-Suche im eigenen CRM', done: false, verantwortlich: 'Jenny', datum: '', notiz: '' },
