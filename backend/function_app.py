@@ -5798,6 +5798,171 @@ def ai_verlauf_add(req: func.HttpRequest) -> func.HttpResponse:
     return ok_({"ok": True, "entry": new_entry})
 
 
+@app.route(route="ai-dokument-upload", methods=["POST", "OPTIONS"])
+def ai_dokument_upload(req: func.HttpRequest) -> func.HttpResponse:
+    """KI-Coworker laedt ein Dokument in den Datenraum eines Targets.
+    Erlaubt nur Rolle 'ai-agent' oder 'admin'.
+
+    Restriktionen vs. menschlichem Upload:
+    - Nur PDF / JSON / XLSX / CSV erlaubt
+    - Max 5 MB
+    - Pflichtfeld 'quelleUrl' (woher kommt das Dokument?)
+    - Wird mit KI-Marker gespeichert, separates Audit-Log
+    - Auto-Verlauf-Eintrag in der Akte
+
+    Body: { targetId, ordner, fileName, fileData (base64), contentType, quelleUrl, beschreibung? }
+    """
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") not in ("ai-agent", "admin"):
+        return err_("Nicht autorisiert", 401)
+
+    body = req.get_json() or {}
+    target_id = (body.get("targetId") or "").strip()
+    ordner = (body.get("ordner") or "KI-Recherche").strip()
+    file_name = (body.get("fileName") or "ki-upload").strip()
+    file_data = body.get("fileData", "")
+    content_type = body.get("contentType", "application/octet-stream")
+    quelle_url = (body.get("quelleUrl") or "").strip()
+    beschreibung = (body.get("beschreibung") or "").strip()
+
+    # Pflichtfelder
+    if not (target_id and file_data and quelle_url):
+        return err_("targetId, fileData und quelleUrl erforderlich", 400)
+
+    # Pro-Akte-Opt-In pruefen (gleicher Schalter wie KI-Analyse)
+    try:
+        target_ent = table_("targets").get_entity("target", target_id)
+    except Exception:
+        return err_("Target nicht gefunden", 404)
+    if p.get("role") == "ai-agent" and not target_ent.get("kiAnalyseErlaubt"):
+        return err_("KI-Zugriff fuer diese Akte nicht freigegeben (kiAnalyseErlaubt=true noetig)", 403)
+
+    # Dateityp-Whitelist (nur die genannten erlauben)
+    allowed_ct = {"application/pdf", "application/json", "text/csv",
+                  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                  "application/vnd.ms-excel"}
+    fname_lower = file_name.lower()
+    allowed_ext = fname_lower.endswith(('.pdf', '.json', '.csv', '.xlsx', '.xls'))
+    if content_type not in allowed_ct and not allowed_ext:
+        return err_(f"Dateityp nicht erlaubt fuer KI-Upload: {content_type}. Nur PDF/JSON/CSV/XLSX.", 400)
+
+    # Base64-Decode
+    try:
+        if file_data.startswith("data:"):
+            file_data = file_data.split(",", 1)[1]
+        binary = base64.b64decode(file_data)
+    except Exception as ex:
+        return err_(f"Decoding fehlgeschlagen: {ex}", 400)
+
+    # Groessen-Limit (5 MB strict fuer KI)
+    if len(binary) > 5 * 1024 * 1024:
+        return err_(f"Datei zu gross fuer KI-Upload ({len(binary)} bytes). Max 5 MB.", 400)
+
+    # Path-Sanitization
+    def _sanitize(s, default):
+        if not s: return default
+        s = s.replace("\\", "_").replace("/", "_")
+        while ".." in s: s = s.replace("..", "_")
+        s = "".join(c for c in s if c.isprintable())
+        return s.strip() or default
+    ordner = _sanitize(ordner, "KI-Recherche")
+    file_name = _sanitize(file_name, "ki-upload")
+    if not all(c.isalnum() or c == "-" for c in target_id):
+        return err_("Ungueltige targetId", 400)
+
+    # Blob hochladen
+    blob_name = f"{target_id}/{ordner}/{uuid.uuid4()}_{file_name}"
+    try:
+        container = _blob_container_lazy("datenraum")
+        from azure.storage.blob import ContentSettings
+        container.upload_blob(blob_name, binary, overwrite=False,
+                              content_settings=ContentSettings(content_type=content_type))
+    except Exception as ex:
+        return err_(f"Upload fehlgeschlagen: {ex}", 500)
+
+    # Metadaten in Table mit KI-Marker
+    doc_id = str(uuid.uuid4())
+    now_iso = datetime.utcnow().isoformat()
+    entity = {
+        "PartitionKey": target_id,
+        "RowKey": doc_id,
+        "ordner": ordner,
+        "fileName": file_name,
+        "blobName": blob_name,
+        "contentType": content_type,
+        "size": len(binary),
+        "uploadedBy": p.get("name", "") or p.get("email", "KI-Coworker"),
+        "uploadedByRole": p.get("role", ""),
+        "uploadedAt": now_iso,
+        # KI-spezifische Felder
+        "kiUpload": True,
+        "kiQuelleUrl": quelle_url,
+        "kiBeschreibung": beschreibung[:1000],
+    }
+    table_("dokumente").create_entity(entity)
+
+    # Auto-Verlauf-Eintrag in der Akte
+    try:
+        verlauf = json.loads(target_ent.get("kommunikationJson", "[]") or "[]")
+        if not isinstance(verlauf, list): verlauf = []
+    except Exception:
+        verlauf = []
+    verlauf.append({
+        "id": "kiup" + str(int(datetime.utcnow().timestamp() * 1000)),
+        "typ": "ki_analyse",
+        "datum": now_iso,
+        "autor": "KI-Coworker",
+        "betreff": f"KI hat Dokument hochgeladen: {file_name}",
+        "beschreibung": f"Quelle: {quelle_url}\nOrdner: {ordner}\n{beschreibung}",
+        "createdBy": p.get("id", ""),
+        "createdByKI": True,
+    })
+    target_ent["kommunikationJson"] = json.dumps(verlauf, ensure_ascii=False)
+    try:
+        table_("targets").update_entity(target_ent)
+    except Exception:
+        pass  # Verlauf-Update darf den Upload nicht fehlschlagen lassen
+
+    # Audit-Log
+    log_audit(p, "ai_upload", "dokument", doc_id, {
+        "targetId": target_id, "ordner": ordner, "fileName": file_name,
+        "contentType": content_type, "size": len(binary), "quelleUrl": quelle_url,
+    })
+
+    return ok_({
+        "id": doc_id,
+        "fileName": file_name,
+        "ordner": ordner,
+        "size": len(binary),
+        "uploadedAt": now_iso,
+        "kiUpload": True,
+        "kiQuelleUrl": quelle_url,
+    }, 201)
+
+
+@app.route(route="ai-uploads-recent", methods=["GET", "OPTIONS"])
+def ai_uploads_recent(req: func.HttpRequest) -> func.HttpResponse:
+    """Listet alle KI-Uploads der letzten N Tage (default 7) fuer Admin-Review."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    days = int(req.params.get("days", "7"))
+    cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+    items = []
+    try:
+        for d in table_("dokumente").list_entities():
+            if d.get("kiUpload") and (d.get("uploadedAt") or "") >= cutoff:
+                items.append(dict(d))
+    except Exception as ex:
+        return err_(f"Lesen fehlgeschlagen: {ex}", 500)
+    items.sort(key=lambda x: x.get("uploadedAt", ""), reverse=True)
+    return ok_(items)
+
+
 @app.route(route="ai-config", methods=["GET", "OPTIONS"])
 def ai_config(req: func.HttpRequest) -> func.HttpResponse:
     """Liefert den Compliance-Status der KI-Analyse:

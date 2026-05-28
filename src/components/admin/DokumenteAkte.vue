@@ -48,6 +48,10 @@
               {{ formatSize(f.size) }} · {{ formatDate(f.uploadedAt) }}
               <span v-if="f.uploadedBy"> · hochgeladen von {{ f.uploadedBy }}</span>
               <span v-if="f.uploadedByRole === 'target'" class="ml-1 text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">Verkäufer</span>
+              <span v-if="f.kiUpload" class="ml-1 text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-semibold inline-flex items-center gap-0.5"
+                :title="`KI-Upload via ${f.uploadedBy || 'Coworker'}\nQuelle: ${f.kiQuelleUrl || '-'}\n${f.kiBeschreibung || ''}`">
+                <Sparkles class="w-2.5 h-2.5" /> KI-Upload
+              </span>
             </div>
           </div>
           <!-- Ordner ändern -->
