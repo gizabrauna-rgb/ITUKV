@@ -687,21 +687,28 @@ def user_create(req: func.HttpRequest) -> func.HttpResponse:
     existing = list(tc.query_entities("email eq @email", parameters={"email": email}))
     if existing:
         return err_("E-Mail bereits registriert", 409)
+    role = body.get("role", "target")
+    # Interne Mitarbeiter (Admin / mibeca-Domain) loggen sich ueber Microsoft Entra ID ein
+    # -> kein Passwort generieren, andere Begruessungsmail.
+    is_internal = (role == "admin") or email.endswith("@mike-bergmann.de") or email.endswith("@mibeca.de")
     import string
-    pw = body.get("password") or "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
-    pw_hash = hash_password(pw)
+    pw = None
+    pw_hash = ""
+    if not is_internal:
+        pw = body.get("password") or "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
+        pw_hash = hash_password(pw)
     uid = str(uuid.uuid4())
     entity = {
         "PartitionKey": "user", "RowKey": uid, "email": email,
         "passwordHash": pw_hash,
-        "role": body.get("role", "target"),
+        "role": role,
         "name": body.get("name", ""),
         "targetId": body.get("targetId", ""),
         "createdAt": datetime.utcnow().isoformat(),
     }
     tc.create_entity(entity)
 
-    # Begruessungsmail mit Login-Daten an neuen User
+    # Begruessungsmail an neuen User
     acs_conn = os.environ.get("ACS_CONNECTION_STRING", "")
     acs_sender = os.environ.get("ACS_SENDER_ADDRESS", "DoNotReply@mail.itukv.de")
     frontend = os.environ.get("FRONTEND_BASE_URL", "https://dashboard.itukv.de")
@@ -709,29 +716,45 @@ def user_create(req: func.HttpRequest) -> func.HttpResponse:
         try:
             from azure.communication.email import EmailClient
             client = EmailClient.from_connection_string(acs_conn)
-            html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
-                <h2 style="color:#097e92">Willkommen im ITUKV Dashboard</h2>
-                <p>Hallo {entity.get('name') or ''},</p>
-                <p>für dich wurde ein Zugang zum ITUKV Dashboard angelegt.</p>
-                <p><strong>Deine Login-Daten:</strong></p>
-                <table cellpadding="6" style="background:#f0fdfa;border-radius:8px;border-collapse:separate">
-                  <tr><td>E-Mail:</td><td><strong>{email}</strong></td></tr>
-                  <tr><td>Initial-Passwort:</td><td><strong style="font-family:monospace;font-size:15px">{pw}</strong></td></tr>
-                </table>
-                <p style="margin-top:24px"><a href="{frontend}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Jetzt einloggen</a></p>
-                <p style="font-size:12px;color:#666">Aus Sicherheitsgründen empfehlen wir, das Passwort nach der ersten Anmeldung zu aendern.</p>
-                <p>Bei Fragen melde dich bei deinem mibeca-Ansprechpartner.</p>
-                </body></html>"""
+            if is_internal:
+                # Interner Mitarbeiter -> Microsoft-Login Mail (ohne Passwort)
+                html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
+                    <h2 style="color:#097e92">Willkommen im ITUKV Dashboard</h2>
+                    <p>Hallo {entity.get('name') or ''},</p>
+                    <p>für dich wurde ein Zugang zum ITUKV Dashboard angelegt.</p>
+                    <p>Du meldest dich einfach mit deinem <strong>Microsoft-Konto</strong> ({email}) an – du brauchst <strong>kein zusätzliches Passwort</strong>.</p>
+                    <p style="margin-top:24px"><a href="{frontend}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Mit Microsoft anmelden</a></p>
+                    <p style="font-size:12px;color:#666;margin-top:24px">Bei Fragen melde dich bei deinem mibeca-Ansprechpartner.</p>
+                    </body></html>"""
+                subject = "Dein Zugang zum ITUKV Dashboard"
+                plain = f"Login mit deinem Microsoft-Konto ({email}) unter: {frontend}"
+            else:
+                # Externer Kunde -> Passwort-Login Mail
+                html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
+                    <h2 style="color:#097e92">Willkommen im ITUKV Dashboard</h2>
+                    <p>Hallo {entity.get('name') or ''},</p>
+                    <p>für dich wurde ein Zugang zum ITUKV Dashboard angelegt.</p>
+                    <p><strong>Deine Login-Daten:</strong></p>
+                    <table cellpadding="6" style="background:#f0fdfa;border-radius:8px;border-collapse:separate">
+                      <tr><td>E-Mail:</td><td><strong>{email}</strong></td></tr>
+                      <tr><td>Initial-Passwort:</td><td><strong style="font-family:monospace;font-size:15px">{pw}</strong></td></tr>
+                    </table>
+                    <p style="margin-top:24px"><a href="{frontend}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Jetzt einloggen</a></p>
+                    <p style="font-size:12px;color:#666">Aus Sicherheitsgründen empfehlen wir, das Passwort nach der ersten Anmeldung zu aendern.</p>
+                    <p>Bei Fragen melde dich bei deinem mibeca-Ansprechpartner.</p>
+                    </body></html>"""
+                subject = "Dein Zugang zum ITUKV Dashboard"
+                plain = f"Login: {email} / Passwort: {pw} / URL: {frontend}"
             client.begin_send({
                 "senderAddress": acs_sender,
                 "recipients": {"to": [{"address": email}]},
-                "content": {"subject": "Dein Zugang zum ITUKV Dashboard", "plainText": f"Login: {email} / Passwort: {pw} / URL: {frontend}", "html": html},
+                "content": {"subject": subject, "plainText": plain, "html": html},
             })
         except Exception as ex:
             logging.warning(f"Begruessungsmail fehlgeschlagen: {ex}") if 'logging' in dir() else None
 
-    log_audit(p, "create", "user", uid, {"email": email, "role": entity["role"], "name": entity["name"]})
-    return ok_({"id": uid, "email": email, "role": entity["role"], "name": entity["name"], "initialPassword": pw}, 201)
+    log_audit(p, "create", "user", uid, {"email": email, "role": entity["role"], "name": entity["name"], "loginMethod": "microsoft" if is_internal else "password"})
+    return ok_({"id": uid, "email": email, "role": entity["role"], "name": entity["name"], "initialPassword": pw, "loginMethod": "microsoft" if is_internal else "password"}, 201)
 
 
 @app.route(route="login", methods=["POST", "OPTIONS"])

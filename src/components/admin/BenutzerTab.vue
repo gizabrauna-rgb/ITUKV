@@ -106,12 +106,27 @@
               <option value="investor">Investor (Käufer) – Ausschreibungen + eigene NDAs</option>
             </select>
           </div>
-          <div v-if="form.role === 'target'">
-            <label class="block text-xs font-medium text-gray-600 mb-1">Verknüpftes Target (mb-Nummer)</label>
+          <div v-if="form.role === 'target' || form.role === 'investor'">
+            <label class="block text-xs font-medium text-gray-600 mb-1">Verknüpftes Mandat (mb-Nummer) *</label>
             <select v-model="form.targetId" class="input">
-              <option value="">— Target auswählen —</option>
-              <option v-for="t in targets" :key="t.RowKey" :value="t.RowKey">{{ t.mbNr }} · {{ t.verkaueferName }}</option>
+              <option value="">— Mandat auswählen —</option>
+              <optgroup v-if="verkaeuferTargets.length" label="Verkäufer-Ansichten">
+                <option v-for="t in verkaeuferTargets" :key="t.RowKey" :value="t.RowKey">
+                  {{ t.mbNr || '(ohne mb-Nr)' }} · {{ t.verkaueferName || t.firma || '—' }} · {{ t.projekttyp }}
+                </option>
+              </optgroup>
+              <optgroup v-if="kaufMandatTargets.length" label="Käufer-Ansichten">
+                <option v-for="t in kaufMandatTargets" :key="t.RowKey" :value="t.RowKey">
+                  {{ t.mbNr || '(ohne mb-Nr)' }} · {{ t.verkaueferName || t.firma || '—' }} · {{ t.projekttyp }}
+                </option>
+              </optgroup>
             </select>
+            <p v-if="!hasTargetsToPick" class="text-xs text-amber-600 mt-1">
+              Noch keine Mandate vorhanden – bitte erst im Targets-Tab anlegen.
+            </p>
+            <p class="text-xs text-gray-500 mt-1">
+              Die Ansicht (Verkäufer / Käufer) richtet sich nach dem <strong>Projekttyp</strong> des gewählten Mandats.
+            </p>
           </div>
           <div v-if="!editing">
             <label class="block text-xs font-medium text-gray-600 mb-1">Initial-Passwort (leer = automatisch generieren)</label>
@@ -210,6 +225,21 @@ const passwordReveal = ref(null)
 const copied = ref(false)
 
 const form = ref({ name: '', email: '', role: 'target', targetId: '', password: '' })
+
+// Projekttyp-Gruppen (alle 6 Ansichten zur Auswahl)
+const VERKAEUFER_TYPS = ['UVE Target', 'Projekt Target', 'MC Target']
+const KAUF_MANDAT_TYPS = ['Kauf-Mandat', 'Projekt Investoren', 'MC Investoren']
+
+// Alle Targets gruppiert nach Verkäufer / Käufer
+const verkaeuferTargets = computed(() =>
+  targets.value.filter(t => VERKAEUFER_TYPS.includes(t.projekttyp))
+)
+const kaufMandatTargets = computed(() =>
+  targets.value.filter(t => KAUF_MANDAT_TYPS.includes(t.projekttyp))
+)
+const hasTargetsToPick = computed(() =>
+  verkaeuferTargets.value.length + kaufMandatTargets.value.length > 0
+)
 
 const roleFilters = [
   { value: '', label: 'Alle' },

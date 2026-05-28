@@ -24,10 +24,10 @@
     </header>
 
     <div class="max-w-7xl mx-auto px-6 py-8">
-      <!-- Begrüßungs-Card -->
+      <!-- Begrüßungs-Card (schlank) -->
       <div class="bg-gradient-to-br from-white to-[#0088ba]/5 border border-[#0088ba]/10 rounded-2xl p-6 mb-5">
-        <div class="flex items-start gap-4">
-          <div class="flex-1">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+          <div class="flex-1 min-w-0">
             <div v-if="projekttyp" class="mb-2">
               <span class="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#0088ba]/10 text-[#0088ba] px-2.5 py-1 rounded-full">
                 <Briefcase class="w-3 h-3" />
@@ -38,28 +38,16 @@
             <h1 class="text-2xl font-bold text-gray-900">{{ greetingTime }}, {{ firstName || userName }}!</h1>
             <p class="text-sm text-gray-600 mt-1">Hier ist dein aktueller Stand bei deinem M&A-Projekt mit mibeca.</p>
           </div>
-        </div>
-        <!-- Status-Kacheln -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
-          <div class="bg-white rounded-xl border border-gray-100 p-3">
-            <div class="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Aktuelle Stufe</div>
-            <div class="text-lg font-bold text-gray-900 mt-0.5">{{ aktuelleStufeName }}</div>
-            <div class="text-[11px] text-gray-500 truncate">{{ phasen.length ? `Schritt ${currentPhase} von ${phasen.length}` : 'noch nicht gestartet' }}</div>
-          </div>
-          <div class="bg-white rounded-xl border border-gray-100 p-3">
-            <div class="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Offene Aufgaben</div>
-            <div class="text-lg font-bold text-gray-900 mt-0.5">{{ offeneAufgaben }}</div>
-            <div class="text-[11px] text-gray-500">noch zu erledigen</div>
-          </div>
-          <div class="bg-white rounded-xl border border-gray-100 p-3">
-            <div class="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Nächster Termin</div>
-            <div class="text-lg font-bold text-gray-900 mt-0.5">{{ naechsterTerminLabel }}</div>
-            <div class="text-[11px] text-gray-500 truncate">{{ naechsterTerminText }}</div>
-          </div>
-          <div class="bg-white rounded-xl border border-gray-100 p-3">
-            <div class="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Ansprechpartnerin</div>
-            <div class="text-sm font-bold text-gray-900 mt-0.5">Jennifer Kaplan</div>
-            <a href="mailto:jk@mike-bergmann.de" class="text-[11px] text-[#0088ba] hover:underline">jk@mike-bergmann.de</a>
+          <!-- Ansprechpartnerin inline -->
+          <div class="flex items-center gap-2 text-xs text-gray-600 bg-white border border-gray-100 rounded-xl px-3 py-2">
+            <div class="w-7 h-7 rounded-full bg-[#0088ba]/10 flex items-center justify-center">
+              <User class="w-4 h-4 text-[#0088ba]" />
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Deine Ansprechpartnerin</div>
+              <div class="text-sm font-semibold text-gray-900 leading-tight">Jennifer Kaplan</div>
+              <a href="mailto:jk@mike-bergmann.de" class="text-[11px] text-[#0088ba] hover:underline">jk@mike-bergmann.de</a>
+            </div>
           </div>
         </div>
       </div>
@@ -404,7 +392,8 @@ import { ref, computed, onMounted, watch } from 'vue'
 import {
   Building2, LogOut, Briefcase, Users, FolderOpen, Check, CheckCircle, Circle,
   Star, UserCheck, Ban, Folder, ChevronLeft, Upload, FileText, Download,
-  Link as LinkIcon, Plus, Trash2, X, ClipboardList, FileEdit, MessageSquare, TrendingUp, Clock, Bell
+  Link as LinkIcon, Plus, Trash2, X, ClipboardList, FileEdit, MessageSquare, TrendingUp, Clock, Bell,
+  User, ChevronRight
 } from '@lucide/vue'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
