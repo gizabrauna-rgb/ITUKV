@@ -526,9 +526,9 @@ const navItems = computed(() => {
     base = [
       { tab: 'projekt', label: 'Mein Projekt', icon: Briefcase },
       { tab: 'mandat', label: 'Meine Daten', icon: ClipboardList },
-      { tab: 'akquisitionen', label: 'Meine Akquisitionen', icon: Target },
       { tab: 'suchprofil', label: 'Mein Suchprofil', icon: FileEdit },
       { tab: 'vorschlaege', label: 'Target-Vorschläge', icon: Users },
+      { tab: 'akquisitionen', label: 'Meine Akquisitionen', icon: Target },
       { tab: 'vertraege', label: 'Verträge', icon: FileText },
       { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
     ]

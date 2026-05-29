@@ -107,7 +107,56 @@ const vorschlaege = computed(() => {
 function setFeedback(id, interesse) {
   if (!feedback.value[id]) feedback.value[id] = { interesse: '', kommentar: '' }
   feedback.value[id].interesse = interesse
+  syncAkquisition(id, interesse)
   save()
+}
+
+// Akquisitionen automatisch pflegen, je nach Feedback:
+//   ja          -> Akquisition mit Status 'aktiv' anlegen/updaten
+//   rueckfrage  -> Status 'pausiert'
+//   nein        -> Auto-Akquisition wieder entfernen
+async function syncAkquisition(kandidatId, interesse) {
+  if (!props.targetId) return
+  // aktuellen Stand laden (Race-Vermeidung)
+  let liste = []
+  try {
+    const t = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
+    try { liste = JSON.parse(t.akquisitionenJson || '[]') } catch { liste = [] }
+    if (!Array.isArray(liste)) liste = []
+  } catch { liste = [] }
+
+  const kand = vorschlaege.value.find(v => v.id === kandidatId)
+  if (!kand) return
+  const idx = liste.findIndex(a => a.quelleKandidatId === kandidatId)
+
+  if (interesse === 'nein') {
+    // nur Auto-Eintrag entfernen — manuell angelegte bleiben unberuehrt
+    if (idx >= 0 && liste[idx].quelleKandidatId) liste.splice(idx, 1)
+    else return
+  } else {
+    const statusNeu = interesse === 'rueckfrage' ? 'pausiert' : 'aktiv'
+    if (idx >= 0) {
+      liste[idx] = { ...liste[idx], status: statusNeu }
+    } else {
+      liste.push({
+        id: 'akq' + Date.now(),
+        createdAt: new Date().toISOString(),
+        name: kand.firma || 'Akquisition',
+        status: statusNeu,
+        branche: kand.branche || '',
+        region: kand.ort || kand.plz || '',
+        mitarbeiter: kand.mitarbeiter || '',
+        umsatz: kand.umsatz || '',
+        maxKaufpreis: '',
+        notizen: '',
+        quelleKandidatId: kandidatId,
+      })
+    }
+  }
+
+  try {
+    await authFetch('/target-update', { method: 'POST', data: { id: props.targetId, akquisitionenJson: JSON.stringify(liste) } })
+  } catch (e) { console.error('Akquisition sync', e) }
 }
 
 let saveTimer = null
