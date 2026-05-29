@@ -18,6 +18,9 @@
             </div>
           </div>
           <div class="flex items-center gap-2">
+            <button @click="showAnreichern = true" class="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+              <Sparkles class="w-3.5 h-3.5" /> Mit Assistent anreichern
+            </button>
             <button @click="$emit('edit', kontakt)" class="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">
               <Pencil class="w-3.5 h-3.5" /> Bearbeiten
             </button>
@@ -281,15 +284,18 @@
         </div>
       </aside>
     </div>
+    <KontaktAnreichernModal v-if="showAnreichern && kontakt" :kontakt="kontakt"
+      @close="showAnreichern = false" @updated="onAnreicherungUebernommen" />
   </Teleport>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { X, Pencil, CheckCircle2, Briefcase, StickyNote, FileText, Package, ScrollText, Mail, History } from '@lucide/vue'
+import { X, Pencil, CheckCircle2, Briefcase, StickyNote, FileText, Package, ScrollText, Mail, History, Sparkles } from '@lucide/vue'
 import { updateKontakt } from '../../api.js'
 import { authFetch } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
+import KontaktAnreichernModal from './KontaktAnreichernModal.vue'
 
 const props = defineProps({
   kontakt: { type: Object, default: null },
@@ -300,6 +306,17 @@ const emit = defineEmits(['close', 'edit', 'open-projekt', 'updated'])
 const tab = ref('uebersicht')
 const newNote = ref('')
 const savingNote = ref(false)
+const showAnreichern = ref(false)
+function onAnreicherungUebernommen(payload) {
+  // Lokale Kontakt-Daten patchen, damit sofort sichtbar
+  if (props.kontakt) {
+    for (const k of Object.keys(payload || {})) {
+      props.kontakt[k] = payload[k]
+    }
+  }
+  toast.success('Kontakt aktualisiert')
+  emit('updated', props.kontakt)
+}
 // Neuer Verlauf-Eintrag
 const verlaufTargetId = ref('')
 const verlaufBetreff = ref('')

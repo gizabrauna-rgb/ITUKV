@@ -1,9 +1,16 @@
 <template>
   <div>
-    <div class="mb-5">
-      <h2 class="text-xl font-bold text-gray-900">Suchprofil</h2>
-      <p class="text-sm text-gray-500 mt-1">Welche Targets sucht der Käufer? Diese Kriterien werden für die automatische Long-List genutzt.</p>
+    <div class="mb-5 flex items-start justify-between gap-3">
+      <div>
+        <h2 class="text-xl font-bold text-gray-900">Suchprofil</h2>
+        <p class="text-sm text-gray-500 mt-1">Welche Targets sucht der Käufer? Diese Kriterien werden für die automatische Long-List genutzt.</p>
+      </div>
+      <button v-if="targetId" @click="showSchaerfen = true"
+        class="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 flex-shrink-0">
+        <Sparkles class="w-3.5 h-3.5" /> Mit Assistent schärfen
+      </button>
     </div>
+    <SuchprofilSchaerfenModal v-if="showSchaerfen" :target-id="targetId" @close="showSchaerfen = false" />
 
     <div class="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
       <!-- Region -->
@@ -107,7 +114,10 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { MapPin, Users, Cpu, Filter } from '@lucide/vue'
+import { MapPin, Users, Cpu, Filter, Sparkles } from '@lucide/vue'
+import SuchprofilSchaerfenModal from '../target/SuchprofilSchaerfenModal.vue'
+
+const showSchaerfen = ref(false)
 import { authFetch } from '../../api.js'
 
 const props = defineProps({ targetId: String })

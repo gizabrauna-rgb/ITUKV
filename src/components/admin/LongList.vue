@@ -115,6 +115,8 @@
           </div>
         </div>
         <div class="flex gap-1 flex-shrink-0">
+          <button @click="openMatchBegruendung(k)" title="Assistent bewertet Match"
+            class="p-1.5 hover:bg-purple-50 rounded text-purple-600"><Sparkles class="w-4 h-4" /></button>
           <button v-if="decisions[k.id] !== 'short'" @click="setStatus(k, 'short')" title="Zu Favoriten hinzufügen"
             class="p-1.5 hover:bg-green-50 rounded text-green-600"><Check class="w-4 h-4" /></button>
           <button v-if="decisions[k.id] === 'short' && !isFreigegeben(k)" @click="freigeben(k, true)" title="Für Käufer freigeben"
@@ -126,15 +128,22 @@
         </div>
       </div>
     </div>
+    <MatchBegruendungModal v-if="matchModalKontakt"
+      :target-id="targetId" :kontakt-id="matchModalKontakt.id || matchModalKontakt.RowKey || ''"
+      :kontakt-name="matchModalKontakt.firma || ''"
+      @close="matchModalKontakt = null" />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Users, RefreshCw, Check, X, Plus, Eye, EyeOff, Lightbulb, Star, Ban, AlertCircle } from '@lucide/vue'
+import { Users, RefreshCw, Check, X, Plus, Eye, EyeOff, Lightbulb, Star, Ban, AlertCircle, Sparkles } from '@lucide/vue'
 import { authFetch, getKontakte, getTargets } from '../../api.js'
+import MatchBegruendungModal from './MatchBegruendungModal.vue'
 
 const props = defineProps({ targetId: String })
+const matchModalKontakt = ref(null)
+function openMatchBegruendung(k) { matchModalKontakt.value = k }
 
 const items = ref([])
 const loading = ref(true)
