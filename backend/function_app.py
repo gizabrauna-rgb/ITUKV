@@ -649,6 +649,10 @@ def kontakt_create(req: func.HttpRequest) -> func.HttpResponse:
         "name": body.get("name", ""),
         "email": body.get("email", ""),
         "telefon": body.get("telefon", ""),
+        # Zusaetzliche Mail/Telefon-Adressen als JSON-Arrays von Objekten
+        # [{"label": "geschaeftlich", "wert": "..."}, ...]
+        "weitereEmailsJson": body.get("weitereEmailsJson", ""),
+        "weiterePhonesJson": body.get("weiterePhonesJson", ""),
         "website": body.get("website", ""),
         "plz": body.get("plz", ""),
         "ort": body.get("ort", ""),

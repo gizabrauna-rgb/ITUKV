@@ -58,16 +58,22 @@
               </div>
               <div>
                 <div class="text-[11px] uppercase tracking-wide text-gray-400 font-semibold mb-0.5">E-Mail</div>
-                <div class="text-sm">
-                  <a v-if="kontakt.email" :href="`mailto:${kontakt.email}`" class="text-[#0088ba] hover:underline">{{ kontakt.email }}</a>
-                  <span v-else class="text-gray-400">—</span>
+                <div class="text-sm space-y-0.5">
+                  <a v-if="kontakt.email" :href="`mailto:${kontakt.email}`" class="text-[#0088ba] hover:underline block">{{ kontakt.email }}</a>
+                  <a v-for="e in weitereEmails" :key="e.wert" :href="`mailto:${e.wert}`" class="text-[#0088ba] hover:underline block">
+                    {{ e.wert }} <span v-if="e.label" class="text-[10px] text-gray-400">· {{ e.label }}</span>
+                  </a>
+                  <span v-if="!kontakt.email && !weitereEmails.length" class="text-gray-400">—</span>
                 </div>
               </div>
               <div>
                 <div class="text-[11px] uppercase tracking-wide text-gray-400 font-semibold mb-0.5">Telefon</div>
-                <div class="text-sm">
-                  <a v-if="kontakt.telefon" :href="`tel:${kontakt.telefon}`" class="text-[#0088ba] hover:underline">{{ kontakt.telefon }}</a>
-                  <span v-else class="text-gray-400">—</span>
+                <div class="text-sm space-y-0.5">
+                  <a v-if="kontakt.telefon" :href="`tel:${kontakt.telefon}`" class="text-[#0088ba] hover:underline block">{{ kontakt.telefon }}</a>
+                  <a v-for="p in weiterePhones" :key="p.wert" :href="`tel:${p.wert}`" class="text-[#0088ba] hover:underline block">
+                    {{ p.wert }} <span v-if="p.label" class="text-[10px] text-gray-400">· {{ p.label }}</span>
+                  </a>
+                  <span v-if="!kontakt.telefon && !weiterePhones.length" class="text-gray-400">—</span>
                 </div>
               </div>
               <div>
@@ -360,6 +366,19 @@ const produktListe = [
 ]
 
 const produkteGekauft = computed(() => produktListe.filter(p => props.kontakt?.[p.key]).length)
+
+const weitereEmails = computed(() => {
+  try {
+    const a = JSON.parse(props.kontakt?.weitereEmailsJson || '[]')
+    return Array.isArray(a) ? a.filter(x => x && x.wert) : []
+  } catch { return [] }
+})
+const weiterePhones = computed(() => {
+  try {
+    const a = JSON.parse(props.kontakt?.weiterePhonesJson || '[]')
+    return Array.isArray(a) ? a.filter(x => x && x.wert) : []
+  } catch { return [] }
+})
 
 const weitereAnsprechpartner = computed(() => {
   try {

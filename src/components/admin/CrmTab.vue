@@ -280,8 +280,31 @@
           <div class="col-span-2"><label class="field-label">Firma</label><input v-model="form.firma" class="input" /></div>
           <div><label class="field-label">Geschäftsführer</label><input v-model="form.geschaeftsfuehrer" placeholder="z.B. Max Mustermann" class="input" /></div>
           <div><label class="field-label">Name (Ansprechpartner)</label><input v-model="form.name" class="input" /></div>
-          <div><label class="field-label">E-Mail</label><input v-model="form.email" type="email" class="input" /></div>
-          <div><label class="field-label">Telefon</label><input v-model="form.telefon" class="input" /></div>
+          <div><label class="field-label">E-Mail (primär)</label><input v-model="form.email" type="email" class="input" /></div>
+          <div><label class="field-label">Telefon (primär)</label><input v-model="form.telefon" class="input" /></div>
+
+          <!-- Weitere E-Mails -->
+          <div class="col-span-2">
+            <label class="field-label">Weitere E-Mails</label>
+            <div v-for="(e, i) in weitereEmails" :key="'e'+i" class="flex gap-2 mb-1">
+              <input v-model="e.wert" placeholder="zusatz@beispiel.de" type="email" class="input flex-1" />
+              <input v-model="e.label" placeholder="Label (privat/business…)" class="input w-40" />
+              <button type="button" @click="weitereEmails.splice(i, 1)" class="px-2 text-red-500 hover:bg-red-50 rounded">✕</button>
+            </div>
+            <button type="button" @click="weitereEmails.push({ wert: '', label: '' })" class="text-xs text-[#0088ba] hover:underline">+ Weitere E-Mail</button>
+          </div>
+
+          <!-- Weitere Telefone -->
+          <div class="col-span-2">
+            <label class="field-label">Weitere Telefon-Nummern</label>
+            <div v-for="(p, i) in weiterePhones" :key="'p'+i" class="flex gap-2 mb-1">
+              <input v-model="p.wert" placeholder="+49 …" class="input flex-1" />
+              <input v-model="p.label" placeholder="Label (mobil/büro…)" class="input w-40" />
+              <button type="button" @click="weiterePhones.splice(i, 1)" class="px-2 text-red-500 hover:bg-red-50 rounded">✕</button>
+            </div>
+            <button type="button" @click="weiterePhones.push({ wert: '', label: '' })" class="text-xs text-[#0088ba] hover:underline">+ Weitere Telefon-Nummer</button>
+          </div>
+
           <div><label class="field-label">Website</label><input v-model="form.website" class="input" /></div>
           <div><label class="field-label">Branche</label><input v-model="form.branche" placeholder="z.B. IT-Systemhaus" class="input" /></div>
           <div><label class="field-label">PLZ</label><input v-model="form.plz" class="input" /></div>
@@ -732,10 +755,19 @@ function parseAnsprechpartner(json) {
 function addAnsprechpartner() { ansprechpartner.value.push({ name: '', position: '', email: '', telefon: '' }) }
 function removeAnsprechpartner(i) { ansprechpartner.value.splice(i, 1) }
 
+// Weitere Mails/Telefone fuer den Hauptkontakt
+const weitereEmails = ref([])
+const weiterePhones = ref([])
+function parseJsonArr(s) {
+  try { const a = JSON.parse(s || '[]'); return Array.isArray(a) ? a : [] } catch { return [] }
+}
+
 function openEdit(k) {
   editKontakt.value = k
   form.value = { ...k }
   ansprechpartner.value = parseAnsprechpartner(k.ansprechpartnerJson)
+  weitereEmails.value = parseJsonArr(k.weitereEmailsJson)
+  weiterePhones.value = parseJsonArr(k.weiterePhonesJson)
   showNewModal.value = true
 }
 function closeModal() {
@@ -749,12 +781,19 @@ function closeModal() {
     istKunde:false, istExKunde:false, istInvestor:false, istTarget:false, investorTyp:'',
   }
   ansprechpartner.value = []
+  weitereEmails.value = []
+  weiterePhones.value = []
 }
 
 async function saveKontakt() {
   saving.value = true
   try {
-    const payload = { ...form.value, ansprechpartnerJson: JSON.stringify(ansprechpartner.value.filter(a => a.name || a.email || a.telefon)) }
+    const payload = {
+      ...form.value,
+      ansprechpartnerJson: JSON.stringify(ansprechpartner.value.filter(a => a.name || a.email || a.telefon)),
+      weitereEmailsJson: JSON.stringify(weitereEmails.value.filter(e => e.wert)),
+      weiterePhonesJson: JSON.stringify(weiterePhones.value.filter(p => p.wert)),
+    }
     if (editKontakt.value) {
       await updateKontakt(editKontakt.value.RowKey, payload)
     } else {
