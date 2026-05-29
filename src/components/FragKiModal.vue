@@ -30,10 +30,13 @@
 
         <div v-for="(m, i) in messages" :key="i"
           :class="['flex gap-2', m.role === 'user' ? 'justify-end' : 'justify-start']">
-          <div :class="['max-w-[80%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap',
-                       m.role === 'user' ? 'bg-[#0088ba] text-white' : 'bg-white border border-gray-100 text-gray-800']">
+          <div v-if="m.role === 'user'"
+            class="max-w-[80%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap bg-[#0088ba] text-white">
             {{ m.text }}
           </div>
+          <div v-else
+            class="max-w-[80%] rounded-2xl px-4 py-2.5 text-sm bg-white border border-gray-100 text-gray-800 assi-md"
+            v-html="renderMd(m.text)"></div>
         </div>
 
         <div v-if="loading" class="flex gap-2 justify-start">
@@ -109,4 +112,110 @@ async function scrollDown() {
   await nextTick()
   if (chatEl.value) chatEl.value.scrollTop = chatEl.value.scrollHeight
 }
+
+// Minimaler Markdown-Renderer fuer Assistent-Antworten.
+// Unterstuetzt: H2/H3, bold, italic, code, Listen (- / *), nummerierte Listen,
+// Tabellen (Pipe-Format) und Absaetze.
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+function renderMd(text) {
+  if (!text) return ''
+  const lines = text.split('\n')
+  const out = []
+  let i = 0
+  while (i < lines.length) {
+    const line = lines[i]
+    // Horizontal rule
+    if (/^---+\s*$/.test(line)) { out.push('<hr/>'); i++; continue }
+    // Headings
+    const h = line.match(/^(#{1,6})\s+(.+)$/)
+    if (h) {
+      const lvl = Math.min(h[1].length + 1, 6)  // # -> h2 (h1 nicht im chat)
+      out.push(`<h${lvl}>${inline(h[2])}</h${lvl}>`)
+      i++; continue
+    }
+    // Tables (Pipe-Format)
+    if (/^\s*\|.*\|\s*$/.test(line) && i + 1 < lines.length && /^\s*\|[\s\-:|]+\|\s*$/.test(lines[i+1])) {
+      const header = splitRow(line)
+      i += 2
+      const rows = []
+      while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) {
+        rows.push(splitRow(lines[i]))
+        i++
+      }
+      out.push('<table><thead><tr>' + header.map(c => `<th>${inline(c)}</th>`).join('') + '</tr></thead><tbody>'
+        + rows.map(r => '<tr>' + r.map(c => `<td>${inline(c)}</td>`).join('') + '</tr>').join('')
+        + '</tbody></table>')
+      continue
+    }
+    // Lists
+    if (/^\s*[-*]\s+/.test(line)) {
+      const items = []
+      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
+        items.push(lines[i].replace(/^\s*[-*]\s+/, ''))
+        i++
+      }
+      out.push('<ul>' + items.map(it => `<li>${inline(it)}</li>`).join('') + '</ul>')
+      continue
+    }
+    if (/^\s*\d+\.\s+/.test(line)) {
+      const items = []
+      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
+        items.push(lines[i].replace(/^\s*\d+\.\s+/, ''))
+        i++
+      }
+      out.push('<ol>' + items.map(it => `<li>${inline(it)}</li>`).join('') + '</ol>')
+      continue
+    }
+    // Leerzeile -> Paragraph-Break
+    if (line.trim() === '') { out.push(''); i++; continue }
+    // Sonst: Absatz (mit folgenden nicht-leeren Zeilen zusammen)
+    const para = [line]
+    while (i + 1 < lines.length && lines[i+1].trim() !== ''
+           && !/^(#{1,6})\s+/.test(lines[i+1])
+           && !/^\s*[-*]\s+/.test(lines[i+1])
+           && !/^\s*\d+\.\s+/.test(lines[i+1])
+           && !/^\s*\|.*\|\s*$/.test(lines[i+1])) {
+      i++
+      para.push(lines[i])
+    }
+    out.push(`<p>${inline(para.join(' '))}</p>`)
+    i++
+  }
+  return out.join('')
+}
+function splitRow(line) {
+  return line.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(c => c.trim())
+}
+function inline(s) {
+  s = escapeHtml(s)
+  // bold + italic
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+  s = s.replace(/__([^_]+)__/g, '<strong>$1</strong>')
+  s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>')
+  // inline code
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>')
+  return s
+}
 </script>
+
+<style scoped>
+@reference "tailwindcss";
+.assi-md :deep(h2) { @apply text-base font-bold mt-3 mb-1.5; }
+.assi-md :deep(h3) { @apply text-sm font-bold mt-2 mb-1; }
+.assi-md :deep(h4), .assi-md :deep(h5), .assi-md :deep(h6) { @apply text-sm font-semibold mt-2 mb-1; }
+.assi-md :deep(p) { @apply mb-2 leading-relaxed; }
+.assi-md :deep(p:last-child) { @apply mb-0; }
+.assi-md :deep(strong) { @apply font-semibold; }
+.assi-md :deep(em) { @apply italic; }
+.assi-md :deep(ul) { @apply list-disc ml-5 mb-2 space-y-0.5; }
+.assi-md :deep(ol) { @apply list-decimal ml-5 mb-2 space-y-0.5; }
+.assi-md :deep(li) { @apply leading-snug; }
+.assi-md :deep(code) { @apply bg-gray-100 text-purple-700 px-1 py-0.5 rounded text-xs; }
+.assi-md :deep(table) { @apply w-full text-xs border border-gray-200 my-2 rounded overflow-hidden; }
+.assi-md :deep(thead) { @apply bg-gray-50; }
+.assi-md :deep(th) { @apply text-left px-2 py-1.5 font-semibold border-b border-gray-200; }
+.assi-md :deep(td) { @apply px-2 py-1 border-b border-gray-100; }
+.assi-md :deep(hr) { @apply border-gray-100 my-2; }
+</style>
