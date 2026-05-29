@@ -369,8 +369,17 @@ function switchTo(view) {
 }
 const statsLoading = ref(true)
 const statsRaw = ref({ aktiveTargets: 0, offeneNdas: 0, investorenGesamt: 0, dealsAbgeschlossen: 0 })
-const akteTargetId = ref(null)
-const akteInitialTab = ref('')
+// Akten-State in sessionStorage halten, damit Reload in einer Akte nicht
+// zurueck zur Projekte-Liste springt.
+const akteTargetId = ref(sessionStorage.getItem('admin.akteTargetId') || null)
+const akteInitialTab = ref(sessionStorage.getItem('admin.akteInitialTab') || '')
+watch(akteTargetId, v => {
+  if (v) sessionStorage.setItem('admin.akteTargetId', v)
+  else { sessionStorage.removeItem('admin.akteTargetId'); sessionStorage.removeItem('admin.akteInitialTab') }
+})
+watch(akteInitialTab, v => {
+  if (v) sessionStorage.setItem('admin.akteInitialTab', v)
+})
 const akteInitialDoc = ref(null)
 
 function openAkte(target) {
