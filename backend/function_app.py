@@ -2581,6 +2581,163 @@ def _notify_new_entry(target_id, entry, sender_user_id=None):
             })
     except Exception as ex:
         logging.warning(f"notify_new_entry fehlgeschlagen: {ex}") if 'logging' in globals() else None
+    # Browser-Push zusaetzlich (an alle Subscriptions der Empfaenger-User)
+    try:
+        _send_push_to_target(target_id, entry, sender_user_id)
+    except Exception:
+        pass
+
+
+# ===== Browser-Push (VAPID) =====
+def _send_webpush(subscription, payload_dict):
+    """Sendet eine WebPush-Nachricht an eine Subscription."""
+    vapid_priv = os.environ.get("VAPID_PRIVATE_KEY", "")
+    vapid_sub = os.environ.get("VAPID_SUBJECT", "mailto:ab@mike-bergmann.de")
+    if not vapid_priv:
+        return False
+    try:
+        from pywebpush import webpush
+        webpush(
+            subscription_info=subscription,
+            data=json.dumps(payload_dict, ensure_ascii=False),
+            vapid_private_key=vapid_priv,
+            vapid_claims={"sub": vapid_sub},
+        )
+        return True
+    except Exception as ex:
+        return False
+
+
+def _send_push_to_target(target_id, entry, sender_user_id=None):
+    """Schickt Web-Push an User, die zu einem Target gehoeren und Subscriptions haben."""
+    try:
+        subs_tc = table_("pushsubs")
+    except Exception:
+        return
+    # Empfaenger ermitteln (wie bei Mail)
+    sender_role = None
+    sender_uid = sender_user_id or ""
+    if sender_uid:
+        s = _get_user_full(sender_uid)
+        sender_role = s.get("role") if s else None
+    if sender_role == "target":
+        # Mandant hat geschrieben -> Push an alle Admins
+        try:
+            admin_users = list(table_("users").query_entities("role eq 'admin'"))
+            recipient_uids = [u["RowKey"] for u in admin_users]
+        except Exception:
+            recipient_uids = []
+    else:
+        # Admin hat geschrieben -> Push an Target-User
+        try:
+            tu = list(table_("users").query_entities("targetId eq @t", parameters={"t": target_id}))
+            recipient_uids = [u["RowKey"] for u in tu]
+        except Exception:
+            recipient_uids = []
+    # Subscriptions je User laden
+    title = f"[ITUKV] {entry.get('betreff', 'Neuer Eintrag')[:80]}"
+    body = (entry.get('beschreibung', '') or '')[:200]
+    url = f"{FRONTEND_BASE}/?targetId={target_id}#verlauf"
+    payload = {"title": title, "body": body, "url": url, "icon": "/Logo_mibeca_Start.png"}
+    for uid in recipient_uids:
+        try:
+            for s in subs_tc.query_entities("userId eq @u", parameters={"u": uid}):
+                sub = {
+                    "endpoint": s.get("endpoint", ""),
+                    "keys": {"p256dh": s.get("p256dh", ""), "auth": s.get("auth", "")},
+                }
+                ok = _send_webpush(sub, payload)
+                if not ok:
+                    # Tote Subscription bereinigen
+                    try: subs_tc.delete_entity(s["PartitionKey"], s["RowKey"])
+                    except Exception: pass
+        except Exception:
+            continue
+
+
+@app.route(route="push-config", methods=["GET", "OPTIONS"])
+def push_config(req: func.HttpRequest) -> func.HttpResponse:
+    """Liefert den VAPID-Public-Key (oeffentlich, nicht geheim)."""
+    if req.method == "OPTIONS":
+        return opt_()
+    return ok_({"publicKey": os.environ.get("VAPID_PUBLIC_KEY", "")})
+
+
+@app.route(route="push-subscribe", methods=["POST", "OPTIONS"])
+def push_subscribe(req: func.HttpRequest) -> func.HttpResponse:
+    """User registriert eine Browser-Push-Subscription.
+    Body: { endpoint, keys: { p256dh, auth } }"""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    endpoint = (body.get("endpoint") or "").strip()
+    keys = body.get("keys") or {}
+    if not endpoint:
+        return err_("endpoint erforderlich", 400)
+    uid = p.get("id", "")
+    # Stable RowKey aus endpoint-Hash
+    import hashlib
+    rk = hashlib.sha256(endpoint.encode()).hexdigest()[:32]
+    try:
+        tc = table_("pushsubs")
+        tc.upsert_entity({
+            "PartitionKey": "sub",
+            "RowKey": rk,
+            "userId": uid,
+            "userName": p.get("name", "") or p.get("email", ""),
+            "endpoint": endpoint,
+            "p256dh": keys.get("p256dh", ""),
+            "auth": keys.get("auth", ""),
+            "createdAt": datetime.utcnow().isoformat(),
+        })
+    except Exception as ex:
+        return err_(f"Speichern fehlgeschlagen: {ex}", 500)
+    return ok_({"ok": True, "rk": rk})
+
+
+@app.route(route="push-unsubscribe", methods=["POST", "OPTIONS"])
+def push_unsubscribe(req: func.HttpRequest) -> func.HttpResponse:
+    """User entfernt seine Subscription. Body: { endpoint }"""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    endpoint = (body.get("endpoint") or "").strip()
+    if not endpoint:
+        return err_("endpoint erforderlich", 400)
+    import hashlib
+    rk = hashlib.sha256(endpoint.encode()).hexdigest()[:32]
+    try:
+        table_("pushsubs").delete_entity("sub", rk)
+    except Exception:
+        pass
+    return ok_({"ok": True})
+
+
+@app.route(route="push-test", methods=["POST", "OPTIONS"])
+def push_test(req: func.HttpRequest) -> func.HttpResponse:
+    """Sendet eine Test-Push an die eigene User-ID."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    uid = p.get("id", "")
+    sent = 0
+    try:
+        subs_tc = table_("pushsubs")
+        for s in subs_tc.query_entities("userId eq @u", parameters={"u": uid}):
+            sub = {"endpoint": s.get("endpoint", ""), "keys": {"p256dh": s.get("p256dh", ""), "auth": s.get("auth", "")}}
+            if _send_webpush(sub, {"title": "ITUKV Test-Benachrichtigung", "body": "Push-Notifications funktionieren ✓", "url": FRONTEND_BASE}):
+                sent += 1
+    except Exception as ex:
+        return err_(f"Test fehlgeschlagen: {ex}", 500)
+    return ok_({"sent": sent})
 
 
 @app.route(route="verlauf-send-mail", methods=["POST", "OPTIONS"])

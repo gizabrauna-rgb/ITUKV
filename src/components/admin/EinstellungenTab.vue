@@ -144,12 +144,21 @@
         </template>
       </div>
     </div>
+
+    <!-- Browser-Benachrichtigungen -->
+    <div class="bg-white rounded-xl border border-gray-100 p-5 mt-5">
+      <h3 class="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
+        <Bell class="w-4 h-4 text-[#0088ba]" /> Browser-Benachrichtigungen
+      </h3>
+      <PushToggle />
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Webhook, Copy, Check, Eye, EyeOff, AlertTriangle, Info, Sparkles, CheckCircle2 } from '@lucide/vue'
+import { Webhook, Copy, Check, Eye, EyeOff, AlertTriangle, Info, Sparkles, CheckCircle2, Bell } from '@lucide/vue'
+import PushToggle from '../PushToggle.vue'
 import { aiConfig } from '../../api.js'
 import { authFetch } from '../../api.js'
 

@@ -194,6 +194,12 @@
 
         <!-- Pressetext nur in spaeten Phasen (Phase 13+) -->
         <PressetextFreigabe v-if="currentPhase >= 13" :target-id="targetId" />
+
+        <!-- Browser-Benachrichtigungen -->
+        <div class="bg-white rounded-2xl border border-gray-100 p-5 mt-4">
+          <h3 class="text-sm font-semibold text-gray-700 mb-3">Benachrichtigungen</h3>
+          <PushToggle />
+        </div>
       </div>
 
       <!-- Tab: Fragebogen Unternehmensbewertung -->
@@ -446,6 +452,7 @@ import PressetextFreigabe from '../components/target/PressetextFreigabe.vue'
 import KostenInfo from '../components/target/KostenInfo.vue'
 import HilfeSlideOver from '../components/HilfeSlideOver.vue'
 import FragKiModal from '../components/FragKiModal.vue'
+import PushToggle from '../components/PushToggle.vue'
 import ZieleMotivationen from '../components/target/ZieleMotivationen.vue'
 import AkquisitionsstrategieKaeufer from '../components/target/AkquisitionsstrategieKaeufer.vue'
 import KaeuferVorschlaege from '../components/target/KaeuferVorschlaege.vue'
