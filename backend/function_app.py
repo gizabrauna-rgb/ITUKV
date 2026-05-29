@@ -6414,20 +6414,40 @@ def ai_action(req: func.HttpRequest) -> func.HttpResponse:
             t = table_("targets").get_entity("target", tid)
         except Exception:
             return err_("Target nicht gefunden", 404)
+        # Verlauf aus BEIDEN Quellen kombinieren (wie /verlauf-entries-get)
         try:
             verlauf = json.loads(t.get("kommunikationJson", "[]") or "[]")
+            if not isinstance(verlauf, list): verlauf = []
         except Exception:
             verlauf = []
+        try:
+            for e in table_("verlaufentries").query_entities("PartitionKey eq @t", parameters={"t": tid}):
+                verlauf.append({
+                    "datum": e.get("datum", ""),
+                    "autor": e.get("autor", ""),
+                    "typ": e.get("typ", ""),
+                    "betreff": e.get("betreff", ""),
+                    "beschreibung": e.get("beschreibung", ""),
+                })
+        except Exception:
+            pass
+        # Chronologisch sortieren (aelteste zuerst fuer Kontext)
+        verlauf.sort(key=lambda x: (x.get("datum", "") or ""))
         if not verlauf:
             return ok_({"text": "Noch kein Verlauf vorhanden zur Zusammenfassung."})
+        # Bei riesigen Verlaeufen: nur die letzten 100 Eintraege + Beschreibung pro
+        # Eintrag auf 500 Zeichen gecapped, damit der Prompt unter dem Token-Limit bleibt.
+        total = len(verlauf)
+        recent = verlauf[-100:]
         verlauf_str = "\n\n".join(
-            f"[{e.get('datum','')}] {e.get('autor','')} ({e.get('typ','')}): {e.get('betreff','')}\n{e.get('beschreibung','')}"
-            for e in verlauf[-50:]  # max 50 letzte
+            f"[{e.get('datum','')}] {e.get('autor','')} ({e.get('typ','')}): {e.get('betreff','')}\n{(e.get('beschreibung','') or '')[:500]}"
+            for e in recent
         )
+        kontext_hinweis = f"(Insgesamt {total} Eintraege im Verlauf, dies sind die letzten {len(recent)})" if total > len(recent) else ""
         system = ("Du bist Beratungs-Assistentin in einem M&A-Beratungsunternehmen (mibeca). "
                   "Deine Aufgabe ist es, den Kommunikationsverlauf einer Mandatsakte praegnant zusammenzufassen.")
         user = (
-            f"Hier ist der Verlauf des Mandats {t.get('mbNr','?')} ({t.get('firma','')}):\n\n"
+            f"Hier ist der Verlauf des Mandats {t.get('mbNr','?')} ({t.get('firma','')}). {kontext_hinweis}\n\n"
             f"{verlauf_str}\n\n"
             "Erstelle eine strukturierte Status-Zusammenfassung in folgender Form:\n"
             "- 📍 Aktueller Stand (1-2 Saetze)\n"
