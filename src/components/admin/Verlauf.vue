@@ -8,7 +8,7 @@
         <button v-if="!readOnly" @click="openMail" class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8]">
           <Mail class="w-4 h-4" /> E-Mail senden
         </button>
-        <button @click="openNewTelefonat" class="flex items-center gap-2 px-3 py-2 border border-purple-200 text-purple-700 rounded-xl text-sm font-medium hover:bg-purple-50">
+        <button @click="openNewTelefonat" class="flex items-center gap-2 px-3 py-2 border border-blue-200 text-blue-700 rounded-xl text-sm font-medium hover:bg-blue-50">
           <Phone class="w-4 h-4" /> Telefonat
         </button>
         <button @click="openNew('notiz')" class="flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">
@@ -146,17 +146,17 @@
             <input v-model="form.betreff" placeholder="z.B. Telefonat mit Käufer-Kandidat" class="input" />
           </div>
           <!-- Telefonnummer-Block: nur sichtbar bei Typ „Telefonat" -->
-          <div v-if="form.typ === 'telefon'" class="bg-purple-50 border border-purple-100 rounded-xl p-3 -mx-1">
-            <label class="text-xs font-medium text-purple-900 mb-1 block">Telefonnummer</label>
+          <div v-if="form.typ === 'telefon'" class="bg-blue-50 border border-blue-100 rounded-xl p-3 -mx-1">
+            <label class="text-xs font-medium text-blue-900 mb-1 block">Telefonnummer</label>
             <div class="flex gap-2">
               <input v-model="form.telefonnr" placeholder="z.B. +49 171 1234567" inputmode="tel"
-                class="flex-1 px-3 py-2 border border-purple-200 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
+                class="flex-1 px-3 py-2 border border-blue-200 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
               <a v-if="form.telefonnr" :href="`tel:${form.telefonnr.replace(/\s/g, '')}`"
-                class="flex items-center gap-1.5 px-4 py-2 bg-purple-600 text-white rounded-xl text-sm font-medium hover:bg-purple-700">
+                class="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700">
                 <Phone class="w-4 h-4" /> Anrufen
               </a>
             </div>
-            <p v-if="!form.telefonnr && (currentTarget?.telefon || currentTarget?.privatHandy)" class="text-[11px] text-purple-700 mt-1">
+            <p v-if="!form.telefonnr && (currentTarget?.telefon || currentTarget?.privatHandy)" class="text-[11px] text-blue-700 mt-1">
               <button @click="form.telefonnr = currentTarget?.telefon || currentTarget?.privatHandy || ''" class="hover:underline">
                 Verkäufer-Nummer übernehmen: {{ currentTarget?.telefon || currentTarget?.privatHandy }}
               </button>
@@ -264,10 +264,10 @@ const form = ref({ typ: 'notiz', datum: '', autor: '', betreff: '', beschreibung
 const typFilters = [
   { value: 'mail_in', label: 'E-Mail eingegangen', icon: Mail, activeClass: 'bg-blue-500' },
   { value: 'mail_out', label: 'E-Mail versendet', icon: Mail, activeClass: 'bg-[#0088ba]' },
-  { value: 'telefon', label: 'Telefonat', icon: Phone, activeClass: 'bg-purple-500' },
+  { value: 'telefon', label: 'Telefonat', icon: Phone, activeClass: 'bg-blue-500' },
   { value: 'termin', label: 'Termin', icon: Calendar, activeClass: 'bg-amber-500' },
   { value: 'notiz', label: 'Notiz', icon: FileText, activeClass: 'bg-gray-500' },
-  { value: 'ki_analyse', label: 'KI-Analyse', icon: Sparkles, activeClass: 'bg-fuchsia-500' },
+  { value: 'ki_analyse', label: 'Assistent', icon: Sparkles, activeClass: 'bg-purple-500' },
   { value: 'wichtig', label: 'Wichtig', icon: AlertCircle, activeClass: 'bg-red-500' },
 ]
 
@@ -287,17 +287,17 @@ function typIcon(t) {
   return map[t] || FileText
 }
 function typBg(t) {
-  const map = { mail_in: 'bg-blue-500', mail_out: 'bg-[#0088ba]', telefon: 'bg-purple-500', termin: 'bg-amber-500', notiz: 'bg-gray-500', ki_analyse: 'bg-fuchsia-500', wichtig: 'bg-red-500' }
+  const map = { mail_in: 'bg-blue-500', mail_out: 'bg-[#0088ba]', telefon: 'bg-blue-500', termin: 'bg-amber-500', notiz: 'bg-gray-500', ki_analyse: 'bg-purple-500', wichtig: 'bg-red-500' }
   return map[t] || 'bg-gray-500'
 }
 function typBadge(t) {
   const map = {
     mail_in: 'bg-blue-50 text-blue-700',
     mail_out: 'bg-[#0088ba]/10 text-[#0088ba]',
-    telefon: 'bg-purple-50 text-purple-700',
+    telefon: 'bg-blue-50 text-blue-700',
     termin: 'bg-amber-50 text-amber-700',
     notiz: 'bg-gray-100 text-gray-600',
-    ki_analyse: 'bg-fuchsia-50 text-fuchsia-700',
+    ki_analyse: 'bg-purple-50 text-purple-700',
     wichtig: 'bg-red-50 text-red-700',
   }
   return map[t] || 'bg-gray-100 text-gray-600'

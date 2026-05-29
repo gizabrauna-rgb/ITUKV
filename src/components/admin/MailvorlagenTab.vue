@@ -86,11 +86,11 @@
       <div class="flex items-start justify-between mb-4">
         <div>
           <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Send class="w-5 h-5 text-purple-600" /> Drip-Sequenzen (Auto-Mail-Folge)
+            <Send class="w-5 h-5 text-[#0088ba]" /> Drip-Sequenzen (Auto-Mail-Folge)
           </h2>
           <p class="text-sm text-gray-500 mt-1">Definiere Mail-Folgen für Interessenten — z.B. „nach 3 Tagen Erinnerung, nach 7 Tagen Nachfrage". Versand läuft automatisch täglich.</p>
         </div>
-        <button @click="newSequenz" class="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-xl text-sm font-medium hover:bg-purple-700">
+        <button @click="newSequenz" class="flex items-center gap-2 px-3 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8]">
           <Plus class="w-4 h-4" /> Neue Sequenz
         </button>
       </div>

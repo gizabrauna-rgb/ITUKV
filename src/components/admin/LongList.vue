@@ -20,7 +20,7 @@
       <button @click="filter = 'short'" :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'short' ? 'bg-[#0088ba] text-white' : 'bg-white border border-gray-200']">
         <Star class="w-3.5 h-3.5" /> Favoriten ({{ shortListCount }})
       </button>
-      <button @click="filter = 'fuerKaeufer'" :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'fuerKaeufer' ? 'bg-purple-600 text-white' : 'bg-white border border-gray-200']">
+      <button @click="filter = 'fuerKaeufer'" :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'fuerKaeufer' ? 'bg-[#0088ba] text-white' : 'bg-white border border-gray-200']">
         <Eye class="w-3.5 h-3.5" /> Für Käufer freigegeben ({{ fuerKaeuferCount }})
       </button>
       <button @click="filter = 'abgesagt'" :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium', filter === 'abgesagt' ? 'bg-[#0088ba] text-white' : 'bg-white border border-gray-200']">
