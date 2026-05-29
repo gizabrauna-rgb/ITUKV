@@ -118,7 +118,7 @@
           <div class="col-span-2">
             <label class="block text-xs font-medium text-gray-600 mb-1">Notizen / Besonderheiten</label>
             <textarea v-model="form.notizen" rows="3" class="input resize-none"
-              placeholder="z.B. „Bevorzugt Bestand mit Wartungsverträgen", „Standort egal", „Geschäftsführer soll bleiben" …"></textarea>
+              placeholder='z.B. „Bevorzugt Bestand mit Wartungsverträgen", „Standort egal", „Geschäftsführer soll bleiben" …'></textarea>
           </div>
         </div>
         <footer class="px-5 py-3 border-t border-gray-100 flex items-center justify-end gap-2">

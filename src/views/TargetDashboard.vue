@@ -6,7 +6,7 @@
         <img src="/Logo_mibeca_Start.png" alt="mibeca" class="h-10 w-auto" />
         <div>
           <span class="font-bold text-sm">ITUKV Dashboard</span>
-          <span class="text-gray-400 text-xs ml-2">Verkäufer-Portal</span>
+          <span class="text-gray-400 text-xs ml-2">{{ portalLabel }}</span>
         </div>
       </div>
       <div class="flex items-center gap-4">
@@ -484,6 +484,7 @@ const hilfeRole = computed(() => {
   const typ = props.projekttyp || target.value?.projekttyp || ''
   return /kauf|investor/i.test(typ) ? 'kaeufer' : 'verkaeufer'
 })
+const portalLabel = computed(() => hilfeRole.value === 'kaeufer' ? 'Käufer-Portal' : 'Verkäufer-Portal')
 
 // Frag die KI
 const showFragKi = ref(false)
