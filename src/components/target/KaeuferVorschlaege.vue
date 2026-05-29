@@ -70,7 +70,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Users, Check, X, MessageCircle } from '@lucide/vue'
-import { authFetch, getKontakte } from '../../api.js'
+import { authFetch, getKontakteFuerKaeufer } from '../../api.js'
 
 const props = defineProps({ targetId: String })
 
@@ -126,7 +126,7 @@ onMounted(async () => {
     const t = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
     try { fuerKaeuferIds.value = JSON.parse(t.fuerKaeuferIdsJson || '[]') } catch {}
     try { feedback.value = JSON.parse(t.kaeuferFeedbackJson || '{}') } catch {}
-    allKontakte.value = (await getKontakte()) || []
+    try { allKontakte.value = (await getKontakteFuerKaeufer(props.targetId)) || [] } catch { allKontakte.value = [] }
     try {
       const tres = await authFetch('/targets')
       allTargets.value = tres || []

@@ -724,6 +724,41 @@ def kontakte_route(req: func.HttpRequest) -> func.HttpResponse:
     return ok_(items)
 
 
+@app.route(route="kontakte-fuer-kaeufer", methods=["POST", "OPTIONS"])
+def kontakte_fuer_kaeufer(req: func.HttpRequest) -> func.HttpResponse:
+    """Liefert NUR die Kontakte, die mibeca fuer den aufrufenden Kaeufer freigegeben hat.
+    IDOR-sicher: der Kaeufer kann nur seine eigene Mandate-ID anfragen."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    tid = body.get("id", "")
+    if not tid:
+        return err_("id erforderlich", 400)
+    if p.get("role") != "admin" and p.get("targetId") != tid:
+        return err_("Nicht autorisiert", 403)
+    try:
+        entity = table_("targets").get_entity("target", tid)
+    except Exception:
+        return err_("Target nicht gefunden", 404)
+    try:
+        ids = json.loads(entity.get("fuerKaeuferIdsJson") or "[]")
+    except Exception:
+        ids = []
+    if not isinstance(ids, list) or not ids:
+        return ok_([])
+    id_set = {str(i) for i in ids if not str(i).startswith("target-")}
+    if not id_set:
+        return ok_([])
+    out = []
+    for k in table_("kontakte").list_entities():
+        if k.get("RowKey") in id_set:
+            out.append(dict(k))
+    return ok_(out)
+
+
 @app.route(route="users", methods=["GET", "OPTIONS"])
 def users_list(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":

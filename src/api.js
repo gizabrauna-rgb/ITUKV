@@ -104,6 +104,7 @@ export const deleteInteressent = (id) => authFetch('/interessent-delete', { meth
 
 // CRM / Kontakte (kontakt-create dedupt automatisch nach firma)
 export const getKontakte = (params) => authFetch('/kontakte', { params })
+export const getKontakteFuerKaeufer = (targetId) => authFetch('/kontakte-fuer-kaeufer', { method: 'POST', data: { id: targetId } })
 export const createKontakt = (data) => authFetch('/kontakt-create', { method: 'POST', data })
 export const updateKontakt = (id, data) => authFetch('/kontakt-create', { method: 'POST', data: { ...data, id } })
 export const importKontakte = (data) => authFetch('/kontakte/import', { method: 'POST', data })
