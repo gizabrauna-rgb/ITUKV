@@ -220,7 +220,8 @@
         <div v-else class="space-y-3">
           <div v-for="l in lessons" :key="l.targetId" class="border border-gray-100 rounded-xl p-4">
             <div class="flex items-center gap-2 mb-2">
-              <span class="font-mono text-xs bg-[#0088ba]/10 text-[#0088ba] px-2 py-0.5 rounded">{{ l.mbNr }}</span>
+              <span :class="['font-mono text-xs px-2 py-0.5 rounded',
+                /kauf|investor/i.test(l.projekttyp || '') ? 'bg-green-50 text-green-700' : 'bg-orange-50 text-orange-700']">{{ l.mbNr }}</span>
               <span class="font-medium text-gray-800">{{ l.verkaueferName }}</span>
               <span class="text-xs text-gray-500">{{ l.projekttyp }}</span>
             </div>

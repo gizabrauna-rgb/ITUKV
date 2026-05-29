@@ -9,8 +9,10 @@
           </button>
           <div>
             <div class="flex items-center gap-2">
-              <span class="font-mono text-xs bg-[#0088ba]/10 text-[#0088ba] px-2 py-1 rounded font-semibold">{{ target?.mbNr }}</span>
-              <span class="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">{{ target?.projekttyp }}</span>
+              <span :class="['font-mono text-xs px-2 py-1 rounded font-semibold',
+                isKaufMandat ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700']">{{ target?.mbNr }}</span>
+              <span :class="['text-xs px-2 py-1 rounded',
+                isKaufMandat ? 'bg-green-50 text-green-700' : 'bg-orange-50 text-orange-700']">{{ target?.projekttyp }}</span>
               <span :class="statusClass(target?.status)" class="text-xs font-medium px-2 py-1 rounded-full">{{ statusLabel(target?.status) }}</span>
             </div>
             <h2 class="text-lg font-bold text-gray-900 mt-1">{{ target?.verkaueferName || '—' }} <span class="text-gray-400 font-normal text-sm">· {{ target?.firma || '' }}</span></h2>

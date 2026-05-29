@@ -67,7 +67,8 @@
             </td>
             <td class="px-4 py-3">
               <div class="flex items-center gap-1.5">
-                <span class="font-mono text-xs bg-blue-50 text-blue-800 px-2 py-0.5 rounded">{{ t.mbNr }}</span>
+                <span :class="['font-mono text-xs px-2 py-0.5 rounded',
+                  istKaufMandat(t) ? 'bg-green-50 text-green-700' : 'bg-orange-50 text-orange-700']">{{ t.mbNr }}</span>
                 <span v-if="isNeu(t)" class="bg-green-100 text-green-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">NEU</span>
               </div>
             </td>
