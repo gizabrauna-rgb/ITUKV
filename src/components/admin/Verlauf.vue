@@ -8,6 +8,11 @@
         <button v-if="!readOnly" @click="openMail" class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8]">
           <Mail class="w-4 h-4" /> E-Mail senden
         </button>
+        <button v-if="!readOnly && targetId" @click="showElementImport = true"
+          class="flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50"
+          title="Element/Matrix-Raum-Verlauf einmalig importieren">
+          <Upload class="w-4 h-4" /> Element-Verlauf importieren
+        </button>
         <button @click="openNewTelefonat" class="flex items-center gap-2 px-3 py-2 border border-blue-200 text-blue-700 rounded-xl text-sm font-medium hover:bg-blue-50">
           <Phone class="w-4 h-4" /> Telefonat
         </button>
@@ -177,6 +182,10 @@
         </div>
       </div>
     </div>
+
+    <!-- Element-Import-Modal -->
+    <ElementImportModal v-if="showElementImport" :target-id="targetId"
+      @close="showElementImport = false" @imported="onElementImported" />
   </div>
 </template>
 
@@ -184,8 +193,11 @@
 import { ref, computed, onMounted } from 'vue'
 import {
   Mail, Phone, Calendar, MessageSquare, FileText, AlertCircle,
-  Plus, Pencil, Trash2, X, Users, Sparkles
+  Plus, Pencil, Trash2, X, Users, Sparkles, Upload
 } from '@lucide/vue'
+import ElementImportModal from './ElementImportModal.vue'
+
+const showElementImport = ref(false)
 import { authFetch, verlaufSendMail, verlaufMarkRead, getMailvorlagen } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 
@@ -326,6 +338,11 @@ async function loadEntries() {
 }
 
 onMounted(() => { loadEntries(); loadVorlagen() })
+
+function onElementImported(_result) {
+  // Verlauf neu laden, damit die importierten Eintraege sichtbar werden
+  loadEntries()
+}
 
 function openNew(presetTyp = 'notiz') {
   editing.value = null

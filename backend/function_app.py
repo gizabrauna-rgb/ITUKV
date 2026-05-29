@@ -6124,6 +6124,126 @@ def ai_uploads_recent(req: func.HttpRequest) -> func.HttpResponse:
     return ok_(items)
 
 
+@app.route(route="element-import", methods=["POST", "OPTIONS"])
+def element_import(req: func.HttpRequest) -> func.HttpResponse:
+    """Importiert einen Element/Matrix-Raum-JSON-Export in den Verlauf einer Akte.
+
+    Body: {
+        targetId: str,
+        fileData: str (base64 von JSON-Datei),
+        mibecaSenderId: str (optional, Matrix-User-ID der mibeca-Beraterin),
+        dryRun: bool (optional, default false)
+    }
+
+    Nur Admin. Body-Limit 25 MB.
+    """
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    tid = (body.get("targetId") or "").strip()
+    file_data = body.get("fileData", "")
+    mibeca_sender = (body.get("mibecaSenderId") or "").strip()
+    dry_run = bool(body.get("dryRun", False))
+    if not (tid and file_data):
+        return err_("targetId und fileData erforderlich", 400)
+
+    # Base64 decode
+    try:
+        if file_data.startswith("data:"):
+            file_data = file_data.split(",", 1)[1]
+        raw = base64.b64decode(file_data)
+        if len(raw) > 25 * 1024 * 1024:
+            return err_("Datei zu gross (max 25 MB)", 400)
+        export = json.loads(raw.decode("utf-8"))
+    except Exception as ex:
+        return err_(f"JSON konnte nicht gelesen werden: {ex}", 400)
+
+    # Target laden
+    try:
+        target = dict(table_("targets").get_entity("target", tid))
+    except Exception:
+        return err_("Target nicht gefunden", 404)
+
+    # Nachrichten extrahieren
+    candidates = []
+    if isinstance(export, list):
+        candidates = export
+    elif isinstance(export, dict):
+        for key in ("messages", "chunk", "events", "items"):
+            if isinstance(export.get(key), list):
+                candidates = export[key]; break
+
+    msgs = []
+    for ev in candidates:
+        if not isinstance(ev, dict): continue
+        if ev.get("type") and ev.get("type") != "m.room.message": continue
+        content = ev.get("content") or {}
+        body_text = content.get("body") or content.get("formatted_body") or ""
+        if not body_text: continue
+        msgtype = content.get("msgtype", "m.text")
+        if msgtype not in ("m.text", "m.notice", "m.emote", ""): continue
+        sender_id = ev.get("sender", "")
+        sender_name = ev.get("sender_name") or ev.get("display_name") or sender_id
+        ts_ms = ev.get("origin_server_ts") or ev.get("timestamp") or 0
+        try:
+            datum_iso = datetime.utcfromtimestamp(ts_ms / 1000).isoformat() if ts_ms else ""
+        except Exception:
+            datum_iso = ""
+        event_id = ev.get("event_id") or ev.get("id") or ""
+        ist_mibeca = (mibeca_sender and sender_id == mibeca_sender)
+        msgs.append({
+            "event_id": event_id,
+            "datum": datum_iso,
+            "sender_id": sender_id,
+            "sender_name": sender_name,
+            "body": body_text[:5000],
+            "typ": "mail_out" if ist_mibeca else "mail_in",
+        })
+
+    preview = [
+        {"datum": m["datum"], "autor": m["sender_name"], "typ": m["typ"], "body": m["body"][:120]}
+        for m in msgs[:5]
+    ]
+
+    if dry_run:
+        return ok_({"foundMessages": len(msgs), "preview": preview, "dryRun": True})
+
+    # Bestehende event_ids ermitteln
+    try:
+        verlauf = json.loads(target.get("kommunikationJson") or "[]")
+        if not isinstance(verlauf, list): verlauf = []
+    except Exception:
+        verlauf = []
+    existing = {e.get("elementEventId") for e in verlauf if isinstance(e, dict)}
+
+    neu = 0
+    for m in msgs:
+        if m["event_id"] and m["event_id"] in existing: continue
+        verlauf.append({
+            "id": "el" + (m["event_id"][-12:] if m["event_id"] else str(int(datetime.utcnow().timestamp() * 1000))),
+            "typ": m["typ"],
+            "datum": m["datum"],
+            "autor": m["sender_name"],
+            "betreff": "(Element-Import)",
+            "beschreibung": m["body"],
+            "elementEventId": m["event_id"],
+            "elementSender": m["sender_id"],
+            "importedFromElement": True,
+        })
+        neu += 1
+    verlauf.sort(key=lambda e: e.get("datum", "") or "")
+    target["kommunikationJson"] = json.dumps(verlauf, ensure_ascii=False)
+    try:
+        table_("targets").update_entity(target)
+    except Exception as ex:
+        return err_(f"Speichern fehlgeschlagen: {ex}", 500)
+    log_audit(p, "element_import", "target", tid, {"imported": neu, "found": len(msgs)})
+    return ok_({"imported": neu, "foundMessages": len(msgs), "preview": preview, "skipped": len(msgs) - neu})
+
+
 @app.route(route="ai-action", methods=["POST", "OPTIONS"])
 def ai_action(req: func.HttpRequest) -> func.HttpResponse:
     """Generischer Endpoint fuer KI-Aktionen aus dem Dashboard.
