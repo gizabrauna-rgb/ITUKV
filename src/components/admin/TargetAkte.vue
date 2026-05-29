@@ -150,6 +150,11 @@
         <LongList :target-id="targetId" />
       </div>
 
+      <!-- Akquisitionen (nur bei Kauf-Mandat) -->
+      <div v-else-if="tab === 'akquisitionen'">
+        <KaeuferAkquisitionen :target-id="targetId" />
+      </div>
+
       <!-- Erfolgsmeldung / Presse -->
       <div v-else-if="tab === 'erfolg'">
         <Erfolgsmeldung :target-id="targetId" />
@@ -238,7 +243,7 @@ import {
   ArrowLeft, MapPin, Tag, Users, Euro, Hash, Mail,
   Sparkles, Circle, Folder, FileText, MessageSquare,
   LayoutDashboard, Workflow, ClipboardList, FileEdit, ShieldCheck, Clock, TrendingUp, Trophy, BookOpen,
-  CalendarClock, X, Globe, Handshake, Target
+  CalendarClock, X, Globe, Handshake, Target, Briefcase
 } from '@lucide/vue'
 import { authFetch, statusReportPdf } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
@@ -250,6 +255,7 @@ import Fragebogen from '../target/Fragebogen.vue'
 import Unternehmensbewertung from '../target/Unternehmensbewertung.vue'
 import Suchprofil from './Suchprofil.vue'
 import LongList from './LongList.vue'
+import KaeuferAkquisitionen from '../target/KaeuferAkquisitionen.vue'
 import Erfolgsmeldung from './Erfolgsmeldung.vue'
 import LessonsLearned from './LessonsLearned.vue'
 import DokumenteAkte from './DokumenteAkte.vue'
@@ -287,6 +293,7 @@ const tabs = computed(() => {
       { tab: 'mandat', label: 'Mandat-Daten', icon: ClipboardList },
       { tab: 'nda', label: 'Verträge', icon: ShieldCheck },
       { tab: 'longlist', label: 'Kandidaten-Match', icon: Users },
+      { tab: 'akquisitionen', label: 'Akquisitionen', icon: Briefcase },
       { tab: 'dokumente', label: 'Dokumente', icon: Folder },
       { tab: 'zwischenstand', label: 'Zwischenstand', icon: FileEdit },
       { tab: 'loi', label: 'LOI-Verhandlung', icon: Handshake },
@@ -337,7 +344,7 @@ const TAB_GROUP_DEFS = [
   { key: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard, tabs: ['uebersicht', 'prozess'] },
   { key: 'mandat', label: 'Mandat', icon: ClipboardList, tabs: ['mandat', 'ziele', 'fragebogen', 'bewertung', 'suchprofil'] },
   { key: 'vertraege', label: 'Verträge', icon: ShieldCheck, tabs: ['nda'] },
-  { key: 'markt', label: 'Marktansprache', icon: Users, tabs: ['expose', 'landing', 'interessenten', 'longlist'] },
+  { key: 'markt', label: 'Marktansprache', icon: Users, tabs: ['expose', 'landing', 'interessenten', 'longlist', 'akquisitionen'] },
   { key: 'datenraum', label: 'Datenraum', icon: Folder, tabs: ['dokumente'] },
   { key: 'abschluss', label: 'Abschluss', icon: Trophy, tabs: ['zwischenstand', 'loi', 'erfolg', 'lessons'] },
   { key: 'verwaltung', label: 'Verwaltung', icon: Clock, tabs: ['verlauf', 'zeit'] },

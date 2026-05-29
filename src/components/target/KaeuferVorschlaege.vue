@@ -71,6 +71,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { Users, Check, X, MessageCircle } from '@lucide/vue'
 import { authFetch, getKontakteFuerKaeufer } from '../../api.js'
+import { defaultAufgabenFuerPhase } from '../../data/akquisitionsPhasen.js'
 
 const props = defineProps({ targetId: String })
 
@@ -134,21 +135,26 @@ async function syncAkquisition(kandidatId, interesse) {
     if (idx >= 0 && liste[idx].quelleKandidatId) liste.splice(idx, 1)
     else return
   } else {
-    const statusNeu = interesse === 'rueckfrage' ? 'pausiert' : 'aktiv'
+    const statusNeu = interesse === 'rueckfrage' ? 'pausiert' : 'laufend'
+    const phaseNeu = 2 // "Interesse bekundet"
     if (idx >= 0) {
-      liste[idx] = { ...liste[idx], status: statusNeu }
+      liste[idx] = { ...liste[idx], status: statusNeu, phase: liste[idx].phase || phaseNeu }
     } else {
       liste.push({
         id: 'akq' + Date.now(),
         createdAt: new Date().toISOString(),
         name: kand.firma || 'Akquisition',
+        phase: phaseNeu,
         status: statusNeu,
+        mandatPosition: '',
         branche: kand.branche || '',
         region: kand.ort || kand.plz || '',
         mitarbeiter: kand.mitarbeiter || '',
         umsatz: kand.umsatz || '',
         maxKaufpreis: '',
+        notizenKaeufer: '',
         notizen: '',
+        aufgaben: defaultAufgabenFuerPhase(phaseNeu, []),
         quelleKandidatId: kandidatId,
       })
     }
