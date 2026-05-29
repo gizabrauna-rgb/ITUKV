@@ -236,7 +236,7 @@ import {
   ArrowLeft, MapPin, Tag, Users, Euro, Hash, Mail,
   Sparkles, Circle, Folder, FileText, MessageSquare,
   LayoutDashboard, Workflow, ClipboardList, FileEdit, ShieldCheck, Clock, TrendingUp, Trophy, BookOpen,
-  CalendarClock, X, Globe, Handshake, Target, Sparkles
+  CalendarClock, X, Globe, Handshake, Target
 } from '@lucide/vue'
 import { authFetch, statusReportPdf } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
