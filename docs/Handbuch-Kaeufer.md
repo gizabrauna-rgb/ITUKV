@@ -279,7 +279,13 @@ Direkt über das Verlauf-Eingabefeld → landet in ihrem Posteingang.
 
 ---
 
-## 10a. Assistent + Benachrichtigungen (seit 29.05.2026)
+## 10a. Verlauf durchsuchen (seit 29.05.2026)
+
+Im **Verlauf-Tab** gibt es jetzt ein **Such-Feld** ganz oben.
+- Tippe ein Wort ein → durchsucht alle Nachrichten (Betreff, Inhalt, Autor)
+- ✕-Button leert die Suche
+
+## 10b. Assistent + Benachrichtigungen (seit 29.05.2026)
 
 ### „Assistent"-Button (oben rechts, lila Funken-Icon)
 Chat-Bereich für allgemeine M&A-Fragen (Hold-Period, SPA, Earn-Out, Bürgschaftsbank

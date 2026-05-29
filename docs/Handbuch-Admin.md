@@ -398,6 +398,65 @@ Jeder Schreibvorgang ist hier protokolliert. Filter nach:
 
 ---
 
+## 12a. Verlauf-Suche (seit 29.05.2026)
+
+Im Verlauf-Tab gibt es **ein Such-Feld** über den Filter-Pills.
+- Tippe ein Wort ein → durchsucht **Betreff, Beschreibung, Autor, Beteiligte**
+- Funktioniert kombiniert mit den Typ-Filtern (Telefon, E-Mail, …)
+- Rechts oben siehst du die Anzahl der Treffer
+- ✕-Button leert die Suche
+
+**Praktisch für:**
+- „Wo war nochmal die Mail vom Steuerberater?" → Name oder Mailadresse eintippen
+- Schnell zum richtigen Termin springen
+- Bei Mandaten mit vielen hundert Einträgen kein endloses Scrollen mehr
+
+## 12b. Element-Verlauf importieren (seit 29.05.2026)
+
+Wenn ihr noch Element-Räume zu Mandanten habt, kannst du den kompletten Verlauf
+einmalig in die Akte importieren, damit alles zentral im Dashboard liegt.
+
+### Schritt 1: Element-Export
+1. Element öffnen → den Raum öffnen
+2. **Klick auf den Raum-Namen** im Header → Raum-Info erscheint rechts
+3. **„Exportieren von Chats"** wählen
+4. Format: **JSON**, Nachrichten: **„Von Anfang an"**, Größenlimit: **500 MB**
+5. Anhänge: **nicht einbeziehen** (Bilder/Dateien werden ignoriert)
+6. **Exportieren** → JSON-Datei wird heruntergeladen
+
+### Schritt 2: Import im Dashboard
+1. Im ITUKV-Dashboard die passende Akte öffnen (mb-XXX)
+2. Tab **Verlauf**
+3. Oben rechts **„Element-Verlauf importieren"** klicken
+4. **Datei auswählen** (die JSON aus Schritt 1)
+5. **Optional: Matrix-ID von Jenny** eintippen
+   - Format: `@jennypy:matrix.mibeca.de` oder ähnlich
+   - Findest du in Element → eigenes Profil-Icon → Mein Profil
+   - Wenn gesetzt: ihre Nachrichten werden als **Chat gesendet** (mibeca-Seite) markiert,
+     alle anderen als **Chat eingegangen** (Mandant-Seite)
+6. **„Vorschau"** klicken — System zeigt erste 5 Nachrichten + Gesamt-Anzahl
+7. Wenn's passt: **„Importieren"** → Verlauf-Einträge werden chronologisch in die Akte gekippt
+8. Modal schließen — Verlauf lädt sich automatisch neu
+
+### Wichtige Hinweise
+- **Doppel-Import unproblematisch:** Wenn du den Import nochmal startest, werden bereits
+  importierte Nachrichten via Event-ID automatisch übersprungen.
+- **Element-Räume sind groß:** Daten werden in einer separaten Tabelle gespeichert
+  (nicht in der 32K-begrenzten kommunikationJson), damit auch tausende Nachrichten
+  problemlos importierbar sind.
+- **Typ „Chat"** statt „E-Mail": Element-Nachrichten erscheinen mit dem türkisen
+  Chat-Badge — klar erkennbar als Element-Import, nicht als E-Mail-Konversation.
+- **Marker „(Element-Import)"** im Betreff: damit jederzeit klar ist, woher die
+  Einträge stammen.
+- **Element-Räume können danach geschlossen werden** — Daten liegen vollständig im
+  Dashboard.
+
+### Pro Mandate einmalig
+Jeden Element-Raum, der zu einem Mandate gehört, einmalig exportieren + importieren.
+Danach läuft die Kommunikation nur noch über das Dashboard.
+
+---
+
 ## 13. Browser-Push-Benachrichtigungen (seit 29.05.2026)
 
 **Wofür?** Du wirst sofort benachrichtigt, sobald ein Mandant im Verlauf schreibt –

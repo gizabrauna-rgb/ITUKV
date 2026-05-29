@@ -150,8 +150,9 @@
 
             <section id="verlauf-v">
               <h2>Verlauf – Nachrichten mit Jenny</h2>
-              <p>Statt E-Mails: alles chronologisch in deiner Akte. Du siehst Mails, Telefonat-Notizen, Termin-Bestätigungen und automatische Aufgaben-Erledigungen.</p>
+              <p>Statt E-Mails: alles chronologisch in deiner Akte. Du siehst Mails, Telefonat-Notizen, Chat-Nachrichten, Termin-Bestätigungen und automatische Aufgaben-Erledigungen.</p>
               <p><strong>Neue Nachricht:</strong> Direkt im Verlauf-Eingabefeld → landet in Jennys Posteingang.</p>
+              <p><strong>Suche:</strong> Such-Feld oben durchsucht Betreff/Inhalt/Autor – kein endloses Scrollen mehr bei langem Verlauf.</p>
             </section>
 
             <section id="faq-v">
@@ -259,7 +260,8 @@
 
             <section id="verlauf-k">
               <h2>Verlauf – Nachrichten mit Jenny</h2>
-              <p>Chronologische Kommunikation. Mails, Notizen, Termin-Bestätigungen, automatische Hinweise und Kandidaten-Feedback-Logs.</p>
+              <p>Chronologische Kommunikation. Mails, Notizen, Chat-Nachrichten, Termin-Bestätigungen, automatische Hinweise und Kandidaten-Feedback-Logs.</p>
+              <p><strong>Suche:</strong> Such-Feld oben durchsucht Betreff/Inhalt/Autor.</p>
             </section>
 
             <section id="faq-k">
@@ -340,6 +342,30 @@
               <p><strong>„Beirats-Bericht (PDF)"</strong>-Button oben rechts → druckfertiges PDF.</p>
             </section>
 
+            <section id="verlauf-admin">
+              <h2>Verlauf-Tab in der Akte</h2>
+              <h3>Suche</h3>
+              <p>Such-Feld oben durchsucht Betreff/Inhalt/Autor – kombinierbar mit Typ-Filtern.
+                 Treffer-Zähler rechts. ✕ leert die Suche.</p>
+              <h3>KI-Zusammenfassung</h3>
+              <p>Lila Button oben → Assistent fasst den ganzen Verlauf in Status-Form zusammen
+                 (Stand, Erledigt, Offen, Risiken, Empfehlung). Praktisch vor Beirats-Terminen.</p>
+              <h3>Element-Verlauf importieren</h3>
+              <p>Wenn ihr noch Element-Räume zu Mandanten habt, kannst du den kompletten Verlauf
+                 einmalig in die Akte importieren.</p>
+              <ol>
+                <li><strong>In Element:</strong> Raum öffnen → Raum-Name oben klicken → „Exportieren von Chats"</li>
+                <li>Format <strong>JSON</strong>, „Von Anfang an", Größenlimit <strong>500 MB</strong>, Anhänge <strong>aus</strong></li>
+                <li>JSON-Datei wird heruntergeladen</li>
+                <li><strong>Im Dashboard:</strong> Akte → Verlauf-Tab → <strong>„Element-Verlauf importieren"</strong></li>
+                <li>Datei wählen + optional Matrix-ID von Jenny (z.B. <code>@jennypy:matrix.mibeca.de</code>) eintragen</li>
+                <li>Erst <strong>„Vorschau"</strong> klicken → 5 Beispiel-Nachrichten + Anzahl</li>
+                <li>Wenn's passt → <strong>„Importieren"</strong></li>
+              </ol>
+              <p>Doppel-Import ist unproblematisch – bereits importierte Nachrichten werden via
+                 Event-ID übersprungen. Element-Räume können danach geschlossen werden.</p>
+            </section>
+
             <section id="audit">
               <h2>Audit & Backup</h2>
               <p>Jeder Schreibvorgang ist im Audit-Log. Filter nach User/Mandate/Aktion/Zeit.</p>
@@ -401,7 +427,7 @@ const sections = computed(() => {
     { id: 'vertraege', title: 'Verträge unterschreiben' },
     { id: 'interessenten', title: 'Interessenten + VETO' },
     { id: 'dokumente', title: 'Dokumente' },
-    { id: 'verlauf-v', title: 'Verlauf' },
+    { id: 'verlauf-v', title: 'Verlauf (mit Suche)' },
     { id: 'faq-v', title: 'Häufige Fragen' },
   ]
   if (props.role === 'kaeufer') return [
@@ -414,7 +440,7 @@ const sections = computed(() => {
     { id: 'vorschlaege', title: 'Target-Vorschläge' },
     { id: 'vertraege', title: 'Verträge unterschreiben' },
     { id: 'datenraum', title: 'Datenraum' },
-    { id: 'verlauf-k', title: 'Verlauf' },
+    { id: 'verlauf-k', title: 'Verlauf (mit Suche)' },
     { id: 'faq-k', title: 'Häufige Fragen' },
   ]
   return [
@@ -426,6 +452,7 @@ const sections = computed(() => {
     { id: 'ki', title: 'KI-Funktionen' },
     { id: 'benutzer', title: 'Benutzer-Verwaltung' },
     { id: 'controlling', title: 'Controlling' },
+    { id: 'verlauf-admin', title: 'Verlauf-Tab (Suche + Element-Import)' },
     { id: 'audit', title: 'Audit & Backup' },
     { id: 'tipps', title: 'Tipps & Tricks' },
   ]

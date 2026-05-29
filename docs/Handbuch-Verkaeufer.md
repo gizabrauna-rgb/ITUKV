@@ -342,7 +342,14 @@ Statt E-Mails hin und her ist hier alles **chronologisch in deiner Akte** abgele
 
 ---
 
-## 13a. Assistent + Benachrichtigungen (seit 29.05.2026)
+## 13a. Verlauf durchsuchen (seit 29.05.2026)
+
+Im **Verlauf-Tab** gibt es jetzt ein **Such-Feld** ganz oben.
+- Tippe ein Wort ein → durchsucht alle Nachrichten (Betreff, Inhalt, Autor)
+- Praktisch um schnell eine alte Nachricht oder einen bestimmten Termin zu finden
+- ✕-Button leert die Suche
+
+## 13b. Assistent + Benachrichtigungen (seit 29.05.2026)
 
 ### „Assistent"-Button (oben rechts, lila Funken-Icon)
 Klick öffnet einen Chat-Bereich. Du kannst der KI allgemeine M&A-Fragen stellen
