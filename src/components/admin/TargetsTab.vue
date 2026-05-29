@@ -159,9 +159,13 @@
               </optgroup>
             </select>
           </div>
-          <div class="col-span-2">
+          <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">Name Verkäufer *</label>
             <input v-model="form.verkaueferName" placeholder="Vorname Nachname" class="input" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Firma</label>
+            <input v-model="form.firma" placeholder="z.B. ronet GmbH" class="input" />
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">Region</label>
@@ -240,7 +244,7 @@ function clearFilters() {
 }
 const showModal = ref(false)
 const saving = ref(false)
-const form = ref({ mbNr: '', verkaueferName: '', region: '', plz: '', branche: '', mitarbeiter: '', umsatz: '', beschreibung: '', projekttyp: 'Projekt Target' })
+const form = ref({ mbNr: '', verkaueferName: '', firma: '', region: '', plz: '', branche: '', mitarbeiter: '', umsatz: '', beschreibung: '', projekttyp: 'Projekt Target' })
 
 function sortByMbNr(list) {
   return [...list].sort((a, b) => {
@@ -280,7 +284,7 @@ async function createTarget() {
     const t = await apiCreateTarget(form.value)
     targets.value = sortByMbNr([...targets.value, t])
     showModal.value = false
-    form.value = { mbNr: '', verkaueferName: '', region: '', plz: '', branche: '', mitarbeiter: '', umsatz: '', beschreibung: '', projekttyp: 'Projekt Target' }
+    form.value = { mbNr: '', verkaueferName: '', firma: '', region: '', plz: '', branche: '', mitarbeiter: '', umsatz: '', beschreibung: '', projekttyp: 'Projekt Target' }
   } finally { saving.value = false }
 }
 

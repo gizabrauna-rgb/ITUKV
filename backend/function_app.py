@@ -415,6 +415,7 @@ def targets_route(req: func.HttpRequest) -> func.HttpResponse:
         "PartitionKey": "target", "RowKey": tid,
         "mbNr": body.get("mbNr", ""),
         "verkaueferName": body.get("verkaueferName", ""),
+        "firma": body.get("firma", ""),
         "region": body.get("region", ""),
         "plz": body.get("plz", ""),
         "branche": body.get("branche", ""),

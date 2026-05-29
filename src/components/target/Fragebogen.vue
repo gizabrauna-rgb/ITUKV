@@ -175,7 +175,12 @@
         class="flex items-center gap-1.5 px-4 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 disabled:opacity-40">
         <ChevronLeft class="w-4 h-4" /> Zurück
       </button>
-      <div class="text-xs text-gray-400">Auto-Speichern aktiv</div>
+      <div class="text-xs flex items-center gap-1.5"
+        :class="saveStatus === 'saving' ? 'text-amber-600' : saveStatus === 'saved' ? 'text-green-600' : 'text-gray-400'">
+        <span v-if="saveStatus === 'saving'">⏳ Speichere…</span>
+        <span v-else-if="saveStatus === 'saved'">✓ Gespeichert</span>
+        <span v-else>Auto-Speichern aktiv</span>
+      </div>
       <button @click="activeSection = Math.min(sections.length - 1, activeSection + 1)" :disabled="activeSection === sections.length - 1"
         class="flex items-center gap-1.5 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm hover:bg-[#00a0d8] disabled:opacity-40">
         Weiter <ChevronRight class="w-4 h-4" />
@@ -206,7 +211,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, defineComponent, h } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, defineComponent, h } from 'vue'
 import { toast } from '../../composables/useToast.js'
 import { Check, ChevronLeft, ChevronRight, Plus, X, CheckCircle } from '@lucide/vue'
 import { authFetch } from '../../api.js'
@@ -326,15 +331,39 @@ const abgebenSending = ref(false)
 const targetCache = ref(null)
 
 let saveTimer = null
+const saveStatus = ref('') // '', 'saving', 'saved'
+const initialLoadDone = ref(false)
+const dirty = ref(false)
 async function save() {
   if (!props.targetId) return
+  dirty.value = true
   clearTimeout(saveTimer)
+  saveStatus.value = 'saving'
   saveTimer = setTimeout(async () => {
     try {
       await authFetch('/target-update', { method: 'POST', data: { id: props.targetId,  fragebogenJson: JSON.stringify(data.value)  } })
-    } catch (e) { console.error(e) }
-  }, 600)
+      dirty.value = false
+      saveStatus.value = 'saved'
+      setTimeout(() => { if (saveStatus.value === 'saved') saveStatus.value = '' }, 2000)
+    } catch (e) {
+      console.error(e); saveStatus.value = ''
+    }
+  }, 800)
 }
+
+// Auto-Save bei JEDER Aenderung (nicht nur blur) - tippen, klicken, Auswahl
+watch(data, () => { if (initialLoadDone.value) save() }, { deep: true })
+
+// Schutz vor versehentlichem Schliessen mit unsavedChanges
+function beforeUnloadHandler(e) {
+  if (dirty.value) { e.preventDefault(); e.returnValue = '' }
+}
+onMounted(() => window.addEventListener('beforeunload', beforeUnloadHandler))
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', beforeUnloadHandler)
+  // Wenn beim Unmount noch nicht gespeichert -> sofort synchron speichern
+  if (dirty.value && saveTimer) { clearTimeout(saveTimer); save() }
+})
 
 async function logVerlauf(typ, betreff, beschreibung) {
   try {
@@ -396,6 +425,9 @@ onMounted(async () => {
       } catch (e) { console.error(e) }
     }
   } catch (e) { console.error(e) }
+  // Erst NACH dem Initial-Load den Auto-Save-Watcher aktivieren,
+  // sonst triggert er bereits beim Mergen der bestehenden Daten
+  setTimeout(() => { initialLoadDone.value = true }, 50)
 })
 
 // Mini-Komponenten
