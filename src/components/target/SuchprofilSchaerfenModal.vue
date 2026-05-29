@@ -19,7 +19,9 @@
           <Loader class="w-8 h-8 text-purple-400 mx-auto animate-spin mb-3" />
           <p class="text-sm text-gray-500">Assistent denkt nach…</p>
         </div>
-        <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-800">⚠️ {{ error }}</div>
+        <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-800 flex items-start gap-2">
+          <AlertCircle class="w-4 h-4 flex-shrink-0 mt-0.5" /> <span>{{ error }}</span>
+        </div>
         <div v-else>
           <p v-if="begruendung" class="text-xs text-gray-500 italic mb-4">{{ begruendung }}</p>
           <ol class="space-y-3">
@@ -44,7 +46,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { Sparkles, X, Loader } from '@lucide/vue'
+import { Sparkles, X, Loader, AlertCircle } from '@lucide/vue'
 import { authFetch } from '../../api.js'
 
 const props = defineProps({ targetId: { type: String, required: true } })

@@ -6450,13 +6450,14 @@ def ai_action(req: func.HttpRequest) -> func.HttpResponse:
         user = (
             f"Hier ist der Verlauf des Mandats {t.get('mbNr','?')} ({t.get('firma','')}). {kontext_hinweis}\n\n"
             f"{verlauf_str}\n\n"
-            "Erstelle eine strukturierte Status-Zusammenfassung in folgender Form:\n"
-            "- 📍 Aktueller Stand (1-2 Saetze)\n"
-            "- ✅ Was wurde erledigt (max 3 Punkte)\n"
-            "- ⏳ Was steht aus (max 3 Punkte)\n"
-            "- ⚠️ Risiken oder offene Themen (falls erkennbar)\n"
-            "- 💡 Empfehlung naechster Schritt\n\n"
-            "Halte dich knapp, max 200 Worte gesamt. Antworte auf Deutsch."
+            "Erstelle eine strukturierte Status-Zusammenfassung in folgender Form "
+            "(Markdown mit ## Ueberschriften, KEINE Emojis):\n\n"
+            "## Aktueller Stand\n(1-2 Saetze)\n\n"
+            "## Was wurde erledigt\n(max 3 Bullet-Punkte)\n\n"
+            "## Was steht aus\n(max 3 Bullet-Punkte)\n\n"
+            "## Risiken / offene Themen\n(falls erkennbar)\n\n"
+            "## Empfehlung naechster Schritt\n\n"
+            "Halte dich knapp, max 200 Worte gesamt. Antworte auf Deutsch. KEINE Emojis."
         )
         text, tokens = _call_claude(system, user, max_tokens=1000)
         log_audit(p, "ai_action", "target", tid, {"action": action, "tokens": tokens})

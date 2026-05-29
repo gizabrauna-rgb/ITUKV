@@ -7,7 +7,7 @@
           Hier verwaltest du mehrere Akquisitionen unter einem Mandate. Pro Akquisition eigene Suchkriterien, Notizen + Status.
         </p>
       </div>
-      <button @click="openNew" class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700">
+      <button @click="openNew" class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700">
         <Plus class="w-4 h-4" /> Neue Akquisition
       </button>
     </div>
@@ -16,14 +16,14 @@
       <Target class="w-10 h-10 text-gray-300 mx-auto mb-3" />
       <h3 class="font-semibold text-gray-700">Noch keine Akquisition angelegt</h3>
       <p class="text-sm text-gray-500 mt-1">Lege deine erste Such-Konfiguration an — z.B. „IT-Systemhäuser DACH" oder „SaaS 2–5 Mio".</p>
-      <button @click="openNew" class="mt-4 px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700">
+      <button @click="openNew" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700">
         Erste Akquisition anlegen
       </button>
     </div>
 
     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div v-for="(akq, i) in akquisitionen" :key="akq.id"
-        class="bg-white rounded-2xl border border-gray-100 p-5 hover:border-green-200 transition-colors">
+        class="bg-white rounded-2xl border border-gray-100 p-5 hover:border-blue-200 transition-colors">
         <div class="flex items-start justify-between gap-2 mb-3">
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-1">
@@ -124,7 +124,7 @@
         <footer class="px-5 py-3 border-t border-gray-100 flex items-center justify-end gap-2">
           <button @click="closeModal" class="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">Abbrechen</button>
           <button @click="saveAkquisition" :disabled="!form.name.trim() || saving"
-            class="px-5 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50">
+            class="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
             {{ saving ? 'Speichere…' : (editingIdx !== null ? 'Änderungen speichern' : 'Akquisition anlegen') }}
           </button>
         </footer>
@@ -212,5 +212,5 @@ function formatDate(iso) {
 
 <style scoped>
 @reference "tailwindcss";
-.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-300; }
+.input { @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-300; }
 </style>

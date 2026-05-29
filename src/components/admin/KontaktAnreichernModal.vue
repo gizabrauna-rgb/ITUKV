@@ -19,7 +19,9 @@
           <Loader class="w-8 h-8 text-purple-400 mx-auto animate-spin mb-3" />
           <p class="text-sm text-gray-500">Assistent recherchiert Stammdaten…</p>
         </div>
-        <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-800">⚠️ {{ error }}</div>
+        <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-800 flex items-start gap-2">
+          <AlertCircle class="w-4 h-4 flex-shrink-0 mt-0.5" /> <span>{{ error }}</span>
+        </div>
         <div v-else-if="vorschlaege">
           <div :class="['mb-4 px-3 py-2 rounded-lg text-xs',
             vorschlaege.konfidenz === 'hoch' ? 'bg-green-50 text-green-800 border border-green-200' :
@@ -63,7 +65,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Sparkles, X, Loader } from '@lucide/vue'
+import { Sparkles, X, Loader, AlertCircle } from '@lucide/vue'
 import { authFetch, updateKontakt } from '../../api.js'
 
 const props = defineProps({ kontakt: { type: Object, required: true } })

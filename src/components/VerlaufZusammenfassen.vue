@@ -21,8 +21,8 @@
           <Loader class="w-8 h-8 text-purple-400 mx-auto animate-spin mb-3" />
           <p class="text-sm text-gray-500">Verlauf wird gerade zusammengefasst…</p>
         </div>
-        <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-800">
-          ⚠️ {{ error }}
+        <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-800 flex items-start gap-2">
+          <AlertCircle class="w-4 h-4 flex-shrink-0 mt-0.5" /> <span>{{ error }}</span>
         </div>
         <div v-else-if="text" class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{{ text }}</div>
       </main>

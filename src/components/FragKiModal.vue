@@ -101,7 +101,7 @@ async function senden() {
     }})
     messages.value.push({ role: 'assistant', text: r.text || 'Keine Antwort erhalten.' })
   } catch (e) {
-    messages.value.push({ role: 'assistant', text: '⚠️ Fehler: ' + (e?.response?.data?.error || e.message) })
+    messages.value.push({ role: 'assistant', text: 'Fehler: ' + (e?.response?.data?.error || e.message) })
   } finally {
     loading.value = false
     await scrollDown()
