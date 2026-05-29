@@ -37,9 +37,9 @@
           </div>
         </div>
 
-        <button @click="showFragKi = true" class="flex items-center gap-1.5 text-xs text-purple-300 hover:text-white" title="Frag die KI">
+        <button @click="showFragKi = true" class="flex items-center gap-1.5 text-xs text-purple-300 hover:text-white" title="Assistent">
           <Sparkles class="w-4 h-4" />
-          <span class="hidden sm:inline">KI</span>
+          <span class="hidden sm:inline">Assistent</span>
         </button>
         <button @click="showHilfe = true" class="flex items-center gap-1.5 text-xs text-gray-300 hover:text-white" title="Hilfe & Handbuch">
           <HelpCircle class="w-4 h-4" />

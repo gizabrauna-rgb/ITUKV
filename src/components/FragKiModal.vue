@@ -7,7 +7,7 @@
             <Sparkles class="w-5 h-5 text-purple-600" />
           </div>
           <div>
-            <h3 class="font-bold text-gray-900">Frag die KI</h3>
+            <h3 class="font-bold text-gray-900">Assistent</h3>
             <p class="text-xs text-gray-500">Antwortet zu M&amp;A-Themen rund ums ITUKV-Dashboard</p>
           </div>
         </div>
@@ -38,7 +38,7 @@
 
         <div v-if="loading" class="flex gap-2 justify-start">
           <div class="bg-white border border-gray-100 rounded-2xl px-4 py-2.5 text-sm text-gray-500 italic">
-            KI denkt nach…
+            Einen Moment…
           </div>
         </div>
       </main>
@@ -54,7 +54,7 @@
           </button>
         </div>
         <p class="text-[10px] text-gray-400 mt-1.5">
-          Die KI antwortet allgemein. Für individuelle Beratung: Jenny (jk@mike-bergmann.de).
+          Allgemeine Antworten. Für individuelle Beratung: Jenny (jk@mike-bergmann.de).
         </p>
       </footer>
     </div>

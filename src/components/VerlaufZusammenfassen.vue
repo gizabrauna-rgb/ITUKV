@@ -8,7 +8,7 @@
           </div>
           <div>
             <h3 class="font-bold text-gray-900">Verlauf-Zusammenfassung</h3>
-            <p class="text-xs text-gray-500">KI fasst den Kommunikationsverlauf zusammen</p>
+            <p class="text-xs text-gray-500">Schneller Überblick zum aktuellen Stand</p>
           </div>
         </div>
         <button @click="$emit('close')" class="text-gray-400 hover:text-gray-600">
@@ -19,7 +19,7 @@
       <main class="p-5 max-h-[60vh] overflow-y-auto">
         <div v-if="loading" class="py-12 text-center">
           <Loader class="w-8 h-8 text-purple-400 mx-auto animate-spin mb-3" />
-          <p class="text-sm text-gray-500">KI liest den Verlauf und fasst zusammen…</p>
+          <p class="text-sm text-gray-500">Verlauf wird gerade zusammengefasst…</p>
         </div>
         <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-800">
           ⚠️ {{ error }}

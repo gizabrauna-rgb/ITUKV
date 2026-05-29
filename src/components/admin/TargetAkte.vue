@@ -208,7 +208,7 @@
         <div class="flex justify-end mb-3">
           <button @click="showVerlaufZusammen = true"
             class="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700">
-            <Sparkles class="w-3.5 h-3.5" /> KI-Zusammenfassung
+            <Sparkles class="w-3.5 h-3.5" /> Verlauf zusammenfassen
           </button>
         </div>
         <Verlauf :target-id="targetId" />

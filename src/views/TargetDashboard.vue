@@ -10,9 +10,9 @@
         </div>
       </div>
       <div class="flex items-center gap-4">
-        <button @click="showFragKi = true" class="flex items-center gap-1.5 text-xs text-purple-300 hover:text-white" title="Frag die KI – allgemeine M&A-Fragen">
+        <button @click="showFragKi = true" class="flex items-center gap-1.5 text-xs text-purple-300 hover:text-white" title="Assistent – Fragen zum M&A-Prozess">
           <Sparkles class="w-4 h-4" />
-          <span class="hidden sm:inline">Frag die KI</span>
+          <span class="hidden sm:inline">Assistent</span>
         </button>
         <button @click="showHilfe = true" class="flex items-center gap-1.5 text-xs text-gray-300 hover:text-white" title="Hilfe & Handbuch">
           <HelpCircle class="w-4 h-4" />
