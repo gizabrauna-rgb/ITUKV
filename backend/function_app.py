@@ -6194,7 +6194,23 @@ def element_import(req: func.HttpRequest) -> func.HttpResponse:
         except Exception:
             datum_iso = ""
         event_id = ev.get("event_id") or ev.get("id") or ""
-        ist_mibeca = (mibeca_sender and sender_id == mibeca_sender)
+        # Globale mibeca-Matrix-IDs (alle in einem Set; Vergleich case-insensitive)
+        MIBECA_MATRIX_IDS = {
+            "@jennifer.kaplan:matrix.mb-ak.de",
+            "@m.bergmann:matrix.mb-ak.de",
+            "@mb:matrix.mb-ak.de",
+            "@cb:matrix.mb-ak.de",
+            "@wielad.micheel:matrix.mb-ak.de",
+            "@michaela.boyer:matrix.mb-ak.de",
+            "@so:matrix.mb-ak.de",
+            "@kw:matrix.mb-ak.de",
+        }
+        sender_lower = sender_id.lower()
+        # 1) Sender ist in der globalen mibeca-Liste -> mibeca
+        # 2) Sender stimmt mit dem optionalen mibeca_sender-Parameter ueberein -> mibeca
+        ist_mibeca = sender_lower in {m.lower() for m in MIBECA_MATRIX_IDS}
+        if not ist_mibeca and mibeca_sender:
+            ist_mibeca = sender_id == mibeca_sender
         msgs.append({
             "event_id": event_id,
             "datum": datum_iso,

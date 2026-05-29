@@ -35,8 +35,25 @@
         <h3 class="font-semibold text-gray-800 text-sm">Vorgangsnummern</h3>
       </header>
       <div class="p-5 grid grid-cols-2 gap-4">
-        <Field v-model="data.kundennummer" label="Kundennummer (mibeca)" readonly hint="Wird von mibeca vergeben – nicht änderbar." />
-        <Field v-model="data.transaktionsnummer" label="Transaktionsnummer / mb-Nr." readonly hint="Wird von mibeca vergeben – nicht änderbar." />
+        <Field v-model="data.kundennummer" label="Kundennummer (mibeca)" :readonly="!isAdmin" :hint="isAdmin ? 'Nur von mibeca-Admin änderbar.' : 'Wird von mibeca vergeben – nicht änderbar.'" @blur="save" />
+        <Field v-model="data.transaktionsnummer" label="Transaktionsnummer / mb-Nr." :readonly="!isAdmin" :hint="isAdmin ? 'Nur von mibeca-Admin änderbar.' : 'Wird von mibeca vergeben – nicht änderbar.'" @blur="save" />
+        <div v-if="isAdmin" class="col-span-2">
+          <label class="block text-xs font-medium text-gray-600 mb-1">Projekttyp <span class="text-[#0088ba] text-[10px] font-semibold">ADMIN</span></label>
+          <select v-model="data.projekttyp" @change="save"
+            class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]">
+            <optgroup label="Verkäufer-Ansichten">
+              <option>UVE Target</option>
+              <option>Projekt Target</option>
+              <option>MC Target</option>
+            </optgroup>
+            <optgroup label="Käufer-Ansichten">
+              <option>Kauf-Mandat</option>
+              <option>Projekt Investoren</option>
+              <option>MC Investoren</option>
+            </optgroup>
+          </select>
+          <p class="text-[10px] text-gray-400 mt-1">Achtung: Wechsel zwischen Verkäufer- und Käufer-Ansicht ändert die sichtbaren Tabs + Farb-Codierung im Verlauf.</p>
+        </div>
       </div>
     </section>
 
@@ -139,10 +156,13 @@ import TermineSection from './TermineSection.vue'
 
 const props = defineProps({ targetId: String, readOnly: Boolean })
 
+const isAdmin = computed(() => sessionStorage.getItem('userRole') === 'admin')
+
 const data = ref({
   vorname: '', name: '',
   privatEmail: '', privatHandy: '',
   kundennummer: '', transaktionsnummer: '',
+  projekttyp: '',
   mandatStart: '', mandatLaufzeitMonate: 12,
   // Unternehmens-Stammdaten
   geschaeftsfuehrer: '', rechtsform: '', gruendungsjahr: '',

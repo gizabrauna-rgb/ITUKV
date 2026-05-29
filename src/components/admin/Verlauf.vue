@@ -321,20 +321,27 @@ function countByTyp(t) {
 }
 
 function typLabel(t) { return typFilters.find(f => f.value === t)?.label || t }
+// Logik: outgoing (mibeca) immer blau, incoming (Kunde) je nach Target-Typ
+// orange (Verkäufer/Target) oder grün (Käufer/Investor). Icons machen den Kanal-Unterschied.
+const istKaufMandat = computed(() => /kauf|investor/i.test(currentTarget.value?.projekttyp || ''))
+function isOutgoing(t) { return t === 'mail_out' || t === 'chat_out' }
+function isIncoming(t) { return t === 'mail_in' || t === 'chat_in' }
 function typIcon(t) {
   const map = { mail_in: Mail, mail_out: Mail, chat_in: MessageCircle, chat_out: MessageCircle, telefon: Phone, termin: Calendar, notiz: FileText, ki_analyse: Sparkles, wichtig: AlertCircle }
   return map[t] || FileText
 }
 function typBg(t) {
-  const map = { mail_in: 'bg-blue-500', mail_out: 'bg-[#0088ba]', chat_in: 'bg-teal-500', chat_out: 'bg-teal-600', telefon: 'bg-blue-500', termin: 'bg-amber-500', notiz: 'bg-gray-500', ki_analyse: 'bg-purple-500', wichtig: 'bg-red-500' }
+  // Punkt-Farbe in der Timeline (kleiner farbiger Kreis)
+  if (isOutgoing(t)) return 'bg-[#0088ba]'  // mibeca = blau
+  if (isIncoming(t)) return istKaufMandat.value ? 'bg-green-500' : 'bg-orange-500'  // Kunde
+  const map = { telefon: 'bg-blue-500', termin: 'bg-amber-500', notiz: 'bg-gray-500', ki_analyse: 'bg-purple-500', wichtig: 'bg-red-500' }
   return map[t] || 'bg-gray-500'
 }
 function typBadge(t) {
+  // Badge-Farbe (helles bg + dunkler Text)
+  if (isOutgoing(t)) return 'bg-[#0088ba]/10 text-[#0088ba]'
+  if (isIncoming(t)) return istKaufMandat.value ? 'bg-green-50 text-green-700' : 'bg-orange-50 text-orange-700'
   const map = {
-    mail_in: 'bg-blue-50 text-blue-700',
-    mail_out: 'bg-[#0088ba]/10 text-[#0088ba]',
-    chat_in: 'bg-teal-50 text-teal-700',
-    chat_out: 'bg-teal-100 text-teal-800',
     telefon: 'bg-blue-50 text-blue-700',
     termin: 'bg-amber-50 text-amber-700',
     notiz: 'bg-gray-100 text-gray-600',

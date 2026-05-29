@@ -2,7 +2,7 @@
   <div>
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-xl font-bold text-gray-900">Projekte</h2>
-      <button @click="showModal = true" class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8] transition-colors">
+      <button @click="openNew" class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8] transition-colors">
         <Plus class="w-4 h-4" /> Neues Projekt
       </button>
     </div>
@@ -123,21 +123,26 @@
               <button v-if="t.wiedervorlage" @click="t.wiedervorlage = ''; updateWiedervorlage(t)" class="ml-1 text-xs text-gray-400 hover:text-red-500">✕</button>
             </td>
             <td class="px-2 py-3" @click.stop>
-              <button @click="askDelete(t)" class="text-gray-400 hover:text-red-500 p-1" title="Mandat löschen">
-                <Trash2 class="w-4 h-4" />
-              </button>
+              <div class="flex items-center gap-1 justify-end">
+                <button @click="openEdit(t)" class="text-gray-400 hover:text-[#0088ba] p-1" title="Bearbeiten">
+                  <Pencil class="w-4 h-4" />
+                </button>
+                <button @click="askDelete(t)" class="text-gray-400 hover:text-red-500 p-1" title="Mandat löschen">
+                  <Trash2 class="w-4 h-4" />
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <!-- Modal: Neues Mandat -->
+    <!-- Modal: Neues Mandat / Bearbeiten -->
     <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
       <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
         <div class="flex items-center justify-between mb-5">
-          <h3 class="text-lg font-bold text-gray-900">Neues Mandat anlegen</h3>
-          <button @click="showModal = false" class="text-gray-400 hover:text-gray-600"><X class="w-5 h-5" /></button>
+          <h3 class="text-lg font-bold text-gray-900">{{ editingId ? 'Mandat bearbeiten' : 'Neues Mandat anlegen' }}</h3>
+          <button @click="closeModal" class="text-gray-400 hover:text-gray-600"><X class="w-5 h-5" /></button>
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
@@ -193,9 +198,9 @@
           </div>
         </div>
         <div class="flex justify-end gap-3 mt-6">
-          <button @click="showModal = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Abbrechen</button>
-          <button @click="createTarget" :disabled="saving" class="px-5 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8] disabled:opacity-50">
-            {{ saving ? 'Speichern…' : 'Mandat anlegen' }}
+          <button @click="closeModal" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Abbrechen</button>
+          <button @click="saveTarget" :disabled="saving" class="px-5 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium hover:bg-[#00a0d8] disabled:opacity-50">
+            {{ saving ? 'Speichern…' : (editingId ? 'Änderungen speichern' : 'Mandat anlegen') }}
           </button>
         </div>
       </div>
@@ -205,7 +210,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Plus, X, Search, Trash2 } from '@lucide/vue'
+import { Plus, X, Search, Trash2, Pencil } from '@lucide/vue'
 import { getTargets, createTarget as apiCreateTarget, updateTarget, deleteTarget } from '../../api.js'
 import { getPhasenVorlage } from '../../lib/phasenTemplates.js'
 import { toast } from '../../composables/useToast.js'
@@ -277,16 +282,59 @@ function statusLabel(s) {
   return s || 'Verkauft'
 }
 
-async function createTarget() {
+const editingId = ref(null)
+
+function emptyForm() {
+  return { mbNr: '', verkaueferName: '', firma: '', region: '', plz: '', branche: '', mitarbeiter: '', umsatz: '', beschreibung: '', projekttyp: 'Projekt Target' }
+}
+
+function openNew() {
+  editingId.value = null
+  form.value = emptyForm()
+  showModal.value = true
+}
+
+function openEdit(t) {
+  editingId.value = t.RowKey
+  form.value = {
+    mbNr: t.mbNr || '', verkaueferName: t.verkaueferName || '', firma: t.firma || '',
+    region: t.region || '', plz: t.plz || '', branche: t.branche || '',
+    mitarbeiter: t.mitarbeiter || '', umsatz: t.umsatz || '',
+    beschreibung: t.beschreibung || '', projekttyp: t.projekttyp || 'Projekt Target',
+  }
+  showModal.value = true
+}
+
+function closeModal() {
+  showModal.value = false
+  editingId.value = null
+  form.value = emptyForm()
+}
+
+async function saveTarget() {
+  if (editingId.value) {
+    saving.value = true
+    try {
+      await updateTarget(editingId.value, form.value)
+      // lokal patchen
+      const idx = targets.value.findIndex(t => t.RowKey === editingId.value)
+      if (idx >= 0) targets.value[idx] = { ...targets.value[idx], ...form.value }
+      closeModal()
+    } finally { saving.value = false }
+    return
+  }
+  // Anlegen
   if (!form.value.mbNr || !form.value.verkaueferName) return
   saving.value = true
   try {
     const t = await apiCreateTarget(form.value)
     targets.value = sortByMbNr([...targets.value, t])
-    showModal.value = false
-    form.value = { mbNr: '', verkaueferName: '', firma: '', region: '', plz: '', branche: '', mitarbeiter: '', umsatz: '', beschreibung: '', projekttyp: 'Projekt Target' }
+    closeModal()
   } finally { saving.value = false }
 }
+
+// Backwards compat
+const createTarget = saveTarget
 
 async function updateStatus(t) {
   await updateTarget(t.RowKey, { status: t.status })
