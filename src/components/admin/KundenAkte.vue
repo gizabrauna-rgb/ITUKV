@@ -173,6 +173,36 @@
 
           <!-- Verlauf (alle Projekte zusammen) -->
           <section v-else-if="tab === 'verlauf'">
+            <!-- Neuer Eintrag -->
+            <div v-if="verknuepfteProjekte.length" class="border border-gray-100 rounded-xl p-4 mb-5 bg-gray-50">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="text-xs font-semibold text-gray-700 uppercase tracking-wide">Neuer Verlauf-Eintrag</h4>
+                <select v-if="verknuepfteProjekte.length > 1" v-model="verlaufTargetId"
+                  class="text-xs border border-gray-200 rounded-lg px-2 py-1">
+                  <option v-for="p in verknuepfteProjekte" :key="p.RowKey" :value="p.RowKey">
+                    {{ p.mbNr || '—' }} · {{ p.firma || p.verkaueferName }}
+                  </option>
+                </select>
+                <span v-else-if="verknuepfteProjekte[0]" class="text-[11px] text-gray-500">
+                  zu {{ verknuepfteProjekte[0].mbNr }}
+                </span>
+              </div>
+              <input v-model="verlaufBetreff" placeholder="Betreff (optional)"
+                class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 mb-2" />
+              <textarea v-model="verlaufBody" rows="3" placeholder="Notiz oder Nachricht…"
+                class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 resize-none mb-2"></textarea>
+              <div class="flex items-center justify-between">
+                <label class="flex items-center gap-1.5 text-[11px] text-gray-600 cursor-pointer">
+                  <input type="checkbox" v-model="verlaufNotifyMandant" />
+                  <span>Mandant per Mail informieren</span>
+                </label>
+                <button @click="addVerlauf" :disabled="!verlaufBody.trim() || savingVerlauf"
+                  class="px-4 py-1.5 bg-[#0088ba] text-white rounded-lg text-xs font-medium hover:bg-[#00a0d8] disabled:opacity-50">
+                  {{ savingVerlauf ? 'Speichere…' : 'Hinzufügen' }}
+                </button>
+              </div>
+            </div>
+
             <div v-if="verlaufItems.length === 0" class="text-center py-12 text-gray-400 text-sm">
               <Mail class="w-10 h-10 mx-auto mb-2 text-gray-300" />
               Kein Kommunikations-Verlauf.
@@ -270,6 +300,12 @@ const emit = defineEmits(['close', 'edit', 'open-projekt', 'updated'])
 const tab = ref('uebersicht')
 const newNote = ref('')
 const savingNote = ref(false)
+// Neuer Verlauf-Eintrag
+const verlaufTargetId = ref('')
+const verlaufBetreff = ref('')
+const verlaufBody = ref('')
+const verlaufNotifyMandant = ref(true)
+const savingVerlauf = ref(false)
 
 const dokumenteLoading = ref(false)
 const dokumenteGruppen = ref([])
@@ -371,6 +407,35 @@ function verlaufDotColor(t) {
   if (t === 'telefon') return 'bg-green-500'
   if (t === 'termin') return 'bg-purple-500'
   return 'bg-gray-400'
+}
+
+async function addVerlauf() {
+  if (!verlaufBody.value.trim() || !verknuepfteProjekte.value.length) return
+  const targetId = verlaufTargetId.value || verknuepfteProjekte.value[0].RowKey
+  savingVerlauf.value = true
+  try {
+    const endpoint = verlaufNotifyMandant.value ? '/verlauf-send-mail' : '/verlauf-add'
+    await authFetch(endpoint, { method: 'POST', data: {
+      targetId,
+      betreff: verlaufBetreff.value.trim() || 'Notiz',
+      body: verlaufBody.value.trim(),
+      typ: 'notiz',
+    }})
+    // Verlauf lokal nachladen: das Target neu holen
+    try {
+      const refreshed = await authFetch('/target-get', { method: 'POST', data: { id: targetId } })
+      const idx = (props.targets || []).findIndex(t => t.RowKey === targetId)
+      if (idx >= 0 && refreshed) {
+        props.targets[idx].kommunikationJson = refreshed.kommunikationJson
+      }
+    } catch {}
+    verlaufBetreff.value = ''
+    verlaufBody.value = ''
+    toast.success('Verlauf-Eintrag gespeichert')
+    emit('updated', props.kontakt)
+  } catch (e) {
+    toast.error('Speichern fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
+  } finally { savingVerlauf.value = false }
 }
 
 async function addNote() {
