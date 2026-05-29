@@ -1,6 +1,6 @@
 # mibeca Security- & Compliance-Dokumentation
 
-**Stand:** 2026-05-28
+**Stand:** 2026-05-29
 **Pflege:** Anna Giza-Braun
 
 ## Übersicht der Dokumente
@@ -20,6 +20,20 @@ oder ein anderes Wiki kopiert werden.
 | **4-AVV-Anfrage-Anthropic.md** | Anleitung + Mail-Vorlage für DPA-Anforderung | Selbst durchführen |
 | **5-Anleitung-Anthropic-Budget.md** | Schritt-für-Schritt Budget-Limit + Alerts | Selbst durchführen, ~5 Min |
 | **6-Anleitung-API-Key-Rotation.md** | Schritt-für-Schritt Key-Rotation | Erster Lauf am Tag der Erstellung |
+
+## Operative Dokumentation (für Confluence)
+
+| Datei | Inhalt | Adressat |
+|---|---|---|
+| **Dashboard-Einfuehrung.md** | „Was ist das Dashboard und warum?" – verständlich für alle | neuer Mitarbeiter, Mandant |
+| **Rollen-Uebersicht.md** | Wer darf was? (Admin/Verkäufer/Käufer/KI-Service) | alle |
+| **Handbuch-Admin.md** | Vollständiges Handbuch für Anna + Jenny | mibeca-Team |
+| **Handbuch-Verkaeufer.md** | Mandanten-Handbuch Verkäuferseite | Verkäufer-Mandant |
+| **Handbuch-Kaeufer.md** | Mandanten-Handbuch Käuferseite | Käufer-Mandant |
+| **KI-Moeglichkeiten-Detail.md** | Tiefe Erklärung aller KI-Aktionen | Anna, Jenny, DSB |
+| **Changelog-Features-2026-05-28.md** | Was war neu am 28.05. (Cockpit, Ziele, Kosten…) | alle |
+| **Changelog-Features-2026-05-29.md** | Was war neu am 29.05. (Push, 4 KI-Aktionen, Mehrere Adressen) | alle |
+| **7-Checkliste-Chef.md** | Aktions-Checkliste für die Geschäftsführung | GF |
 
 ## Reihenfolge zur Abarbeitung der offenen Compliance-Punkte
 

@@ -1,6 +1,6 @@
 # Nutzerhandbuch: Admin (mibeca-Berater)
 
-**Stand:** 2026-05-28
+**Stand:** 2026-05-29
 **Zielgruppe:** Anna, Jenny und ggf. weitere mibeca-Berater
 **Voraussetzung:** Admin-Account ist angelegt
 

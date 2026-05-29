@@ -1,6 +1,6 @@
 # Das ITUKV-Dashboard – Was ist das und warum nutzen wir es?
 
-**Stand:** 2026-05-28
+**Stand:** 2026-05-29
 **Zielgruppe:** Alle, die das Dashboard noch nicht kennen – Mitarbeitende, Mandanten,
 Geschäftspartner, Datenschutzbeauftragte, Auditoren.
 
@@ -211,7 +211,7 @@ sichtbar.
 
 ## Wo erfahre ich mehr?
 
-- **Feature-Übersicht aktuelle Version:** Changelog-Features-2026-05-28
+- **Feature-Übersicht aktuelle Version:** Changelog-Features-2026-05-29 (Vorgänger: 28.05.)
 - **Sicherheits-Konzept gesamt:** Security-Konzept-Dashboard
 - **KI-Konzept:** AI-Security-Konzept
 - **Compliance-Vorlagen:** Mappe `docs/` im Repo

@@ -1,6 +1,6 @@
 # Nutzerhandbuch: Käufer / Investor
 
-**Stand:** 2026-05-28
+**Stand:** 2026-05-29
 **Zielgruppe:** Mandanten, die mit mibeca ein Unternehmen kaufen möchten
 **Voraussetzung:** Du hast eine Willkommens-Mail mit Zugangsdaten erhalten
 

@@ -1,6 +1,6 @@
 # Nutzerhandbuch: Verkäufer
 
-**Stand:** 2026-05-28
+**Stand:** 2026-05-29
 **Zielgruppe:** Mandanten, die ihr Unternehmen mit mibeca verkaufen
 **Voraussetzung:** Du hast eine Willkommens-Mail mit Zugangsdaten erhalten
 

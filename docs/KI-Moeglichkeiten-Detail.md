@@ -1,6 +1,6 @@
 # KI im ITUKV-Dashboard – was geht alles?
 
-**Stand:** 2026-05-28
+**Stand:** 2026-05-29
 **Zielgruppe:** Anna, Jenny, Geschäftsführung, DSB
 **Voraussetzung:** KI-Funktion ist global aktiv (`AI_ANALYSE_AKTIV=true`)
 

@@ -1,6 +1,6 @@
 # Rollen im ITUKV-Dashboard
 
-**Stand:** 2026-05-28
+**Stand:** 2026-05-29
 **Zielgruppe:** Alle – um zu verstehen, wer was darf und sieht.
 
 ---
