@@ -468,6 +468,7 @@ TARGET_WRITABLE_FIELDS = {
     "fragebogenStatus", "fragebogenAbgegebenAm",
     "kostenInfoBestaetigtAm",
     "zieleMotivationenJson", "akquisitionsstrategieJson",
+    "akquisitionenJson",  # Multi-Akquisition (Liste von einzelnen Käufe pro Käufer-Mandate)
     # JSON-Blobs
     "phasenJson", "exposeJson", "fragebogenJson", "bewertungJson", "landingJson",
     "vertragJson", "kommunikationJson", "termineJson", "kaeuferFeedbackJson",

@@ -212,6 +212,11 @@
         <Unternehmensbewertung :target-id="targetId" :read-only="true" />
       </div>
 
+      <!-- Tab: Meine Akquisitionen (nur Kauf-Mandat) -->
+      <div v-else-if="tab === 'akquisitionen'">
+        <KaeuferAkquisitionen :target-id="targetId" />
+      </div>
+
       <!-- Tab: Target-Vorschläge (nur bei Kauf-Mandat) -->
       <div v-else-if="tab === 'vorschlaege'">
         <KaeuferVorschlaege :target-id="targetId" />
@@ -443,7 +448,7 @@ import {
   Building2, LogOut, Briefcase, Users, FolderOpen, Check, CheckCircle, Circle,
   Star, UserCheck, Ban, Folder, ChevronLeft, Upload, FileText, Download,
   Link as LinkIcon, Plus, Trash2, X, ClipboardList, FileEdit, MessageSquare, TrendingUp, Clock, Bell,
-  User, ChevronRight, HelpCircle, Sparkles
+  User, ChevronRight, HelpCircle, Sparkles, Target
 } from '@lucide/vue'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
@@ -456,6 +461,7 @@ import PushToggle from '../components/PushToggle.vue'
 import ZieleMotivationen from '../components/target/ZieleMotivationen.vue'
 import AkquisitionsstrategieKaeufer from '../components/target/AkquisitionsstrategieKaeufer.vue'
 import KaeuferVorschlaege from '../components/target/KaeuferVorschlaege.vue'
+import KaeuferAkquisitionen from '../components/target/KaeuferAkquisitionen.vue'
 import Suchprofil from '../components/admin/Suchprofil.vue'
 import DokumenteAkte from '../components/admin/DokumenteAkte.vue'
 import Fragebogen from '../components/target/Fragebogen.vue'
@@ -519,6 +525,7 @@ const navItems = computed(() => {
     base = [
       { tab: 'projekt', label: 'Mein Projekt', icon: Briefcase },
       { tab: 'mandat', label: 'Meine Daten', icon: ClipboardList },
+      { tab: 'akquisitionen', label: 'Meine Akquisitionen', icon: Target },
       { tab: 'suchprofil', label: 'Mein Suchprofil', icon: FileEdit },
       { tab: 'vorschlaege', label: 'Target-Vorschläge', icon: Users },
       { tab: 'vertraege', label: 'Verträge', icon: FileText },
