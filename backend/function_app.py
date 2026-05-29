@@ -6200,7 +6200,9 @@ def element_import(req: func.HttpRequest) -> func.HttpResponse:
             "sender_id": sender_id,
             "sender_name": sender_name,
             "body": body_text[:5000],
-            "typ": "mail_out" if ist_mibeca else "mail_in",
+            # 'chat' als neuer Typ fuer Element/Matrix-Imports
+            # (war vorher faelschlich mail_in/mail_out -> wirkte wie E-Mail)
+            "typ": "chat_out" if ist_mibeca else "chat_in",
         })
 
     preview = [

@@ -117,7 +117,7 @@ def extract_messages(export, mibeca_user=None):
             "sender_id": sender_id,
             "sender_name": sender_name,
             "body": body[:5000],  # Cap an Laenge
-            "typ": "mail_out" if ist_mibeca else "mail_in",
+            "typ": "chat_out" if ist_mibeca else "chat_in",
         })
     return msgs
 

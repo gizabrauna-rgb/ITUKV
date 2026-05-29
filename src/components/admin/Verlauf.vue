@@ -62,6 +62,18 @@
       </div>
     </div>
 
+    <!-- Suche -->
+    <div class="relative mb-3">
+      <Search class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+      <input v-model="searchQuery" type="search"
+        placeholder="Suche im Verlauf (Betreff, Inhalt, Autor …)"
+        class="w-full pl-9 pr-9 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30" />
+      <button v-if="searchQuery" @click="searchQuery = ''"
+        class="absolute right-2 top-1.5 p-1 text-gray-400 hover:text-gray-600" title="Suche leeren">
+        <X class="w-4 h-4" />
+      </button>
+    </div>
+
     <!-- Filter -->
     <div class="flex items-center gap-2 mb-4 flex-wrap">
       <button v-for="t in typFilters" :key="t.value"
@@ -72,6 +84,9 @@
         {{ t.label }}
         <span :class="['text-[10px] px-1.5 py-0.5 rounded', filterTyp === t.value ? 'bg-white/20' : 'bg-gray-100']">{{ countByTyp(t.value) }}</span>
       </button>
+      <span v-if="searchQuery || filterTyp" class="text-xs text-gray-500 ml-auto">
+        {{ filtered.length }} Treffer
+      </span>
     </div>
 
     <!-- Timeline -->
@@ -193,7 +208,7 @@
 import { ref, computed, onMounted } from 'vue'
 import {
   Mail, Phone, Calendar, MessageSquare, FileText, AlertCircle,
-  Plus, Pencil, Trash2, X, Users, Sparkles, Upload
+  Plus, Pencil, Trash2, X, Users, Sparkles, Upload, Search, MessageCircle
 } from '@lucide/vue'
 import ElementImportModal from './ElementImportModal.vue'
 
@@ -270,12 +285,15 @@ const loading = ref(true)
 const showModal = ref(false)
 const editing = ref(null)
 const filterTyp = ref('')
+const searchQuery = ref('')
 
 const form = ref({ typ: 'notiz', datum: '', autor: '', betreff: '', beschreibung: '', beteiligte: '', telefonnr: '' })
 
 const typFilters = [
   { value: 'mail_in', label: 'E-Mail eingegangen', icon: Mail, activeClass: 'bg-blue-500' },
   { value: 'mail_out', label: 'E-Mail versendet', icon: Mail, activeClass: 'bg-[#0088ba]' },
+  { value: 'chat_in', label: 'Chat eingegangen', icon: MessageCircle, activeClass: 'bg-teal-500' },
+  { value: 'chat_out', label: 'Chat gesendet', icon: MessageCircle, activeClass: 'bg-teal-600' },
   { value: 'telefon', label: 'Telefonat', icon: Phone, activeClass: 'bg-blue-500' },
   { value: 'termin', label: 'Termin', icon: Calendar, activeClass: 'bg-amber-500' },
   { value: 'notiz', label: 'Notiz', icon: FileText, activeClass: 'bg-gray-500' },
@@ -286,6 +304,15 @@ const typFilters = [
 const filtered = computed(() => {
   let r = entries.value
   if (filterTyp.value) r = r.filter(e => e.typ === filterTyp.value)
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    r = r.filter(e =>
+      (e.betreff || '').toLowerCase().includes(q) ||
+      (e.beschreibung || '').toLowerCase().includes(q) ||
+      (e.autor || '').toLowerCase().includes(q) ||
+      (e.beteiligte || '').toLowerCase().includes(q)
+    )
+  }
   return [...r].sort((a, b) => (a.datum < b.datum ? 1 : -1))
 })
 
@@ -295,17 +322,19 @@ function countByTyp(t) {
 
 function typLabel(t) { return typFilters.find(f => f.value === t)?.label || t }
 function typIcon(t) {
-  const map = { mail_in: Mail, mail_out: Mail, telefon: Phone, termin: Calendar, notiz: FileText, ki_analyse: Sparkles, wichtig: AlertCircle }
+  const map = { mail_in: Mail, mail_out: Mail, chat_in: MessageCircle, chat_out: MessageCircle, telefon: Phone, termin: Calendar, notiz: FileText, ki_analyse: Sparkles, wichtig: AlertCircle }
   return map[t] || FileText
 }
 function typBg(t) {
-  const map = { mail_in: 'bg-blue-500', mail_out: 'bg-[#0088ba]', telefon: 'bg-blue-500', termin: 'bg-amber-500', notiz: 'bg-gray-500', ki_analyse: 'bg-purple-500', wichtig: 'bg-red-500' }
+  const map = { mail_in: 'bg-blue-500', mail_out: 'bg-[#0088ba]', chat_in: 'bg-teal-500', chat_out: 'bg-teal-600', telefon: 'bg-blue-500', termin: 'bg-amber-500', notiz: 'bg-gray-500', ki_analyse: 'bg-purple-500', wichtig: 'bg-red-500' }
   return map[t] || 'bg-gray-500'
 }
 function typBadge(t) {
   const map = {
     mail_in: 'bg-blue-50 text-blue-700',
     mail_out: 'bg-[#0088ba]/10 text-[#0088ba]',
+    chat_in: 'bg-teal-50 text-teal-700',
+    chat_out: 'bg-teal-100 text-teal-800',
     telefon: 'bg-blue-50 text-blue-700',
     termin: 'bg-amber-50 text-amber-700',
     notiz: 'bg-gray-100 text-gray-600',
