@@ -325,12 +325,16 @@ async function loadEntries() {
   if (!props.targetId) return
   loading.value = true
   try {
+    // Target laden (fuer Stammdaten + Telefonnummer)
     const target = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
     currentTarget.value = target
-    if (target.kommunikationJson) {
-      try { entries.value = JSON.parse(target.kommunikationJson) } catch { entries.value = [] }
-    } else {
-      entries.value = []
+    // Verlauf kombiniert laden (kommunikationJson + separate verlaufentries-Tabelle)
+    try {
+      const r = await authFetch('/verlauf-entries-get', { method: 'POST', data: { targetId: props.targetId } })
+      entries.value = Array.isArray(r?.entries) ? r.entries : []
+    } catch {
+      // Fallback: nur kommunikationJson
+      try { entries.value = JSON.parse(target.kommunikationJson || '[]') } catch { entries.value = [] }
     }
     // Markiert als gelesen sobald Verlauf geoeffnet wird
     try { await verlaufMarkRead(props.targetId) } catch {}

@@ -6211,37 +6211,118 @@ def element_import(req: func.HttpRequest) -> func.HttpResponse:
     if dry_run:
         return ok_({"foundMessages": len(msgs), "preview": preview, "dryRun": True})
 
-    # Bestehende event_ids ermitteln
+    # Element-Eintraege gehen in separate Tabelle `verlaufentries`,
+    # um Azure's 32K-Limit pro Feld in kommunikationJson nicht zu sprengen.
+    # Jeder Eintrag wird eine eigene Entity.
     try:
-        verlauf = json.loads(target.get("kommunikationJson") or "[]")
-        if not isinstance(verlauf, list): verlauf = []
+        ventc = table_("verlaufentries")
+    except Exception as ex:
+        return err_(f"Verlauf-Tabelle nicht verfuegbar: {ex}", 500)
+
+    # Bestehende event_ids ermitteln (sowohl in alter kommunikationJson als auch in der Tabelle)
+    existing = set()
+    try:
+        old_verlauf = json.loads(target.get("kommunikationJson") or "[]")
+        if isinstance(old_verlauf, list):
+            for e in old_verlauf:
+                if isinstance(e, dict) and e.get("elementEventId"):
+                    existing.add(e["elementEventId"])
     except Exception:
-        verlauf = []
-    existing = {e.get("elementEventId") for e in verlauf if isinstance(e, dict)}
+        pass
+    try:
+        for e in ventc.query_entities("PartitionKey eq @t", parameters={"t": tid}):
+            if e.get("elementEventId"):
+                existing.add(e["elementEventId"])
+    except Exception:
+        pass
 
     neu = 0
+    errors = 0
     for m in msgs:
-        if m["event_id"] and m["event_id"] in existing: continue
-        verlauf.append({
-            "id": "el" + (m["event_id"][-12:] if m["event_id"] else str(int(datetime.utcnow().timestamp() * 1000))),
-            "typ": m["typ"],
-            "datum": m["datum"],
-            "autor": m["sender_name"],
-            "betreff": "(Element-Import)",
-            "beschreibung": m["body"],
-            "elementEventId": m["event_id"],
-            "elementSender": m["sender_id"],
-            "importedFromElement": True,
-        })
-        neu += 1
-    verlauf.sort(key=lambda e: e.get("datum", "") or "")
-    target["kommunikationJson"] = json.dumps(verlauf, ensure_ascii=False)
+        if m["event_id"] and m["event_id"] in existing:
+            continue
+        # RowKey eindeutig pro Target + event_id (oder fallback timestamp)
+        import hashlib
+        rk_basis = m["event_id"] or (m["datum"] + m["sender_id"])
+        rk = hashlib.sha256(rk_basis.encode("utf-8")).hexdigest()[:32]
+        try:
+            ventc.upsert_entity({
+                "PartitionKey": tid,
+                "RowKey": rk,
+                "typ": m["typ"],
+                "datum": m["datum"],
+                "autor": m["sender_name"],
+                "betreff": "(Element-Import)",
+                # Beschreibung auf Azure-Limit kuerzen (32K UTF-16 = ca. 30000 ASCII safe)
+                "beschreibung": m["body"][:30000],
+                "elementEventId": m["event_id"],
+                "elementSender": m["sender_id"],
+                "importedFromElement": True,
+                "createdAt": datetime.utcnow().isoformat(),
+            })
+            neu += 1
+        except Exception:
+            errors += 1
+    log_audit(p, "element_import", "target", tid, {"imported": neu, "found": len(msgs), "errors": errors})
+    return ok_({"imported": neu, "foundMessages": len(msgs), "preview": preview,
+                "skipped": len(msgs) - neu - errors, "errors": errors})
+
+
+@app.route(route="verlauf-entries-get", methods=["GET", "POST", "OPTIONS"])
+def verlauf_entries_get(req: func.HttpRequest) -> func.HttpResponse:
+    """Liefert kombinierten Verlauf eines Targets:
+    - Eintraege aus target.kommunikationJson (klassisch, Limit 32K)
+    - Eintraege aus separater Tabelle 'verlaufentries' (Element-Import, ohne Limit pro Eintrag)
+    Sortiert chronologisch absteigend.
+    """
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    if req.method == "GET":
+        tid = (req.params.get("targetId") or "").strip()
+    else:
+        body = req.get_json() or {}
+        tid = (body.get("targetId") or "").strip()
+    if not tid:
+        return err_("targetId erforderlich", 400)
+    # IDOR-Schutz: nicht-admin nur eigene Akte
+    if p.get("role") != "admin" and p.get("targetId") != tid:
+        return err_("Nicht autorisiert", 403)
+
+    eintraege = []
+    # 1. Aus kommunikationJson am Target
     try:
-        table_("targets").update_entity(target)
-    except Exception as ex:
-        return err_(f"Speichern fehlgeschlagen: {ex}", 500)
-    log_audit(p, "element_import", "target", tid, {"imported": neu, "found": len(msgs)})
-    return ok_({"imported": neu, "foundMessages": len(msgs), "preview": preview, "skipped": len(msgs) - neu})
+        target = table_("targets").get_entity("target", tid)
+        try:
+            arr = json.loads(target.get("kommunikationJson") or "[]")
+            if isinstance(arr, list):
+                for e in arr:
+                    if isinstance(e, dict): eintraege.append(e)
+        except Exception:
+            pass
+    except Exception:
+        return err_("Target nicht gefunden", 404)
+    # 2. Aus separater Tabelle (Element-Import + ggf. spaetere groessere Eintraege)
+    try:
+        for e in table_("verlaufentries").query_entities("PartitionKey eq @t", parameters={"t": tid}):
+            eintraege.append({
+                "id": "vt" + (e.get("RowKey", "")[-12:]),
+                "typ": e.get("typ", ""),
+                "datum": e.get("datum", ""),
+                "autor": e.get("autor", ""),
+                "betreff": e.get("betreff", ""),
+                "beschreibung": e.get("beschreibung", ""),
+                "elementEventId": e.get("elementEventId", ""),
+                "elementSender": e.get("elementSender", ""),
+                "importedFromElement": e.get("importedFromElement", False),
+            })
+    except Exception:
+        pass
+    # Chronologisch absteigend
+    eintraege.sort(key=lambda x: (x.get("datum", "") or ""), reverse=True)
+    return ok_({"entries": eintraege, "total": len(eintraege)})
 
 
 @app.route(route="ai-action", methods=["POST", "OPTIONS"])
