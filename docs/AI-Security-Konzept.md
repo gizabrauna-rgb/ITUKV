@@ -2,11 +2,18 @@
 
 **Projekt:** ITUKV Dashboard (mibeca GmbH)
 **Modul:** KI-Analyse von hochgeladenen Dokumenten (BWA, Jahresabschluss, Exposé, Handelsregister)
-**Version:** 1.1
-**Stand:** 2026-05-28
+**Version:** 1.2
+**Stand:** 2026-05-29
 **Verantwortlich:** Anna Giza-Braun (mibeca)
 
-> Änderungen zur Vorversion (1.0 → 1.1):
+> Änderungen zur Vorversion (1.1 → 1.2):
+> - **Generischer `/api/ai-action`-Endpoint** mit 5 Aktionen statt vorher nur 1 (ai-analyze-document)
+> - Neue Aktionen: `verlauf-zusammenfassen`, `frag-ki`, `kontakt-anreichern`, `suchprofil-schaerfen`, `match-begruendung`
+> - Zwei davon (`frag-ki`, `suchprofil-schaerfen`) auch für Nicht-Admin-User zugelassen (Mandanten-Self-Service)
+> - Audit-Log-Aktion `ai_action` zusätzlich zu `ai_analyze`, `ai_update`, `ai_upload`, `ai_verlauf_add`
+> - UI-Bezeichnung: „KI" wurde überall durch „Assistent" ersetzt (UX, kein technischer Change)
+>
+> Änderungen 1.0 → 1.1:
 > - KI-Service-Account-Schreibrechte sind jetzt zusätzlich durch die Mandanten-Schutz-Allowlist eingegrenzt (kein Setzen von `mbNr`, `status`, `projekttyp` etc.)
 > - Auto-Verlauf-Eintrag wird bei KI-Analyse-Übernahmen weiterhin geschrieben (unverändert), zusätzlich existiert jetzt parallel ein Auto-Verlauf für Mandant-Self-Service-Aktionen (siehe Dashboard-Konzept §5.5)
 
@@ -89,6 +96,26 @@ Die KI liest Dokumente und schlägt Werte vor – die finale Entscheidung über 
 ---
 
 ## 4. Technische und organisatorische Maßnahmen (TOM)
+
+### 4.0 Übersicht der KI-Funktionen (Stand v1.2)
+
+| Endpoint | Zweck | Wer darf? | Audit-Action |
+|---|---|---|---|
+| `POST /api/ai-analyze-document` | PDF-Auswertung im Datenraum | admin | `ai_analyze` |
+| `POST /api/ai-bulk-update` | Stammdaten-Update (Coworker) | ai-agent / admin | `ai_update` |
+| `POST /api/ai-verlauf-add` | Verlauf-Eintrag durch Coworker | ai-agent / admin | `ai_verlauf_add` |
+| `POST /api/ai-dokument-upload` | Coworker-Datei-Upload | ai-agent / admin | `ai_upload` |
+| `POST /api/ai-action` mit `action=verlauf-zusammenfassen` | KI-Zusammenfassung Verlauf | admin | `ai_action` |
+| `POST /api/ai-action` mit `action=frag-ki` | Chat-Assistent | alle eingeloggten User | `ai_action` |
+| `POST /api/ai-action` mit `action=kontakt-anreichern` | Stammdaten-Vorschlag für Kontakt | admin | `ai_action` |
+| `POST /api/ai-action` mit `action=suchprofil-schaerfen` | Rückfragen für Käufer-Suchprofil | admin / Käufer-Mandant (mit IDOR-Schutz) | `ai_action` |
+| `POST /api/ai-action` mit `action=match-begruendung` | Score + Pro/Contra Kandidat | admin | `ai_action` |
+
+**Alle Aktionen unterliegen:**
+- Globalem Kill-Switch `AI_ANALYSE_AKTIV`
+- Anthropic-API-Key in Azure App-Settings
+- Audit-Log mit Token-Verbrauch
+- Anthropic AVV + DSGVO-Rahmen (gleiche Datenfluss-Wege wie Dokumenten-Analyse)
 
 ### 4.1 Implementiert (Stand heute)
 
@@ -215,4 +242,4 @@ bezogener Daten ohne explizite Freigabe durch DSB.
 Beratung durch einen Datenschutzbeauftragten oder Fachanwalt. Es dient als Diskussions-
 und Audit-Grundlage.*
 
-*Stand 2026-05-28.*
+*Stand 2026-05-29.*

@@ -1,11 +1,21 @@
 # Security- & Compliance-Konzept – ITUKV Dashboard (mibeca GmbH)
 
-**Version:** 1.1
-**Stand:** 2026-05-28
+**Version:** 1.2
+**Stand:** 2026-05-29
 **Verantwortlich:** Anna Giza-Braun (mibeca)
 **Klassifizierung:** Vertraulich – nur für mibeca + Datenschutzberater
 
-> Änderungen zur Vorversion (1.0 → 1.1):
+> Änderungen zur Vorversion (1.1 → 1.2):
+> - **Browser-Push-Notifications** als zusätzlicher Benachrichtigungs-Kanal (VAPID/RFC 8292)
+> - Neue Azure App-Settings: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
+> - Neue Tabelle `pushsubs` für User-Subscriptions
+> - 4 neue API-Endpoints (`/push-config`, `/push-subscribe`, `/push-unsubscribe`, `/push-test`)
+> - Service Worker `/sw.js` empfängt Notifications auch bei geschlossenem Tab
+> - User-Opt-In durch Browser-Notification-API (Permission-Dialog)
+> - Mehrere E-Mails / Telefone pro Kontakt (Felder `weitereEmailsJson`, `weiterePhonesJson`)
+> - 4 weitere KI-Aktionen via `/ai-action` (kontakt-anreichern, suchprofil-schaerfen, match-begruendung – ergänzen verlauf-zusammenfassen + frag-ki aus v1.1)
+>
+> Änderungen 1.0 → 1.1:
 > - Mass-Assignment: zusätzliche ADMIN-only-Allowlist für `mbNr`, Vorgangsnummern, Mandatslaufzeit
 > - Microsoft-Auto-Detection beim User-Anlegen: keine Passwort-Vergabe für interne Domains
 > - Neue strukturierte Mandanten-Felder (Ziele, Akquisitionsstrategie, Kosten-Bestätigung)
@@ -267,6 +277,51 @@ direkt aus dem Browser aufrufen.
 ### 5.4 Datenfelder im Detail
 
 Siehe Anhang A für eine vollständige Liste der gespeicherten Felder pro Tabelle.
+
+### 5.4a Browser-Push-Benachrichtigungen (seit v1.2)
+
+Zusätzlich zu E-Mails kann das Dashboard **Echtzeit-Push-Notifications** an
+Browser senden – auch wenn der Tab geschlossen ist. Verwendet wird der
+Web-Push-Standard nach **RFC 8030** mit **VAPID-Signatur** (RFC 8292).
+
+**Architektur:**
+
+| Komponente | Funktion |
+|---|---|
+| Service Worker `/sw.js` | Empfängt Push-Events im Hintergrund, zeigt Notification |
+| VAPID-Keys (Azure App-Settings) | Identifizieren mibeca als Absender beim Push-Service |
+| Tabelle `pushsubs` | Speichert User-Subscriptions (endpoint, p256dh, auth) |
+| Push-Service | Apple APNs / Google FCM / Mozilla autopush (je nach Browser) |
+
+**User-Opt-In:**
+- Toggle in „Mein Projekt" (Mandanten) bzw. Einstellungen-Tab (Admin)
+- Erst nach explizitem Klick: Browser fragt nach Erlaubnis (Notification.requestPermission)
+- Erst nach `granted`: Subscription wird erstellt und ans Backend übertragen
+- Jederzeit per Toggle wieder deaktivierbar (Backend-Löschung der Subscription)
+
+**Datenschutz-Bewertung:**
+- Subscription enthält keine personenbezogenen Daten — nur die anonyme Push-Endpoint-URL
+  des Browsers + öffentliche Crypto-Keys für die Signaturprüfung
+- Push-Payload enthält nur die Information die ohnehin in Mail-Notifications steht
+- Übertragung läuft via Browser-Hersteller-Push-Service (Apple/Google/Mozilla) – diese
+  Dienste sehen die verschlüsselte Payload, können sie aber nicht lesen (E2E-Verschlüsselung
+  via VAPID + p256dh-Key)
+- Subscription-Daten werden in Azure (EU) gespeichert, nicht bei den Browser-Herstellern
+
+**API-Endpoints:**
+- `GET /api/push-config` — liefert VAPID_PUBLIC_KEY (öffentlich)
+- `POST /api/push-subscribe` — speichert Subscription (auth-pflichtig)
+- `POST /api/push-unsubscribe` — entfernt Subscription
+- `POST /api/push-test` — sendet Test-Push an eigene Subscriptions
+
+**Trigger für Push:**
+- Automatisch bei jedem neuen Verlauf-Eintrag (`_notify_new_entry`)
+- Empfänger-Logik wie bei Mail: Mandant schreibt → Admin bekommt, Admin schreibt → Mandant bekommt
+- Tote Subscriptions (HTTP-Fehler bei Push) werden automatisch aus der Tabelle bereinigt
+
+**Restrisiken:**
+- Browser-Hersteller könnte theoretisch Metadaten erfassen (welcher Push wann, an wen) — mitigiert durch reine Server-Server-Kommunikation ohne PII
+- Kompromittierte VAPID-Private-Key würde es Angreifer erlauben, signierte Push-Nachrichten an mibeca-User zu senden — Mitigierung durch sichere Speicherung in Azure App-Settings + Rotation möglich
 
 ### 5.5 Auto-Verlauf-Logging bei Mandant-Self-Service-Aktionen (seit v1.1)
 
@@ -582,6 +637,13 @@ action, targetType, targetId, details (JSON)
 **Tabelle `passwordresets`:**
 PartitionKey="reset", RowKey=token, userId, exp (30 Min)
 
+**Tabelle `pushsubs` (seit v1.2):**
+PartitionKey="sub", RowKey (hash des endpoints), userId, userName, endpoint, p256dh, auth, createdAt
+
+**Kontakt-Erweiterung (seit v1.2):**
+`weitereEmailsJson`, `weiterePhonesJson` – JSON-Arrays mit `[{wert, label}]` für zusätzliche
+Kontaktwege pro Hauptansprechpartner (z.B. mobil/büro/privat).
+
 **Blob-Container `datenraum`:**
 PDF, Bild, Video, Audio – pro Akte ein Pfad `{targetId}/{ordner}/{filename}`
 
@@ -594,6 +656,7 @@ Wöchentliche JSON-Snapshots, 12-Wochen-Rotation
 |---|---|---|---|
 | 2026-05-27 | Initial-Audit | 4 kritische, 4 hohe, mehrere Hygiene-Findings | alle geschlossen, siehe Git-Commits |
 | 2026-05-28 | Hardening-Iteration | Mandant kann mbNr/Vorgangsnummern setzen; Microsoft-User bekommen unnötig Passwort; fehlendes Self-Service-Aktivitäts-Logging | alle geschlossen, siehe Commits e482320, user-create-Patch, d050e2f |
+| 2026-05-29 | Feature-Erweiterung | Browser-Push als neuer Channel; VAPID-Keys neu in Azure; Mehrere Kontakt-Adressen; 4 weitere KI-Aktionen | implementiert, siehe Commits 30a3a7f + 5389584 |
 
 Detail-Findings dieses Audits:
 - Login-Bypass über unverifizierten MSAL-Token (BEHOBEN)
@@ -645,7 +708,7 @@ adressiert (manuell, Automatisierung in Planung).
 
 *Dieses Dokument ist ein lebendes Dokument und wird mindestens jährlich aktualisiert
 oder bei wesentlichen Änderungen an Architektur, Datenfluss oder rechtlichen
-Rahmenbedingungen. Stand 2026-05-28.*
+Rahmenbedingungen. Stand 2026-05-29.*
 
 *Es ersetzt nicht die rechtliche Bewertung durch einen Datenschutzbeauftragten
 oder Fachanwalt für IT-Recht.*
