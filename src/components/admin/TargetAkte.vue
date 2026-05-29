@@ -205,6 +205,12 @@
 
       <!-- Verlauf -->
       <div v-else-if="tab === 'verlauf'">
+        <div class="flex justify-end mb-3">
+          <button @click="showVerlaufZusammen = true"
+            class="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700">
+            <Sparkles class="w-3.5 h-3.5" /> KI-Zusammenfassung
+          </button>
+        </div>
         <Verlauf :target-id="targetId" />
       </div>
 
@@ -218,6 +224,9 @@
         <Zwischenstand :target-id="targetId" />
       </div>
     </div>
+
+    <!-- KI-Verlauf-Zusammenfassung -->
+    <VerlaufZusammenfassen v-if="showVerlaufZusammen" :target-id="targetId" @close="showVerlaufZusammen = false" />
   </div>
 </template>
 
@@ -227,13 +236,14 @@ import {
   ArrowLeft, MapPin, Tag, Users, Euro, Hash, Mail,
   Sparkles, Circle, Folder, FileText, MessageSquare,
   LayoutDashboard, Workflow, ClipboardList, FileEdit, ShieldCheck, Clock, TrendingUp, Trophy, BookOpen,
-  CalendarClock, X, Globe, Handshake, Target
+  CalendarClock, X, Globe, Handshake, Target, Sparkles
 } from '@lucide/vue'
 import { authFetch, statusReportPdf } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 import PhasenProzessEingebettet from './PhasenProzess.vue'
 import MandatDaten from '../target/MandatDaten.vue'
 import ZieleStrategieAnzeige from './ZieleStrategieAnzeige.vue'
+import VerlaufZusammenfassen from '../VerlaufZusammenfassen.vue'
 import Fragebogen from '../target/Fragebogen.vue'
 import Unternehmensbewertung from '../target/Unternehmensbewertung.vue'
 import Suchprofil from './Suchprofil.vue'
@@ -260,6 +270,7 @@ defineEmits(['close'])
 
 const target = ref(null)
 const tab = ref(props.initialTab || 'uebersicht')
+const showVerlaufZusammen = ref(false)
 const vertragSubTab = ref('mandat')
 
 const isKaufMandat = computed(() => /kauf|investor/i.test(target.value?.projekttyp || ''))

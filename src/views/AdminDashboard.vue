@@ -37,6 +37,10 @@
           </div>
         </div>
 
+        <button @click="showFragKi = true" class="flex items-center gap-1.5 text-xs text-purple-300 hover:text-white" title="Frag die KI">
+          <Sparkles class="w-4 h-4" />
+          <span class="hidden sm:inline">KI</span>
+        </button>
         <button @click="showHilfe = true" class="flex items-center gap-1.5 text-xs text-gray-300 hover:text-white" title="Hilfe & Handbuch">
           <HelpCircle class="w-4 h-4" />
           <span class="hidden sm:inline">Hilfe</span>
@@ -318,6 +322,12 @@
     <!-- Hilfe SlideOver -->
     <HilfeSlideOver v-if="showHilfe" role="admin" @close="showHilfe = false" />
 
+    <!-- Frag die KI -->
+    <FragKiModal v-if="showFragKi"
+      kontext="Du sprichst mit einer mibeca-M&A-Beraterin (Admin)."
+      :beispiele-fragen="['Wie formuliere ich eine NDA-Aufforderung?', 'Welche DD-Punkte sind bei IT-Targets typisch?', 'Wie hoch ist eine übliche Erfolgshonorar-Spanne?']"
+      @close="showFragKi = false" />
+
   </div>
 </template>
 
@@ -325,11 +335,12 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import {
   Building2, LogOut, LayoutDashboard, Briefcase, GitBranch,
-  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow, Bell, BarChart3, AlertCircle, Activity, Mail, CalendarClock, ShieldCheck, HelpCircle,
+  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow, Bell, BarChart3, AlertCircle, Activity, Mail, CalendarClock, ShieldCheck, HelpCircle, Sparkles,
 } from '@lucide/vue'
 import { authFetch, verlaufUnreadCount, verlaufMarkRead } from '../api.js'
 import TargetsTab from '../components/admin/TargetsTab.vue'
 import HilfeSlideOver from '../components/HilfeSlideOver.vue'
+import FragKiModal from '../components/FragKiModal.vue'
 import CrmTab from '../components/admin/CrmTab.vue'
 import AusschreibungenTab from '../components/admin/AusschreibungenTab.vue'
 import DokumenteTab from '../components/admin/DokumenteTab.vue'
@@ -346,6 +357,7 @@ const emit = defineEmits(['logout', 'switch-view'])
 const tab = ref(sessionStorage.getItem('admin.tab') || 'uebersicht')
 watch(tab, v => sessionStorage.setItem('admin.tab', v))
 const showHilfe = ref(false)
+const showFragKi = ref(false)
 const showSwitcher = ref(false)
 
 const targetTypes = ['UVE Target', 'Projekt Target', 'MC Target']

@@ -10,6 +10,10 @@
         </div>
       </div>
       <div class="flex items-center gap-4">
+        <button @click="showFragKi = true" class="flex items-center gap-1.5 text-xs text-purple-300 hover:text-white" title="Frag die KI – allgemeine M&A-Fragen">
+          <Sparkles class="w-4 h-4" />
+          <span class="hidden sm:inline">Frag die KI</span>
+        </button>
         <button @click="showHilfe = true" class="flex items-center gap-1.5 text-xs text-gray-300 hover:text-white" title="Hilfe & Handbuch">
           <HelpCircle class="w-4 h-4" />
           <span class="hidden sm:inline">Hilfe</span>
@@ -400,6 +404,9 @@
     <!-- Hilfe SlideOver -->
     <HilfeSlideOver v-if="showHilfe" :role="hilfeRole" @close="showHilfe = false" />
 
+    <!-- Frag die KI -->
+    <FragKiModal v-if="showFragKi" :kontext="fragKiKontext" @close="showFragKi = false" />
+
     <!-- Kosten-Info Modal -->
     <KostenInfo v-if="showKostenModal" :target-id="targetId" :bestaetigt-am="target?.kostenInfoBestaetigtAm" @close="showKostenModal = false" @confirmed="onKostenBestaetigt" />
 
@@ -430,7 +437,7 @@ import {
   Building2, LogOut, Briefcase, Users, FolderOpen, Check, CheckCircle, Circle,
   Star, UserCheck, Ban, Folder, ChevronLeft, Upload, FileText, Download,
   Link as LinkIcon, Plus, Trash2, X, ClipboardList, FileEdit, MessageSquare, TrendingUp, Clock, Bell,
-  User, ChevronRight, HelpCircle
+  User, ChevronRight, HelpCircle, Sparkles
 } from '@lucide/vue'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
@@ -438,6 +445,7 @@ import MandatDaten from '../components/target/MandatDaten.vue'
 import PressetextFreigabe from '../components/target/PressetextFreigabe.vue'
 import KostenInfo from '../components/target/KostenInfo.vue'
 import HilfeSlideOver from '../components/HilfeSlideOver.vue'
+import FragKiModal from '../components/FragKiModal.vue'
 import ZieleMotivationen from '../components/target/ZieleMotivationen.vue'
 import AkquisitionsstrategieKaeufer from '../components/target/AkquisitionsstrategieKaeufer.vue'
 import KaeuferVorschlaege from '../components/target/KaeuferVorschlaege.vue'
@@ -462,6 +470,16 @@ const showHilfe = ref(false)
 const hilfeRole = computed(() => {
   const typ = props.projekttyp || target.value?.projekttyp || ''
   return /kauf|investor/i.test(typ) ? 'kaeufer' : 'verkaeufer'
+})
+
+// Frag die KI
+const showFragKi = ref(false)
+const fragKiKontext = computed(() => {
+  const typ = props.projekttyp || target.value?.projekttyp || ''
+  const istKauf = /kauf|investor/i.test(typ)
+  return istKauf
+    ? 'Der Nutzer ist ein Käufer-Mandant von mibeca, der ein Unternehmen kaufen möchte.'
+    : 'Der Nutzer ist ein Verkäufer-Mandant von mibeca, der sein Unternehmen verkaufen möchte.'
 })
 const checkliste = ref([])
 const interessenten = ref([])

@@ -5963,6 +5963,288 @@ def ai_uploads_recent(req: func.HttpRequest) -> func.HttpResponse:
     return ok_(items)
 
 
+@app.route(route="ai-action", methods=["POST", "OPTIONS"])
+def ai_action(req: func.HttpRequest) -> func.HttpResponse:
+    """Generischer Endpoint fuer KI-Aktionen aus dem Dashboard.
+
+    Body: { action: <name>, targetId?, kontaktId?, frage?, kontext?, conversation? }
+
+    Unterstuetzte Aktionen:
+    - verlauf-zusammenfassen: targetId -> Zusammenfassung des Kommunikationsverlaufs
+    - frag-ki: frage + kontext -> Allgemeine M&A-Antwort (Chat)
+    - kontakt-anreichern: kontaktId -> Vorschlaege fuer Stammdaten-Ergaenzung
+    - suchprofil-schaerfen: targetId -> Rueckfragen + Konkretisierungsvorschlaege
+    - match-begruendung: targetId + kontaktId -> Begruendung des Matches
+
+    Auth:
+    - frag-ki: alle eingeloggten User (admin, target, investor)
+    - alle anderen: nur admin
+    """
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+
+    # KI global aktiv?
+    if os.environ.get("AI_ANALYSE_AKTIV", "").lower() not in ("true", "1", "yes"):
+        return err_("KI-Funktion ist global deaktiviert", 503)
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return err_("ANTHROPIC_API_KEY nicht gesetzt", 503)
+
+    body = req.get_json() or {}
+    action = (body.get("action") or "").strip()
+    if not action:
+        return err_("action erforderlich", 400)
+
+    # Rollen-Check
+    is_admin = p.get("role") == "admin"
+    public_actions = {"frag-ki", "suchprofil-schaerfen"}
+    if action not in public_actions and not is_admin:
+        return err_("Nicht autorisiert fuer diese Aktion", 403)
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+    except Exception as ex:
+        return err_(f"KI-Client nicht verfuegbar: {ex}", 500)
+
+    def _call_claude(system_prompt, user_prompt, max_tokens=1500):
+        msg = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=max_tokens,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+        text = "".join(b.text for b in msg.content if hasattr(b, "text"))
+        tokens = {
+            "input": msg.usage.input_tokens if hasattr(msg, "usage") else 0,
+            "output": msg.usage.output_tokens if hasattr(msg, "usage") else 0,
+        }
+        return text, tokens
+
+    # --- Aktion: Verlauf zusammenfassen ---
+    if action == "verlauf-zusammenfassen":
+        tid = body.get("targetId", "")
+        if not tid:
+            return err_("targetId erforderlich", 400)
+        try:
+            t = table_("targets").get_entity("target", tid)
+        except Exception:
+            return err_("Target nicht gefunden", 404)
+        try:
+            verlauf = json.loads(t.get("kommunikationJson", "[]") or "[]")
+        except Exception:
+            verlauf = []
+        if not verlauf:
+            return ok_({"text": "Noch kein Verlauf vorhanden zur Zusammenfassung."})
+        verlauf_str = "\n\n".join(
+            f"[{e.get('datum','')}] {e.get('autor','')} ({e.get('typ','')}): {e.get('betreff','')}\n{e.get('beschreibung','')}"
+            for e in verlauf[-50:]  # max 50 letzte
+        )
+        system = ("Du bist Beratungs-Assistentin in einem M&A-Beratungsunternehmen (mibeca). "
+                  "Deine Aufgabe ist es, den Kommunikationsverlauf einer Mandatsakte praegnant zusammenzufassen.")
+        user = (
+            f"Hier ist der Verlauf des Mandats {t.get('mbNr','?')} ({t.get('firma','')}):\n\n"
+            f"{verlauf_str}\n\n"
+            "Erstelle eine strukturierte Status-Zusammenfassung in folgender Form:\n"
+            "- 📍 Aktueller Stand (1-2 Saetze)\n"
+            "- ✅ Was wurde erledigt (max 3 Punkte)\n"
+            "- ⏳ Was steht aus (max 3 Punkte)\n"
+            "- ⚠️ Risiken oder offene Themen (falls erkennbar)\n"
+            "- 💡 Empfehlung naechster Schritt\n\n"
+            "Halte dich knapp, max 200 Worte gesamt. Antworte auf Deutsch."
+        )
+        text, tokens = _call_claude(system, user, max_tokens=1000)
+        log_audit(p, "ai_action", "target", tid, {"action": action, "tokens": tokens})
+        return ok_({"text": text, "tokens": tokens})
+
+    # --- Aktion: Frag die KI (Chat) ---
+    if action == "frag-ki":
+        frage = (body.get("frage") or "").strip()
+        if not frage:
+            return err_("frage erforderlich", 400)
+        if len(frage) > 2000:
+            return err_("Frage zu lang (max 2000 Zeichen)", 400)
+        kontext = (body.get("kontext") or "").strip()
+        conversation = body.get("conversation") or []  # [{role: 'user'|'assistant', text: ...}]
+
+        system = (
+            "Du bist die KI-Assistentin im ITUKV-Dashboard von mibeca GmbH. "
+            "Du hilfst Mandanten und Beratern bei Fragen zum M&A-Prozess "
+            "(Unternehmenskauf/-verkauf in Deutschland). "
+            "Antworte praezise, sachlich und in einfacher Sprache. "
+            "Bei rechtlichen oder steuerlichen Fragen verweise auf den Anwalt/Steuerberater. "
+            "Bei spezifischen Mandats-Fragen verweise auf Jenny Kaplan (jk@mike-bergmann.de). "
+            "Erfinde keine Zahlen oder Fakten - sag lieber 'das weiss ich nicht' wenn unsicher."
+        )
+        # Conversation als messages
+        messages = []
+        for m in conversation[-10:]:  # max 10 letzte Turns
+            role = m.get("role", "user")
+            txt = (m.get("text") or "")[:2000]
+            if role in ("user", "assistant") and txt:
+                messages.append({"role": role, "content": txt})
+        # Aktuelle Frage hinzufuegen
+        user_content = frage
+        if kontext:
+            user_content = f"Kontext: {kontext[:1000]}\n\nFrage: {frage}"
+        messages.append({"role": "user", "content": user_content})
+
+        msg = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1500,
+            system=system,
+            messages=messages,
+        )
+        text = "".join(b.text for b in msg.content if hasattr(b, "text"))
+        tokens = {
+            "input": msg.usage.input_tokens if hasattr(msg, "usage") else 0,
+            "output": msg.usage.output_tokens if hasattr(msg, "usage") else 0,
+        }
+        log_audit(p, "ai_action", "chat", "", {"action": action, "tokens": tokens, "fragePreview": frage[:80]})
+        return ok_({"text": text, "tokens": tokens})
+
+    # --- Aktion: Kontakt anreichern ---
+    if action == "kontakt-anreichern":
+        kid = body.get("kontaktId", "")
+        if not kid:
+            return err_("kontaktId erforderlich", 400)
+        try:
+            k = table_("kontakte").get_entity("kontakt", kid)
+        except Exception:
+            return err_("Kontakt nicht gefunden", 404)
+        firma = k.get("firma", "")
+        if not firma:
+            return err_("Kontakt hat keine Firma", 400)
+
+        # Aktuelle Daten als JSON
+        ist_daten = {
+            "firma": firma,
+            "geschaeftsfuehrer": k.get("geschaeftsfuehrer", ""),
+            "branche": k.get("branche", ""),
+            "plz": k.get("plz", ""),
+            "ort": k.get("ort", ""),
+            "mitarbeiter": k.get("mitarbeiter", ""),
+            "umsatzTeur": k.get("umsatzTeur", ""),
+            "ebitMarge": k.get("ebitMarge", ""),
+            "website": k.get("website", ""),
+        }
+        system = ("Du bist Analystin im M&A-Bereich. Deine Aufgabe: bei einem Firmenkontakt "
+                  "Stammdaten ergaenzen, sofern du sie aus allgemeinem Wissen ueber die Firma kennst. "
+                  "WICHTIG: Erfinde NICHTS. Wenn du dir nicht sicher bist -> Feld leer/null.")
+        user = (
+            f"Aktuelle Daten des Kontakts:\n{json.dumps(ist_daten, ensure_ascii=False, indent=2)}\n\n"
+            "Was kannst du aus deinem allgemeinen Wissen ergaenzen oder korrigieren? "
+            "Antworte als JSON-Objekt mit den Feldern, die du belegen kannst:\n"
+            '{\n'
+            '  "geschaeftsfuehrer": "Name oder null",\n'
+            '  "branche": "konkretere Branche oder null",\n'
+            '  "plz": "PLZ oder null",\n'
+            '  "ort": "Ort oder null",\n'
+            '  "mitarbeiter": Zahl oder null,\n'
+            '  "umsatzTeur": Zahl oder null,\n'
+            '  "website": "URL oder null",\n'
+            '  "begruendung": "kurze Erklaerung woher diese Infos kommen (max 2 Saetze)",\n'
+            '  "konfidenz": "hoch | mittel | niedrig"\n'
+            '}\n\n'
+            "Nur JSON, keine zusaetzliche Erklaerung."
+        )
+        text, tokens = _call_claude(system, user, max_tokens=800)
+        # JSON parsen
+        try:
+            if "```" in text:
+                text = text.split("```", 2)[1].lstrip("json").strip()
+                if "```" in text:
+                    text = text.split("```", 1)[0].strip()
+            data = json.loads(text)
+        except Exception as ex:
+            return ok_({"raw": text, "error": f"Antwort konnte nicht geparst werden: {ex}", "tokens": tokens})
+        log_audit(p, "ai_action", "kontakt", kid, {"action": action, "tokens": tokens, "konfidenz": data.get("konfidenz", "")})
+        return ok_({"vorschlaege": data, "tokens": tokens})
+
+    # --- Aktion: Suchprofil schaerfen ---
+    if action == "suchprofil-schaerfen":
+        tid = body.get("targetId", "")
+        if not tid:
+            return err_("targetId erforderlich", 400)
+        try:
+            t = table_("targets").get_entity("target", tid)
+        except Exception:
+            return err_("Target nicht gefunden", 404)
+        # IDOR: nicht-admin nur eigene Akte
+        if not is_admin and p.get("targetId") != tid:
+            return err_("Nicht autorisiert", 403)
+        try:
+            suchprofil = json.loads(t.get("suchprofilJson", "{}") or "{}")
+        except Exception:
+            suchprofil = {}
+        try:
+            akq = json.loads(t.get("akquisitionsstrategieJson", "{}") or "{}")
+        except Exception:
+            akq = {}
+
+        system = ("Du bist Akquisitionsberater. Hilf einem Käufer, sein Suchprofil zu schaerfen.")
+        user = (
+            f"Aktuelles Suchprofil:\n{json.dumps(suchprofil, ensure_ascii=False, indent=2)}\n\n"
+            f"Akquisitionsstrategie:\n{json.dumps(akq, ensure_ascii=False, indent=2)}\n\n"
+            "Stelle 3-5 konkrete Rueckfragen, die dem Käufer helfen wuerden, sein Profil schaerfer zu machen. "
+            "Beispiele: 'Soll der GF verbleiben?' 'Welche Branchen-Subkategorien sind ausgeschlossen?'\n\n"
+            "Antworte als JSON:\n"
+            '{ "fragen": ["...", "...", "..."], "begruendung": "warum diese Fragen helfen, max 2 Saetze" }'
+        )
+        text, tokens = _call_claude(system, user, max_tokens=600)
+        try:
+            if "```" in text:
+                text = text.split("```", 2)[1].lstrip("json").strip()
+                if "```" in text:
+                    text = text.split("```", 1)[0].strip()
+            data = json.loads(text)
+        except Exception as ex:
+            return ok_({"raw": text, "error": f"Parse-Fehler: {ex}", "tokens": tokens})
+        log_audit(p, "ai_action", "target", tid, {"action": action, "tokens": tokens})
+        return ok_(data | {"tokens": tokens})
+
+    # --- Aktion: Match-Begruendung ---
+    if action == "match-begruendung":
+        tid = body.get("targetId", "")
+        kid = body.get("kontaktId", "")
+        if not (tid and kid):
+            return err_("targetId und kontaktId erforderlich", 400)
+        try:
+            t = table_("targets").get_entity("target", tid)
+            k = table_("kontakte").get_entity("kontakt", kid)
+        except Exception:
+            return err_("Target oder Kontakt nicht gefunden", 404)
+        try:
+            suchprofil = json.loads(t.get("suchprofilJson", "{}") or "{}")
+        except Exception:
+            suchprofil = {}
+
+        system = "Du bist Match-Analystin im M&A-Bereich."
+        user = (
+            "Bewerte wie gut dieser Kontakt zu dem Suchprofil eines Käufer-Mandanten passt.\n\n"
+            f"Suchprofil:\n{json.dumps(suchprofil, ensure_ascii=False, indent=2)}\n\n"
+            f"Kontakt:\n{json.dumps({k_: k.get(k_, '') for k_ in ['firma','branche','plz','ort','mitarbeiter','umsatzTeur','ebitMarge','bietet']}, ensure_ascii=False, indent=2)}\n\n"
+            "Antworte als JSON:\n"
+            '{ "score": 0-100, "pro": ["...", "..."], "contra": ["..."], "begruendung": "kurz, max 2 Saetze" }'
+        )
+        text, tokens = _call_claude(system, user, max_tokens=500)
+        try:
+            if "```" in text:
+                text = text.split("```", 2)[1].lstrip("json").strip()
+                if "```" in text:
+                    text = text.split("```", 1)[0].strip()
+            data = json.loads(text)
+        except Exception as ex:
+            return ok_({"raw": text, "error": f"Parse-Fehler: {ex}", "tokens": tokens})
+        log_audit(p, "ai_action", "target", tid, {"action": action, "kontaktId": kid, "tokens": tokens})
+        return ok_(data | {"tokens": tokens})
+
+    return err_(f"Unbekannte action: {action}", 400)
+
+
 @app.route(route="ai-config", methods=["GET", "OPTIONS"])
 def ai_config(req: func.HttpRequest) -> func.HttpResponse:
     """Liefert den Compliance-Status der KI-Analyse:
