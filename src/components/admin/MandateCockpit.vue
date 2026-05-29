@@ -48,7 +48,7 @@
             </td>
             <td class="px-4 py-3">
               <span :class="['text-xs px-2 py-0.5 rounded-full font-medium',
-                             r.istKauf ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700']">
+                             r.istKauf ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700']">
                 {{ r.istKauf ? 'Käufer' : 'Verkäufer' }}
               </span>
             </td>

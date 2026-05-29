@@ -62,6 +62,40 @@
     <!-- Termine & Erinnerungen -->
     <TermineSection :target-id="targetId" :termine-json="termineJson" :read-only="!!readOnly" @updated="onTermineUpdated" />
 
+    <!-- KI-Analyse für diese Akte (Compliance / Opt-In) -->
+    <section class="bg-white rounded-xl border border-gray-100 mb-4">
+      <header class="px-5 py-3 border-b border-gray-50 flex items-center gap-2">
+        <Sparkles class="w-4 h-4 text-purple-600" />
+        <h3 class="font-semibold text-gray-800 text-sm">KI-Analyse für diese Akte</h3>
+      </header>
+      <div class="p-5">
+        <div class="flex items-start gap-4">
+          <div class="flex-1">
+            <p class="text-xs text-gray-600 leading-relaxed">
+              Wenn aktiv, darf der Assistent Dokumente in dieser Akte analysieren und Stammdaten anreichern.
+              Dokumente werden dafür einmalig an Anthropic (USA, AVV-konform) übertragen, nicht für Training verwendet,
+              max 30 Tage gespeichert.
+            </p>
+            <p v-if="data.kiAnalyseErlaubt" class="text-[11px] text-gray-500 mt-2">
+              Freigegeben am {{ formatDate(data.kiAnalyseErlaubtSeit) }}
+              <span v-if="data.kiAnalyseErlaubtVon">von {{ data.kiAnalyseErlaubtVon }}</span>
+            </p>
+          </div>
+          <button v-if="!readOnly" @click="toggleKi" type="button"
+            :class="['relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0',
+                     data.kiAnalyseErlaubt ? 'bg-purple-600' : 'bg-gray-300']"
+            :title="data.kiAnalyseErlaubt ? 'Freigegeben – klick zum Sperren' : 'Gesperrt – klick zum Freigeben'">
+            <span :class="['inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                           data.kiAnalyseErlaubt ? 'translate-x-6' : 'translate-x-1']"></span>
+          </button>
+          <span v-else :class="['text-xs px-2 py-1 rounded-full font-medium',
+                                data.kiAnalyseErlaubt ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500']">
+            {{ data.kiAnalyseErlaubt ? 'freigegeben' : 'nicht freigegeben' }}
+          </span>
+        </div>
+      </div>
+    </section>
+
     <!-- Mandatslaufzeit -->
     <section class="bg-white rounded-xl border border-gray-100 mb-4">
       <header class="px-5 py-3 border-b border-gray-50 flex items-center gap-2">
@@ -99,7 +133,7 @@
 
 <script setup>
 import { ref, computed, onMounted, h, defineComponent } from 'vue'
-import { User, Database, Clock, Building2 } from '@lucide/vue'
+import { User, Database, Clock, Building2, Sparkles } from '@lucide/vue'
 import { authFetch } from '../../api.js'
 import TermineSection from './TermineSection.vue'
 
@@ -114,7 +148,35 @@ const data = ref({
   geschaeftsfuehrer: '', rechtsform: '', gruendungsjahr: '',
   branche: '', mitarbeiter: '', umsatz: '',
   ebitMarge: '', recurringPct: '',
+  // KI-Analyse Opt-In
+  kiAnalyseErlaubt: false, kiAnalyseErlaubtSeit: '', kiAnalyseErlaubtVon: '',
 })
+
+async function toggleKi() {
+  if (props.readOnly || !props.targetId) return
+  const neu = !data.value.kiAnalyseErlaubt
+  data.value.kiAnalyseErlaubt = neu
+  if (neu) {
+    data.value.kiAnalyseErlaubtSeit = new Date().toISOString()
+    data.value.kiAnalyseErlaubtVon = sessionStorage.getItem('userName') || ''
+  }
+  try {
+    await authFetch('/target-update', { method: 'POST', data: {
+      id: props.targetId,
+      kiAnalyseErlaubt: neu,
+      kiAnalyseErlaubtSeit: data.value.kiAnalyseErlaubtSeit,
+      kiAnalyseErlaubtVon: data.value.kiAnalyseErlaubtVon,
+    }})
+  } catch (e) {
+    // bei Fehler zurueckdrehen
+    data.value.kiAnalyseErlaubt = !neu
+  }
+}
+
+function formatDate(iso) {
+  if (!iso) return ''
+  try { return new Date(iso).toLocaleDateString('de-DE') } catch { return '' }
+}
 const termineJson = ref('')
 
 function onTermineUpdated(arr) {

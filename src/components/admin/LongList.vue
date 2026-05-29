@@ -80,7 +80,7 @@
     <div v-else class="space-y-2">
       <div v-for="k in visibleItems" :key="k.id || k.RowKey"
         :class="['rounded-xl border p-4 flex items-start gap-3',
-                 isFreigegeben(k) ? 'bg-purple-50 border-purple-200' :
+                 isFreigegeben(k) ? 'bg-green-50 border-green-200' :
                  k.istInternesTarget ? 'bg-orange-50 border-orange-200' : 'bg-white border-gray-100']">
         <!-- Score-Kreis -->
         <div :class="['w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0',
@@ -106,7 +106,7 @@
             <span v-for="g in k.ablehnGruende" :key="g" class="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded-full">{{ g }}</span>
           </div>
           <!-- Käufer-Feedback (wenn vorhanden) -->
-          <div v-if="kaeuferFeedback[k.id]" class="mt-2 p-2 rounded-lg bg-purple-100 text-purple-900 text-xs">
+          <div v-if="kaeuferFeedback[k.id]" class="mt-2 p-2 rounded-lg bg-green-100 text-green-900 text-xs">
             <strong>Feedback Käufer:</strong>
             <span v-if="kaeuferFeedback[k.id].interesse === 'ja'" class="ml-1 font-medium">Interesse</span>
             <span v-else-if="kaeuferFeedback[k.id].interesse === 'nein'" class="ml-1 font-medium">Kein Interesse</span>
@@ -118,9 +118,9 @@
           <button v-if="decisions[k.id] !== 'short'" @click="setStatus(k, 'short')" title="Zu Favoriten hinzufügen"
             class="p-1.5 hover:bg-green-50 rounded text-green-600"><Check class="w-4 h-4" /></button>
           <button v-if="decisions[k.id] === 'short' && !isFreigegeben(k)" @click="freigeben(k, true)" title="Für Käufer freigeben"
-            class="p-1.5 hover:bg-purple-50 rounded text-gray-500"><EyeOff class="w-4 h-4" /></button>
+            class="p-1.5 hover:bg-green-50 rounded text-gray-500"><EyeOff class="w-4 h-4" /></button>
           <button v-if="isFreigegeben(k)" @click="freigeben(k, false)" title="Sichtbar für Käufer – klick zum Zurückziehen"
-            class="p-1.5 hover:bg-purple-50 rounded text-purple-600"><Eye class="w-4 h-4" /></button>
+            class="p-1.5 hover:bg-green-50 rounded text-green-600"><Eye class="w-4 h-4" /></button>
           <button v-if="decisions[k.id] !== 'abgesagt'" @click="setStatus(k, 'abgesagt')" title="Ablehnen"
             class="p-1.5 hover:bg-red-50 rounded text-red-600"><X class="w-4 h-4" /></button>
         </div>

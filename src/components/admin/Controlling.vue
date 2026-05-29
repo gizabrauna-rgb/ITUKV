@@ -121,7 +121,7 @@
         <!-- Verkäufer -->
         <div v-if="stats.pipelineByPhaseVerkauf?.length" class="bg-white rounded-xl border border-gray-100 p-5">
           <h3 class="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
-            <Briefcase class="w-4 h-4 text-blue-600" /> Verkäufer-Mandate pro Phase
+            <Briefcase class="w-4 h-4 text-orange-600" /> Verkäufer-Mandate pro Phase
           </h3>
           <div class="space-y-2">
             <div v-for="p in stats.pipelineByPhaseVerkauf" :key="'v'+p.phase" class="flex items-start gap-2 text-xs">
@@ -129,13 +129,13 @@
               <div class="flex-1 min-w-0">
                 <div class="flex items-center justify-between gap-2">
                   <span class="text-gray-700 truncate">{{ cleanTitel(p.titel) }}</span>
-                  <span class="font-semibold text-blue-700">{{ p.count }}</span>
+                  <span class="font-semibold text-orange-700">{{ p.count }}</span>
                 </div>
                 <div class="w-full bg-gray-100 rounded-full h-1.5 mt-1">
-                  <div class="bg-blue-500 h-1.5 rounded-full" :style="`width: ${maxPhaseVerkauf ? (p.count/maxPhaseVerkauf)*100 : 0}%`"></div>
+                  <div class="bg-orange-500 h-1.5 rounded-full" :style="`width: ${maxPhaseVerkauf ? (p.count/maxPhaseVerkauf)*100 : 0}%`"></div>
                 </div>
                 <div class="flex flex-wrap gap-1 mt-1">
-                  <span v-for="m in p.mandate" :key="m.targetId" class="bg-blue-50 text-blue-700 text-[10px] font-mono px-1.5 py-0.5 rounded">
+                  <span v-for="m in p.mandate" :key="m.targetId" class="bg-orange-50 text-orange-700 text-[10px] font-mono px-1.5 py-0.5 rounded">
                     {{ m.mbNr || '—' }}
                   </span>
                 </div>
@@ -146,7 +146,7 @@
         <!-- Käufer -->
         <div v-if="stats.pipelineByPhaseKauf?.length" class="bg-white rounded-xl border border-gray-100 p-5">
           <h3 class="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
-            <Users class="w-4 h-4 text-purple-600" /> Käufer-Mandate pro Phase
+            <Users class="w-4 h-4 text-green-600" /> Käufer-Mandate pro Phase
           </h3>
           <div class="space-y-2">
             <div v-for="p in stats.pipelineByPhaseKauf" :key="'k'+p.phase" class="flex items-start gap-2 text-xs">
@@ -154,13 +154,13 @@
               <div class="flex-1 min-w-0">
                 <div class="flex items-center justify-between gap-2">
                   <span class="text-gray-700 truncate">{{ cleanTitel(p.titel) }}</span>
-                  <span class="font-semibold text-purple-700">{{ p.count }}</span>
+                  <span class="font-semibold text-green-700">{{ p.count }}</span>
                 </div>
                 <div class="w-full bg-gray-100 rounded-full h-1.5 mt-1">
-                  <div class="bg-purple-500 h-1.5 rounded-full" :style="`width: ${maxPhaseKauf ? (p.count/maxPhaseKauf)*100 : 0}%`"></div>
+                  <div class="bg-green-500 h-1.5 rounded-full" :style="`width: ${maxPhaseKauf ? (p.count/maxPhaseKauf)*100 : 0}%`"></div>
                 </div>
                 <div class="flex flex-wrap gap-1 mt-1">
-                  <span v-for="m in p.mandate" :key="m.targetId" class="bg-purple-50 text-purple-700 text-[10px] font-mono px-1.5 py-0.5 rounded">
+                  <span v-for="m in p.mandate" :key="m.targetId" class="bg-green-50 text-green-700 text-[10px] font-mono px-1.5 py-0.5 rounded">
                     {{ m.mbNr || '—' }}
                   </span>
                 </div>
