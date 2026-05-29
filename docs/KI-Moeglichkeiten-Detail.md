@@ -180,6 +180,61 @@ Die KI ist **Beraterin / Helferin**, nicht Entscheiderin.
 
 ---
 
+## Bereich 3: Assistent-Aktionen im Dashboard (seit 29.05.2026)
+
+Zusätzlich zur Coworker-API gibt es jetzt **direkte Buttons** im Dashboard, die KI-
+Aktionen einmalig auslösen. Alle nutzen denselben Endpoint `/api/ai-action` mit
+unterschiedlichen `action`-Parametern.
+
+### Aktion 1: „Frag den Assistenten" (Chat)
+- **Wo:** Oben rechts in jedem Portal (Admin + Mandant)
+- **Endpoint:** `POST /api/ai-action` mit `action=frag-ki`
+- **Wer darf?** Alle eingeloggten User
+- **Was?** Chat-Modal mit allgemeinen M&A-Fragen
+- **Markdown-Rendering** für Tabellen, Listen, fett
+
+### Aktion 2: „Verlauf zusammenfassen"
+- **Wo:** Admin → Target-Akte → Tab „Verlauf"
+- **Endpoint:** `POST /api/ai-action` mit `action=verlauf-zusammenfassen`
+- **Wer darf?** Nur Admin
+- **Was?** Liefert Status-Zusammenfassung des Kommunikationsverlaufs (Aktueller Stand, Erledigt, Offen, Risiken, Empfehlung)
+- **Token-Limit:** letzte 50 Verlauf-Einträge in den Prompt
+
+### Aktion 3: „Mit Assistent anreichern"
+- **Wo:** Admin → KundenAkte → Akten-Header
+- **Endpoint:** `POST /api/ai-action` mit `action=kontakt-anreichern`
+- **Wer darf?** Nur Admin
+- **Was?** Stammdaten-Vorschläge aus KI-Allgemein-Wissen (kein Web-Search)
+- **Felder:** Geschäftsführer, Branche, PLZ, Ort, Mitarbeiter, Umsatz, Website
+- **Output:** JSON mit Konfidenz-Bewertung + Begründung
+- **Apply:** pro Feld manuell auswählen + `updateKontakt` aufrufen
+
+### Aktion 4: „Suchprofil schärfen"
+- **Wo:** Käufer → Suchprofil-Tab
+- **Endpoint:** `POST /api/ai-action` mit `action=suchprofil-schaerfen`
+- **Wer darf?** Käufer (eigene Akte, IDOR-geprüft) + Admin
+- **Was?** 3–5 konkrete Rückfragen zur Profil-Verfeinerung
+- **Output:** JSON `{ fragen: [], begruendung: '' }`
+- **Apply:** keine Änderung – Beratungs-Input
+
+### Aktion 5: „Match-Begründung"
+- **Wo:** Admin → Long-List → Sparkles-Icon pro Kandidat
+- **Endpoint:** `POST /api/ai-action` mit `action=match-begruendung`
+- **Wer darf?** Nur Admin
+- **Was?** Score 0–100 + Pro/Contra-Listen + Begründung
+- **Eingabe-Daten:** Suchprofil des Targets + Stammdaten des Kontakts
+
+### Was diese 5 Aktionen NICHT können
+- **Kein Web-Search** (Claude hat keinen Internet-Zugang im Standard-Modus)
+- **Keine automatische Übernahme** – Admin/Mandant entscheidet manuell
+- **Keine Datei-Uploads** – das macht der Coworker via `/ai-dokument-upload`
+
+### Audit
+Jede Aktion erzeugt einen Eintrag im Audit-Log mit Aktion `ai_action` und Details
+inkl. Action-Name + Token-Verbrauch.
+
+---
+
 ## Kosten-Kontrolle
 
 | Bereich | Wer zahlt? | Limit |

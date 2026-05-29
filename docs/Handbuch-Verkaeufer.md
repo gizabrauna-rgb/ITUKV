@@ -342,6 +342,21 @@ Statt E-Mails hin und her ist hier alles **chronologisch in deiner Akte** abgele
 
 ---
 
+## 13a. Assistent + Benachrichtigungen (seit 29.05.2026)
+
+### „Assistent"-Button (oben rechts, lila Funken-Icon)
+Klick öffnet einen Chat-Bereich. Du kannst der KI allgemeine M&A-Fragen stellen
+(z.B. „Was bedeutet Earn-Out?", „Wie funktioniert eine Due Diligence?").
+Die Antworten sind allgemein – für deine konkrete Akte ist Jenny die richtige
+Ansprechpartnerin.
+
+### Browser-Benachrichtigungen (in „Mein Projekt" am Ende)
+Aktiviere den Toggle, dann bekommst du sofort eine Benachrichtigung in deinem
+Browser, wenn Jenny dir eine neue Nachricht schreibt – auch wenn das Dashboard-Tab
+geschlossen ist. Du kannst jederzeit per Toggle wieder deaktivieren.
+
+---
+
 ## 14. Häufige Fragen
 
 **Was tu ich, wenn ich mein Passwort vergessen habe?**

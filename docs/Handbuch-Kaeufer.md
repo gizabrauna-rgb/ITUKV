@@ -279,6 +279,25 @@ Direkt über das Verlauf-Eingabefeld → landet in ihrem Posteingang.
 
 ---
 
+## 10a. Assistent + Benachrichtigungen (seit 29.05.2026)
+
+### „Assistent"-Button (oben rechts, lila Funken-Icon)
+Chat-Bereich für allgemeine M&A-Fragen (Hold-Period, SPA, Earn-Out, Bürgschaftsbank
+…). Für individuelle Beratung wende dich an Jenny (jk@mike-bergmann.de).
+
+### „Mit Assistent schärfen" (im Suchprofil-Tab)
+Lila Button rechts oben im Suchprofil-Tab. Assistent stellt dir 3–5 konkrete
+Rückfragen, die dein Suchprofil präziser machen – das hilft mibeca, passendere
+Kandidaten zu finden. Keine Änderungen erfolgen automatisch – die Fragen sind
+Beratungs-Input.
+
+### Browser-Benachrichtigungen (in „Mein Projekt" am Ende)
+Aktiviere den Toggle, dann bekommst du sofort eine Benachrichtigung in deinem
+Browser, wenn Jenny dir eine neue Nachricht schreibt – auch wenn das Dashboard-Tab
+geschlossen ist.
+
+---
+
 ## 11. Häufige Fragen
 
 **Was wenn ich mein Passwort vergessen habe?**

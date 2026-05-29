@@ -106,6 +106,11 @@ Karte → öffnet direkt die richtige Stelle in der jeweiligen Akte.
 - **Wiedervorlage setzen/löschen** → Datums-Picker in der Zelle
 - **Filter:** Suche, Status, Mandat-Richtung (Verkauf/Kauf), Projekttyp
 - **Mandate löschen** → Trash-Icon (kommt Bestätigungsdialog)
+- **Farb-System (seit 29.05.):**
+  - 🟠 Orange = Verkäufer-/Target-Mandate
+  - 🟢 Grün = Käufer-/Investor-Mandate
+  - 🟣 Lila = nur Assistent-Funktionen
+  - 🔵 Mibeca-Blau = Standard-Buttons
 
 ### Tipp
 
@@ -174,6 +179,11 @@ Datenbank. Aktuell ~5.000 Einträge.
 - **+ Neuer Kontakt** Modal
 - **Kontakt-Akte** öffnen (Klick auf Zeile) – mit eigenen Tabs (Übersicht, Produkte,
   Projekte, Verlauf, Dokumente, Notizen)
+- **Mehrere E-Mails / Telefone pro Kontakt** (seit 29.05.): Im Edit-Modal kannst du
+  beliebig viele zusätzliche Adressen + Telefone mit Label hinterlegen (z.B. „mobil",
+  „büro", „privat"). Werden in der KundenAkte alle nebeneinander angezeigt.
+- **„Mit Assistent anreichern"-Button** im Akten-Header → KI schlägt Stammdaten-
+  Ergänzungen vor, du übernimmst pro Feld.
 
 ### Tipp
 
@@ -238,7 +248,46 @@ Felder ins Dashboard.
 Jeder KI-Schreibvorgang wird im Audit-Log als Aktion `ai_update` protokolliert mit
 allen geänderten Feldern (alt + neu).
 
-### 7.3 KI im Notfall stoppen
+### 7.3 Assistent-Aktionen direkt aus dem Dashboard (seit 29.05.2026)
+
+Statt die KI nur über den Coworker zu nutzen, gibt es **lila Buttons** direkt an den
+richtigen Stellen im Dashboard:
+
+#### „Assistent" (Topbar)
+- Lila Funken-Button oben rechts in jedem Portal
+- Öffnet einen Chat für allgemeine M&A-Fragen
+- Konversation bleibt erhalten innerhalb des Modals
+- Antworten als Markdown gerendert (Tabellen, Listen, Fett)
+
+#### „Verlauf zusammenfassen" (Target-Akte → Verlauf-Tab)
+- Lila Button rechts oben im Verlauf
+- Assistent liest den kompletten Kommunikationsverlauf
+- Liefert strukturierte Status-Zusammenfassung:
+  - 📍 Aktueller Stand
+  - ✅ Was wurde erledigt
+  - ⏳ Was steht aus
+  - ⚠️ Risiken / offene Themen
+  - 💡 Empfehlung nächster Schritt
+- Praktisch vor Beirats-Meetings oder beim Übergeben an Vertretung
+
+#### „Mit Assistent anreichern" (Kundenakte → Header)
+- Lila Button im Akten-Header neben „Bearbeiten"
+- Assistent recherchiert aus Allgemein-Wissen Stammdaten-Vorschläge
+- Modal mit Konfidenz-Badge + Feldweise-Häkchen
+- Per Klick übernimmst du nur die Vorschläge, die du verifizierst
+- Spart Recherchezeit beim CRM-Pflege
+
+#### „Mit Assistent schärfen" (Suchprofil-Tab)
+- Lila Button in Suchprofil-Akten bei Käufer-Mandanten
+- Liefert 3–5 konkrete Rückfragen, die dein Suchprofil präziser machen
+- Nicht zur Übernahme – als Beratungs-Input für dein nächstes Gespräch
+
+#### „Match-Bewertung" (LongList → pro Kandidat)
+- Sparkles-Icon neben jedem Kandidaten in der Long-List
+- Score 0–100 + Pro/Contra-Argumente + Begründung
+- Hilft beim schnellen Sortieren der Long-List
+
+### 7.4 KI im Notfall stoppen
 
 **Sofort-Aus (Anna):**
 Azure Portal → `itukv-func-v2` → Configuration → `AI_ANALYSE_AKTIV` auf `false` setzen
@@ -349,7 +398,29 @@ Jeder Schreibvorgang ist hier protokolliert. Filter nach:
 
 ---
 
-## 13. Tipps & Tricks
+## 13. Browser-Push-Benachrichtigungen (seit 29.05.2026)
+
+**Wofür?** Du wirst sofort benachrichtigt, sobald ein Mandant im Verlauf schreibt –
+auch wenn das Dashboard-Tab geschlossen ist.
+
+**Aktivieren:**
+1. **Einstellungen-Tab** → Sektion **„Browser-Benachrichtigungen"**
+2. Toggle umlegen → Browser fragt nach Erlaubnis → **Erlauben** klicken
+3. Optional: **„Test"**-Button drücken → du solltest sofort eine Notification sehen
+
+**Funktioniert mit:** Chrome, Edge, Firefox, Safari (alle modernen Browser).
+**Funktioniert NICHT mit:** iOS Safari (nur in Standalone-PWA-Modus, nicht im normalen Tab).
+
+**Deaktivieren:** Toggle wieder ausschalten oder in den Browser-Einstellungen
+für `dashboard.itukv.de` blockieren.
+
+**Datenschutz:** Subscription wird in Azure (EU) gespeichert. Push-Inhalt ist
+verschlüsselt; nur dein Browser kann ihn lesen. Apple/Google/Mozilla sehen nur eine
+verschlüsselte Bytefolge, keine Mandanten-Daten.
+
+---
+
+## 14. Tipps & Tricks
 
 - **Glocke oben rechts:** zeigt ungelesene Mandanten-Nachrichten – nicht ignorieren
 - **Cmd+Shift+R** wenn was komisch aussieht → Hard-Reload
