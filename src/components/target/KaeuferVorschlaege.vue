@@ -113,12 +113,18 @@ function setFeedback(id, interesse) {
 }
 
 // Akquisitionen automatisch pflegen, je nach Feedback:
-//   ja          -> Akquisition mit Status 'aktiv' anlegen/updaten
+//   ja          -> Akquisition mit Phase=2 anlegen/updaten
 //   rueckfrage  -> Status 'pausiert'
 //   nein        -> Auto-Akquisition wieder entfernen
-async function syncAkquisition(kandidatId, interesse) {
+// Wichtig: Calls werden ueber syncQueue serialisiert, sonst Race bei Mehrfach-Klicks!
+let syncQueue = Promise.resolve()
+function syncAkquisition(kandidatId, interesse) {
+  syncQueue = syncQueue.then(() => syncAkquisitionInternal(kandidatId, interesse).catch(e => console.error('akq sync', e)))
+  return syncQueue
+}
+async function syncAkquisitionInternal(kandidatId, interesse) {
   if (!props.targetId) return
-  // aktuellen Stand laden (Race-Vermeidung)
+  // aktuellen Stand JEDESMAL frisch laden, NACH Wartung der Vorgaenger (queue)
   let liste = []
   try {
     const t = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
