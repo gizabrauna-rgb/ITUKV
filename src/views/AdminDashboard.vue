@@ -277,6 +277,11 @@
           <TargetsTab v-else @open-detail="openAkte" />
         </div>
 
+        <!-- Akquisitions-Pipeline (Kanban über alle Käufer-Mandate) -->
+        <div v-else-if="tab === 'pipeline'">
+          <AkquisitionsPipeline @open-akte="e => openAkteWithTab(e.targetId, 'akquisitionen')" />
+        </div>
+
         <!-- CRM -->
         <div v-else-if="tab === 'crm'">
           <CrmTab />
@@ -339,6 +344,7 @@ import {
 } from '@lucide/vue'
 import { authFetch, verlaufUnreadCount, verlaufMarkRead } from '../api.js'
 import TargetsTab from '../components/admin/TargetsTab.vue'
+import AkquisitionsPipeline from '../components/admin/AkquisitionsPipeline.vue'
 import HilfeSlideOver from '../components/HilfeSlideOver.vue'
 import FragKiModal from '../components/FragKiModal.vue'
 import CrmTab from '../components/admin/CrmTab.vue'
@@ -412,6 +418,7 @@ function openNdaInAkte(v) {
 const navItems = [
   { tab: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard },
   { tab: 'targets', label: 'Projekte', icon: Briefcase },
+  { tab: 'pipeline', label: 'Akquisitions-Pipeline', icon: Workflow },
   { tab: 'crm', label: 'Kontakte', icon: Users },
   { tab: 'ausschreibungen', label: 'Veröffentlichte Mandate', icon: Megaphone },
   { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },

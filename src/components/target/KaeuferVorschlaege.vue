@@ -146,9 +146,11 @@ async function syncAkquisitionInternal(kandidatId, interesse) {
     if (idx >= 0) {
       liste[idx] = { ...liste[idx], status: statusNeu, phase: liste[idx].phase || phaseNeu }
     } else {
+      const now = new Date().toISOString()
+      const userName = sessionStorage.getItem('userName') || 'Käufer'
       liste.push({
         id: 'akq' + Date.now(),
-        createdAt: new Date().toISOString(),
+        createdAt: now,
         name: kand.firma || 'Akquisition',
         phase: phaseNeu,
         status: statusNeu,
@@ -161,6 +163,14 @@ async function syncAkquisitionInternal(kandidatId, interesse) {
         notizenKaeufer: '',
         notizen: '',
         aufgaben: defaultAufgabenFuerPhase(phaseNeu, []),
+        verlauf: [{
+          id: 'v' + Date.now(),
+          datum: now,
+          autor: userName,
+          autorRolle: 'kaeufer',
+          system: true,
+          text: `Akquisition angelegt aus Target-Vorschlag (${interesse === 'rueckfrage' ? 'Rückfrage' : 'Interesse bekundet'}).`,
+        }],
         quelleKandidatId: kandidatId,
       })
     }

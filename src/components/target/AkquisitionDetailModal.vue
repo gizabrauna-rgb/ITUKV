@@ -135,10 +135,32 @@
         </div>
 
         <!-- Tab: Verlauf -->
-        <div v-else-if="activeTab === 'verlauf'" class="text-center py-12 text-sm text-gray-400">
-          <MessageSquare class="w-10 h-10 mx-auto mb-2 text-gray-200" />
-          Verlauf pro Akquisition folgt im nächsten Update.<br/>
-          Bis dahin: gemeinsamer Verlauf im Mandat-Tab.
+        <div v-else-if="activeTab === 'verlauf'" class="space-y-3">
+          <div v-if="!form.verlauf?.length" class="text-center py-8 text-sm text-gray-400">
+            <MessageSquare class="w-8 h-8 mx-auto mb-2 text-gray-200" />
+            Noch keine Einträge. Schreib unten eine Notiz oder Frage.
+          </div>
+          <ul v-else class="space-y-2">
+            <li v-for="v in verlaufSortiert" :key="v.id"
+              :class="['rounded-xl px-3 py-2 text-sm', v.system ? 'bg-gray-50 border border-gray-100 text-gray-600 italic' : (v.autorRolle === 'admin' ? 'bg-blue-50 border border-blue-100' : 'bg-orange-50 border border-orange-100')]">
+              <div class="flex items-center justify-between gap-2 mb-1">
+                <span class="text-[10px] font-semibold uppercase tracking-wide">
+                  {{ v.system ? 'System' : (v.autor || '—') }}
+                </span>
+                <span class="text-[10px] text-gray-400">{{ formatDatum(v.datum) }}</span>
+              </div>
+              <div class="whitespace-pre-wrap">{{ v.text }}</div>
+            </li>
+          </ul>
+          <div class="flex gap-2 pt-2 border-t border-gray-100">
+            <textarea v-model="neuerVerlaufText" rows="2" placeholder="Neue Notiz / Nachricht …"
+              class="input flex-1 resize-none" @keydown.ctrl.enter="addVerlauf" @keydown.meta.enter="addVerlauf"></textarea>
+            <button @click="addVerlauf" :disabled="!neuerVerlaufText.trim()"
+              class="px-3 py-2 bg-blue-600 text-white rounded-xl text-xs font-medium hover:bg-blue-700 disabled:opacity-50 self-stretch">
+              <Send class="w-4 h-4" />
+            </button>
+          </div>
+          <p class="text-[10px] text-gray-400">Ctrl/Cmd + Enter zum Senden.</p>
         </div>
 
         <!-- Tab: Termine -->
@@ -169,7 +191,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { X, Plus, Trash2, FileText, ListTodo, MessageSquare, Calendar, FolderOpen, StickyNote } from '@lucide/vue'
+import { X, Plus, Trash2, FileText, ListTodo, MessageSquare, Calendar, FolderOpen, StickyNote, Send } from '@lucide/vue'
 import { AKQ_PHASEN, AKQ_STATUS, MANDAT_POSITION, phaseInfo, statusInfo, defaultAufgabenFuerPhase } from '../../data/akquisitionsPhasen.js'
 
 const props = defineProps({
@@ -178,9 +200,20 @@ const props = defineProps({
 })
 const emit = defineEmits(['close', 'save'])
 
+const userName = sessionStorage.getItem('userName') || ''
+const userRole = sessionStorage.getItem('userRole') || 'target'
+const isAdmin = userRole === 'admin'
+
+// Snapshot der Ausgangswerte fuer Auto-Verlauf-Eintraege beim Speichern
+const initialSnapshot = {
+  phase: props.modelValue.phase || 1,
+  status: props.modelValue.status || 'laufend',
+}
+
 const form = ref(initForm(props.modelValue))
 const activeTab = ref('overview')
 const neueAufgabe = ref('')
+const neuerVerlaufText = ref('')
 
 function initForm(akq) {
   return {
@@ -200,6 +233,7 @@ function initForm(akq) {
     notizenKaeufer: akq.notizenKaeufer || '',
     notizen: akq.notizen || '',
     aufgaben: Array.isArray(akq.aufgaben) ? akq.aufgaben.map(a => ({ ...a })) : [],
+    verlauf: Array.isArray(akq.verlauf) ? akq.verlauf.map(v => ({ ...v })) : [],
   }
 }
 
@@ -210,11 +244,34 @@ const mandatPositionInfo = computed(() => MANDAT_POSITION.find(m => m.key === fo
 const tabs = computed(() => [
   { key: 'overview',  label: 'Übersicht', icon: FileText },
   { key: 'aufgaben',  label: 'Aufgaben',  icon: ListTodo, count: form.value.aufgaben.filter(a => !a.erledigt).length || null },
-  { key: 'verlauf',   label: 'Verlauf',   icon: MessageSquare },
+  { key: 'verlauf',   label: 'Verlauf',   icon: MessageSquare, count: form.value.verlauf.length || null },
   { key: 'termine',   label: 'Termine',   icon: Calendar },
   { key: 'dokumente', label: 'Dokumente', icon: FolderOpen },
   { key: 'notizen',   label: 'Notizen',   icon: StickyNote },
 ])
+
+const verlaufSortiert = computed(() => {
+  return [...form.value.verlauf].sort((a, b) => (b.datum || '').localeCompare(a.datum || ''))
+})
+
+function formatDatum(iso) {
+  if (!iso) return ''
+  try { return new Date(iso).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) }
+  catch { return iso }
+}
+
+function addVerlauf() {
+  const text = neuerVerlaufText.value.trim()
+  if (!text) return
+  form.value.verlauf.push({
+    id: 'v' + Date.now(),
+    datum: new Date().toISOString(),
+    autor: userName || (isAdmin ? 'mibeca' : 'Käufer'),
+    autorRolle: isAdmin ? 'admin' : 'kaeufer',
+    text,
+  })
+  neuerVerlaufText.value = ''
+}
 
 // Wenn Phase wechselt → Default-Aufgaben automatisch ergänzen (idempotent via templateKey)
 let lastPhase = form.value.phase
@@ -240,6 +297,31 @@ function addAufgabe() {
 }
 
 function emitSave() {
+  // Auto-Verlauf-Eintraege bei Phase-/Status-Wechsel
+  const autoEntries = []
+  if (form.value.phase !== initialSnapshot.phase) {
+    const altInfo = phaseInfo(initialSnapshot.phase)
+    const neuInfo = phaseInfo(form.value.phase)
+    autoEntries.push({
+      id: 'v' + Date.now(),
+      datum: new Date().toISOString(),
+      autor: userName || (isAdmin ? 'mibeca' : 'Käufer'),
+      autorRolle: isAdmin ? 'admin' : 'kaeufer',
+      system: true,
+      text: `Phase gewechselt: ${altInfo.id} · ${altInfo.label} → ${neuInfo.id} · ${neuInfo.label}`,
+    })
+  }
+  if (form.value.status !== initialSnapshot.status) {
+    autoEntries.push({
+      id: 'v' + (Date.now() + 1),
+      datum: new Date().toISOString(),
+      autor: userName || (isAdmin ? 'mibeca' : 'Käufer'),
+      autorRolle: isAdmin ? 'admin' : 'kaeufer',
+      system: true,
+      text: `Status: ${initialSnapshot.status} → ${form.value.status}`,
+    })
+  }
+  if (autoEntries.length) form.value.verlauf.push(...autoEntries)
   emit('save', { ...form.value })
 }
 </script>
