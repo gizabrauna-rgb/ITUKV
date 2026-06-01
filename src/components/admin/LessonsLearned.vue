@@ -10,7 +10,7 @@
     <div class="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
       <div>
         <label class="text-xs font-medium text-gray-600 mb-1 block flex items-center gap-1.5">
-          <span class="text-green-600">✅</span> Was lief gut? (Pro)
+          <ThumbsUp class="w-3.5 h-3.5 text-green-600" /> Was lief gut? (Pro)
         </label>
         <textarea v-model="data.pro" @blur="save" rows="3"
           placeholder="z.B. Käufer und Verkäufer kulturell gut zusammengepasst – kurze Verhandlungsphase"
@@ -19,7 +19,7 @@
 
       <div>
         <label class="text-xs font-medium text-gray-600 mb-1 block flex items-center gap-1.5">
-          <span class="text-red-600">❌</span> Was war schwierig? (Contra)
+          <ThumbsDown class="w-3.5 h-3.5 text-red-600" /> Was war schwierig? (Contra)
         </label>
         <textarea v-model="data.contra" @blur="save" rows="3"
           placeholder="z.B. Due Diligence über IT-Infrastruktur zog sich, weil Tools-Liste fehlte"
@@ -28,7 +28,7 @@
 
       <div>
         <label class="text-xs font-medium text-gray-600 mb-1 block flex items-center gap-1.5">
-          <span class="text-purple-600">💡</span> Was würden wir anders machen?
+          <Lightbulb class="w-3.5 h-3.5 text-purple-600" /> Was würden wir anders machen?
         </label>
         <textarea v-model="data.anders" @blur="save" rows="3"
           placeholder="z.B. Frühzeitig in Phase 6 schon die komplette IT-Bestandsliste anfordern"
@@ -37,7 +37,7 @@
 
       <div>
         <label class="text-xs font-medium text-gray-600 mb-1 block flex items-center gap-1.5">
-          <span class="text-amber-600">🎯</span> Schlüssel-Erkenntnis (1-2 Sätze)
+          <Target class="w-3.5 h-3.5 text-amber-600" /> Schlüssel-Erkenntnis (1-2 Sätze)
         </label>
         <input v-model="data.keyLearning" @blur="save"
           placeholder="z.B. Buy-and-Build-Deals brauchen Cultural Fit, nicht nur Zahlen"
@@ -66,7 +66,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { BookOpen } from '@lucide/vue'
+import { BookOpen, ThumbsUp, ThumbsDown, Lightbulb, Target } from '@lucide/vue'
 import { authFetch } from '../../api.js'
 
 const props = defineProps({ targetId: String })

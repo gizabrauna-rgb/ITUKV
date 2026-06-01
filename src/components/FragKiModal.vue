@@ -23,7 +23,7 @@
           <div class="mt-4 space-y-2 max-w-md mx-auto">
             <button v-for="bsp in beispieleFragen" :key="bsp" @click="frage = bsp; senden()"
               class="block w-full text-left text-xs px-3 py-2 border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 text-gray-600">
-              💬 {{ bsp }}
+              {{ bsp }}
             </button>
           </div>
         </div>

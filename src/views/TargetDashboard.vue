@@ -240,9 +240,9 @@
                 <h3 class="font-semibold text-gray-900">Mandatsvertrag</h3>
                 <p class="text-xs text-gray-500">Vereinbarung mit mibeca GmbH</p>
               </div>
-              <span v-if="vertragInfo.gegengezeichnetAm" class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">✅ Vollständig unterschrieben</span>
-              <span v-else-if="vertragInfo.signiertAm" class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">⏳ Wartet auf Gegenzeichnung</span>
-              <span v-else-if="vertragInfo.gesendetAm" class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">📩 Zur Signatur gesendet</span>
+              <span v-if="vertragInfo.gegengezeichnetAm" class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Vollständig unterschrieben</span>
+              <span v-else-if="vertragInfo.signiertAm" class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">Wartet auf Gegenzeichnung</span>
+              <span v-else-if="vertragInfo.gesendetAm" class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">Zur Signatur gesendet</span>
               <span v-else class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Entwurf</span>
             </div>
             <!-- Sign-CTA: wenn Vertrag gesendet aber noch nicht unterschrieben -->

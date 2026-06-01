@@ -175,7 +175,7 @@ async function submitSignature() {
 }
 
 const heading = computed(() => {
-  if (phase.value === "done") return "Vertrag ist unterschrieben ✅";
+  if (phase.value === "done") return "Vertrag ist unterschrieben";
   if (phase.value === "expired") return "Dieser Signier-Link ist abgelaufen.";
   return "Mandatsvertrag prüfen & unterschreiben";
 });
@@ -215,7 +215,7 @@ const heading = computed(() => {
       <!-- PDF-Vorschau -->
       <div class="bg-white rounded-2xl shadow overflow-hidden">
         <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-          <span class="text-sm font-semibold text-slate-700">📄 Vertrag</span>
+          <span class="text-sm font-semibold text-slate-700">Vertrag</span>
           <a v-if="pdfUrl" :href="pdfUrl" target="_blank" rel="noopener"
              class="text-xs text-teal-700 hover:underline">In neuem Tab öffnen ↗</a>
         </div>
@@ -229,7 +229,7 @@ const heading = computed(() => {
 
       <!-- Bereits signiert -->
       <div v-if="phase==='done'" class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6">
-        <h3 class="text-lg font-bold text-emerald-800">✅ Vielen Dank!</h3>
+        <h3 class="text-lg font-bold text-emerald-800">Vielen Dank!</h3>
         <p class="text-sm text-emerald-700 mt-1">
           Der Vertrag wurde rechtsverbindlich unterzeichnet. Du bekommst eine Kopie
           mit Audit-Trail per Mail. Den Vertrag kannst du oben jederzeit wieder ansehen.
@@ -278,13 +278,13 @@ const heading = computed(() => {
               :class="['px-3 py-1.5 text-sm rounded-lg border-2',
                 sigMode==='drawn' ? 'border-teal-500 bg-teal-50 text-teal-800 font-semibold'
                                   : 'border-slate-200 bg-white']">
-              ✍️ Selbst zeichnen
+              Selbst zeichnen
             </button>
             <button type="button" @click="sigMode='typed'"
               :class="['px-3 py-1.5 text-sm rounded-lg border-2',
                 sigMode==='typed' ? 'border-teal-500 bg-teal-50 text-teal-800 font-semibold'
                                   : 'border-slate-200 bg-white']">
-              ⌨️ Stilisierter Name
+              Stilisierter Name
             </button>
           </div>
           <div v-if="sigMode==='drawn'" class="border-2 border-dashed border-slate-300 rounded-lg bg-white">
@@ -322,7 +322,7 @@ const heading = computed(() => {
 
         <button @click="submitSignature" :disabled="submitting"
           class="w-full py-3 bg-teal-600 text-white rounded-xl font-bold hover:bg-teal-700 disabled:opacity-50">
-          {{ submitting ? "Unterschrift wird erstellt …" : "📝 Rechtsverbindlich unterschreiben" }}
+          {{ submitting ? "Unterschrift wird erstellt …" : "Rechtsverbindlich unterschreiben" }}
         </button>
       </div>
 

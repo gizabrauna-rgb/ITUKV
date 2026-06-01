@@ -48,14 +48,16 @@
         </div>
 
         <!-- Ergebnis nach Import -->
-        <div v-if="result" class="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-900">
-          ✅ <strong>{{ result.imported }}</strong> neue Verlauf-Einträge importiert.
-          <span v-if="result.skipped > 0"> {{ result.skipped }} Doubletten übersprungen.</span>
+        <div v-if="result" class="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-900 flex items-start gap-2">
+          <CheckCircle class="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <div><strong>{{ result.imported }}</strong> neue Verlauf-Einträge importiert.
+            <span v-if="result.skipped > 0"> {{ result.skipped }} Doubletten übersprungen.</span>
+          </div>
         </div>
 
         <!-- Fehler -->
-        <div v-if="error" class="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-800">
-          ⚠️ {{ error }}
+        <div v-if="error" class="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-800 flex items-start gap-2">
+          <AlertCircle class="w-4 h-4 flex-shrink-0 mt-0.5" /> <span>{{ error }}</span>
         </div>
 
         <!-- Hinweis -->
@@ -85,7 +87,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { X } from '@lucide/vue'
+import { X, CheckCircle, AlertCircle } from '@lucide/vue'
 import { authFetch } from '../../api.js'
 
 const props = defineProps({ targetId: { type: String, required: true } })

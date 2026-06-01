@@ -225,7 +225,7 @@
               <span class="font-medium text-gray-800">{{ l.verkaueferName }}</span>
               <span class="text-xs text-gray-500">{{ l.projekttyp }}</span>
             </div>
-            <div v-if="l.keyLearning" class="text-sm font-medium text-gray-800 mb-2">💡 {{ l.keyLearning }}</div>
+            <div v-if="l.keyLearning" class="text-sm font-medium text-gray-800 mb-2 flex items-start gap-1.5"><Lightbulb class="w-3.5 h-3.5 mt-0.5 text-amber-500 flex-shrink-0" /> <span>{{ l.keyLearning }}</span></div>
             <div class="grid grid-cols-2 gap-3 text-xs">
               <div v-if="l.pro"><span class="text-green-700 font-semibold">Pro:</span> {{ l.pro }}</div>
               <div v-if="l.contra"><span class="text-red-700 font-semibold">Contra:</span> {{ l.contra }}</div>
@@ -243,7 +243,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { BarChart3, Briefcase, CheckCircle2, Clock, Megaphone, GitBranch, TrendingUp, BookOpen, FileText, Users } from '@lucide/vue'
+import { BarChart3, Briefcase, CheckCircle2, Clock, Megaphone, GitBranch, TrendingUp, BookOpen, FileText, Users, Lightbulb } from '@lucide/vue'
 import { authFetch, controllingPdf } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 

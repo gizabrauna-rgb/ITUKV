@@ -231,7 +231,7 @@ async function zurSignaturSenden() {
     await authFetch('/nda-zur-signatur', { method: 'POST', data: {
       targetId: props.targetId, form: vars.value, variante: docVariante.value, empfaengerEmail: vars.value.email
     }})
-    toast.success('NDA wurde an ' + vars.value.email + ' versendet. ✅')
+    toast.success('NDA wurde an ' + vars.value.email + ' versendet.')
   } catch (e) { toast.error('Versand fehlgeschlagen: ' + (e?.response?.data?.error || e.message)) }
   finally { sending.value = false }
 }

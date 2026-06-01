@@ -138,7 +138,7 @@
         <Send class="w-4 h-4" />
         {{ sending ? 'Versende...' : `An ${ausgewaehlt.length} Pressekontakt(e) senden` }}
       </button>
-      <p v-if="!canVersenden" class="text-xs text-amber-600 mt-2 text-center">⚠️ Bitte alle 4 Freigabe-Checkboxen oben ankreuzen, bevor versendet wird.</p>
+      <p v-if="!canVersenden" class="text-xs text-amber-600 mt-2 text-center">Bitte alle 4 Freigabe-Checkboxen oben ankreuzen, bevor versendet wird.</p>
     </div>
 
     <!-- Status -->
@@ -246,7 +246,7 @@ async function versenden() {
     versendetAm.value = new Date().toISOString()
     versendetEmpfaenger.value = r.gesendet
     save()
-    toast.success(`Pressemitteilung an ${r.count} Empfänger gesendet ✅`)
+    toast.success(`Pressemitteilung an ${r.count} Empfänger gesendet`)
   } catch (e) { toast.error('Versand fehlgeschlagen: ' + (e?.response?.data?.error || e.message)) }
   finally { sending.value = false }
 }

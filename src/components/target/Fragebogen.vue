@@ -111,7 +111,7 @@
             <Feld v-model="data.zeitGf[gf].geschaeftsfuehrung" label="GF %" type="number" />
           </div>
           <div :class="['text-xs px-3 py-2 rounded-lg', sumZeit(gf) === 100 ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700']">
-            Summe: {{ sumZeit(gf) }}% {{ sumZeit(gf) === 100 ? '✓' : '— sollte 100 % ergeben' }}
+            Summe: {{ sumZeit(gf) }}% {{ sumZeit(gf) === 100 ? '' : '— sollte 100 % ergeben' }}
           </div>
         </div>
       </div>
@@ -177,8 +177,10 @@
       </button>
       <div class="text-xs flex items-center gap-1.5"
         :class="saveStatus === 'saving' ? 'text-amber-600' : saveStatus === 'saved' ? 'text-green-600' : 'text-gray-400'">
-        <span v-if="saveStatus === 'saving'">⏳ Speichere…</span>
-        <span v-else-if="saveStatus === 'saved'">✓ Gespeichert</span>
+        <Loader v-if="saveStatus === 'saving'" class="w-3 h-3 animate-spin" />
+        <Check v-else-if="saveStatus === 'saved'" class="w-3 h-3" />
+        <span v-if="saveStatus === 'saving'">Speichere…</span>
+        <span v-else-if="saveStatus === 'saved'">Gespeichert</span>
         <span v-else>Auto-Speichern aktiv</span>
       </div>
       <button @click="activeSection = Math.min(sections.length - 1, activeSection + 1)" :disabled="activeSection === sections.length - 1"
@@ -213,7 +215,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, defineComponent, h } from 'vue'
 import { toast } from '../../composables/useToast.js'
-import { Check, ChevronLeft, ChevronRight, Plus, X, CheckCircle } from '@lucide/vue'
+import { Check, ChevronLeft, ChevronRight, Plus, X, CheckCircle, Loader } from '@lucide/vue'
 import { authFetch } from '../../api.js'
 
 const props = defineProps({ targetId: String })
