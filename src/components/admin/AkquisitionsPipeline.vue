@@ -38,11 +38,11 @@
     <!-- Kanban -->
     <div v-else-if="ansicht === 'kanban'" class="relative">
       <button v-show="canScrollLeft" @click="scrollKanban(-1)"
-        class="absolute left-1 top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg rounded-full p-2 border border-gray-200 hover:bg-gray-50">
+        class="absolute left-1 top-12 z-10 bg-white shadow-lg rounded-full p-2 border border-gray-200 hover:bg-gray-50">
         <ChevronLeft class="w-5 h-5 text-gray-700" />
       </button>
       <button v-show="canScrollRight" @click="scrollKanban(1)"
-        class="absolute right-1 top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg rounded-full p-2 border border-gray-200 hover:bg-gray-50">
+        class="absolute right-1 top-12 z-10 bg-white shadow-lg rounded-full p-2 border border-gray-200 hover:bg-gray-50">
         <ChevronRight class="w-5 h-5 text-gray-700" />
       </button>
       <div ref="kanbanRef" @scroll="updateScrollState" class="overflow-x-auto kanban-scroll">
