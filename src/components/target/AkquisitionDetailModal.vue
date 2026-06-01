@@ -428,7 +428,18 @@ function emitSave() {
     })
   }
   if (autoEntries.length) form.value.verlauf.push(...autoEntries)
-  emit('save', { ...form.value })
+  // System-Events fuer Mandat-Verlauf (Glocke beim Kaeufer)
+  const mandatEvents = autoEntries.map(e => ({
+    id: 'mv' + Date.now() + Math.random().toString(36).slice(2, 6),
+    typ: 'aufgabe',
+    datum: e.datum,
+    autor: e.autor,
+    betreff: `Akquisition „${form.value.name}": ${e.text}`,
+    beschreibung: '',
+    akquisitionId: form.value.id,
+    system: true,
+  }))
+  emit('save', { ...form.value }, mandatEvents)
 }
 </script>
 

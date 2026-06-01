@@ -51,7 +51,7 @@
       v-if="editing"
       :model-value="editing"
       @close="editing = null"
-      @save="onSave"
+      @save="(updated, events) => onSave(updated, events)"
     />
   </div>
 </template>
@@ -91,12 +91,24 @@ function openEdit(akq) {
   editing.value = { ...akq }
 }
 
-async function onSave(updated) {
+async function onSave(updated, mandatEvents) {
   const list = [...akquisitionen.value]
   const i = list.findIndex(a => a.id === updated.id)
   if (i >= 0) list[i] = updated
   else list.push(updated)
-  await authFetch('/target-update', { method: 'POST', data: { id: props.targetId, akquisitionenJson: JSON.stringify(list) } })
+  const payload = { id: props.targetId, akquisitionenJson: JSON.stringify(list) }
+  // System-Events fuer den Mandat-Verlauf (Glocke beim Kaeufer)
+  if (mandatEvents && mandatEvents.length) {
+    try {
+      const t = await authFetch('/target-get', { method: 'POST', data: { id: props.targetId } })
+      let mainVerlauf = []
+      try { mainVerlauf = JSON.parse(t.kommunikationJson || '[]') } catch {}
+      if (!Array.isArray(mainVerlauf)) mainVerlauf = []
+      mainVerlauf.push(...mandatEvents)
+      payload.kommunikationJson = JSON.stringify(mainVerlauf)
+    } catch {}
+  }
+  await authFetch('/target-update', { method: 'POST', data: payload })
   akquisitionen.value = list
   editing.value = null
 }
