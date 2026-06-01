@@ -48,13 +48,15 @@
       <div ref="kanbanRef" @scroll="updateScrollState" class="overflow-x-auto kanban-scroll">
       <div class="flex gap-3 min-w-max pb-3">
         <div v-for="p in AKQ_PHASEN" :key="p.id" class="w-64 flex-shrink-0">
-          <div class="bg-gray-100 rounded-t-xl px-3 py-2 border-b-2 border-blue-200" :title="p.beschreibung">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold text-gray-700 flex items-center gap-1">
+          <div class="bg-gray-100 rounded-t-xl px-3 py-2 border-b-2 border-blue-200">
+            <div class="flex items-center justify-between gap-1">
+              <span class="text-xs font-semibold text-gray-700 truncate flex-1">
                 {{ p.id }} · {{ p.label }}
-                <Info class="w-3 h-3 text-gray-400 flex-shrink-0" />
               </span>
-              <span class="text-[10px] bg-white text-gray-600 px-1.5 py-0.5 rounded-full">{{ phaseAkquisitionen(p.id).length }}</span>
+              <button @click="phasenInfoModal = p" class="hover:bg-gray-200 rounded p-0.5 flex-shrink-0" title="Was ist in dieser Phase?">
+                <Info class="w-3.5 h-3.5 text-gray-500" />
+              </button>
+              <span class="text-[10px] bg-white text-gray-600 px-1.5 py-0.5 rounded-full flex-shrink-0">{{ phaseAkquisitionen(p.id).length }}</span>
             </div>
           </div>
           <div class="bg-gray-50 rounded-b-xl p-2 min-h-[120px] space-y-2">
@@ -111,12 +113,28 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Phasen-Info-Popup -->
+    <div v-if="phasenInfoModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4" @click="phasenInfoModal = null">
+      <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl" @click.stop>
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <h3 class="font-bold text-gray-900">Phase {{ phasenInfoModal.id }} · {{ phasenInfoModal.label }}</h3>
+          <button @click="phasenInfoModal = null" class="text-gray-400 hover:text-gray-600">
+            <X class="w-5 h-5" />
+          </button>
+        </div>
+        <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{{ phasenInfoModal.beschreibung }}</p>
+        <div class="mt-4 pt-3 border-t border-gray-100 text-right">
+          <button @click="phasenInfoModal = null" class="px-4 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Schließen</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
-import { Target, ListTodo, ChevronLeft, ChevronRight, Info } from '@lucide/vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { Target, ListTodo, ChevronLeft, ChevronRight, Info, X } from '@lucide/vue'
 import { getTargets } from '../../api.js'
 import { AKQ_PHASEN, AKQ_STATUS, phaseInfo, statusInfo } from '../../data/akquisitionsPhasen.js'
 
@@ -125,10 +143,11 @@ defineEmits(['open-akte'])
 // Kanban-Scroll
 const kanbanRef = ref(null)
 const canScrollLeft = ref(false)
-const canScrollRight = ref(false)
+const canScrollRight = ref(true)
+let resizeObs = null
 function updateScrollState() {
   const el = kanbanRef.value
-  if (!el) { canScrollLeft.value = false; canScrollRight.value = false; return }
+  if (!el) return
   canScrollLeft.value = el.scrollLeft > 4
   canScrollRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 4
 }
@@ -137,6 +156,12 @@ function scrollKanban(dir) {
   if (!el) return
   el.scrollBy({ left: dir * 280, behavior: 'smooth' })
 }
+onBeforeUnmount(() => {
+  if (resizeObs) resizeObs.disconnect()
+  window.removeEventListener('resize', updateScrollState)
+})
+
+const phasenInfoModal = ref(null)
 
 const targets = ref([])
 const loading = ref(true)
@@ -150,9 +175,18 @@ onMounted(async () => {
     const all = await getTargets()
     targets.value = (all || []).filter(t => /kauf|investor/i.test(t.projekttyp || ''))
   } catch (e) { console.error(e) }
-  finally { loading.value = false; await nextTick(); updateScrollState() }
+  finally {
+    loading.value = false
+    await nextTick(); await nextTick()
+    updateScrollState()
+    if (kanbanRef.value && window.ResizeObserver) {
+      resizeObs = new ResizeObserver(updateScrollState)
+      resizeObs.observe(kanbanRef.value)
+    }
+    window.addEventListener('resize', updateScrollState)
+  }
 })
-watch(() => [ansicht.value, loading.value], async () => { await nextTick(); updateScrollState() })
+watch(() => [ansicht.value, filterText.value, filterStatus.value, filterInvestor.value], async () => { await nextTick(); updateScrollState() })
 
 const alleAkquisitionen = computed(() => {
   const out = []
