@@ -36,7 +36,16 @@
     </div>
 
     <!-- Kanban -->
-    <div v-else-if="ansicht === 'kanban'" class="overflow-x-auto">
+    <div v-else-if="ansicht === 'kanban'" class="relative">
+      <button v-show="canScrollLeft" @click="scrollKanban(-1)"
+        class="absolute left-1 top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg rounded-full p-2 border border-gray-200 hover:bg-gray-50">
+        <ChevronLeft class="w-5 h-5 text-gray-700" />
+      </button>
+      <button v-show="canScrollRight" @click="scrollKanban(1)"
+        class="absolute right-1 top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg rounded-full p-2 border border-gray-200 hover:bg-gray-50">
+        <ChevronRight class="w-5 h-5 text-gray-700" />
+      </button>
+      <div ref="kanbanRef" @scroll="updateScrollState" class="overflow-x-auto kanban-scroll">
       <div class="flex gap-3 min-w-max pb-3">
         <div v-for="p in AKQ_PHASEN" :key="p.id" class="w-64 flex-shrink-0">
           <div class="bg-gray-100 rounded-t-xl px-3 py-2 border-b-2 border-blue-200">
@@ -61,6 +70,7 @@
             </button>
           </div>
         </div>
+      </div>
       </div>
     </div>
 
@@ -102,12 +112,28 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { Target, ListTodo } from '@lucide/vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { Target, ListTodo, ChevronLeft, ChevronRight } from '@lucide/vue'
 import { getTargets } from '../../api.js'
 import { AKQ_PHASEN, AKQ_STATUS, phaseInfo, statusInfo } from '../../data/akquisitionsPhasen.js'
 
 defineEmits(['open-akte'])
+
+// Kanban-Scroll
+const kanbanRef = ref(null)
+const canScrollLeft = ref(false)
+const canScrollRight = ref(false)
+function updateScrollState() {
+  const el = kanbanRef.value
+  if (!el) { canScrollLeft.value = false; canScrollRight.value = false; return }
+  canScrollLeft.value = el.scrollLeft > 4
+  canScrollRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 4
+}
+function scrollKanban(dir) {
+  const el = kanbanRef.value
+  if (!el) return
+  el.scrollBy({ left: dir * 280, behavior: 'smooth' })
+}
 
 const targets = ref([])
 const loading = ref(true)
@@ -121,8 +147,9 @@ onMounted(async () => {
     const all = await getTargets()
     targets.value = (all || []).filter(t => /kauf|investor/i.test(t.projekttyp || ''))
   } catch (e) { console.error(e) }
-  finally { loading.value = false }
+  finally { loading.value = false; await nextTick(); updateScrollState() }
 })
+watch(() => [ansicht.value, loading.value], async () => { await nextTick(); updateScrollState() })
 
 const alleAkquisitionen = computed(() => {
   const out = []
@@ -173,3 +200,12 @@ function formatDate(iso) {
   try { return new Date(iso).toLocaleDateString('de-DE') } catch { return '' }
 }
 </script>
+
+<style scoped>
+/* Scrollbar dauerhaft sichtbar */
+.kanban-scroll { scrollbar-width: auto; scrollbar-color: #cbd5e1 #f1f5f9; }
+.kanban-scroll::-webkit-scrollbar { height: 10px; }
+.kanban-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
+.kanban-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+.kanban-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+</style>
