@@ -26,6 +26,8 @@ oder Verkäufer-Mandanten haben keinen Einblick in deine Daten.
 5. Mein Suchprofil definieren
 6. Akquisitionsstrategie & Ziele erfassen
 7. Target-Vorschläge bewerten
+7a. Meine Akquisitionen verfolgen
+7. Target-Vorschläge bewerten
 8. Verträge online unterzeichnen
 9. Datenraum
 10. Verlauf – Nachrichten mit deiner Ansprechpartnerin
@@ -210,6 +212,66 @@ Pro Kandidat klickst du:
 ### Long-List
 Alle vorgeschlagenen Kandidaten landen in deiner persönlichen **Long-List**. Bei
 „Interesse" rückt der Kandidat in die **Short-List** und in den Anbahnungs-Prozess.
+
+### Automatische Akquisition
+Sobald du auf **„Interesse"** klickst, wird automatisch eine **Akquisition** im
+Tab „Meine Akquisitionen" angelegt (mit Phase „2 · Interesse bekundet"). Dort
+verfolgst du den weiteren Prozess – siehe nächster Abschnitt.
+
+---
+
+## 7a. Meine Akquisitionen verfolgen
+
+### Wofür?
+Jede konkrete Firma, die du verfolgst, ist eine **Akquisition**. Du kannst beliebig
+viele parallel haben — eine pro Target, an dem du dranbleibst.
+
+### Wie entsteht eine Akquisition?
+- **Automatisch**: Wenn du im Tab „Target-Vorschläge" auf „Interesse" klickst
+- **Manuell**: Klick auf „Neue Akquisition" — z.B. wenn du selbst auf eine Firma
+  gestoßen bist, an der du dranbleiben willst
+
+### Die 11 Phasen
+Jede Akquisition durchläuft fest definierte Phasen vom ersten Kontakt bis zur
+Provision:
+
+1. Vorgeschlagen
+2. Interesse bekundet
+3. NDA
+4. Exposé
+5. Erstgespräch
+6. Indikatives Angebot / LOI
+7. Due Diligence
+8. SPA-Verhandlung
+9. Closing
+10. Übergabe
+11. Provision
+
+mibeca setzt die Phase weiter, sobald der jeweilige Schritt erreicht ist. Du
+siehst immer, wo der Deal steht.
+
+### Status (orthogonal zur Phase)
+- **laufend** – Standard, alles läuft
+- **pausiert** – Käufer oder Verkäufer braucht eine Pause / Rückfragen offen
+- **abgesagt** – nicht zustande gekommen
+- **abgeschlossen** – Deal durch
+
+### Akquisitions-Detail (Klick auf eine Karte)
+Sub-Tabs im Modal:
+
+- **Übersicht**: Firma, Phase, Status, Eckdaten (Branche/Region/Größe), max. Kaufpreis
+- **Aufgaben**: Was zu tun ist — pro Phase werden Standard-Aufgaben automatisch
+  angelegt (z.B. in Phase 3 „NDA gegenzeichnen"). Du kannst eigene hinzufügen.
+- **Verlauf**: Chat zu genau dieser Akquisition. Schreib mibeca direkt aus diesem
+  Tab heraus eine Nachricht. Phase-/Status-Wechsel werden automatisch dokumentiert.
+- **Termine**: Erstgespräche, DD-Workshops, Notartermine — mit Datum, Ort/Link,
+  Teilnehmern und Notiz
+- **Dokumente**: Links zu NDA, Exposé, LOI, DD-Material, SPA-Entwurf, Notar — alle
+  Vertragsdokumente und Materialien gebündelt
+- **Notizen**: Deine eigenen Anmerkungen (auch für mibeca sichtbar)
+
+### Tipp
+Ctrl/Cmd + Enter im Verlauf-Tab sendet die Nachricht ohne Maus.
 
 ---
 

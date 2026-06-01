@@ -119,6 +119,70 @@ gerade aktiv ist und mit dir kommunizieren möchte.
 
 ---
 
+## 4a. Verkaufs-Pipeline (seit 30.05.2026)
+
+Kanban über **alle Verkaufs-Mandate**. Spalten = die 15 Master-Phasen, Karten =
+einzelne Mandate. Auf einen Blick siehst du, wo welcher Verkäufer hängt und wie
+viele Mandate in welcher Phase sind.
+
+**Funktionen:**
+- Umschalten Kanban ↔ Tabelle
+- Filter: Status, Firma / mb-Nr-Suche
+- Klick auf eine Karte öffnet die Akte direkt im Master-Prozess-Tab
+- Aktuelle Phase wird automatisch errechnet (erste nicht-abgehakte Phase)
+- Counter pro Spalte zeigt die Mandate-Anzahl
+
+**Wann nutzen?** Tägliche Verlaufskontrolle, Bottleneck-Erkennung („alle stehen
+in Phase 8 — warum?"), Planungsgespräch mit dem Team.
+
+---
+
+## 4b. Akquisitions-Pipeline (seit 30.05.2026)
+
+Genauso wie die Verkaufs-Pipeline, nur für die **Käufer-Seite**: Kanban über alle
+Akquisitionen aller Investoren (über alle mb-Nrn hinweg). Spalten = die 11
+Akquisitions-Phasen.
+
+**Pro Karte siehst du:**
+- mb-Nr des Investors
+- Firma des Targets
+- Status-Badge
+- Offene Aufgaben (Anzahl)
+
+**Filter:** Status, Investor, Firmen-Suche.
+
+**Klick auf eine Karte** öffnet die Akte des Investors direkt im neuen
+„Akquisitionen"-Tab.
+
+### Wo finde ich diesen Tab?
+
+In der Käufer-Akte (mb-Nr mit Projekttyp „Kauf-Mandat") gibt es den Tab
+„Akquisitionen" (Tab-Gruppe „Marktansprache"). Dort siehst du alle Akquisitionen
+dieses Investors als Karten-Liste mit Phase + Status + offenen Aufgaben.
+
+**Klick auf eine Karte** öffnet das **Akquisitions-Detail** mit 6 Sub-Tabs:
+- **Übersicht** – Stammdaten, Phase-Wechsel (Dropdown), Status, Mandat-Position
+  (Verkäufer/Käufer/beidseitig — wichtig für Provisions-Abrechnung)
+- **Aufgaben** – Standard-Aufgaben werden beim Phase-Wechsel automatisch
+  angelegt; eigene können hinzugefügt werden
+- **Verlauf** – Chat zwischen mibeca und Käufer pro Akquisition; Phase-/Status-
+  Wechsel werden automatisch als System-Eintrag dokumentiert
+- **Termine** – Erstgespräch, DD-Workshop, Notartermin, … mit Datum/Ort/
+  Teilnehmern
+- **Dokumente** – Links zu NDA, Exposé, LOI, DD-Material, SPA-Entwurf (kategorisiert)
+- **Notizen** – Käufer-Notizen (sichtbar für beide) + interne Notizen (nur mibeca)
+
+### Wichtige Eigenschaften
+
+- **Mandat-Position** entscheidet, wer Provision zahlt. Standard ist
+  „Verkäufer-Mandat" (auch wenn der Investor sucht — siehe Master-Prozess Modell 2).
+- **Auto-Anlage**: Klickt der Käufer im Tab „Target-Vorschläge" auf „Interesse",
+  wird automatisch eine Akquisition (Phase 2) angelegt.
+- **Idempotent**: doppeltes Klicken erzeugt keine Duplikate; manuell angelegte
+  Akquisitionen werden nie überschrieben.
+
+---
+
 ## 5. Eine einzelne Akte arbeiten
 
 ### Akte öffnen

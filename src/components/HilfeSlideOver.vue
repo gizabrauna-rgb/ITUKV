@@ -235,9 +235,24 @@
               <p>Sobald mibeca passende Kandidaten gefunden hat, siehst du sie hier (vor NDA: anonymisiert).</p>
               <p>Pro Kandidat klickst du:</p>
               <ul>
-                <li><strong>Interesse</strong> → Jenny startet anonyme Ansprache + NDA-Prozess</li>
+                <li><strong>Interesse</strong> → Jenny startet anonyme Ansprache + NDA-Prozess; <strong>automatisch wird eine Akquisition angelegt</strong> (siehe nächster Abschnitt)</li>
                 <li><strong>Rückfrage</strong> → Jenny klärt deine Frage</li>
                 <li><strong>Kein Interesse</strong> → Kandidat aussortieren</li>
+              </ul>
+            </section>
+
+            <section id="akquisitionen">
+              <h2>Meine Akquisitionen</h2>
+              <p>Jede Firma, die du verfolgst, ist eine eigene <strong>Akquisition</strong> mit Phase und Status. Beliebig viele parallel möglich.</p>
+              <p><strong>11 Phasen:</strong> Vorgeschlagen → Interesse → NDA → Exposé → Erstgespräch → LOI → Due Diligence → SPA → Closing → Übergabe → Provision.</p>
+              <p>Klick auf eine Karte öffnet das Detail mit 6 Sub-Tabs:</p>
+              <ul>
+                <li><strong>Übersicht</strong> – Phase, Status, Eckdaten</li>
+                <li><strong>Aufgaben</strong> – pro Phase werden Standard-Aufgaben automatisch angelegt</li>
+                <li><strong>Verlauf</strong> – Chat mit mibeca zu diesem Deal; Ctrl/Cmd+Enter zum Senden</li>
+                <li><strong>Termine</strong> – Erstgespräch, DD-Workshop, Notartermin …</li>
+                <li><strong>Dokumente</strong> – Links zu NDA, Exposé, LOI, DD-Material, SPA</li>
+                <li><strong>Notizen</strong> – eigene Anmerkungen</li>
               </ul>
             </section>
 
@@ -438,6 +453,7 @@ const sections = computed(() => {
     { id: 'suchprofil', title: 'Suchprofil' },
     { id: 'akquisition', title: 'Akquisitionsstrategie' },
     { id: 'vorschlaege', title: 'Target-Vorschläge' },
+    { id: 'akquisitionen', title: 'Meine Akquisitionen' },
     { id: 'vertraege', title: 'Verträge unterschreiben' },
     { id: 'datenraum', title: 'Datenraum' },
     { id: 'verlauf-k', title: 'Verlauf (mit Suche)' },
