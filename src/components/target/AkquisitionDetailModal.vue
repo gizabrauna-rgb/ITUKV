@@ -164,16 +164,67 @@
         </div>
 
         <!-- Tab: Termine -->
-        <div v-else-if="activeTab === 'termine'" class="text-center py-12 text-sm text-gray-400">
-          <Calendar class="w-10 h-10 mx-auto mb-2 text-gray-200" />
-          Termin-Verwaltung folgt im nächsten Update.
+        <div v-else-if="activeTab === 'termine'" class="space-y-3">
+          <div v-if="!form.termine?.length" class="text-center py-8 text-sm text-gray-400">
+            <Calendar class="w-8 h-8 mx-auto mb-2 text-gray-200" />
+            Noch keine Termine. Leg unten einen neuen an.
+          </div>
+          <ul v-else class="space-y-2">
+            <li v-for="(t, i) in termineSortiert" :key="t.id"
+              :class="['rounded-xl p-3 border', terminInVergangenheit(t) ? 'bg-gray-50 border-gray-100 opacity-70' : 'bg-blue-50/40 border-blue-100']">
+              <div class="flex items-center justify-between mb-1 gap-2">
+                <input v-model="t.titel" placeholder="Titel" class="flex-1 text-sm font-semibold bg-transparent focus:outline-none" />
+                <button @click="removeTermin(t.id)" class="text-gray-300 hover:text-red-500 flex-shrink-0">
+                  <Trash2 class="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <input type="datetime-local" v-model="t.datum" class="input py-1" />
+                <input v-model="t.ort" placeholder="Ort / Link (Teams, Element, …)" class="input py-1" />
+              </div>
+              <input v-model="t.teilnehmer" placeholder="Teilnehmer (Komma-getrennt)" class="input py-1 text-xs mt-2" />
+              <textarea v-model="t.notiz" rows="2" placeholder="Notiz / Agenda" class="input py-1 text-xs mt-2 resize-y"></textarea>
+            </li>
+          </ul>
+          <button @click="addTermin" class="w-full py-2 text-xs border border-dashed border-gray-300 rounded-xl hover:bg-gray-50 text-gray-600 flex items-center justify-center gap-1.5">
+            <Plus class="w-3.5 h-3.5" /> Neuer Termin
+          </button>
         </div>
 
         <!-- Tab: Dokumente -->
-        <div v-else-if="activeTab === 'dokumente'" class="text-center py-12 text-sm text-gray-400">
-          <FolderOpen class="w-10 h-10 mx-auto mb-2 text-gray-200" />
-          Dokumente pro Akquisition folgen im nächsten Update.<br/>
-          Bis dahin: gemeinsame Ablage im Dokumente-Tab.
+        <div v-else-if="activeTab === 'dokumente'" class="space-y-3">
+          <div v-if="!form.dokumente?.length" class="text-center py-8 text-sm text-gray-400">
+            <FolderOpen class="w-8 h-8 mx-auto mb-2 text-gray-200" />
+            Noch keine Dokumente. Füg unten Links zu Vorlagen, Datenraum oder externe URLs ein.
+          </div>
+          <ul v-else class="space-y-2">
+            <li v-for="d in form.dokumente" :key="d.id"
+              class="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
+              <FileText class="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <div class="flex-1 min-w-0">
+                <a :href="d.url" target="_blank" rel="noopener" class="text-sm text-blue-700 hover:underline truncate block">{{ d.titel || d.url }}</a>
+                <div class="text-[10px] text-gray-400">{{ d.kategorie || 'Sonstiges' }} · hinzugefügt {{ formatDatum(d.createdAt) }}</div>
+              </div>
+              <button @click="removeDokument(d.id)" class="text-gray-300 hover:text-red-500"><Trash2 class="w-3.5 h-3.5" /></button>
+            </li>
+          </ul>
+          <div class="grid grid-cols-12 gap-2 pt-2 border-t border-gray-100">
+            <input v-model="neuesDokument.titel" placeholder="Bezeichnung (z.B. NDA, LOI-Entwurf)" class="input col-span-4 text-xs" />
+            <input v-model="neuesDokument.url" placeholder="URL (OneDrive, Datenraum, externer Link)" class="input col-span-5 text-xs" />
+            <select v-model="neuesDokument.kategorie" class="input col-span-2 text-xs">
+              <option>NDA</option>
+              <option>Exposé</option>
+              <option>LOI</option>
+              <option>DD</option>
+              <option>SPA</option>
+              <option>Notar</option>
+              <option>Sonstiges</option>
+            </select>
+            <button @click="addDokument" :disabled="!neuesDokument.url.trim()"
+              class="col-span-1 px-2 py-2 bg-blue-600 text-white rounded-xl text-xs font-medium hover:bg-blue-700 disabled:opacity-50">
+              <Plus class="w-4 h-4 mx-auto" />
+            </button>
+          </div>
         </div>
       </main>
 
@@ -234,6 +285,8 @@ function initForm(akq) {
     notizen: akq.notizen || '',
     aufgaben: Array.isArray(akq.aufgaben) ? akq.aufgaben.map(a => ({ ...a })) : [],
     verlauf: Array.isArray(akq.verlauf) ? akq.verlauf.map(v => ({ ...v })) : [],
+    termine: Array.isArray(akq.termine) ? akq.termine.map(t => ({ ...t })) : [],
+    dokumente: Array.isArray(akq.dokumente) ? akq.dokumente.map(d => ({ ...d })) : [],
   }
 }
 
@@ -245,10 +298,45 @@ const tabs = computed(() => [
   { key: 'overview',  label: 'Übersicht', icon: FileText },
   { key: 'aufgaben',  label: 'Aufgaben',  icon: ListTodo, count: form.value.aufgaben.filter(a => !a.erledigt).length || null },
   { key: 'verlauf',   label: 'Verlauf',   icon: MessageSquare, count: form.value.verlauf.length || null },
-  { key: 'termine',   label: 'Termine',   icon: Calendar },
-  { key: 'dokumente', label: 'Dokumente', icon: FolderOpen },
+  { key: 'termine',   label: 'Termine',   icon: Calendar, count: termineOffen.value || null },
+  { key: 'dokumente', label: 'Dokumente', icon: FolderOpen, count: form.value.dokumente.length || null },
   { key: 'notizen',   label: 'Notizen',   icon: StickyNote },
 ])
+
+const termineSortiert = computed(() => {
+  return [...form.value.termine].sort((a, b) => (a.datum || '').localeCompare(b.datum || ''))
+})
+const termineOffen = computed(() => form.value.termine.filter(t => !terminInVergangenheit(t)).length)
+
+function terminInVergangenheit(t) {
+  if (!t.datum) return false
+  try { return new Date(t.datum) < new Date(Date.now() - 24 * 3600 * 1000) } catch { return false }
+}
+function addTermin() {
+  form.value.termine.push({
+    id: 't' + Date.now(), titel: '', datum: '', ort: '', teilnehmer: '', notiz: '',
+    createdAt: new Date().toISOString(),
+  })
+}
+function removeTermin(id) {
+  form.value.termine = form.value.termine.filter(t => t.id !== id)
+}
+
+const neuesDokument = ref({ titel: '', url: '', kategorie: 'Sonstiges' })
+function addDokument() {
+  if (!neuesDokument.value.url.trim()) return
+  form.value.dokumente.push({
+    id: 'd' + Date.now(),
+    titel: neuesDokument.value.titel.trim() || neuesDokument.value.url.trim(),
+    url: neuesDokument.value.url.trim(),
+    kategorie: neuesDokument.value.kategorie,
+    createdAt: new Date().toISOString(),
+  })
+  neuesDokument.value = { titel: '', url: '', kategorie: 'Sonstiges' }
+}
+function removeDokument(id) {
+  form.value.dokumente = form.value.dokumente.filter(d => d.id !== id)
+}
 
 const verlaufSortiert = computed(() => {
   return [...form.value.verlauf].sort((a, b) => (b.datum || '').localeCompare(a.datum || ''))
