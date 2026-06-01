@@ -90,20 +90,23 @@
       <!-- Sidebar -->
       <nav class="w-52 bg-white border-r border-gray-100 flex-shrink-0 py-4">
         <ul class="space-y-0.5 px-2">
-          <li v-for="item in navItems" :key="item.tab">
-            <button
-              @click="tab = item.tab"
-              :class="[
-                'w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors text-left',
-                tab === item.tab
-                  ? 'bg-[#0088ba]/10 text-[#0088ba] font-semibold'
-                  : 'text-gray-600 hover:bg-gray-50'
-              ]"
-            >
-              <component :is="item.icon" class="w-4 h-4 flex-shrink-0" />
-              <span class="leading-tight">{{ item.label }}</span>
-            </button>
-          </li>
+          <template v-for="(item, idx) in navItems" :key="item.tab || ('sep-' + idx)">
+            <li v-if="item.divider" class="my-2 mx-3 border-t border-gray-100"></li>
+            <li v-else>
+              <button
+                @click="tab = item.tab"
+                :class="[
+                  'w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors text-left',
+                  tab === item.tab
+                    ? 'bg-[#0088ba]/10 text-[#0088ba] font-semibold'
+                    : 'text-gray-600 hover:bg-gray-50'
+                ]"
+              >
+                <component :is="item.icon" class="w-4 h-4 flex-shrink-0" />
+                <span class="leading-tight">{{ item.label }}</span>
+              </button>
+            </li>
+          </template>
         </ul>
       </nav>
 
@@ -277,6 +280,11 @@
           <TargetsTab v-else @open-detail="openAkte" />
         </div>
 
+        <!-- Verkaufs-Pipeline (Kanban über alle Verkaufs-Mandate) -->
+        <div v-else-if="tab === 'verkaufspipeline'">
+          <VerkaufsPipeline @open-akte="e => openAkteWithTab(e.targetId, 'prozess')" />
+        </div>
+
         <!-- Akquisitions-Pipeline (Kanban über alle Käufer-Mandate) -->
         <div v-else-if="tab === 'pipeline'">
           <AkquisitionsPipeline @open-akte="e => openAkteWithTab(e.targetId, 'akquisitionen')" />
@@ -345,6 +353,7 @@ import {
 import { authFetch, verlaufUnreadCount, verlaufMarkRead } from '../api.js'
 import TargetsTab from '../components/admin/TargetsTab.vue'
 import AkquisitionsPipeline from '../components/admin/AkquisitionsPipeline.vue'
+import VerkaufsPipeline from '../components/admin/VerkaufsPipeline.vue'
 import HilfeSlideOver from '../components/HilfeSlideOver.vue'
 import FragKiModal from '../components/FragKiModal.vue'
 import CrmTab from '../components/admin/CrmTab.vue'
@@ -417,13 +426,17 @@ function openNdaInAkte(v) {
 
 const navItems = [
   { tab: 'uebersicht', label: 'Übersicht', icon: LayoutDashboard },
+  { divider: true },
   { tab: 'targets', label: 'Projekte', icon: Briefcase },
+  { tab: 'verkaufspipeline', label: 'Verkaufs-Pipeline', icon: GitBranch },
   { tab: 'pipeline', label: 'Akquisitions-Pipeline', icon: Workflow },
-  { tab: 'crm', label: 'Kontakte', icon: Users },
   { tab: 'ausschreibungen', label: 'Veröffentlichte Mandate', icon: Megaphone },
+  { tab: 'crm', label: 'Kontakte', icon: Users },
+  { divider: true },
   { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
   { tab: 'mailvorlagen', label: 'E-Mail-Vorlagen', icon: Mail },
   { tab: 'controlling', label: 'Controlling', icon: BarChart3 },
+  { divider: true },
   { tab: 'benutzer', label: 'Benutzer', icon: UserCog },
   { tab: 'audit', label: 'Audit & Backup', icon: ShieldCheck },
   { tab: 'einstellungen', label: 'Einstellungen', icon: Settings },
