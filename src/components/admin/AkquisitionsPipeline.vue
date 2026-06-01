@@ -48,9 +48,12 @@
       <div ref="kanbanRef" @scroll="updateScrollState" class="overflow-x-auto kanban-scroll">
       <div class="flex gap-3 min-w-max pb-3">
         <div v-for="p in AKQ_PHASEN" :key="p.id" class="w-64 flex-shrink-0">
-          <div class="bg-gray-100 rounded-t-xl px-3 py-2 border-b-2 border-blue-200">
+          <div class="bg-gray-100 rounded-t-xl px-3 py-2 border-b-2 border-blue-200" :title="p.beschreibung">
             <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold text-gray-700">{{ p.id }} · {{ p.label }}</span>
+              <span class="text-xs font-semibold text-gray-700 flex items-center gap-1">
+                {{ p.id }} · {{ p.label }}
+                <Info class="w-3 h-3 text-gray-400 flex-shrink-0" />
+              </span>
               <span class="text-[10px] bg-white text-gray-600 px-1.5 py-0.5 rounded-full">{{ phaseAkquisitionen(p.id).length }}</span>
             </div>
           </div>
@@ -113,7 +116,7 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
-import { Target, ListTodo, ChevronLeft, ChevronRight } from '@lucide/vue'
+import { Target, ListTodo, ChevronLeft, ChevronRight, Info } from '@lucide/vue'
 import { getTargets } from '../../api.js'
 import { AKQ_PHASEN, AKQ_STATUS, phaseInfo, statusInfo } from '../../data/akquisitionsPhasen.js'
 

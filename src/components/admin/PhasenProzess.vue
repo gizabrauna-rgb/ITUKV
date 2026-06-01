@@ -113,22 +113,22 @@ import { getTargets, authFetch } from '../../api.js'
 // Master-Prozess Vorlage (13 Phasen aus Jennys Doku)
 // HINWEIS: identische Templates sind auch in src/lib/phasenTemplates.js fuer TargetDashboard.vue
 const PHASEN_VORLAGE = () => ([
-  { id: 1, titel: '1. UVE Start — Vorbereitungs-Checkliste', notiz: '', aufgaben: [
-    { id: 'uve1', label: 'MB050: Videolektionen ansehen ("Wie läuft Verkauf von A bis Z ab?")', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
-    { id: 'uve2', label: 'MB050: Fragebogen Unternehmensbewertung ausgefüllt', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'fragebogenAbgegeben' },
-    { id: 'uve3', label: 'MB050: Due-Diligence-Datenraum nach Muster anlegen', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'datenraumHatDokumente' },
+  { id: 1, titel: '1. Vorbereitung & Stammdaten', notiz: '', aufgaben: [
+    { id: 'uve1', label: 'Verkaufsprozess kennenlernen (Coaching-Videolektionen oder Erstgespräch)', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
+    { id: 'uve2', label: 'Fragebogen Unternehmensbewertung ausgefüllt', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'fragebogenAbgegeben' },
+    { id: 'uve3', label: 'Due-Diligence-Datenraum nach Muster anlegen', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'datenraumHatDokumente' },
     { id: 'uve4', label: 'Ziele & Motivationen erfassen (Wunsch-Exit, Rolle nach Verkauf, Deal-Struktur)', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'zieleErfasst' },
-    { id: 'uve5', label: 'Eigenes Unternehmensexposé erstellen + vom Verkäufer freigegeben', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'exposeApproved' },
+    { id: 'uve5', label: 'Eigenes Unternehmensexposé erstellen + freigegeben', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'exposeApproved' },
     { id: 'uve6', label: 'Verkaufsmandat erteilen → Marktansprache durch mibeca', done: false, verantwortlich: 'Kunde', datum: '', notiz: '' },
-    { id: 'uve7', label: 'Kosten-Tabelle ansehen ("Welche Kosten kommen auf Dich zu")', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'kostenZurKenntnis' },
+    { id: 'uve7', label: 'Kosten-Tabelle zur Kenntnis genommen', done: false, verantwortlich: 'Kunde', datum: '', notiz: '', auto: 'kostenZurKenntnis' },
     { id: 't1', label: 'Zahlen, Daten, Fakten zusammentragen', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'stammdatenZdfVorhanden' },
     { id: 't2', label: 'Unternehmensbewertung erstellen', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'bewertungVorhanden' },
     { id: 't3', label: 'Exposé-Entwurf erstellen', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'exposeEntwurfVorhanden' },
   ]},
-  { id: 2, titel: '2. UVE Abschluss — Verkaufsmandat-Eröffnung', notiz: '', aufgaben: [
+  { id: 2, titel: '2. Mandatsabschluss & Onboarding', notiz: '', aufgaben: [
     { id: 't1', label: 'Verkaufsmandat unterzeichnet (12 Monate)', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'mandatGegengezeichnet' },
-    { id: 't2', label: 'Standard-Ordner anlegen: ITUKV/UVE/mb-XX', done: false, verantwortlich: '', datum: '', notiz: '' },
-    { id: 't3', label: 'Onboarding durch Jenny (+ Content)', done: false, verantwortlich: 'Jenny', datum: '', notiz: '' },
+    { id: 't2', label: 'Standard-Ordner für das Mandat angelegt (mb-XX)', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 't3', label: 'Onboarding durch Jenny (Prozess-Erklärung, Dashboard-Tour)', done: false, verantwortlich: 'Jenny', datum: '', notiz: '' },
     { id: 't4', label: 'Kundenakte angelegt', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'kundenakteAngelegt' },
   ]},
   { id: 3, titel: '3. Marktansprache — Interessenten anschreiben', notiz: '', aufgaben: [
@@ -147,9 +147,9 @@ const PHASEN_VORLAGE = () => ([
     { id: 't2', label: 'Gespräch durchgeführt + Notizen', done: false, verantwortlich: '', datum: '', notiz: '', auto: 'kennenlernenErfolgt' },
     { id: 't3', label: 'Eindruck dokumentieren', done: false, verantwortlich: '', datum: '', notiz: '' },
   ]},
-  { id: 6, titel: '6. Datenraum / Kommunikationsraum in Element', notiz: '', aufgaben: [
-    { id: 't1', label: 'Element-Raum eröffnet', done: false, verantwortlich: '', datum: '', notiz: '' },
-    { id: 't2', label: 'Beteiligte eingeladen', done: false, verantwortlich: '', datum: '', notiz: '' },
+  { id: 6, titel: '6. Datenraum & Kommunikation', notiz: '', aufgaben: [
+    { id: 't1', label: 'Dashboard-Datenraum für Interessent freigeschaltet', done: false, verantwortlich: '', datum: '', notiz: '' },
+    { id: 't2', label: 'Beteiligte eingeladen (Verkäufer, Käufer, Berater)', done: false, verantwortlich: '', datum: '', notiz: '' },
     { id: 't3', label: 'Zugang verifiziert', done: false, verantwortlich: '', datum: '', notiz: '' },
   ]},
   { id: 7, titel: '7. Austausch von Unterlagen', notiz: '', aufgaben: [

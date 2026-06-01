@@ -44,9 +44,12 @@
       <div ref="kanbanRef" @scroll="updateScrollState" class="overflow-x-auto kanban-scroll">
       <div class="flex gap-3 min-w-max pb-3">
         <div v-for="p in PHASEN_TITEL" :key="p.id" class="w-64 flex-shrink-0">
-          <div class="bg-gray-100 rounded-t-xl px-3 py-2 border-b-2 border-orange-200">
+          <div class="bg-gray-100 rounded-t-xl px-3 py-2 border-b-2 border-orange-200" :title="p.beschreibung">
             <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold text-gray-700 truncate">{{ p.id }} · {{ p.kurz }}</span>
+              <span class="text-xs font-semibold text-gray-700 truncate flex items-center gap-1">
+                {{ p.id }} · {{ p.kurz }}
+                <Info class="w-3 h-3 text-gray-400 flex-shrink-0" />
+              </span>
               <span class="text-[10px] bg-white text-gray-600 px-1.5 py-0.5 rounded-full flex-shrink-0 ml-1">{{ phaseMandate(p.id).length }}</span>
             </div>
           </div>
@@ -107,7 +110,7 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
-import { Briefcase, ListTodo, ChevronLeft, ChevronRight } from '@lucide/vue'
+import { Briefcase, ListTodo, ChevronLeft, ChevronRight, Info } from '@lucide/vue'
 import { getTargets } from '../../api.js'
 
 defineEmits(['open-akte'])
@@ -129,21 +132,21 @@ function scrollKanban(dir) {
 
 // Master-Prozess Verkauf — 15 Phasen, Kurztitel fuer Kanban-Header
 const PHASEN_TITEL = [
-  { id: 1,  kurz: 'UVE Start' },
-  { id: 2,  kurz: 'UVE Abschluss' },
-  { id: 3,  kurz: 'Marktansprache' },
-  { id: 4,  kurz: 'NDA' },
-  { id: 5,  kurz: 'Erstes Kennenlernen' },
-  { id: 6,  kurz: 'Datenraum / Element' },
-  { id: 7,  kurz: 'Unterlagen-Austausch' },
-  { id: 8,  kurz: 'Indikatives Angebot' },
-  { id: 9,  kurz: 'Verhandlungen' },
-  { id: 10, kurz: 'LOI' },
-  { id: 11, kurz: 'Due Diligence' },
-  { id: 12, kurz: 'Vertragsgestaltung' },
-  { id: 13, kurz: 'Notartermin & Closing' },
-  { id: 14, kurz: 'Post-Closing' },
-  { id: 15, kurz: 'Erfolgsmeldung' },
+  { id: 1,  kurz: 'Vorbereitung & Stammdaten', beschreibung: 'Verkäufer lernt den Prozess kennen, Fragebogen + Bewertung, Datenraum-Muster, Ziele & Motivationen, eigenes Exposé erstellen. mibeca trägt ZDF zusammen und erstellt Bewertung + Exposé-Entwurf.' },
+  { id: 2,  kurz: 'Mandatsabschluss & Onboarding', beschreibung: 'Verkaufsmandat unterschrieben, Ordner angelegt, Jenny-Onboarding, Kundenakte aktiv.' },
+  { id: 3,  kurz: 'Marktansprache', beschreibung: 'Landing-Page online, Interessenten aus Kundenstamm gefiltert, Anschreiben über Mail/Brief/Telefon. KEINE Exklusivität.' },
+  { id: 4,  kurz: 'NDA', beschreibung: 'NDAs von Interessenten einholen, VETO-Check mit Verkäufer, signierte NDAs ablegen.' },
+  { id: 5,  kurz: 'Erstes Kennenlernen', beschreibung: '3er-Gespräch Interessent ↔ Verkäufer ↔ mibeca koordinieren, durchführen, Eindruck dokumentieren.' },
+  { id: 6,  kurz: 'Datenraum & Kommunikation', beschreibung: 'Dashboard-Datenraum für Interessent freigeschaltet, Beteiligte eingeladen, Zugang verifiziert.' },
+  { id: 7,  kurz: 'Unterlagen-Austausch', beschreibung: 'Erweiterte Unterlagen freigegeben, Rückfragen beantwortet.' },
+  { id: 8,  kurz: 'Indikatives Angebot', beschreibung: 'Erstes Gebot eingegangen, mit Verkäufer bewertet, Rückmeldung an Käufer.' },
+  { id: 9,  kurz: 'Verhandlungen', beschreibung: 'Preis, Struktur (Share/Asset Deal), Bedingungen (Earn-Out, GF-Verbleib) verhandelt.' },
+  { id: 10, kurz: 'LOI', beschreibung: 'Letter of Intent erstellt und final verhandelt.' },
+  { id: 11, kurz: 'Due Diligence', beschreibung: 'Datenraum vollständig befüllt; Rechtliche / Steuerliche / Financial / Business / Tech-DD durch Anwalt + Steuerberater; DD-Bericht dokumentiert.' },
+  { id: 12, kurz: 'Vertragsgestaltung', beschreibung: 'Deal-Struktur entschieden, Kaufvertrag-Entwurf, GF-Anstellungsvertrag, Gesellschaftsvertrag anpassen, Garantien/Earn-Out/Klauseln verhandeln, finale Version abstimmen.' },
+  { id: 13, kurz: 'Notartermin & Closing', beschreibung: 'Notartermin koordiniert, Unterzeichnung, Kaufpreis überwiesen, Anteilsübertragung vollzogen.' },
+  { id: 14, kurz: 'Post-Closing', beschreibung: 'Übergabe-Plan, Mitarbeiter + Kunden informieren, Vertragsübergabe, Earn-Out tracken, ggf. Aufhebungsvertrag GF.' },
+  { id: 15, kurz: 'Erfolgsmeldung', beschreibung: 'Pressemitteilung, Freigabe, Versand an Branche/Newsletter, LinkedIn-Post, Erfolgshonorar in Rechnung gestellt, Mandat archiviert.' },
 ]
 
 function phaseKurz(id) { return (PHASEN_TITEL.find(p => p.id === id) || { kurz: '—' }).kurz }
