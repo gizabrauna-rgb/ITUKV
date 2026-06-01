@@ -27,7 +27,13 @@
           </button>
           <div class="text-right">
             <div class="text-xs text-gray-500">Aktuelle Phase</div>
-            <div class="font-semibold text-[#0088ba]">Phase {{ currentPhase }} / {{ phasen.length || 15 }} · {{ progressPercent }}%</div>
+            <div class="flex items-center gap-2 justify-end">
+              <select :value="currentPhase" @change="setPhaseManuell($event.target.value)"
+                class="font-semibold text-[#0088ba] bg-transparent border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30">
+                <option v-for="p in phasen" :key="p.id" :value="p.id">{{ p.titel }}</option>
+              </select>
+              <span class="text-xs text-gray-500">· {{ progressPercent }}%</span>
+            </div>
           </div>
         </div>
       </div>
@@ -481,6 +487,29 @@ const nextPendingTasks = computed(() => {
 const totalTasks = computed(() => phasen.value.reduce((s, p) => s + (p.aufgaben?.length || 0), 0))
 const doneTasks = computed(() => phasen.value.reduce((s, p) => s + (p.aufgaben?.filter(t => t.done).length || 0), 0))
 const progressPercent = computed(() => totalTasks.value ? Math.round((doneTasks.value / totalTasks.value) * 100) : 0)
+
+// Manueller Phasenwechsel: setzt alle Aufgaben der Phasen 1..N-1 auf done,
+// damit die Auto-Berechnung dann genau bei N landet. Aufgaben in Phasen
+// >= N bleiben unverändert.
+async function setPhaseManuell(neuId) {
+  const n = parseInt(neuId, 10)
+  if (!n || n === currentPhase.value) return
+  const alt = currentPhase.value
+  if (!confirm(`Phase manuell auf ${n} setzen? Alle Aufgaben der Phasen 1–${n-1} werden als erledigt markiert.`)) return
+  const liste = JSON.parse(JSON.stringify(phasen.value))
+  for (const ph of liste) {
+    if ((ph.id || 0) < n) {
+      for (const a of (ph.aufgaben || [])) a.done = true
+    }
+  }
+  try {
+    await authFetch('/target-update', { method: 'POST', data: { id: target.value.RowKey, phasenJson: JSON.stringify(liste) } })
+    target.value.phasenJson = JSON.stringify(liste)
+    toast.success(`Phase ${alt} → ${n} gesetzt`)
+  } catch (e) {
+    toast.error('Phasenwechsel fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
+  }
+}
 
 function statusClass(s) {
   if (s === 'verfuegbar') return 'bg-green-100 text-green-700'

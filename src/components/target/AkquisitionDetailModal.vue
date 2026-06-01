@@ -90,6 +90,17 @@
 
         <!-- Tab: Aufgaben -->
         <div v-else-if="activeTab === 'aufgaben'" class="space-y-3">
+          <!-- Banner: alle Aufgaben der aktuellen Phase erledigt -->
+          <div v-if="allePhasenAufgabenErledigt && form.phase < 11"
+            class="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center justify-between gap-3">
+            <div class="text-xs text-green-900">
+              Alle Aufgaben in Phase {{ form.phase }} erledigt. Weiter zu Phase {{ form.phase + 1 }}?
+            </div>
+            <button @click="form.phase = form.phase + 1"
+              class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 whitespace-nowrap">
+              Phase abschließen
+            </button>
+          </div>
           <div v-if="!form.aufgaben?.length" class="text-sm text-gray-400 text-center py-8">
             Noch keine Aufgaben. {{ readOnly ? '' : 'Füg eine hinzu oder wähle eine Phase, dann werden Vorlagen-Aufgaben automatisch angelegt.' }}
           </div>
@@ -302,6 +313,13 @@ const tabs = computed(() => [
   { key: 'dokumente', label: 'Dokumente', icon: FolderOpen, count: form.value.dokumente.length || null },
   { key: 'notizen',   label: 'Notizen',   icon: StickyNote },
 ])
+
+// Aufgaben dieser Phase: alle erledigt? -> Banner zum Weiterrutschen
+const aufgabenDieserPhase = computed(() => form.value.aufgaben.filter(a => a.phaseAngelegtIn === form.value.phase))
+const allePhasenAufgabenErledigt = computed(() => {
+  const arr = aufgabenDieserPhase.value
+  return arr.length > 0 && arr.every(a => a.erledigt)
+})
 
 const termineSortiert = computed(() => {
   return [...form.value.termine].sort((a, b) => (a.datum || '').localeCompare(b.datum || ''))
