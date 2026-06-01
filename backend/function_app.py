@@ -5440,6 +5440,16 @@ def _list_admin_emails():
     return out
 
 
+def _list_monthly_report_recipients():
+    """Empfaenger der Monats-Statusberichte. Wenn ENV MONTHLY_REPORT_RECIPIENTS
+    gesetzt ist (komma-separierte Mails), nutze ausschliesslich diese Liste.
+    Sonst Fallback: alle Admin-Mails."""
+    custom = os.environ.get("MONTHLY_REPORT_RECIPIENTS", "").strip()
+    if custom:
+        return [m.strip() for m in custom.split(",") if m.strip()]
+    return _list_admin_emails()
+
+
 @app.timer_trigger(schedule="0 0 6 * * *", arg_name="dailyTimer", run_on_startup=False, use_monitor=True)
 def daily_termin_reminders(dailyTimer: func.TimerRequest) -> None:
     """Laeuft taeglich um 06:00 UTC (=08:00 Berlin Sommer / 07:00 Winter).
@@ -5527,7 +5537,7 @@ def monthly_status_reports(monthlyTimer: func.TimerRequest) -> None:
     hinterlegten Admin-Mails (nicht an Verkaeufer - Jenny prueft erst,
     bevor sie es weitergibt)."""
     logging.info("[CRON] monthly_status_reports gestartet")
-    admin_mails = _list_admin_emails()
+    admin_mails = _list_monthly_report_recipients()
     if not admin_mails or not ACS_CONN:
         logging.info("[CRON] Keine Admin-Mails / kein ACS - Reports uebersprungen")
         return
