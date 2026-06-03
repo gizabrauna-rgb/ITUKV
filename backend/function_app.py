@@ -481,6 +481,8 @@ TARGET_WRITABLE_FIELDS = {
     "kiAnalyseErlaubt", "kiAnalyseErlaubtSeit", "kiAnalyseErlaubtVon",
     # Diverse Workflow-Felder
     "exposeToken", "ndaTemplateUrl",
+    # Per-Mandat Webhook fuer Landing-Page-Anmeldungen (Zapier o.ae.)
+    "zapierWebhookUrl",
 }
 
 
@@ -1236,6 +1238,103 @@ def ausschreibung_update(req: func.HttpRequest) -> func.HttpResponse:
             ent[k] = v
     tc.update_entity(dict(ent))
     return ok_(dict(ent))
+
+
+@app.route(route="ausschreibung-versand", methods=["POST", "OPTIONS"])
+def ausschreibung_versand(req: func.HttpRequest) -> func.HttpResponse:
+    """Versendet die Ausschreibung als Massen-Mail via ACS.
+    Body: {
+      targetId: str,
+      betreff: str (Template, darf {firma},{name},{ort},{mbNr},{exposeUrl} enthalten),
+      text: str (Template),
+      recipients: [{ email, firma?, name?, ort? }],  # bei testEmail leer
+      testEmail: str (optional) — wenn gesetzt: nur 1 Mail an diese Adresse
+    }
+    Antwort: { sent, failed, errors[] }"""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    tid = (body.get("targetId") or "").strip()
+    betreff_tpl = body.get("betreff", "") or ""
+    text_tpl = body.get("text", "") or ""
+    recipients = body.get("recipients") or []
+    test_email = (body.get("testEmail") or "").strip()
+    if not (tid and betreff_tpl and text_tpl):
+        return err_("targetId, betreff und text erforderlich", 400)
+    if not ACS_CONN:
+        return err_("ACS nicht konfiguriert (ACS_CONNECTION_STRING fehlt)", 500)
+    try:
+        t = dict(table_("targets").get_entity("target", tid))
+    except Exception:
+        return err_("Target nicht gefunden", 404)
+    mb_nr = t.get("mbNr", "")
+    expose_url = f"{LANDING_BASE}/{mb_nr.lower()}" if mb_nr else ""
+
+    def render(tpl, k):
+        return (tpl or "").replace("{firma}", k.get("firma", "") or "") \
+                          .replace("{name}", k.get("name", "") or "") \
+                          .replace("{ort}", k.get("ort", "") or "") \
+                          .replace("{mbNr}", mb_nr) \
+                          .replace("{exposeUrl}", expose_url)
+
+    def text_to_html(txt):
+        # einfacher Text->HTML mit Absatz- und Zeilenumbruchen, Links automatisch klickbar
+        import html as _html, re as _re
+        safe = _html.escape(txt or "")
+        safe = _re.sub(r"(https?://[\w./?=&%#\-:+,;@!~$'()*]+)", r'<a href="\1" style="color:#0088ba">\1</a>', safe)
+        # Doppelte Newlines = Absatz
+        paragraphs = [p.replace("\n", "<br>") for p in safe.split("\n\n")]
+        return "".join(f"<p>{p}</p>" for p in paragraphs)
+
+    from azure.communication.email import EmailClient
+    client = EmailClient.from_connection_string(ACS_CONN)
+    sent = 0; failed = 0; errors = []
+
+    targets_list = []
+    if test_email:
+        # Demo-Empfaenger fuer Test mit Platzhaltern; nimmt ersten Recipient als Daten oder Fallback
+        demo = (recipients[0] if recipients else {}) or {"firma": "Test-Firma", "name": "Test-Name", "ort": "Test-Ort"}
+        demo = {**demo, "email": test_email}
+        targets_list = [demo]
+    else:
+        targets_list = [r for r in recipients if (r.get("email") or "").strip()]
+
+    if not targets_list:
+        return err_("Keine Empfaenger angegeben", 400)
+
+    for r in targets_list:
+        try:
+            subj = render(betreff_tpl, r)
+            html_body = (
+                '<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6;max-width:600px">'
+                + text_to_html(render(text_tpl, r))
+                + '</body></html>'
+            )
+            client.begin_send({
+                "senderAddress": ACS_SENDER,
+                "recipients": {"to": [{"address": r["email"]}]},
+                "content": {"subject": subj, "plainText": render(text_tpl, r), "html": html_body},
+            })
+            sent += 1
+        except Exception as ex:
+            failed += 1
+            errors.append({"email": r.get("email", ""), "error": str(ex)})
+
+    # Verlauf-Eintrag (nur bei echtem Versand, nicht bei Test)
+    if not test_email:
+        _verlauf_append(tid, {
+            "id": "k" + str(int(datetime.utcnow().timestamp() * 1000)),
+            "typ": "mail_out",
+            "datum": datetime.utcnow().isoformat(),
+            "autor": p.get("name") or p.get("email", ""),
+            "betreff": f"Ausschreibung an {sent} Empfaenger versendet",
+            "beschreibung": f"Mass-Mail '{betreff_tpl[:80]}' an {sent} Empfaenger (failed: {failed}).",
+        })
+
+    return ok_({"sent": sent, "failed": failed, "errors": errors[:10]})
 
 
 @app.route(route="ausschreibung-delete", methods=["POST", "OPTIONS"])
@@ -3851,8 +3950,10 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
         "beteiligte": email,
     })
 
-    # Zapier-Webhook (Google Sheets-Sync): bei jeder Landing-Page-Anmeldung Daten weitergeben
-    zap_url = os.environ.get("ZAPIER_INTERESSENT_WEBHOOK_URL", "").strip()
+    # Zapier-Webhook (Google Sheets-Sync) — PRO Mandat individuell konfigurierbar.
+    # Das Feld `zapierWebhookUrl` am Target steuert, ob/wohin die Anmeldedaten
+    # weitergeleitet werden. Leer = keine Weiterleitung.
+    zap_url = (t.get("zapierWebhookUrl") or "").strip()
     if zap_url:
         try:
             import urllib.request

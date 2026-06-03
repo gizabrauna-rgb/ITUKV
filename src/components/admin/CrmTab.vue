@@ -225,7 +225,7 @@
           <div>
             <label class="text-xs font-medium text-gray-600 mb-1 block">Anschreiben</label>
             <textarea v-model="ausschreibungForm.text" rows="10" class="input resize-none font-mono text-xs leading-relaxed"></textarea>
-            <p class="text-xs text-gray-400 mt-1">Platzhalter: <code>{firma}</code>, <code>{name}</code>, <code>{ort}</code> werden pro Empfänger ersetzt.</p>
+            <p class="text-xs text-gray-400 mt-1">Platzhalter: <code>{firma}</code>, <code>{name}</code>, <code>{ort}</code>, <code>{mbNr}</code>, <code>{exposeUrl}</code> werden pro Empfänger ersetzt.</p>
           </div>
 
           <!-- Vorschau erster Empfänger -->
@@ -236,16 +236,20 @@
             <div class="text-sm text-gray-700 whitespace-pre-wrap border-t border-gray-200 pt-2">{{ replaceVars(ausschreibungForm.text, firstSelected) }}</div>
           </div>
         </div>
-        <div class="px-6 py-4 border-t border-gray-100 sticky bottom-0 bg-white flex justify-end gap-3">
+        <div class="px-6 py-4 border-t border-gray-100 sticky bottom-0 bg-white flex flex-wrap justify-end gap-2">
           <button @click="showAusschreibungModal = false" class="px-4 py-2 text-sm border border-gray-200 rounded-xl">Abbrechen</button>
+          <button @click="sendTestMail" :disabled="!ausschreibungForm.targetId || !ausschreibungForm.betreff || !ausschreibungForm.text || sending"
+            class="flex items-center gap-2 px-4 py-2 border border-amber-200 bg-amber-50 text-amber-800 rounded-xl text-sm disabled:opacity-50">
+            <Send class="w-4 h-4" /> Test-Mail an mich
+          </button>
           <button @click="sendMailto" :disabled="!canSend" class="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-xl text-sm disabled:opacity-50">
             <Mail class="w-4 h-4" /> E-Mail-App öffnen
           </button>
           <button @click="downloadCsv" :disabled="!canSend" class="flex items-center gap-2 px-4 py-2 border border-[#0088ba] text-[#0088ba] rounded-xl text-sm disabled:opacity-50">
             <Download class="w-4 h-4" /> Für Serien-Mail (CSV)
           </button>
-          <button @click="sendAcs" :disabled="!canSend" class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium disabled:opacity-50" title="Wenn ACS-Domain mail.itukv.de verifiziert ist">
-            <Send class="w-4 h-4" /> Direkt senden (ACS)
+          <button @click="sendAcs" :disabled="!canSend || sending" class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium disabled:opacity-50">
+            <Send class="w-4 h-4" /> {{ sending ? 'Sende…' : 'Direkt senden (ACS)' }}
           </button>
         </div>
       </div>
@@ -626,22 +630,25 @@ const canSend = computed(() =>
 function prefillTemplate() {
   const t = (mapData.value.targets || []).find(x => x.id === ausschreibungForm.value.targetId)
   if (!t) return
+  const landingUrl = `https://targets.itukv.de/${(t.mbNr || '').toLowerCase()}`
   if (!ausschreibungForm.value.betreff) {
     ausschreibungForm.value.betreff = `IT-Systemhaus zu verkaufen – ${t.mbNr}`
   }
   if (!ausschreibungForm.value.text) {
     ausschreibungForm.value.text =
-`Sehr geehrte Damen und Herren,
+`Hallo {name},
 
-wir haben Sie als möglichen Käufer eines IT-Unternehmens in unserer Datenbank.
+aktuell betreuen wir den Verkauf eines IT-Systemhauses (Projektnummer ${t.mbNr}) im Raum ${t.ort || t.region || '—'}.
 
-Aktuell betreuen wir den Verkauf eines IT-Systemhauses (Projektnummer ${t.mbNr}) im Raum ${t.ort || t.region || '—'}.
+Das Kurzexposé ist anonymisiert und direkt online einsehbar:
 
-Wenn Sie an einem anonymisierten Kurzexposé Interesse haben, antworten Sie einfach auf diese E-Mail. Nach Unterzeichnung einer Vertraulichkeitsvereinbarung (NDA) stellen wir Ihnen die vollständigen Unterlagen zur Verfügung.
+${landingUrl}
+
+Wenn Du Interesse hast, kannst Du dort Deine Daten hinterlegen, das anonyme Exposé herunterladen, die Vertraulichkeitsvereinbarung (NDA) unterzeichnen und einen Termin mit unserer M&A-Beraterin Jennifer Kaplan buchen.
 
 Mit freundlichen Grüßen
 Mike Bergmann
-mibeca GmbH – M&A Beratung für IT-Unternehmen
+mibeca GmbH – M&A-Beratung für IT-Unternehmen
 www.itukv.de`
   }
 }
@@ -675,8 +682,53 @@ function downloadCsv() {
   URL.revokeObjectURL(url)
 }
 
+const sending = ref(false)
 async function sendAcs() {
-  toast.warn('ACS-Versand wird aktiviert, sobald die DNS-Records bei 1blu für mail.itukv.de gesetzt und verifiziert sind. Solange bitte "E-Mail-App öffnen" oder "CSV für Serien-Mail" nutzen.')
+  if (!canSend.value) return
+  const recipients = selectedKontakte.value.map(k => ({
+    email: k.email, firma: k.firma || '', name: k.name || '', ort: k.ort || '',
+  })).filter(r => r.email)
+  if (!recipients.length) { toast.warn('Keine Empfaenger mit E-Mail.'); return }
+  if (!confirm(`Ausschreibung an ${recipients.length} Empfaenger versenden?`)) return
+  sending.value = true
+  try {
+    const r = await authFetch('/ausschreibung-versand', { method: 'POST', data: {
+      targetId: ausschreibungForm.value.targetId,
+      betreff: ausschreibungForm.value.betreff,
+      text: ausschreibungForm.value.text,
+      recipients,
+    }})
+    toast.success(`${r.sent} Mails versendet${r.failed ? ' (' + r.failed + ' fehlgeschlagen)' : ''}.`)
+    if (r.failed && r.errors?.length) console.warn('Fehler:', r.errors)
+    showAusschreibungModal.value = false
+  } catch (e) {
+    toast.error('Versand fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
+  } finally { sending.value = false }
+}
+
+async function sendTestMail() {
+  if (!ausschreibungForm.value.targetId || !ausschreibungForm.value.betreff || !ausschreibungForm.value.text) {
+    toast.warn('Bitte Target, Betreff und Text ausfuellen.')
+    return
+  }
+  const meineEmail = sessionStorage.getItem('userEmail') || prompt('Test-Mail an welche Adresse?')
+  if (!meineEmail) return
+  // Bei Test-Mail: erstes selektiertes Kontakt als Demo-Daten nehmen (fuer Platzhalter)
+  const demo = firstSelected.value || { firma: 'Test-Firma', name: 'Test-Name', ort: 'Test-Ort' }
+  sending.value = true
+  try {
+    const r = await authFetch('/ausschreibung-versand', { method: 'POST', data: {
+      targetId: ausschreibungForm.value.targetId,
+      betreff: ausschreibungForm.value.betreff,
+      text: ausschreibungForm.value.text,
+      recipients: [{ ...demo }],
+      testEmail: meineEmail,
+    }})
+    if (r.sent) toast.success(`Test-Mail an ${meineEmail} versendet.`)
+    else toast.error('Test fehlgeschlagen: ' + JSON.stringify(r.errors?.[0]))
+  } catch (e) {
+    toast.error('Test fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
+  } finally { sending.value = false }
 }
 const showImport = ref(false)
 const showNewModal = ref(false)

@@ -117,6 +117,11 @@
           <input v-model="landing.terminBookingUrl" @blur="save" placeholder="https://outlook.office.com/.../bookings/s/... (leer lassen = Default-Jenny-Link)" class="input text-sm" />
           <p class="text-[11px] text-gray-400 mt-1">Wenn leer, wird automatisch der Default-Link von Jennifer Kaplan verwendet.</p>
         </div>
+        <div>
+          <label class="lbl">Anmeldungen weiterleiten (Webhook-URL, optional)</label>
+          <input v-model="zapierWebhookUrl" @blur="saveZapierWebhook" placeholder="https://hooks.zapier.com/hooks/catch/... — z.B. Zapier-Hook, der ins Google Sheet schreibt" class="input text-sm" />
+          <p class="text-[11px] text-gray-400 mt-1">Jede neue Anmeldung auf dieser Landing-Page wird zusätzlich an diese URL geschickt (Zapier / Make / Apps Script). Leer = nichts weiterleiten. Diese Einstellung ist <strong>pro Mandat</strong>.</p>
+        </div>
       </div>
     </div>
 
@@ -152,6 +157,8 @@ const landing = ref({
 
 const liveUrl = computed(() => `${LANDING_BASE}/${(target.value?.mbNr || 'mb-xxx').toLowerCase()}`)
 
+const zapierWebhookUrl = ref('')
+
 onMounted(async () => {
   if (!props.targetId) { loaded.value = true; return }
   try {
@@ -162,9 +169,17 @@ onMounted(async () => {
         landing.value = { ...landing.value, ...e, keyFacts: Array.isArray(e.keyFacts) ? e.keyFacts : [] }
       } catch {}
     }
+    zapierWebhookUrl.value = target.value?.zapierWebhookUrl || ''
   } catch (e) { console.error(e) }
   finally { loaded.value = true }
 })
+
+async function saveZapierWebhook() {
+  if (!props.targetId) return
+  try {
+    await authFetch('/target-update', { method: 'POST', data: { id: props.targetId, zapierWebhookUrl: zapierWebhookUrl.value.trim() } })
+  } catch (e) { console.error(e) }
+}
 
 let saveTimer = null
 async function save() {
