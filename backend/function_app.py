@@ -3851,6 +3851,38 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
         "beteiligte": email,
     })
 
+    # Zapier-Webhook (Google Sheets-Sync): bei jeder Landing-Page-Anmeldung Daten weitergeben
+    zap_url = os.environ.get("ZAPIER_INTERESSENT_WEBHOOK_URL", "").strip()
+    if zap_url:
+        try:
+            import urllib.request
+            payload = json.dumps({
+                "timestamp": datetime.utcnow().isoformat(),
+                "mbNr": mb_nr,
+                "firma": firma_final if 'firma_final' in dir() else firma,
+                "name": name,
+                "vorname": vorname,
+                "nachname": nachname,
+                "email": email,
+                "telefon": body.get("telefon", ""),
+                "website": website,
+                "plz": plz_final if 'plz_final' in dir() else plz,
+                "ort": ort_final if 'ort_final' in dir() else ort,
+                "kommentar": body.get("kommentar", ""),
+                "herkunft": f"Landing-Page {mb_nr}",
+                "ndaStatus": "ausstehend",
+                "interessentId": iid,
+                "exposeUrl": f"{LANDING_BASE}/expose-{mb_nr}/{token}",
+                # Aus Impressum-Anreicherung (optional)
+                "enrichFirmenname": enrich.get("firmenname", "") or "",
+                "enrichGeschaeftsfuehrer": entity.get("enrichGeschaeftsfuehrer", ""),
+                "enrichStrasse": enrich.get("strasse", "") or "",
+            }).encode("utf-8")
+            req = urllib.request.Request(zap_url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+            urllib.request.urlopen(req, timeout=5).read()
+        except Exception as ex:
+            logging.warning(f"Zapier-Webhook fehlgeschlagen: {ex}")
+
     # Mail an Interessent: Expose-Link + NDA
     expose_url = f"{LANDING_BASE}/expose-{mb_nr}/{token}"
     if ACS_CONN:
