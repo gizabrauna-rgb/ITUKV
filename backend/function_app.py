@@ -3857,19 +3857,63 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
         try:
             from azure.communication.email import EmailClient
             client = EmailClient.from_connection_string(ACS_CONN)
-            # An Interessent
-            html_int = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
-                <h2 style="color:#097e92">Willkommen bei mibeca · Projekt {mb_nr.upper()}</h2>
-                <p>Hallo {name or firma},</p>
-                <p>vielen Dank für Dein Interesse am Projekt <strong>{mb_nr}</strong>. Hier geht's zu Deinem Exposé-Bereich (Exposé + NDA herunterladen, signiertes NDA hochladen):</p>
-                <p style="margin:24px 0"><a href="{expose_url}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Zum Exposé-Bereich</a></p>
-                <p>Nach Eingang Deines unterschriebenen NDAs schalten wir die Termin-Buchung mit unserer M&amp;A-Beraterin Jennifer Kaplan frei.</p>
-                <p>Viele Grüße<br/>Dein mibeca-Team</p>
-                </body></html>"""
+            # An Interessent — Vorname aus name extrahieren
+            vorname = (name or firma or "").split(" ")[0]
+            html_int = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6;max-width:600px">
+<h2 style="color:#097e92">Dein Exposé zu Projekt {mb_nr.upper()}</h2>
+<p>Hallo {vorname},</p>
+<p>vielen Dank für Dein Interesse am Projekt <strong>{mb_nr.upper()}</strong>.</p>
+<p>Über den nachfolgenden Link erreichst Du Deinen persönlichen Projektbereich. Dort kannst Du das Exposé herunterladen, die Vertraulichkeitsvereinbarung (NDA) herunterladen und das unterschriebene NDA direkt wieder hochladen.</p>
+<p style="margin:24px 0"><a href="{expose_url}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Zum Exposé-Bereich</a></p>
+
+<h3 style="color:#097e92;margin-top:32px">Das Unternehmen hat Dein Interesse geweckt – wie geht es jetzt weiter?</h3>
+
+<p><strong>1. NDA herunterladen und unterschreiben</strong><br/>
+Um die Vertraulichkeit des Verkaufsprozesses zu gewährleisten, benötigen wir zunächst eine unterzeichnete Vertraulichkeitsvereinbarung (NDA).</p>
+
+<p><strong>2. NDA hochladen</strong><br/>
+Lade das unterschriebene NDA anschließend bequem über die Upload-Funktion in Deinem Projektbereich hoch.</p>
+
+<p><strong>3. Termin mit unserer M&amp;A-Beraterin vereinbaren</strong><br/>
+Sobald Dein NDA bei uns eingegangen ist, schalten wir die Terminbuchung mit unserer M&amp;A-Beraterin Jennifer Kaplan frei.</p>
+
+<p>In diesem Gespräch besprechen wir:</p>
+<ul>
+  <li>Deine Kaufabsichten und Zielsetzungen</li>
+  <li>Offene Fragen zum Unternehmen</li>
+  <li>Den weiteren Ablauf des Kaufprozesses</li>
+  <li>Die nächsten Schritte mit dem Verkäufer</li>
+</ul>
+
+<p><strong>4. Kontakt zum Unternehmen</strong><br/>
+Wenn die Rahmenbedingungen für beide Seiten grundsätzlich passen, stimmen wir die nächsten Schritte mit dem Verkäufer ab. Nach dessen Freigabe erhältst Du die Kontaktdaten des Unternehmens und kannst in die vertiefte Prüfung einsteigen.</p>
+
+<div style="background:#f7f8fa;border-left:4px solid #097e92;padding:12px 16px;margin:24px 0;border-radius:4px">
+  <p style="margin:0"><strong>Wichtiger Hinweis</strong><br/>
+  Aus Gründen der Vertraulichkeit können weiterführende Informationen sowie Rückfragen zum Unternehmen erst nach Eingang des unterschriebenen NDA beantwortet werden.</p>
+</div>
+
+<p>Bei Fragen zum Ablauf erreichst Du Jennifer Kaplan unter:<br/>
+<a href="mailto:jk@mike-bergmann.de" style="color:#097e92">jk@mike-bergmann.de</a></p>
+
+<p>Wir freuen uns darauf, Dich durch den weiteren Kaufprozess zu begleiten.</p>
+
+<p>Viele Grüße<br/><br/>
+<strong>Jennifer Kaplan</strong><br/>
+M&amp;A-Beraterin<br/><br/>
+mibeca – Mike Bergmann Akademie</p>
+
+<p style="font-size:13px;color:#666;margin-top:24px"><em>P.S.: Je schneller das unterschriebene NDA bei uns eingeht, desto schneller können wir den nächsten Schritt im Transaktionsprozess gemeinsam angehen.</em></p>
+</body></html>"""
+            plain_int = (f"Hallo {vorname},\n\n"
+                         f"vielen Dank für Dein Interesse am Projekt {mb_nr.upper()}.\n\n"
+                         f"Zum Projektbereich: {expose_url}\n\n"
+                         f"Nächste Schritte: NDA herunterladen & unterschreiben → hochladen → Termin mit Jennifer Kaplan buchen.\n\n"
+                         f"Fragen? jk@mike-bergmann.de\n\nViele Grüße\nJennifer Kaplan\nM&A-Beraterin\nmibeca – Mike Bergmann Akademie")
             client.begin_send({
                 "senderAddress": ACS_SENDER,
                 "recipients": {"to": [{"address": email}]},
-                "content": {"subject": f"Dein Exposé zu Projekt {mb_nr.upper()}", "plainText": f"Exposé-Bereich: {expose_url}", "html": html_int},
+                "content": {"subject": f"Dein Exposé zu Projekt {mb_nr.upper()}", "plainText": plain_int, "html": html_int},
             })
             # An mibeca-Team + Target-User
             notify_to = [os.environ.get("MIBECA_NOTIFY_EMAIL", "jk@mike-bergmann.de")]
@@ -4166,7 +4210,7 @@ def _build_nda_form_for_interessent(i, t):
     return {
         "firma": i.get("firma", ""),
         "vertreten": i.get("name", ""),
-        "adresse": "",
+        "adresse": i.get("strasse", "") or i.get("adresse", ""),
         "plzOrt": (i.get("plz", "") + " " + i.get("ort", "")).strip(),
         "email": i.get("email", ""),
         "ort": i.get("ort", "") or "Uelzen",
@@ -4288,6 +4332,7 @@ def nda_public_sign(req: func.HttpRequest) -> func.HttpResponse:
     token = (body.get("token") or "").strip()
     sig_data = body.get("signatureDataUrl", "")
     code = (body.get("code") or "").strip()
+    daten = body.get("interessentenDaten") or {}
     if not (sig_data and code):
         return err_("signatureDataUrl und code erforderlich", 400)
     if not is_valid_public_token(token):
@@ -4296,6 +4341,12 @@ def nda_public_sign(req: func.HttpRequest) -> func.HttpResponse:
     if not items:
         return err_("Token ungültig", 404)
     i = dict(items[0])
+    # Interessenten-Stammdaten aus dem Modal uebernehmen (ueberschreibt evtl. leere Felder)
+    if daten:
+        for src, dst in [("firma","firma"),("vertreten","name"),("strasse","strasse"),
+                          ("plz","plz"),("ort","ort"),("email","email")]:
+            v = (daten.get(src) or "").strip()
+            if v: i[dst] = v
     # Code prüfen (Salt + Hash + Ablaufzeit)
     salt = i.get("ndaCodeSalt", "")
     expected = i.get("ndaCodeHash", "")
@@ -4380,6 +4431,33 @@ def nda_public_sign(req: func.HttpRequest) -> func.HttpResponse:
     i["ndaSigIp"] = audit["ip"]
     try: table_("interessenten").update_entity(i)
     except Exception: pass
+
+    # Auto-Kontakt-Anlage: wenn die E-Mail noch nicht in der zentralen Kontaktliste ist,
+    # neuen Kontakt anlegen (Firma/Name/Adresse aus NDA-Daten).
+    try:
+        new_email = (i.get("email") or "").strip().lower()
+        if new_email:
+            existiert = list(table_("kontakte").query_entities("email eq @e", parameters={"e": new_email}))
+            if not existiert:
+                kontakt_id = str(uuid.uuid4())
+                table_("kontakte").create_entity({
+                    "PartitionKey": "kontakt",
+                    "RowKey": kontakt_id,
+                    "firma": i.get("firma", ""),
+                    "name": i.get("name", ""),
+                    "email": i.get("email", ""),
+                    "strasse": i.get("strasse", ""),
+                    "plz": i.get("plz", ""),
+                    "ort": i.get("ort", ""),
+                    "quelle": f"NDA-Signatur Projekt {t.get('mbNr','')}",
+                    "istKunde": False,
+                    "createdAt": datetime.utcnow().isoformat(),
+                    "createdVia": "nda-public-sign",
+                })
+                logging.info(f"Kontakt automatisch angelegt: {i.get('firma')} ({new_email})")
+    except Exception as ex:
+        logging.warning(f"Auto-Kontakt-Anlage fehlgeschlagen: {ex}")
+
     # Verlauf-Eintrag
     _verlauf_append(target_id, {
         "id": "k" + str(int(datetime.utcnow().timestamp() * 1000)),

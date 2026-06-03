@@ -91,7 +91,7 @@
             <p class="text-sm text-gray-600 mb-5">Wähle den Weg, der für Dich am bequemsten ist:</p>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <button @click="showSignModal = true"
+              <button @click="openSignModal"
                 class="md:col-span-3 flex items-center justify-center gap-2 px-4 py-4 bg-[#FF6F00] text-white rounded-xl text-sm font-semibold hover:bg-[#e56500]">
                 <PenTool class="w-5 h-5" /> Jetzt online unterschreiben
               </button>
@@ -243,13 +243,50 @@
         </div>
 
         <div class="p-6 overflow-y-auto flex-1">
-          <!-- ===== Schritt 1: Unterschrift ===== -->
+          <!-- ===== Schritt 1: Daten + Unterschrift ===== -->
           <template v-if="signStep === 1">
             <p class="text-sm text-gray-600 mb-4">
-              Schreibe Deine Unterschrift mit der Maus oder dem Finger in das Feld unten.
-              Mit Klick auf „Weiter" bestätigst Du die Vereinbarung digital
-              (einfache elektronische Signatur gemäß eIDAS Art. 25 Abs. 1).
+              Bitte ergänze Deine Daten, schreib Deine Unterschrift in das Feld und klick auf „Weiter".
+              Damit bestätigst Du die Vereinbarung digital (einfache elektronische Signatur gemäß eIDAS Art. 25 Abs. 1).
             </p>
+
+            <!-- Interessenten-Daten -->
+            <div class="bg-gray-50 border border-gray-100 rounded-xl p-4 mb-4 space-y-3">
+              <h4 class="text-xs font-semibold text-gray-700 uppercase tracking-wide">Deine Daten</h4>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="col-span-2">
+                  <label class="block text-[11px] text-gray-600 mb-0.5">Firma / Unternehmen *</label>
+                  <input v-model="signForm.firma" type="text" placeholder="z.B. Muster IT GmbH"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                </div>
+                <div class="col-span-2">
+                  <label class="block text-[11px] text-gray-600 mb-0.5">Vertreten durch *</label>
+                  <input v-model="signForm.vertreten" type="text" placeholder="Vor- und Nachname (zeichnungsberechtigt)"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                </div>
+                <div class="col-span-2">
+                  <label class="block text-[11px] text-gray-600 mb-0.5">Straße + Nr. *</label>
+                  <input v-model="signForm.strasse" type="text" placeholder="Musterstr. 1"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label class="block text-[11px] text-gray-600 mb-0.5">PLZ *</label>
+                  <input v-model="signForm.plz" type="text" placeholder="12345"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label class="block text-[11px] text-gray-600 mb-0.5">Ort *</label>
+                  <input v-model="signForm.ort" type="text" placeholder="Musterstadt"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                </div>
+                <div class="col-span-2">
+                  <label class="block text-[11px] text-gray-600 mb-0.5">E-Mail *</label>
+                  <input v-model="signForm.email" type="email" placeholder="anna@muster-it.de"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                </div>
+              </div>
+              <p v-if="formError" class="text-xs text-red-600">{{ formError }}</p>
+            </div>
 
             <div class="mb-3 flex items-center justify-between">
               <button @click="openPreview('nda')" class="text-xs text-[#0088ba] hover:underline flex items-center gap-1">
@@ -269,7 +306,7 @@
 
             <label class="flex items-start gap-2 text-xs text-gray-600 mb-4">
               <input type="checkbox" v-model="zustimmung" class="mt-0.5" />
-              <span>Ich, <strong>{{ data?.name || data?.firma }}</strong>, bestätige, dass ich berechtigt bin, diese Vereinbarung für <strong>{{ data?.firma || '(Firma)' }}</strong> rechtsverbindlich zu unterzeichnen.</span>
+              <span>Ich, <strong>{{ signForm.vertreten || '(Name)' }}</strong>, bestätige, dass ich berechtigt bin, diese Vereinbarung für <strong>{{ signForm.firma || '(Firma)' }}</strong> rechtsverbindlich zu unterzeichnen.</span>
             </label>
 
             <div class="flex gap-3">
@@ -336,6 +373,12 @@ const canvasDirty = ref(false)
 const signStep = ref(1)         // 1 = Unterschrift, 2 = Code-Eingabe
 const codeSending = ref(false)
 const codeInput = ref('')
+
+// Interessenten-Daten fuer NDA (Adresse usw.)
+const signForm = ref({
+  firma: '', vertreten: '', strasse: '', plz: '', ort: '', email: '',
+})
+const formError = ref('')
 
 const ndaUnterzeichnet = computed(() => data.value?.ndaStatus === 'unterzeichnet')
 
@@ -447,15 +490,46 @@ function endDraw() { drawing = false }
 function startDrawTouch(e) { e.preventDefault(); startDraw(e.touches[0]) }
 function drawTouch(e) { e.preventDefault(); draw(e.touches[0]) }
 
+function openSignModal() {
+  // Daten aus vorhandenem Interessent-Record vorbefuellen, sofern verfuegbar
+  signForm.value.firma     = data.value?.firma || ''
+  signForm.value.vertreten = data.value?.name || ''
+  signForm.value.strasse   = data.value?.strasse || data.value?.adresse || ''
+  signForm.value.plz       = data.value?.plz || ''
+  signForm.value.ort       = data.value?.ort || ''
+  signForm.value.email     = data.value?.email || ''
+  formError.value = ''
+  showSignModal.value = true
+}
+
 function closeSignModal() {
   showSignModal.value = false
   zustimmung.value = false
   canvasDirty.value = false
   signStep.value = 1
   codeInput.value = ''
+  formError.value = ''
+}
+
+function validateSignForm() {
+  const f = signForm.value
+  const missing = []
+  if (!f.firma.trim())     missing.push('Firma')
+  if (!f.vertreten.trim()) missing.push('Vertreten durch')
+  if (!f.strasse.trim())   missing.push('Straße')
+  if (!f.plz.trim())       missing.push('PLZ')
+  if (!f.ort.trim())       missing.push('Ort')
+  if (!f.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) missing.push('gültige E-Mail')
+  if (missing.length) {
+    formError.value = 'Bitte ausfüllen: ' + missing.join(', ')
+    return false
+  }
+  formError.value = ''
+  return true
 }
 
 async function requestCode() {
+  if (!validateSignForm()) return
   codeSending.value = true
   try {
     await ndaPublicSendCode(token)
@@ -467,13 +541,19 @@ async function requestCode() {
 
 async function submitSign() {
   if (!canvasDirty.value || !zustimmung.value || codeInput.value.length !== 6) return
+  if (!validateSignForm()) { signStep.value = 1; return }
   signing.value = true
   try {
     const dataUrl = canvasEl.value.toDataURL('image/png')
     const res = await fetch(`${apiBase}/nda-public-sign`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, signatureDataUrl: dataUrl, code: codeInput.value }),
+      body: JSON.stringify({
+        token,
+        signatureDataUrl: dataUrl,
+        code: codeInput.value,
+        interessentenDaten: { ...signForm.value },
+      }),
     })
     if (!res.ok) {
       const d = await res.json().catch(() => ({}))
