@@ -263,6 +263,47 @@
       </div>
     </div>
 
+    <!-- Sicherheits-Modal: potenzielle Mandanten-Mitarbeiter -->
+    <div v-if="riskyModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] px-4">
+      <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+        <div class="px-6 py-4 border-b border-red-100 bg-red-50">
+          <h3 class="font-bold text-red-900 flex items-center gap-2">
+            <AlertCircle class="w-5 h-5" /> Sicherheits-Prüfung: mögliche Mandanten-Mitarbeiter
+          </h3>
+          <p class="text-xs text-red-800 mt-1">
+            Es wurden {{ riskyModal.risky.length }} Empfänger gefunden, die möglicherweise zum Mandanten gehören.
+            <strong>Vor dem Versand bitte prüfen</strong> — Haken setzen bedeutet „ist KEIN Mandanten-Mitarbeiter, darf Mail bekommen".
+          </p>
+        </div>
+        <div class="p-6 overflow-y-auto flex-1 space-y-2">
+          <div v-for="entry in riskyModal.risky" :key="entry.idx"
+            class="flex items-start gap-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50">
+            <input type="checkbox"
+              :checked="!riskyAusgeschlossen.has(entry.idx)"
+              @change="e => { const s = new Set(riskyAusgeschlossen); if (e.target.checked) s.delete(entry.idx); else s.add(entry.idx); riskyAusgeschlossen = s }"
+              class="mt-1" />
+            <div class="flex-1 min-w-0">
+              <div class="font-semibold text-sm">{{ entry.recipient.firma || entry.recipient.name }}</div>
+              <div class="text-xs text-gray-600 truncate">{{ entry.recipient.email }}</div>
+              <div class="text-[10px] text-red-700 mt-1 italic">⚠ {{ entry.grund }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50">
+          <div class="text-xs text-gray-600">
+            {{ riskyModal.allRecipients.length - riskyAusgeschlossen.size }} von {{ riskyModal.allRecipients.length }} Empfängern werden Mails erhalten
+          </div>
+          <div class="flex gap-2">
+            <button @click="riskyModal = null" class="px-4 py-2 text-sm border border-gray-200 rounded-xl">Abbrechen</button>
+            <button @click="confirmRiskyAndSend" :disabled="sending"
+              class="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 disabled:opacity-50">
+              {{ sending ? 'Sende…' : 'So versenden' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Import Modal -->
     <div v-if="showImport" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
       <div class="bg-white rounded-2xl p-6 w-full max-w-sm">
@@ -715,12 +756,67 @@ function downloadCsv() {
 }
 
 const sending = ref(false)
+// Sicherheits-Pruefung: identifiziert Empfaenger, die wahrscheinlich Mitarbeiter
+// des Mandanten sind (Domain-Match, Firmen-Name-Match). Gibt Liste von Indices zurueck.
+function findRiskyRecipients(recipients) {
+  const t = (mapData.value.targets || []).find(x => x.id === ausschreibungForm.value.targetId)
+  if (!t) return []
+  // Mandanten-Identifier sammeln + normalisieren
+  const targetFirma = ((t.firma || t.verkaueferName || '') + '').toLowerCase().trim()
+  const targetWebsite = (t.website || '').toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '').trim()
+  // Stoppwoerter, die zu vielen false-positives fuehren (gmbh etc.)
+  const stoppwoerter = new Set(['gmbh','ag','kg','ohg','co','und','&','it','systemhaus','services','solutions','consulting','gmbh & co kg'])
+  // Signifikante Tokens aus Firmenname extrahieren (z.B. "Weingarten PC-Service GmbH" -> "weingarten","pc-service")
+  const tokens = targetFirma.split(/[\s\-_.&]+/).map(s => s.toLowerCase()).filter(s => s && s.length > 2 && !stoppwoerter.has(s))
+  const risky = []
+  for (let i = 0; i < recipients.length; i++) {
+    const r = recipients[i]
+    const email = (r.email || '').toLowerCase()
+    const firma = (r.firma || '').toLowerCase()
+    const domain = email.split('@')[1] || ''
+    let grund = null
+    // Treffer 1: E-Mail-Domain matched Website-Domain
+    if (targetWebsite && domain && (domain === targetWebsite || domain.endsWith('.' + targetWebsite) || targetWebsite.endsWith('.' + domain))) {
+      grund = `E-Mail-Domain ${domain} = Mandanten-Website ${targetWebsite}`
+    }
+    // Treffer 2: Empfaenger-Firma enthaelt Mandanten-Firmenname oder umgekehrt
+    if (!grund && firma && targetFirma) {
+      for (const tok of tokens) {
+        if (firma.includes(tok)) { grund = `Empfaenger-Firma „${r.firma}" enthält „${tok}"`; break }
+      }
+    }
+    // Treffer 3: E-Mail-Local-Part oder Domain enthaelt signifikantes Token
+    if (!grund && email && tokens.length) {
+      for (const tok of tokens) {
+        if (email.includes(tok)) { grund = `E-Mail enthält „${tok}"`; break }
+      }
+    }
+    if (grund) risky.push({ idx: i, recipient: r, grund })
+  }
+  return risky
+}
+
+// Sicherheits-Modal-State
+const riskyModal = ref(null) // { risky: [...], allRecipients: [...] }
+const riskyAusgeschlossen = ref(new Set())
+
 async function sendAcs() {
   if (!canSend.value) return
   const recipients = selectedKontakte.value.map(k => ({
     email: k.email, firma: k.firma || '', name: k.name || '', ort: k.ort || '',
   })).filter(r => r.email)
   if (!recipients.length) { toast.warn('Keine Empfaenger mit E-Mail.'); return }
+  // Sicherheits-Pruefung: wenn riskante Empfaenger gefunden -> Modal zeigen
+  const risky = findRiskyRecipients(recipients)
+  if (risky.length) {
+    riskyAusgeschlossen.value = new Set(risky.map(r => r.idx))  // alle initial ausgeschlossen
+    riskyModal.value = { risky, allRecipients: recipients }
+    return
+  }
+  return doSend(recipients)
+}
+
+async function doSend(recipients) {
   if (!confirm(`Ausschreibung an ${recipients.length} Empfaenger versenden?`)) return
   sending.value = true
   try {
@@ -733,9 +829,18 @@ async function sendAcs() {
     toast.success(`${r.sent} Mails versendet${r.failed ? ' (' + r.failed + ' fehlgeschlagen)' : ''}.`)
     if (r.failed && r.errors?.length) console.warn('Fehler:', r.errors)
     showAusschreibungModal.value = false
+    riskyModal.value = null
   } catch (e) {
     toast.error('Versand fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
   } finally { sending.value = false }
+}
+
+function confirmRiskyAndSend() {
+  if (!riskyModal.value) return
+  const ausgeschlossen = riskyAusgeschlossen.value
+  const finalRecipients = riskyModal.value.allRecipients.filter((_, idx) => !ausgeschlossen.has(idx))
+  if (!finalRecipients.length) { toast.warn('Alle Empfaenger ausgeschlossen.'); return }
+  doSend(finalRecipients)
 }
 
 async function sendTestMail() {
