@@ -1330,13 +1330,10 @@ def ausschreibung_versand(req: func.HttpRequest) -> func.HttpResponse:
     if not test_email:
         now_iso = datetime.utcnow().isoformat()
         autor = p.get("name") or p.get("email", "")
-        # Info-Mail an Mandant: Kampagne gestartet
+        # Info-Mail an Mandant: Kampagne gestartet — STRIKT nur an privatEmail.
+        # Wichtig: kein Fallback auf Geschaefts- oder User-Mail, damit die Info
+        # NUR auf der vertraulichen Privatadresse des Mandanten landet.
         mandant_email = (t.get("privatEmail") or "").strip()
-        if not mandant_email:
-            try:
-                for u in table_("users").query_entities("targetId eq @t", parameters={"t": tid}):
-                    if u.get("email"): mandant_email = u["email"]; break
-            except Exception: pass
         if mandant_email:
             try:
                 mandant_vorname = _first_name(t.get("vorname") or t.get("verkaueferName") or "")
