@@ -1352,11 +1352,30 @@ def ausschreibung_versand(req: func.HttpRequest) -> func.HttpResponse:
                 + text_to_html(render(text_tpl, r))
                 + '</body></html>'
             )
-            _acs_dispatch(client, {
+            # Pro Empfaenger eindeutigen Reply-Token erzeugen → Antworten landen via
+            # SendGrid Inbound Parse automatisch im richtigen Verlauf.
+            msg = {
                 "senderAddress": ACS_SENDER,
                 "recipients": {"to": [{"address": r["email"]}]},
                 "content": {"subject": subj, "plainText": render(text_tpl, r), "html": html_body},
-            })
+            }
+            try:
+                token = secrets.token_urlsafe(12)
+                _replytokens_table().create_entity({
+                    "PartitionKey": "token", "RowKey": token,
+                    "targetId": tid,
+                    "kontaktEmail": (r.get("email") or "").lower(),
+                    "originalSender": p.get("email", ""),
+                    "createdAt": datetime.utcnow().isoformat(),
+                })
+                reply_domain = os.environ.get("REPLY_DOMAIN", "reply.itukv.de")
+                msg["replyTo"] = [{"address": f"verlauf+{token}@{reply_domain}", "displayName": "Jennifer Kaplan"}]
+            except Exception as ex:
+                logging.warning(f"Reply-Token erzeugen fehlgeschlagen: {ex}")
+                # Fallback: globalen Reply-To verwenden
+                rt = acs_reply_to()
+                if rt: msg["replyTo"] = rt
+            client.begin_send(msg)
             sent += 1
             # SOFORT pro Empfaenger den Kontakt-Verlauf-Eintrag schreiben.
             # So weiss man bei Abbruch genau, wer schon eine Mail bekommen hat.
