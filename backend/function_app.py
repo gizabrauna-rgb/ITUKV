@@ -1242,15 +1242,19 @@ def ausschreibung_update(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="ausschreibung-versand", methods=["POST", "OPTIONS"])
 def ausschreibung_versand(req: func.HttpRequest) -> func.HttpResponse:
-    """Versendet die Ausschreibung als Massen-Mail via ACS.
+    """Versendet die Ausschreibung als Massen-Mail via ACS — chunk-faehig.
     Body: {
       targetId: str,
-      betreff: str (Template, darf {firma},{name},{ort},{mbNr},{exposeUrl} enthalten),
+      betreff: str (Template),
       text: str (Template),
-      recipients: [{ email, firma?, name?, ort? }],  # bei testEmail leer
+      recipients: [{ email, firma?, name?, ort? }],
       testEmail: str (optional) — wenn gesetzt: nur 1 Mail an diese Adresse
+      skipExisting: bool (optional, default true) — Empfaenger, die fuer dieses
+        Mandat schon einen Verlauf-Eintrag haben, werden ausgelassen (Dedup)
+      writeMandantInfo: bool (optional, default false) — nur beim ersten Chunk
+        senden, sonst kommen mehrere Mandant-Info-Mails
     }
-    Antwort: { sent, failed, errors[] }"""
+    Antwort: { sent, failed, skipped, errors[] }"""
     if req.method == "OPTIONS":
         return opt_()
     p = auth_user(req)
@@ -1291,13 +1295,16 @@ def ausschreibung_versand(req: func.HttpRequest) -> func.HttpResponse:
         paragraphs = [p.replace("\n", "<br>") for p in safe.split("\n\n")]
         return "".join(f"<p>{p}</p>" for p in paragraphs)
 
+    skip_existing = bool(body.get("skipExisting", True))
+    write_mandant_info = bool(body.get("writeMandantInfo", False))
+    filter_beschreibung = (body.get("filterBeschreibung") or "alle Kontakte").strip()
+
     from azure.communication.email import EmailClient
     client = EmailClient.from_connection_string(ACS_CONN)
-    sent = 0; failed = 0; errors = []
+    sent = 0; failed = 0; skipped = 0; errors = []
 
     targets_list = []
     if test_email:
-        # Demo-Empfaenger fuer Test mit Platzhaltern; nimmt ersten Recipient als Daten oder Fallback
         demo = (recipients[0] if recipients else {}) or {"firma": "Test-Firma", "name": "Test-Name", "ort": "Test-Ort"}
         demo = {**demo, "email": test_email}
         targets_list = [demo]
@@ -1307,7 +1314,37 @@ def ausschreibung_versand(req: func.HttpRequest) -> func.HttpResponse:
     if not targets_list:
         return err_("Keine Empfaenger angegeben", 400)
 
+    # === Pre-Load: alle Kontakte einmal als Dict laden (vermeidet O(N*M) Full-Scan pro Empfaenger) ===
+    kontakte_by_email = {}
+    if not test_email:
+        try:
+            for k in table_("kontakte").list_entities():
+                em = (k.get("email", "") or "").strip().lower()
+                if em: kontakte_by_email[em] = dict(k)
+        except Exception as ex:
+            logging.warning(f"Kontakte-Vorladung fehlgeschlagen: {ex}")
+
+    autor = p.get("name") or p.get("email", "")
+    tc = table_("kontakte")
+
+    def already_sent_to(email_lc):
+        """Prueft ob der Kontakt schon einen mail_out-Eintrag fuer dieses Mandat hat."""
+        k = kontakte_by_email.get(email_lc)
+        if not k: return False
+        try: v = json.loads(k.get("verlaufJson") or "[]")
+        except: return False
+        if not isinstance(v, list): return False
+        for ev in v:
+            if (ev.get("kontextMbNr", "") or "").lower() == mb_nr.lower() and ev.get("typ") == "mail_out":
+                return True
+        return False
+
     for r in targets_list:
+        rec_email = (r.get("email") or "").strip().lower()
+        # Skip-Logik (nur im echten Versand, nicht beim Test)
+        if not test_email and skip_existing and rec_email and already_sent_to(rec_email):
+            skipped += 1
+            continue
         try:
             subj = render(betreff_tpl, r)
             html_body = (
@@ -1315,24 +1352,39 @@ def ausschreibung_versand(req: func.HttpRequest) -> func.HttpResponse:
                 + text_to_html(render(text_tpl, r))
                 + '</body></html>'
             )
-            client.begin_send({
+            _acs_dispatch(client, {
                 "senderAddress": ACS_SENDER,
                 "recipients": {"to": [{"address": r["email"]}]},
                 "content": {"subject": subj, "plainText": render(text_tpl, r), "html": html_body},
             })
             sent += 1
+            # SOFORT pro Empfaenger den Kontakt-Verlauf-Eintrag schreiben.
+            # So weiss man bei Abbruch genau, wer schon eine Mail bekommen hat.
+            if not test_email and rec_email and rec_email in kontakte_by_email:
+                kontakt = kontakte_by_email[rec_email]
+                try: kverlauf = json.loads(kontakt.get("verlaufJson") or "[]")
+                except: kverlauf = []
+                if not isinstance(kverlauf, list): kverlauf = []
+                kverlauf.append({
+                    "id": "kv" + str(int(datetime.utcnow().timestamp() * 1000)) + secrets.token_hex(2),
+                    "typ": "mail_out",
+                    "datum": datetime.utcnow().isoformat(),
+                    "autor": autor,
+                    "betreff": subj,
+                    "beschreibung": render(text_tpl, r),
+                    "kontextTargetId": tid,
+                    "kontextMbNr": mb_nr,
+                })
+                kontakt["verlaufJson"] = json.dumps(kverlauf, ensure_ascii=False)
+                try: tc.update_entity(kontakt)
+                except Exception as ex: logging.warning(f"Kontakt-Verlauf-Write {rec_email}: {ex}")
         except Exception as ex:
             failed += 1
             errors.append({"email": r.get("email", ""), "error": str(ex)})
 
-    # Verlauf-Eintrag im TARGET (intern: True, damit Verkaeufer es nicht sieht — nur mibeca)
-    # Plus jeder Kontakt im CRM bekommt einen Eintrag in seinem eigenen Verlauf.
-    if not test_email:
+    # Mandant-Info-Mail + Target-Verlauf nur beim ersten Chunk schreiben (writeMandantInfo=true)
+    if not test_email and write_mandant_info:
         now_iso = datetime.utcnow().isoformat()
-        autor = p.get("name") or p.get("email", "")
-        # Info-Mail an Mandant: Kampagne gestartet — STRIKT nur an privatEmail.
-        # Wichtig: kein Fallback auf Geschaefts- oder User-Mail, damit die Info
-        # NUR auf der vertraulichen Privatadresse des Mandanten landet.
         mandant_email = (t.get("privatEmail") or "").strip()
         if mandant_email:
             try:
@@ -1341,8 +1393,8 @@ def ausschreibung_versand(req: func.HttpRequest) -> func.HttpResponse:
                     '<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">'
                     f'<h2 style="color:#0088ba">Kampagne gestartet — Projekt {mb_nr}</h2>'
                     f'<p>Hallo {mandant_vorname or "zusammen"},</p>'
-                    f'<p>kurze Info zu Deinem Projekt <strong>{mb_nr}</strong>: Wir haben heute die Marktansprache gestartet.</p>'
-                    f'<p><strong>{sent} potenzielle Interessenten</strong> haben soeben eine anonymisierte Ausschreibung erhalten und können sich über die Landing-Page für das Exposé eintragen.</p>'
+                    f'<p>kurze Info zu Deinem Projekt <strong>{mb_nr}</strong>: Wir haben soeben die Marktansprache gestartet.</p>'
+                    f'<p>Die Ausschreibung läuft an potenzielle Interessenten, die sich über die Landing-Page für das Exposé eintragen können.</p>'
                     f'<p>Sobald die ersten Rückmeldungen kommen, melden wir uns mit den nächsten Schritten.</p>'
                     f'<p>Viele Grüße<br/>Dein M&amp;A-Team der Mike Bergmann Akademie</p>'
                     '</body></html>'
@@ -1352,7 +1404,7 @@ def ausschreibung_versand(req: func.HttpRequest) -> func.HttpResponse:
                     "recipients": {"to": [{"address": mandant_email}]},
                     "content": {
                         "subject": f"Kampagne gestartet — Projekt {mb_nr}",
-                        "plainText": f"Hallo {mandant_vorname},\n\nKampagne fuer Projekt {mb_nr} ist gestartet: {sent} potenzielle Interessenten wurden angeschrieben.\n\nViele Gruesse\nDein M&A-Team der Mike Bergmann Akademie",
+                        "plainText": f"Hallo {mandant_vorname},\n\nKampagne fuer Projekt {mb_nr} ist gestartet.\n\nViele Gruesse\nDein M&A-Team der Mike Bergmann Akademie",
                         "html": info_html,
                     },
                 })
@@ -1363,40 +1415,51 @@ def ausschreibung_versand(req: func.HttpRequest) -> func.HttpResponse:
             "typ": "mail_out",
             "datum": now_iso,
             "autor": autor,
-            "betreff": f"Ausschreibung an {sent} Empfaenger versendet",
-            "beschreibung": f"Mass-Mail '{betreff_tpl[:80]}' an {sent} Empfaenger (failed: {failed}).",
-            "intern": True,
+            "betreff": f"Ausschreibung versendet — Verteiler: {filter_beschreibung}",
+            "beschreibung": f'Marktansprache gestartet. Verteiler: {filter_beschreibung}. Betreff der Ausschreibung: „{betreff_tpl[:120]}".',
         })
-        # Pro Empfaenger ein Eintrag in seinem Kontakt-Verlauf (kontakte.verlaufJson)
-        try:
-            tc = table_("kontakte")
-            for r in targets_list:
-                rec_email = (r.get("email") or "").strip().lower()
-                if not rec_email: continue
-                kontakt = None
-                for k in tc.list_entities():
-                    if (k.get("email", "") or "").strip().lower() == rec_email:
-                        kontakt = dict(k); break
-                if not kontakt: continue
-                try: kverlauf = json.loads(kontakt.get("verlaufJson") or "[]")
-                except: kverlauf = []
-                if not isinstance(kverlauf, list): kverlauf = []
-                kverlauf.append({
-                    "id": "kv" + str(int(datetime.utcnow().timestamp() * 1000)) + secrets.token_hex(2),
-                    "typ": "mail_out",
-                    "datum": now_iso,
-                    "autor": autor,
-                    "betreff": render(betreff_tpl, r),
-                    "beschreibung": render(text_tpl, r),
-                    "kontextTargetId": tid,
-                    "kontextMbNr": mb_nr,
-                })
-                kontakt["verlaufJson"] = json.dumps(kverlauf, ensure_ascii=False)
-                tc.update_entity(kontakt)
-        except Exception as ex:
-            logging.warning(f"Kontakt-Verlauf-Update fehlgeschlagen: {ex}")
 
-    return ok_({"sent": sent, "failed": failed, "errors": errors[:10]})
+    return ok_({"sent": sent, "failed": failed, "skipped": skipped, "errors": errors[:10]})
+
+
+@app.route(route="kontakt-verlauf-add", methods=["POST", "OPTIONS"])
+def kontakt_verlauf_add(req: func.HttpRequest) -> func.HttpResponse:
+    """Fuegt einem Kontakt (per E-Mail identifiziert) einen Verlauf-Eintrag hinzu.
+    Body: { email, eintrag: { typ, betreff, beschreibung, datum? } }
+    Admin-only."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    email = (body.get("email") or "").strip().lower()
+    eintrag = body.get("eintrag") or {}
+    if not (email and (eintrag.get("betreff") or eintrag.get("beschreibung"))):
+        return err_("email und eintrag mit betreff/beschreibung erforderlich", 400)
+    tc = table_("kontakte")
+    kontakt = None
+    for k in tc.list_entities():
+        if (k.get("email", "") or "").strip().lower() == email:
+            kontakt = dict(k); break
+    if not kontakt:
+        return err_("Kontakt nicht gefunden", 404)
+    try: kverlauf = json.loads(kontakt.get("verlaufJson") or "[]")
+    except: kverlauf = []
+    if not isinstance(kverlauf, list): kverlauf = []
+    neu = {
+        "id": "kv" + str(int(datetime.utcnow().timestamp() * 1000)) + secrets.token_hex(2),
+        "typ": eintrag.get("typ") or "notiz",
+        "datum": eintrag.get("datum") or datetime.utcnow().isoformat(),
+        "autor": p.get("name") or p.get("email", ""),
+        "betreff": eintrag.get("betreff", ""),
+        "beschreibung": eintrag.get("beschreibung", ""),
+        "manuell": True,
+    }
+    kverlauf.append(neu)
+    kontakt["verlaufJson"] = json.dumps(kverlauf, ensure_ascii=False)
+    tc.update_entity(kontakt)
+    return ok_({"entry": neu})
 
 
 @app.route(route="ausschreibung-delete", methods=["POST", "OPTIONS"])
@@ -4088,17 +4151,33 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as ex:
         logging.warning(f"CRM-Eintrag fehlgeschlagen: {ex}")
 
-    # Verlauf-Eintrag im Target
-    _verlauf_append(target_id, {
-        "id": "k" + str(int(datetime.utcnow().timestamp() * 1000)),
-        "typ": "wichtig",
-        "datum": datetime.utcnow().isoformat(),
-        "autor": "Landing-Page",
-        "betreff": f"Neue Anfrage von {firma or name}",
-        "beschreibung": f"Interessent hat sich über die Landing-Page {mb_nr} eingetragen. E-Mail: {email}",
-        "beteiligte": email,
-        "intern": True,  # Identitaet des Interessenten — Verkaeufer sieht das nicht
-    })
+    # Eintrag im Kontakt-Verlauf (kontakte.verlaufJson) — fuer CRM-Akten-Ansicht
+    # (KEIN Eintrag im Target-Verlauf — das ist nur Mandanten-Kommunikation.
+    #  Interessenten-Anmeldungen sieht mibeca im Interessenten-Tab.)
+    try:
+        tc = table_("kontakte")
+        kontakt = None
+        for k in tc.list_entities():
+            if (k.get("email", "") or "").strip().lower() == (email or "").lower():
+                kontakt = dict(k); break
+        if kontakt:
+            try: kverlauf = json.loads(kontakt.get("verlaufJson") or "[]")
+            except: kverlauf = []
+            if not isinstance(kverlauf, list): kverlauf = []
+            kverlauf.append({
+                "id": "kv" + str(int(datetime.utcnow().timestamp() * 1000)),
+                "typ": "wichtig",
+                "datum": datetime.utcnow().isoformat(),
+                "autor": "Landing-Page",
+                "betreff": f"Für Exposé angemeldet ({mb_nr})",
+                "beschreibung": f"Hat sich über die Landing-Page für das Exposé eingetragen.{(' Kommentar: ' + body.get('kommentar')) if body.get('kommentar') else ''}",
+                "kontextTargetId": target_id,
+                "kontextMbNr": mb_nr,
+            })
+            kontakt["verlaufJson"] = json.dumps(kverlauf, ensure_ascii=False)
+            tc.update_entity(kontakt)
+    except Exception as ex:
+        logging.warning(f"Kontakt-Verlauf-Eintrag (Anmeldung) fehlgeschlagen: {ex}")
 
     # Zapier-Webhook (Google Sheets-Sync) — PRO Mandat individuell konfigurierbar.
     # Das Feld `zapierWebhookUrl` am Target steuert, ob/wohin die Anmeldedaten
@@ -4739,16 +4818,36 @@ def nda_public_sign(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as ex:
         logging.warning(f"Auto-Kontakt-Anlage fehlgeschlagen: {ex}")
 
-    # Verlauf-Eintrag
-    _verlauf_append(target_id, {
-        "id": "k" + str(int(datetime.utcnow().timestamp() * 1000)),
-        "typ": "wichtig",
-        "datum": datetime.utcnow().isoformat(),
-        "autor": i.get("firma") or i.get("name") or i.get("email", ""),
-        "betreff": "NDA online signiert",
-        "beschreibung": f"{i.get('firma') or i.get('name')} hat das NDA online unterschrieben (IP: {audit['ip']}).",
-        "beteiligte": i.get("email", ""),
-    })
+    # Kein Target-Verlauf-Eintrag — Interessenten-Aktionen sieht der Mandant
+    # im Interessenten-Tab, mibeca dort auch. Target-Verlauf ist ausschliesslich
+    # fuer mibeca-Aktionen am Mandanten (z.B. Ausschreibung versendet).
+    # Kontakt-Verlauf-Eintrag (CRM-Sicht):
+    try:
+        tc = table_("kontakte")
+        rec_email_lc = (i.get("email") or "").strip().lower()
+        if rec_email_lc:
+            kontakt = None
+            for k in tc.list_entities():
+                if (k.get("email", "") or "").strip().lower() == rec_email_lc:
+                    kontakt = dict(k); break
+            if kontakt:
+                try: kverlauf = json.loads(kontakt.get("verlaufJson") or "[]")
+                except: kverlauf = []
+                if not isinstance(kverlauf, list): kverlauf = []
+                kverlauf.append({
+                    "id": "kv" + str(int(datetime.utcnow().timestamp() * 1000)),
+                    "typ": "wichtig",
+                    "datum": datetime.utcnow().isoformat(),
+                    "autor": i.get("name") or i.get("firma", ""),
+                    "betreff": f"NDA signiert ({t.get('mbNr','')})",
+                    "beschreibung": f"NDA online unterschrieben (IP: {audit['ip']}).",
+                    "kontextTargetId": target_id,
+                    "kontextMbNr": t.get('mbNr', ''),
+                })
+                kontakt["verlaufJson"] = json.dumps(kverlauf, ensure_ascii=False)
+                tc.update_entity(kontakt)
+    except Exception as ex:
+        logging.warning(f"Kontakt-Verlauf-Eintrag (NDA) fehlgeschlagen: {ex}")
     # Bestaetigungs-Mail (selber Block wie /nda-upload)
     if ACS_CONN:
         try:

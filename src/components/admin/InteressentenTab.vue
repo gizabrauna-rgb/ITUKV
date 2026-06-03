@@ -177,6 +177,47 @@
               <div class="font-semibold text-green-900">NDA unterzeichnet</div>
               <div class="text-xs text-green-800 mt-1">am {{ longDate(detail.ndaUploadedAt) }} {{ detail.ndaSignedOnline ? '(online)' : '(per Upload)' }}</div>
             </div>
+
+            <!-- Verlauf zu diesem Kontakt -->
+            <div class="border border-gray-200 bg-white rounded-xl p-4">
+              <div class="flex items-center gap-2 mb-3">
+                <MessageSquare class="w-4 h-4 text-[#0088ba]" />
+                <div class="font-semibold text-gray-800">Verlauf</div>
+                <button @click="showAddReply = !showAddReply" class="ml-auto text-[10px] px-2 py-1 border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center gap-1">
+                  <Plus class="w-3 h-3" /> Antwort / Notiz eintragen
+                </button>
+              </div>
+              <div v-if="showAddReply" class="mb-3 p-3 bg-amber-50 border border-amber-100 rounded-lg space-y-2">
+                <div class="grid grid-cols-3 gap-2">
+                  <select v-model="newReplyTyp" class="text-xs px-2 py-1.5 border border-gray-200 rounded-lg col-span-1">
+                    <option value="mail_in">Mail-Antwort</option>
+                    <option value="anruf">Anruf</option>
+                    <option value="notiz">Notiz</option>
+                  </select>
+                  <input v-model="newReplyBetreff" placeholder="Betreff / kurz" class="text-xs px-2 py-1.5 border border-gray-200 rounded-lg col-span-2" />
+                </div>
+                <textarea v-model="newReplyText" rows="4" placeholder="Inhalt der Antwort / Notiz (z.B. Mail-Text aus Outlook reinkopieren)…"
+                  class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-lg resize-y"></textarea>
+                <div class="flex gap-2 justify-end">
+                  <button @click="showAddReply = false; newReplyText = ''; newReplyBetreff = ''" class="text-xs px-3 py-1.5 border border-gray-200 rounded-lg">Abbrechen</button>
+                  <button @click="addReply" :disabled="!newReplyText.trim() || addingReply"
+                    class="text-xs px-3 py-1.5 bg-[#0088ba] text-white rounded-lg font-medium disabled:opacity-50">
+                    {{ addingReply ? 'Speichere…' : 'Eintragen' }}
+                  </button>
+                </div>
+              </div>
+              <ul class="space-y-2.5">
+                <li v-for="ev in combinedVerlauf" :key="ev.id" class="text-xs">
+                  <div class="flex items-center gap-2 mb-0.5">
+                    <span :class="['inline-block w-1.5 h-1.5 rounded-full', ev.color || 'bg-gray-300']"></span>
+                    <span class="font-semibold text-gray-800">{{ ev.betreff }}</span>
+                    <span class="text-gray-400 ml-auto whitespace-nowrap">{{ longDate(ev.datum) }}</span>
+                  </div>
+                  <div v-if="ev.beschreibung" class="text-gray-600 pl-3.5 whitespace-pre-wrap line-clamp-3">{{ ev.beschreibung }}</div>
+                </li>
+                <li v-if="!combinedVerlauf.length" class="text-xs text-gray-400 italic">Noch keine Einträge.</li>
+              </ul>
+            </div>
             <div>
               <label class="text-xs text-gray-500 block mb-1">VETO-Begründung (wenn Veto gesetzt)</label>
               <textarea :value="detail.vetoBegruendung || ''" @blur="patch(detail, { vetoBegruendung: $event.target.value })" rows="2" class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30"></textarea>
@@ -224,7 +265,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Users, Check, ChevronRight, X, Download, Maximize2, Minimize2, Send, Trash2, FileText, ShieldCheck, MailCheck, MessageSquare } from '@lucide/vue'
+import { Users, Check, ChevronRight, X, Download, Maximize2, Minimize2, Send, Trash2, FileText, ShieldCheck, MailCheck, MessageSquare, Plus } from '@lucide/vue'
 import { authFetch, getDripSequenzen, startDrip, pauseDrip, deleteInteressent, getKontakte } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 
@@ -308,6 +349,107 @@ async function openDetail(i) {
 }
 
 const kontaktVerlauf = ref([])
+
+// Kombinierter Verlauf: Synthese aus Interessenten-Record (Stammereignisse) + Kontakt-Verlauf
+const combinedVerlauf = computed(() => {
+  const out = []
+  const i = detail.value
+  if (!i) return []
+  // Stammereignisse aus dem Interessenten-Record
+  if (i.createdAt) {
+    out.push({
+      id: 'evt-anmeldung',
+      betreff: 'Exposé angefragt (Landing-Page)',
+      beschreibung: `Über Landing-Page eingetragen. E-Mail: ${i.email || '—'}${i.kommentar ? '\n\nMitteilung: ' + i.kommentar : ''}`,
+      datum: i.createdAt,
+      color: 'bg-blue-500',
+    })
+  }
+  if (i.ndaUploadedAt) {
+    out.push({
+      id: 'evt-nda',
+      betreff: i.ndaSignedOnline ? 'NDA online signiert' : 'NDA hochgeladen',
+      beschreibung: `Vertraulichkeitsvereinbarung gegengezeichnet${i.ndaSigIp ? ' (IP: ' + i.ndaSigIp + ')' : ''}.`,
+      datum: i.ndaUploadedAt,
+      color: 'bg-green-500',
+    })
+  }
+  if (i.kontaktdatenGesendetAm) {
+    out.push({
+      id: 'evt-kontakt-gesendet',
+      betreff: 'Kontaktdaten an Verkäufer freigegeben',
+      beschreibung: '',
+      datum: i.kontaktdatenGesendetAm,
+      color: 'bg-amber-500',
+    })
+  }
+  if (i.erstesTelefonatAm) {
+    out.push({
+      id: 'evt-tel',
+      betreff: 'Erstes Telefonat',
+      beschreibung: '',
+      datum: i.erstesTelefonatAm,
+      color: 'bg-purple-500',
+    })
+  }
+  if (i.verkaeuferTerminAm) {
+    out.push({
+      id: 'evt-termin',
+      betreff: 'Termin mit Verkäufer',
+      beschreibung: '',
+      datum: i.verkaeuferTerminAm,
+      color: 'bg-purple-500',
+    })
+  }
+  if (i.gebotAngefordertAm) {
+    out.push({
+      id: 'evt-gebot',
+      betreff: 'Gebot angefordert',
+      beschreibung: i.aktuellesGebot ? `Gebot: ${i.aktuellesGebot}` : '',
+      datum: i.gebotAngefordertAm,
+      color: 'bg-amber-600',
+    })
+  }
+  // Eintraege aus dem Kontakt-Verlauf (Mass-Mails, manuelle Antworten etc.)
+  for (const ev of kontaktVerlauf.value || []) {
+    out.push({
+      id: ev.id || 'k-' + Math.random().toString(36).slice(2),
+      betreff: ev.betreff || ev.typ || 'Eintrag',
+      beschreibung: ev.beschreibung || '',
+      datum: ev.datum,
+      color: ev.typ === 'mail_out' ? 'bg-blue-400' : ev.typ === 'mail_in' ? 'bg-orange-500' : 'bg-gray-400',
+    })
+  }
+  // Sortieren neueste zuerst
+  return out.sort((a, b) => (b.datum || '').localeCompare(a.datum || ''))
+})
+
+// Manuelle Antwort/Notiz an Kontakt-Verlauf anhaengen
+const showAddReply = ref(false)
+const newReplyTyp = ref('mail_in')
+const newReplyBetreff = ref('')
+const newReplyText = ref('')
+const addingReply = ref(false)
+async function addReply() {
+  if (!detail.value || !newReplyText.value.trim()) return
+  addingReply.value = true
+  try {
+    const r = await authFetch('/kontakt-verlauf-add', { method: 'POST', data: {
+      email: detail.value.email,
+      eintrag: {
+        typ: newReplyTyp.value,
+        betreff: newReplyBetreff.value.trim() || (newReplyTyp.value === 'mail_in' ? 'Antwort eingegangen' : 'Notiz'),
+        beschreibung: newReplyText.value.trim(),
+      },
+    }})
+    if (r?.entry) kontaktVerlauf.value.push(r.entry)
+    showAddReply.value = false
+    newReplyText.value = ''; newReplyBetreff.value = ''
+    toast.success('Eintrag gespeichert')
+  } catch (e) {
+    toast.error('Speichern fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
+  } finally { addingReply.value = false }
+}
 
 async function loeschen(i) {
   if (!confirm(`Interessent „${i.firma || i.name || i.email}" wirklich löschen? Das kann nicht rückgängig gemacht werden.`)) return

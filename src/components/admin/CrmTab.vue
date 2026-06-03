@@ -223,6 +223,11 @@
           </div>
 
           <div>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">Verteiler-Beschreibung <span class="text-gray-400">(für Mandant-Verlauf)</span></label>
+            <input v-model="ausschreibungForm.filterBeschreibung" placeholder="z.B. alle Kontakte / IT-Branche DACH / PLZ 80000–99999 Bayern" class="input" />
+          </div>
+
+          <div>
             <label class="text-xs font-medium text-gray-600 mb-1 block">Anschreiben</label>
             <div class="flex flex-wrap gap-1 mb-1">
               <span class="text-[10px] text-gray-400 self-center mr-1">Platzhalter einfügen:</span>
@@ -242,6 +247,15 @@
             <div class="text-xs text-gray-500 mb-1"><strong>An:</strong> {{ firstSelected.email }}</div>
             <div class="text-xs text-gray-500 mb-2"><strong>Betreff:</strong> {{ replaceVars(ausschreibungForm.betreff, firstSelected) }}</div>
             <div class="text-sm text-gray-700 whitespace-pre-wrap border-t border-gray-200 pt-2">{{ replaceVars(ausschreibungForm.text, firstSelected) }}</div>
+          </div>
+        </div>
+        <div v-if="sendProgress" class="px-6 py-3 border-t border-gray-100 bg-blue-50">
+          <div class="text-xs text-gray-700 mb-1.5 flex justify-between">
+            <span>Versand läuft: <strong>{{ sendProgress.current }} / {{ sendProgress.total }}</strong></span>
+            <span>{{ sendProgress.sent }} ✓ · {{ sendProgress.skipped }} übersprungen · {{ sendProgress.failed }} Fehler</span>
+          </div>
+          <div class="w-full bg-white rounded-full h-2 overflow-hidden">
+            <div class="bg-[#0088ba] h-full transition-all" :style="`width: ${(sendProgress.current / sendProgress.total) * 100}%`"></div>
           </div>
         </div>
         <div class="px-6 py-4 border-t border-gray-100 sticky bottom-0 bg-white flex flex-wrap justify-end gap-2">
@@ -670,6 +684,7 @@ const ausschreibungForm = ref({
   targetId: '',
   betreff: '',
   text: '',
+  filterBeschreibung: 'alle Kontakte',
 })
 
 const canSend = computed(() =>
@@ -814,23 +829,52 @@ async function sendAcs() {
   return doSend(recipients)
 }
 
+const sendProgress = ref(null)  // { total, sent, failed, skipped, current }
 async function doSend(recipients) {
   if (!confirm(`Ausschreibung an ${recipients.length} Empfaenger versenden?`)) return
   sending.value = true
+  // Chunk-Size 100 — bleibt unter HTTP-Timeout (4 Min) und schreibt pro Empfaenger sofort
+  // einen Verlauf-Eintrag, damit beim Abbruch klar ist, wer schon eine Mail hat.
+  const chunkSize = 100
+  sendProgress.value = { total: recipients.length, sent: 0, failed: 0, skipped: 0, current: 0 }
+  let aborted = false
   try {
-    const r = await authFetch('/ausschreibung-versand', { method: 'POST', data: {
-      targetId: ausschreibungForm.value.targetId,
-      betreff: ausschreibungForm.value.betreff,
-      text: ausschreibungForm.value.text,
-      recipients,
-    }})
-    toast.success(`${r.sent} Mails versendet${r.failed ? ' (' + r.failed + ' fehlgeschlagen)' : ''}.`)
-    if (r.failed && r.errors?.length) console.warn('Fehler:', r.errors)
-    showAusschreibungModal.value = false
-    riskyModal.value = null
-  } catch (e) {
-    toast.error('Versand fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
-  } finally { sending.value = false }
+    for (let i = 0; i < recipients.length; i += chunkSize) {
+      const chunk = recipients.slice(i, i + chunkSize)
+      sendProgress.value.current = i + chunk.length
+      try {
+        const r = await authFetch('/ausschreibung-versand', { method: 'POST', data: {
+          targetId: ausschreibungForm.value.targetId,
+          betreff: ausschreibungForm.value.betreff,
+          text: ausschreibungForm.value.text,
+          recipients: chunk,
+          skipExisting: true,
+          writeMandantInfo: i === 0,  // nur beim ersten Chunk
+          filterBeschreibung: ausschreibungForm.value.filterBeschreibung,
+        }})
+        sendProgress.value.sent += (r.sent || 0)
+        sendProgress.value.failed += (r.failed || 0)
+        sendProgress.value.skipped += (r.skipped || 0)
+        if (r.errors?.length) console.warn(`Chunk ${i/chunkSize+1} Fehler:`, r.errors)
+      } catch (e) {
+        console.error(`Chunk ${i/chunkSize+1} abgebrochen:`, e)
+        aborted = true
+        toast.error(`Chunk-Versand abgebrochen bei ${i + chunk.length} von ${recipients.length} — ` + (e?.response?.data?.error || e.message))
+        break
+      }
+    }
+    const p = sendProgress.value
+    if (!aborted) {
+      toast.success(`Versand fertig: ${p.sent} gesendet, ${p.skipped} bereits versendet (übersprungen), ${p.failed} fehlgeschlagen.`)
+      showAusschreibungModal.value = false
+      riskyModal.value = null
+    } else {
+      toast.warn(`Bis dahin: ${p.sent} versendet, ${p.skipped} übersprungen, ${p.failed} Fehler. Bei Wiederholung werden bereits versendete automatisch übersprungen.`)
+    }
+  } finally {
+    sending.value = false
+    setTimeout(() => { sendProgress.value = null }, 60000)
+  }
 }
 
 function confirmRiskyAndSend() {
