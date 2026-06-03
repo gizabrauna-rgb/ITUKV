@@ -212,23 +212,38 @@
               </div>
             </div>
 
+            <!-- Filter-Buttons (wie im Target-Verlauf) -->
+            <div class="flex flex-wrap gap-1.5 mb-4">
+              <button @click="verlaufFilterTyp = ''"
+                :class="['text-xs px-3 py-1.5 rounded-lg border', !verlaufFilterTyp ? 'bg-gray-700 text-white border-gray-700' : 'bg-white border-gray-200 hover:bg-gray-50']">
+                Alle <span class="ml-1 opacity-70">{{ verlaufAlle.length }}</span>
+              </button>
+              <button v-for="f in verlaufFilters" :key="f.value"
+                @click="verlaufFilterTyp = verlaufFilterTyp === f.value ? '' : f.value"
+                :class="['text-xs px-3 py-1.5 rounded-lg border flex items-center gap-1.5', verlaufFilterTyp === f.value ? 'bg-[#0088ba] text-white border-[#0088ba]' : 'bg-white border-gray-200 hover:bg-gray-50']">
+                {{ f.label }}
+                <span :class="['text-[10px] px-1 rounded', verlaufFilterTyp === f.value ? 'bg-white/20' : 'bg-gray-100']">{{ countVerlaufTyp(f.value) }}</span>
+              </button>
+            </div>
+
             <div v-if="verlaufItems.length === 0" class="text-center py-12 text-gray-400 text-sm">
               <Mail class="w-10 h-10 mx-auto mb-2 text-gray-300" />
-              Kein Kommunikations-Verlauf.
-              <div class="text-xs mt-1">Verlauf entsteht im jeweiligen Projekt-Tab "Verlauf".</div>
+              <span v-if="verlaufFilterTyp">Keine Einträge in dieser Kategorie.</span>
+              <span v-else>Kein Kommunikations-Verlauf.</span>
             </div>
             <ol v-else class="relative border-l-2 border-gray-100 ml-2 space-y-4">
               <li v-for="(e, i) in verlaufItems" :key="i" class="pl-4 relative">
                 <span :class="['absolute -left-[7px] top-1.5 w-3 h-3 rounded-full border-2 border-white', verlaufDotColor(e.typ)]"></span>
                 <div class="flex items-center gap-2 text-xs text-gray-500 flex-wrap">
                   <span :class="['px-2 py-0.5 rounded-full font-medium', verlaufBadge(e.typ)]">{{ verlaufLabel(e.typ) }}</span>
-                  <span class="font-mono text-[10px] bg-blue-50 text-blue-800 px-1.5 py-0.5 rounded">{{ e._mbNr }}</span>
+                  <span v-if="e._mbNr" class="font-mono text-[10px] bg-blue-50 text-blue-800 px-1.5 py-0.5 rounded">{{ e._mbNr }}</span>
+                  <span v-else-if="e.kontextMbNr" class="font-mono text-[10px] bg-blue-50 text-blue-800 px-1.5 py-0.5 rounded">{{ e.kontextMbNr }}</span>
                   <span>·</span>
                   <span>{{ formatDate(e.datum) }}</span>
                   <span v-if="e.autor">· {{ e.autor }}</span>
                 </div>
                 <div v-if="e.betreff" class="font-semibold text-sm text-gray-900 mt-1">{{ e.betreff }}</div>
-                <p v-if="e.beschreibung" class="text-sm text-gray-700 mt-1 whitespace-pre-line">{{ e.beschreibung }}</p>
+                <p v-if="e.beschreibung" class="text-sm text-gray-700 mt-1 whitespace-pre-line line-clamp-6">{{ e.beschreibung }}</p>
               </li>
             </ol>
           </section>
@@ -407,17 +422,46 @@ const notizen = computed(() => {
   } catch { return [] }
 })
 
-const verlaufItems = computed(() => {
+const verlaufAlle = computed(() => {
   const all = []
+  // 1) Kontakt-eigener Verlauf (Mass-Mails, Inbound-Antworten, manuelle Eintraege)
+  if (props.kontakt?.verlaufJson) {
+    try {
+      const arr = JSON.parse(props.kontakt.verlaufJson)
+      if (Array.isArray(arr)) arr.forEach(e => all.push({ ...e, _quelle: 'kontakt' }))
+    } catch {}
+  }
+  // 2) Eintraege aus verknuepften Projekt-Mandaten
   for (const p of verknuepfteProjekte.value) {
     if (!p.kommunikationJson) continue
     try {
       const arr = JSON.parse(p.kommunikationJson)
-      if (Array.isArray(arr)) arr.forEach(e => all.push({ ...e, _mbNr: p.mbNr }))
+      if (Array.isArray(arr)) arr.forEach(e => all.push({ ...e, _mbNr: p.mbNr, _quelle: 'mandat' }))
     } catch {}
   }
   return all.sort((a, b) => (b.datum || '').localeCompare(a.datum || ''))
 })
+
+const verlaufFilterTyp = ref('')
+const verlaufItems = computed(() => {
+  if (!verlaufFilterTyp.value) return verlaufAlle.value
+  return verlaufAlle.value.filter(e => e.typ === verlaufFilterTyp.value)
+})
+
+const verlaufFilters = [
+  { value: 'mail_in',    label: 'E-Mail eingegangen' },
+  { value: 'mail_out',   label: 'E-Mail versendet' },
+  { value: 'chat_in',    label: 'Chat eingegangen' },
+  { value: 'chat_out',   label: 'Chat gesendet' },
+  { value: 'telefon',    label: 'Telefonat' },
+  { value: 'termin',     label: 'Termin' },
+  { value: 'notiz',      label: 'Notiz' },
+  { value: 'ki_analyse', label: 'Assistent' },
+  { value: 'wichtig',    label: 'Wichtig' },
+]
+function countVerlaufTyp(t) {
+  return verlaufAlle.value.filter(e => e.typ === t).length
+}
 
 const tabs = computed(() => [
   { key: 'uebersicht', label: 'Übersicht', icon: FileText },
@@ -429,19 +473,34 @@ const tabs = computed(() => [
 ])
 
 function verlaufLabel(t) {
-  const map = { mail: 'E-Mail', telefon: 'Telefon', termin: 'Termin', notiz: 'Notiz' }
+  const map = {
+    mail: 'E-Mail', mail_in: 'E-Mail eingegangen', mail_out: 'E-Mail versendet',
+    chat_in: 'Chat eingegangen', chat_out: 'Chat gesendet',
+    telefon: 'Telefonat', telefonat: 'Telefonat',
+    termin: 'Termin', notiz: 'Notiz',
+    ki_analyse: 'Assistent', wichtig: 'Wichtig',
+  }
   return map[t] || (t || 'Eintrag')
 }
+// outgoing (mibeca) = blau, incoming (Kontakt) = orange/rot
 function verlaufBadge(t) {
-  if (t === 'mail') return 'bg-blue-100 text-blue-700'
-  if (t === 'telefon') return 'bg-green-100 text-green-700'
+  if (t === 'mail_out' || t === 'chat_out') return 'bg-blue-100 text-blue-700'
+  if (t === 'mail_in' || t === 'chat_in') return 'bg-orange-100 text-orange-700'
+  if (t === 'telefon' || t === 'telefonat') return 'bg-green-100 text-green-700'
   if (t === 'termin') return 'bg-purple-100 text-purple-700'
+  if (t === 'ki_analyse') return 'bg-purple-100 text-purple-700'
+  if (t === 'wichtig') return 'bg-red-100 text-red-700'
+  if (t === 'notiz') return 'bg-amber-100 text-amber-800'
   return 'bg-gray-100 text-gray-600'
 }
 function verlaufDotColor(t) {
-  if (t === 'mail') return 'bg-blue-500'
-  if (t === 'telefon') return 'bg-green-500'
+  if (t === 'mail_out' || t === 'chat_out') return 'bg-blue-500'
+  if (t === 'mail_in' || t === 'chat_in') return 'bg-orange-500'
+  if (t === 'telefon' || t === 'telefonat') return 'bg-green-500'
   if (t === 'termin') return 'bg-purple-500'
+  if (t === 'ki_analyse') return 'bg-purple-500'
+  if (t === 'wichtig') return 'bg-red-500'
+  if (t === 'notiz') return 'bg-amber-500'
   return 'bg-gray-400'
 }
 
