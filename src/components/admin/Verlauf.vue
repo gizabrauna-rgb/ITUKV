@@ -303,6 +303,10 @@ const typFilters = [
 
 const filtered = computed(() => {
   let r = entries.value
+  // VERTRAULICHKEIT: im Verkäufer/Käufer-Portal (readOnly) werden Eintraege mit
+  // intern: true ausgeblendet — z.B. Mass-Mail-Inhalte an Interessenten,
+  // mibeca-interne Notizen. Admin sieht alles.
+  if (props.readOnly) r = r.filter(e => !e.intern)
   if (filterTyp.value) r = r.filter(e => e.typ === filterTyp.value)
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()

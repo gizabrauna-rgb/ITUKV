@@ -1274,7 +1274,9 @@ def ausschreibung_versand(req: func.HttpRequest) -> func.HttpResponse:
     expose_url = f"{LANDING_BASE}/{mb_nr.lower()}" if mb_nr else ""
 
     def render(tpl, k):
+        vorname = _first_name(k.get("name", ""))
         return (tpl or "").replace("{firma}", k.get("firma", "") or "") \
+                          .replace("{vorname}", vorname) \
                           .replace("{name}", k.get("name", "") or "") \
                           .replace("{ort}", k.get("ort", "") or "") \
                           .replace("{mbNr}", mb_nr) \
@@ -1323,16 +1325,48 @@ def ausschreibung_versand(req: func.HttpRequest) -> func.HttpResponse:
             failed += 1
             errors.append({"email": r.get("email", ""), "error": str(ex)})
 
-    # Verlauf-Eintrag (nur bei echtem Versand, nicht bei Test)
+    # Verlauf-Eintrag im TARGET (intern: True, damit Verkaeufer es nicht sieht — nur mibeca)
+    # Plus jeder Kontakt im CRM bekommt einen Eintrag in seinem eigenen Verlauf.
     if not test_email:
+        now_iso = datetime.utcnow().isoformat()
+        autor = p.get("name") or p.get("email", "")
         _verlauf_append(tid, {
             "id": "k" + str(int(datetime.utcnow().timestamp() * 1000)),
             "typ": "mail_out",
-            "datum": datetime.utcnow().isoformat(),
-            "autor": p.get("name") or p.get("email", ""),
+            "datum": now_iso,
+            "autor": autor,
             "betreff": f"Ausschreibung an {sent} Empfaenger versendet",
             "beschreibung": f"Mass-Mail '{betreff_tpl[:80]}' an {sent} Empfaenger (failed: {failed}).",
+            "intern": True,
         })
+        # Pro Empfaenger ein Eintrag in seinem Kontakt-Verlauf (kontakte.verlaufJson)
+        try:
+            tc = table_("kontakte")
+            for r in targets_list:
+                rec_email = (r.get("email") or "").strip().lower()
+                if not rec_email: continue
+                kontakt = None
+                for k in tc.list_entities():
+                    if (k.get("email", "") or "").strip().lower() == rec_email:
+                        kontakt = dict(k); break
+                if not kontakt: continue
+                try: kverlauf = json.loads(kontakt.get("verlaufJson") or "[]")
+                except: kverlauf = []
+                if not isinstance(kverlauf, list): kverlauf = []
+                kverlauf.append({
+                    "id": "kv" + str(int(datetime.utcnow().timestamp() * 1000)) + secrets.token_hex(2),
+                    "typ": "mail_out",
+                    "datum": now_iso,
+                    "autor": autor,
+                    "betreff": render(betreff_tpl, r),
+                    "beschreibung": render(text_tpl, r),
+                    "kontextTargetId": tid,
+                    "kontextMbNr": mb_nr,
+                })
+                kontakt["verlaufJson"] = json.dumps(kverlauf, ensure_ascii=False)
+                tc.update_entity(kontakt)
+        except Exception as ex:
+            logging.warning(f"Kontakt-Verlauf-Update fehlgeschlagen: {ex}")
 
     return ok_({"sent": sent, "failed": failed, "errors": errors[:10]})
 
@@ -1468,6 +1502,28 @@ SIGNATURE_CODE_EXPIRY_MIN = 30
 SIGNATURE_LINK_EXPIRY_DAYS = 30
 ACS_CONN = os.environ.get("ACS_CONNECTION_STRING", "")
 ACS_SENDER = os.environ.get("ACS_SENDER_ADDRESS", "info@itukv.de")
+ACS_REPLY_TO = os.environ.get("ACS_REPLY_TO", "")
+ACS_REPLY_TO_NAME = os.environ.get("ACS_REPLY_TO_NAME", "Jennifer Kaplan")
+
+def acs_reply_to():
+    """Liefert die replyTo-Liste fuer ACS begin_send(), wenn ACS_REPLY_TO gesetzt ist."""
+    if not ACS_REPLY_TO:
+        return None
+    return [{"address": ACS_REPLY_TO, "displayName": ACS_REPLY_TO_NAME}]
+
+def _acs_dispatch(client, message):
+    """ACS begin_send() Wrapper: setzt Reply-To automatisch, falls konfiguriert."""
+    rt = acs_reply_to()
+    if rt:
+        message.setdefault("replyTo", rt)
+    return client.begin_send(message)
+
+def _first_name(name_or_full):
+    """Extrahiert den Vornamen aus einem vollen Namen (erstes Wort).
+    Verwendung: in Mail-Anreden 'Hallo Anna,' statt 'Hallo Anna Giza-Braun,'."""
+    if not name_or_full:
+        return ""
+    return str(name_or_full).strip().split(" ")[0]
 FRONTEND_BASE = os.environ.get("FRONTEND_BASE_URL", "https://dashboard.itukv.de")
 LANDING_BASE = os.environ.get("LANDING_BASE_URL", "https://targets.itukv.de")
 DEFAULT_BOOKINGS_URL = os.environ.get(
@@ -3948,6 +4004,7 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
         "betreff": f"Neue Anfrage von {firma or name}",
         "beschreibung": f"Interessent hat sich über die Landing-Page {mb_nr} eingetragen. E-Mail: {email}",
         "beteiligte": email,
+        "intern": True,  # Identitaet des Interessenten — Verkaeufer sieht das nicht
     })
 
     # Zapier-Webhook (Google Sheets-Sync) — PRO Mandat individuell konfigurierbar.
@@ -4031,10 +4088,8 @@ Wenn die Rahmenbedingungen für beide Seiten grundsätzlich passen, stimmen wir 
 
 <p>Wir freuen uns darauf, Dich durch den weiteren Kaufprozess zu begleiten.</p>
 
-<p>Viele Grüße<br/><br/>
-<strong>Jennifer Kaplan</strong><br/>
-M&amp;A-Beraterin<br/><br/>
-mibeca – Mike Bergmann Akademie</p>
+<p>Viele Grüße<br/>
+<strong>Dein M&amp;A-Team der Mike Bergmann Akademie</strong></p>
 
 <p style="font-size:13px;color:#666;margin-top:24px"><em>P.S.: Je schneller das unterschriebene NDA bei uns eingeht, desto schneller können wir den nächsten Schritt im Transaktionsprozess gemeinsam angehen.</em></p>
 </body></html>"""
@@ -4042,7 +4097,7 @@ mibeca – Mike Bergmann Akademie</p>
                          f"vielen Dank für Dein Interesse am Projekt {mb_nr.upper()}.\n\n"
                          f"Zum Projektbereich: {expose_url}\n\n"
                          f"Nächste Schritte: NDA herunterladen & unterschreiben → hochladen → Termin mit Jennifer Kaplan buchen.\n\n"
-                         f"Fragen? jk@mike-bergmann.de\n\nViele Grüße\nJennifer Kaplan\nM&A-Beraterin\nmibeca – Mike Bergmann Akademie")
+                         f"Fragen? jk@mike-bergmann.de\n\nViele Grüße\nDein M&A-Team der Mike Bergmann Akademie")
             client.begin_send({
                 "senderAddress": ACS_SENDER,
                 "recipients": {"to": [{"address": email}]},
@@ -4174,7 +4229,7 @@ def nda_upload(req: func.HttpRequest) -> func.HttpResponse:
             from azure.communication.email import EmailClient
             client = EmailClient.from_connection_string(ACS_CONN)
             html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
-<p>Hallo {i.get('name') or i.get('firma') or ''},</p>
+<p>Hallo {_first_name(i.get('name')) or i.get('firma') or ''},</p>
 <p>vielen Dank für Dein unterschriebenes NDA zur Projektnummer <strong>{t.get('mbNr','')}</strong> &ndash; damit hast Du den ersten wichtigen Schritt gemacht!</p>
 <h3 style="color:#097e92">Wie geht es jetzt weiter?</h3>
 <p>Du hast nun Zugang zum Exposé, das Dir einen ersten Überblick über das Unternehmen gibt. Für tiefergehende Informationen und Zahlen ist ein persönliches Gespräch erforderlich.</p>
@@ -4438,7 +4493,7 @@ def nda_public_send_code(req: func.HttpRequest) -> func.HttpResponse:
         except Exception:
             mb_nr = ""
         html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a">
-<p>Hallo {i.get('name') or i.get('firma') or ''},</p>
+<p>Hallo {_first_name(i.get('name')) or i.get('firma') or ''},</p>
 <p>Dein Bestätigungscode für die Online-Unterzeichnung des NDAs zu Projekt <strong>{mb_nr}</strong> lautet:</p>
 <p style="font-size:28px;font-weight:700;letter-spacing:6px;background:#fff7ed;padding:14px 22px;border-radius:10px;display:inline-block;color:#FF6F00">{code}</p>
 <p>Der Code ist {SIGNATURE_CODE_EXPIRY_MIN} Minuten gültig.</p>
@@ -4611,7 +4666,7 @@ def nda_public_sign(req: func.HttpRequest) -> func.HttpResponse:
             from azure.communication.email import EmailClient
             client = EmailClient.from_connection_string(ACS_CONN)
             html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
-<p>Hallo {i.get('name') or i.get('firma') or ''},</p>
+<p>Hallo {_first_name(i.get('name')) or i.get('firma') or ''},</p>
 <p>vielen Dank für Dein unterschriebenes NDA zur Projektnummer <strong>{t.get('mbNr','')}</strong> &ndash; damit hast Du den ersten wichtigen Schritt gemacht!</p>
 <p>Du hast nun Zugang zum Exposé und kannst direkt einen Termin mit unserer M&amp;A-Beraterin Jennifer Kaplan buchen:</p>
 <p style="margin:24px 0"><a href="{termin_url}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Termin jetzt buchen</a></p>

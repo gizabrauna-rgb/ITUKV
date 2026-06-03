@@ -636,9 +636,9 @@ function prefillTemplate() {
   }
   if (!ausschreibungForm.value.text) {
     ausschreibungForm.value.text =
-`Hallo {name},
+`Hallo {vorname},
 
-aktuell betreuen wir den Verkauf eines IT-Systemhauses (Projektnummer ${t.mbNr}) im Raum ${t.ort || t.region || '—'}.
+aktuell betreue ich den Verkauf eines IT-Systemhauses (Projektnummer ${t.mbNr}) im Raum ${t.ort || t.region || '—'}.
 
 Das Kurzexposé ist anonymisiert und direkt online einsehbar:
 
@@ -646,7 +646,7 @@ ${landingUrl}
 
 Wenn Du Interesse hast, kannst Du dort Deine Daten hinterlegen, das anonyme Exposé herunterladen, die Vertraulichkeitsvereinbarung (NDA) unterzeichnen und einen Termin mit unserer M&A-Beraterin Jennifer Kaplan buchen.
 
-Mit freundlichen Grüßen
+Viele Grüße
 Mike Bergmann
 mibeca GmbH – M&A-Beratung für IT-Unternehmen
 www.itukv.de`
