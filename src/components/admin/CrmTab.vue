@@ -224,8 +224,16 @@
 
           <div>
             <label class="text-xs font-medium text-gray-600 mb-1 block">Anschreiben</label>
-            <textarea v-model="ausschreibungForm.text" rows="10" class="input resize-none font-mono text-xs leading-relaxed"></textarea>
-            <p class="text-xs text-gray-400 mt-1">Platzhalter: <code>{firma}</code>, <code>{name}</code>, <code>{ort}</code>, <code>{mbNr}</code>, <code>{exposeUrl}</code> werden pro Empfänger ersetzt.</p>
+            <div class="flex flex-wrap gap-1 mb-1">
+              <span class="text-[10px] text-gray-400 self-center mr-1">Platzhalter einfügen:</span>
+              <button v-for="ph in ['vorname','firma','name','ort','mbNr','exposeUrl']" :key="ph"
+                type="button" @click="insertPlatzhalter('{' + ph + '}')"
+                class="text-[10px] px-2 py-0.5 rounded border border-gray-200 hover:border-[#0088ba] hover:text-[#0088ba] text-gray-600 bg-white">
+                + {{ '{' + ph + '}' }}
+              </button>
+            </div>
+            <textarea v-model="ausschreibungForm.text" ref="anschreibenRef" rows="10" class="input resize-none font-mono text-xs leading-relaxed"></textarea>
+            <p class="text-xs text-gray-400 mt-1">Klick die Platzhalter oben, um sie an der Cursor-Position einzufügen.</p>
           </div>
 
           <!-- Vorschau erster Empfänger -->
@@ -653,12 +661,36 @@ www.itukv.de`
   }
 }
 
+const anschreibenRef = ref(null)
+function insertPlatzhalter(ph) {
+  const ta = anschreibenRef.value
+  if (!ta) {
+    ausschreibungForm.value.text += ph
+    return
+  }
+  const start = ta.selectionStart
+  const end = ta.selectionEnd
+  const txt = ausschreibungForm.value.text || ''
+  ausschreibungForm.value.text = txt.slice(0, start) + ph + txt.slice(end)
+  nextTick(() => {
+    ta.focus()
+    ta.selectionStart = ta.selectionEnd = start + ph.length
+  })
+}
+
 function replaceVars(text, k) {
   if (!text || !k) return text || ''
+  const vorname = (k.name || '').trim().split(' ')[0] || ''
+  const t = (mapData.value.targets || []).find(x => x.id === ausschreibungForm.value.targetId)
+  const mbNr = t?.mbNr || ''
+  const landingUrl = mbNr ? `https://targets.itukv.de/${mbNr.toLowerCase()}` : ''
   return text
+    .replaceAll('{vorname}', vorname)
     .replaceAll('{firma}', k.firma || '')
     .replaceAll('{name}', k.name || '')
     .replaceAll('{ort}', k.ort || '')
+    .replaceAll('{mbNr}', mbNr)
+    .replaceAll('{exposeUrl}', landingUrl)
 }
 
 function sendMailto() {

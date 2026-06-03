@@ -144,7 +144,12 @@
               <h3 class="text-lg font-bold text-gray-900">{{ detail.firma || '—' }}</h3>
               <p class="text-sm text-gray-500">{{ detail.vorname || splitName(detail.name).vorname }} {{ detail.nachname || splitName(detail.name).nachname }} · {{ detail.email }}</p>
             </div>
-            <button @click="detail = null" class="p-1.5 hover:bg-gray-100 rounded-lg"><X class="w-5 h-5" /></button>
+            <div class="flex items-center gap-1">
+              <button @click="loeschen(detail)" class="p-1.5 hover:bg-red-50 rounded-lg text-red-500" title="Interessent löschen">
+                <Trash2 class="w-4 h-4" />
+              </button>
+              <button @click="detail = null" class="p-1.5 hover:bg-gray-100 rounded-lg"><X class="w-5 h-5" /></button>
+            </div>
           </header>
           <div class="flex-1 overflow-y-auto p-6 space-y-4 text-sm">
             <div class="grid grid-cols-2 gap-3">
@@ -219,8 +224,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Users, Check, ChevronRight, X, Download, Maximize2, Minimize2, Send } from '@lucide/vue'
-import { authFetch, getDripSequenzen, startDrip, pauseDrip } from '../../api.js'
+import { Users, Check, ChevronRight, X, Download, Maximize2, Minimize2, Send, Trash2, FileText, ShieldCheck, MailCheck, MessageSquare } from '@lucide/vue'
+import { authFetch, getDripSequenzen, startDrip, pauseDrip, deleteInteressent, getKontakte } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 
 const props = defineProps({ targetId: String })
@@ -288,7 +293,33 @@ async function patch(i, updates) {
   } catch (e) { toast.error('Speichern fehlgeschlagen') }
 }
 
-function openDetail(i) { detail.value = i }
+async function openDetail(i) {
+  detail.value = i
+  // Kontakt-Verlauf laden (kontakte.verlaufJson dieses Empfaengers)
+  kontaktVerlauf.value = []
+  try {
+    const alle = await getKontakte()
+    const mailLc = (i.email || '').toLowerCase()
+    const k = (alle || []).find(x => (x.email || '').toLowerCase() === mailLc)
+    if (k && k.verlaufJson) {
+      try { kontaktVerlauf.value = JSON.parse(k.verlaufJson) || [] } catch {}
+    }
+  } catch {}
+}
+
+const kontaktVerlauf = ref([])
+
+async function loeschen(i) {
+  if (!confirm(`Interessent „${i.firma || i.name || i.email}" wirklich löschen? Das kann nicht rückgängig gemacht werden.`)) return
+  try {
+    await deleteInteressent(i.RowKey)
+    items.value = items.value.filter(x => x.RowKey !== i.RowKey)
+    detail.value = null
+    toast.success('Interessent gelöscht')
+  } catch (e) {
+    toast.error('Löschen fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
+  }
+}
 
 function splitName(name) {
   if (!name) return { vorname: '', nachname: '' }
