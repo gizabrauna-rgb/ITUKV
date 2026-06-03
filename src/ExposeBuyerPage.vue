@@ -379,6 +379,8 @@ const signForm = ref({
   firma: '', vertreten: '', strasse: '', plz: '', ort: '', email: '',
 })
 const formError = ref('')
+// Signatur als DataURL zwischenspeichern (Canvas existiert in Schritt 2 nicht mehr)
+const signaturDataUrl = ref('')
 
 const ndaUnterzeichnet = computed(() => data.value?.ndaStatus === 'unterzeichnet')
 
@@ -509,6 +511,7 @@ function closeSignModal() {
   signStep.value = 1
   codeInput.value = ''
   formError.value = ''
+  signaturDataUrl.value = ''
 }
 
 function validateSignForm() {
@@ -530,6 +533,10 @@ function validateSignForm() {
 
 async function requestCode() {
   if (!validateSignForm()) return
+  // Signatur jetzt aus dem Canvas erfassen — der Canvas verschwindet beim Wechsel zu Schritt 2
+  if (canvasEl.value && canvasDirty.value) {
+    try { signaturDataUrl.value = canvasEl.value.toDataURL('image/png') } catch {}
+  }
   codeSending.value = true
   try {
     await ndaPublicSendCode(token)
@@ -544,7 +551,17 @@ async function submitSign() {
   if (!validateSignForm()) { signStep.value = 1; return }
   signing.value = true
   try {
-    const dataUrl = canvasEl.value.toDataURL('image/png')
+    // Bevorzugt die in Schritt 1 zwischengespeicherte DataURL nutzen;
+    // Fallback aus Canvas (falls Schritt 1 noch sichtbar)
+    let dataUrl = signaturDataUrl.value
+    if (!dataUrl && canvasEl.value) {
+      try { dataUrl = canvasEl.value.toDataURL('image/png') } catch {}
+    }
+    if (!dataUrl) {
+      alert('Signatur fehlt — bitte zurueck zu Schritt 1.')
+      signStep.value = 1
+      return
+    }
     const res = await fetch(`${apiBase}/nda-public-sign`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
