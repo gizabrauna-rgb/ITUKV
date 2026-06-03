@@ -757,17 +757,32 @@ function downloadCsv() {
 
 const sending = ref(false)
 // Sicherheits-Pruefung: identifiziert Empfaenger, die wahrscheinlich Mitarbeiter
-// des Mandanten sind (Domain-Match, Firmen-Name-Match). Gibt Liste von Indices zurueck.
+// des Mandanten sind (Domain-Match + sehr seltene Firmen-Name-Tokens).
 function findRiskyRecipients(recipients) {
   const t = (mapData.value.targets || []).find(x => x.id === ausschreibungForm.value.targetId)
   if (!t) return []
-  // Mandanten-Identifier sammeln + normalisieren
   const targetFirma = ((t.firma || t.verkaueferName || '') + '').toLowerCase().trim()
   const targetWebsite = (t.website || '').toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '').trim()
-  // Stoppwoerter, die zu vielen false-positives fuehren (gmbh etc.)
-  const stoppwoerter = new Set(['gmbh','ag','kg','ohg','co','und','&','it','systemhaus','services','solutions','consulting','gmbh & co kg'])
-  // Signifikante Tokens aus Firmenname extrahieren (z.B. "Weingarten PC-Service GmbH" -> "weingarten","pc-service")
-  const tokens = targetFirma.split(/[\s\-_.&]+/).map(s => s.toLowerCase()).filter(s => s && s.length > 2 && !stoppwoerter.has(s))
+  // Stoppwoerter: alle generischen Branchen-/Rechtsform-Begriffe (verhindert false-positives bei
+  // 100en IT-Firmen, die „service", „edv" etc. im Namen haben)
+  const stoppwoerter = new Set([
+    'gmbh','aktiengesellschaft','ag','kg','ohg','co','kgaa','ug','gbr','und','&',
+    'it','edv','tech','technik','technology','technologie','technologies',
+    'service','services','systeme','system','systemhaus','systemhauses',
+    'computer','computers','software','hardware','solution','solutions','lösungen','loesungen',
+    'consult','consulting','beratung','beraterin','beratungs',
+    'support','informatik','datentechnik','daten','data','digital','digitalisierung',
+    'media','medien','online','web','internet','net','netzwerk','networks','network',
+    'info','information','informations','agentur','studio','labs','lab',
+    'office','büro','buero','center','centrum','zentrum','gruppe','group',
+    'unternehmensberatung','dienstleistungen','dienst','dienste','team','partner',
+    'engineering','development','entwicklung','marketing','vertrieb','sales',
+    'consultants','consultant','holding','international','deutschland','germany',
+  ])
+  // Tokens extrahieren: nur SELTENE Eigennamen (min. 5 Zeichen, nicht in Stoppwortliste)
+  const tokens = targetFirma.split(/[\s\-_.&,/]+/)
+    .map(s => s.toLowerCase().replace(/[^a-z0-9äöüß]/g, ''))
+    .filter(s => s && s.length >= 5 && !stoppwoerter.has(s))
   const risky = []
   for (let i = 0; i < recipients.length; i++) {
     const r = recipients[i]
@@ -775,17 +790,17 @@ function findRiskyRecipients(recipients) {
     const firma = (r.firma || '').toLowerCase()
     const domain = email.split('@')[1] || ''
     let grund = null
-    // Treffer 1: E-Mail-Domain matched Website-Domain
+    // Treffer 1: E-Mail-Domain matched Website-Domain (haerteste Regel — sicherer Treffer)
     if (targetWebsite && domain && (domain === targetWebsite || domain.endsWith('.' + targetWebsite) || targetWebsite.endsWith('.' + domain))) {
       grund = `E-Mail-Domain ${domain} = Mandanten-Website ${targetWebsite}`
     }
-    // Treffer 2: Empfaenger-Firma enthaelt Mandanten-Firmenname oder umgekehrt
-    if (!grund && firma && targetFirma) {
+    // Treffer 2: Empfaenger-Firma enthaelt seltenes Mandanten-Token
+    if (!grund && firma && tokens.length) {
       for (const tok of tokens) {
         if (firma.includes(tok)) { grund = `Empfaenger-Firma „${r.firma}" enthält „${tok}"`; break }
       }
     }
-    // Treffer 3: E-Mail-Local-Part oder Domain enthaelt signifikantes Token
+    // Treffer 3: E-Mail enthaelt seltenes Mandanten-Token (Domain oder Local-Part)
     if (!grund && email && tokens.length) {
       for (const tok of tokens) {
         if (email.includes(tok)) { grund = `E-Mail enthält „${tok}"`; break }
