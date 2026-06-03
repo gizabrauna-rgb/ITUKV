@@ -145,6 +145,43 @@
       </div>
     </div>
 
+    <!-- NDA-Vorsignatur (mibeca-seitig) -->
+    <div class="bg-white rounded-xl border border-gray-100 p-5 mt-5">
+      <h3 class="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
+        <PenTool class="w-4 h-4 text-[#0088ba]" /> NDA-Vorsignatur (Jennifer Kaplan)
+      </h3>
+      <p class="text-xs text-gray-500 mb-3">
+        Diese Unterschrift wird in JEDES NDA-PDF (egal welches Mandat) bereits im
+        Berater-Block (Transaktionsberater) eingebettet. Der Käufer-Interessent unterschreibt
+        anschließend nur noch im Investor-Block — fertig.
+      </p>
+      <div v-if="ndaSig.exists" class="mb-3">
+        <div class="text-xs text-gray-500 mb-2">Aktuell hinterlegt:</div>
+        <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 inline-block">
+          <img :src="ndaSig.dataUrl" alt="mibeca-Vorsignatur" class="max-h-24" />
+        </div>
+        <div class="mt-2 flex gap-2">
+          <button @click="startReplace" class="text-xs px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">Neu zeichnen</button>
+          <button @click="deleteSig" class="text-xs px-3 py-1.5 border border-red-200 text-red-700 bg-red-50 rounded-lg hover:bg-red-100">Entfernen</button>
+        </div>
+      </div>
+      <div v-if="!ndaSig.exists || replacing" class="mt-2">
+        <div class="bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl p-2 mb-2">
+          <canvas ref="ndaSigCanvas" width="600" height="180" class="bg-white rounded-lg w-full touch-none cursor-crosshair"
+            @mousedown="sigStartDraw" @mousemove="sigDraw" @mouseup="sigEndDraw" @mouseleave="sigEndDraw"
+            @touchstart="sigStartTouch" @touchmove="sigDrawTouch" @touchend="sigEndDraw"></canvas>
+        </div>
+        <div class="flex gap-2">
+          <button @click="sigClear" class="text-xs px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">Zurücksetzen</button>
+          <button @click="saveSig" :disabled="!sigDirty || sigSaving"
+            class="text-xs px-3 py-1.5 bg-[#0088ba] text-white rounded-lg font-medium hover:bg-[#00a0d8] disabled:opacity-50">
+            {{ sigSaving ? 'Speichere…' : 'Speichern' }}
+          </button>
+          <button v-if="replacing" @click="replacing = false" class="text-xs px-3 py-1.5 text-gray-500">Abbrechen</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Browser-Benachrichtigungen -->
     <div class="bg-white rounded-xl border border-gray-100 p-5 mt-5">
       <h3 class="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
@@ -157,10 +194,11 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Webhook, Copy, Check, Eye, EyeOff, AlertTriangle, Info, Sparkles, CheckCircle2, Bell } from '@lucide/vue'
+import { Webhook, Copy, Check, Eye, EyeOff, AlertTriangle, Info, Sparkles, CheckCircle2, Bell, PenTool } from '@lucide/vue'
 import PushToggle from '../PushToggle.vue'
 import { aiConfig } from '../../api.js'
 import { authFetch } from '../../api.js'
+import { toast } from '../../composables/useToast.js'
 
 const data = ref({ url: '', token: '', headerName: 'X-Webhook-Token' })
 const loading = ref(true)
@@ -207,6 +245,76 @@ const curlExample = computed(() => `curl -X POST ${data.value.url} \\
 const aiCfg = ref({ globalAktiv: false, keyVorhanden: false })
 const aiCfgLoading = ref(true)
 
+// ============= NDA-Vorsignatur =============
+const ndaSig = ref({ exists: false, dataUrl: '' })
+const ndaSigCanvas = ref(null)
+const sigDirty = ref(false)
+const sigSaving = ref(false)
+const replacing = ref(false)
+let sigCtx = null
+let sigDrawing = false
+let sigLastX = 0, sigLastY = 0
+function sigInit() {
+  const c = ndaSigCanvas.value
+  if (!c) return
+  sigCtx = c.getContext('2d')
+  sigCtx.lineWidth = 2.5
+  sigCtx.lineCap = 'round'
+  sigCtx.strokeStyle = '#000'
+}
+function sigPos(e) {
+  const r = ndaSigCanvas.value.getBoundingClientRect()
+  return { x: (e.clientX - r.left) * (ndaSigCanvas.value.width / r.width),
+           y: (e.clientY - r.top) * (ndaSigCanvas.value.height / r.height) }
+}
+function sigStartDraw(e) {
+  if (!sigCtx) sigInit()
+  const p = sigPos(e); sigDrawing = true; sigLastX = p.x; sigLastY = p.y
+}
+function sigDraw(e) {
+  if (!sigDrawing || !sigCtx) return
+  const p = sigPos(e)
+  sigCtx.beginPath(); sigCtx.moveTo(sigLastX, sigLastY); sigCtx.lineTo(p.x, p.y); sigCtx.stroke()
+  sigLastX = p.x; sigLastY = p.y; sigDirty.value = true
+}
+function sigEndDraw() { sigDrawing = false }
+function sigStartTouch(e) { e.preventDefault(); sigStartDraw(e.touches[0]) }
+function sigDrawTouch(e) { e.preventDefault(); sigDraw(e.touches[0]) }
+function sigClear() {
+  if (!sigCtx) sigInit()
+  sigCtx.clearRect(0, 0, ndaSigCanvas.value.width, ndaSigCanvas.value.height)
+  sigDirty.value = false
+}
+function startReplace() { replacing.value = true; sigDirty.value = false; setTimeout(sigInit, 50) }
+async function loadSig() {
+  try {
+    ndaSig.value = await authFetch('/mibeca-nda-signature')
+  } catch { ndaSig.value = { exists: false } }
+}
+async function saveSig() {
+  if (!sigDirty.value) return
+  sigSaving.value = true
+  try {
+    const dataUrl = ndaSigCanvas.value.toDataURL('image/png')
+    await authFetch('/mibeca-nda-signature', { method: 'POST', data: { signatureDataUrl: dataUrl } })
+    await loadSig()
+    sigDirty.value = false; replacing.value = false
+    toast.success('mibeca-NDA-Signatur gespeichert. Sie erscheint ab sofort in jedem NDA-PDF.')
+  } catch (e) {
+    toast.error('Speichern fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
+  } finally { sigSaving.value = false }
+}
+async function deleteSig() {
+  if (!confirm('mibeca-NDA-Signatur wirklich entfernen? Künftige NDA-PDFs werden ohne Berater-Signatur generiert.')) return
+  try {
+    await authFetch('/mibeca-nda-signature', { method: 'DELETE' })
+    await loadSig()
+    toast.info('Signatur entfernt.')
+  } catch (e) {
+    toast.error('Entfernen fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
+  }
+}
+
 onMounted(async () => {
   try {
     data.value = await authFetch('/settings/webhook')
@@ -214,6 +322,7 @@ onMounted(async () => {
   try {
     aiCfg.value = await aiConfig()
   } catch {} finally { aiCfgLoading.value = false }
+  await loadSig()
 })
 
 async function copy(text, key) {

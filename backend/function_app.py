@@ -821,11 +821,11 @@ def user_create(req: func.HttpRequest) -> func.HttpResponse:
             if is_internal:
                 # Interner Mitarbeiter -> Microsoft-Login Mail (ohne Passwort)
                 html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
-                    <h2 style="color:#097e92">Willkommen im ITUKV Dashboard</h2>
+                    <h2 style="color:#0088ba">Willkommen im ITUKV Dashboard</h2>
                     <p>Hallo {entity.get('name') or ''},</p>
                     <p>für dich wurde ein Zugang zum ITUKV Dashboard angelegt.</p>
                     <p>Du meldest dich einfach mit deinem <strong>Microsoft-Konto</strong> ({email}) an – du brauchst <strong>kein zusätzliches Passwort</strong>.</p>
-                    <p style="margin-top:24px"><a href="{frontend}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Mit Microsoft anmelden</a></p>
+                    <p style="margin-top:24px"><a href="{frontend}" style="background:#0088ba;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Mit Microsoft anmelden</a></p>
                     <p style="font-size:12px;color:#666;margin-top:24px">Bei Fragen melde dich bei deinem mibeca-Ansprechpartner.</p>
                     </body></html>"""
                 subject = "Dein Zugang zum ITUKV Dashboard"
@@ -833,7 +833,7 @@ def user_create(req: func.HttpRequest) -> func.HttpResponse:
             else:
                 # Externer Kunde -> Passwort-Login Mail
                 html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
-                    <h2 style="color:#097e92">Willkommen im ITUKV Dashboard</h2>
+                    <h2 style="color:#0088ba">Willkommen im ITUKV Dashboard</h2>
                     <p>Hallo {entity.get('name') or ''},</p>
                     <p>für dich wurde ein Zugang zum ITUKV Dashboard angelegt.</p>
                     <p><strong>Deine Login-Daten:</strong></p>
@@ -841,7 +841,7 @@ def user_create(req: func.HttpRequest) -> func.HttpResponse:
                       <tr><td>E-Mail:</td><td><strong>{email}</strong></td></tr>
                       <tr><td>Initial-Passwort:</td><td><strong style="font-family:monospace;font-size:15px">{pw}</strong></td></tr>
                     </table>
-                    <p style="margin-top:24px"><a href="{frontend}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Jetzt einloggen</a></p>
+                    <p style="margin-top:24px"><a href="{frontend}" style="background:#0088ba;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Jetzt einloggen</a></p>
                     <p style="font-size:12px;color:#666">Aus Sicherheitsgründen empfehlen wir, das Passwort nach der ersten Anmeldung zu aendern.</p>
                     <p>Bei Fragen melde dich bei deinem mibeca-Ansprechpartner.</p>
                     </body></html>"""
@@ -943,7 +943,7 @@ def user_reset_password(req: func.HttpRequest) -> func.HttpResponse:
             from azure.communication.email import EmailClient
             client = EmailClient.from_connection_string(ACS_CONN)
             html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
-                <h2 style="color:#097e92">Neues Passwort für das ITUKV Dashboard</h2>
+                <h2 style="color:#0088ba">Neues Passwort für das ITUKV Dashboard</h2>
                 <p>Hallo {entity.get('name') or ''},</p>
                 <p>dein Passwort für das ITUKV Dashboard wurde zurückgesetzt.</p>
                 <p><strong>Deine neuen Login-Daten:</strong></p>
@@ -951,7 +951,7 @@ def user_reset_password(req: func.HttpRequest) -> func.HttpResponse:
                   <tr><td>E-Mail:</td><td><strong>{entity.get('email')}</strong></td></tr>
                   <tr><td>Neues Passwort:</td><td><strong style="font-family:monospace;font-size:15px">{pw}</strong></td></tr>
                 </table>
-                <p style="margin-top:24px"><a href="{FRONTEND_BASE}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Jetzt einloggen</a></p>
+                <p style="margin-top:24px"><a href="{FRONTEND_BASE}" style="background:#0088ba;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Jetzt einloggen</a></p>
                 <p style="font-size:12px;color:#666">Aus Sicherheitsgründen empfehlen wir, dass du das Passwort nach der ersten Anmeldung aenderst.</p>
                 </body></html>"""
             client.begin_send({
@@ -1013,11 +1013,11 @@ def password_forgot(req: func.HttpRequest) -> func.HttpResponse:
                 client = EmailClient.from_connection_string(ACS_CONN)
                 link = f"{FRONTEND_BASE.rstrip('/')}/reset?token={token}"
                 html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
-                    <h2 style="color:#097e92">Passwort zurücksetzen</h2>
+                    <h2 style="color:#0088ba">Passwort zurücksetzen</h2>
                     <p>Hallo {u.get('name') or ''},</p>
                     <p>du (oder jemand mit deiner E-Mail) hat einen Passwort-Reset für das ITUKV Dashboard angefordert.</p>
                     <p>Klicke auf den Button, um ein neues Passwort zu setzen. Der Link ist <strong>30 Minuten gültig</strong> und nur einmal verwendbar.</p>
-                    <p style="margin:24px 0"><a href="{link}" style="background:#097e92;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600">Neues Passwort setzen</a></p>
+                    <p style="margin:24px 0"><a href="{link}" style="background:#0088ba;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600">Neues Passwort setzen</a></p>
                     <p style="font-size:12px;color:#666">Wenn der Button nicht funktioniert, kopiere diesen Link in den Browser:<br/><span style="font-family:monospace;font-size:11px;word-break:break-all">{link}</span></p>
                     <p style="font-size:12px;color:#666;margin-top:24px">Falls du dies nicht angefordert hast, kannst du diese Mail ignorieren - dein Passwort bleibt unveraendert.</p>
                     </body></html>"""
@@ -2107,11 +2107,76 @@ _NDA_HTML_TEMPLATE = """<!DOCTYPE html>
 </body></html>"""
 
 
+def _load_mibeca_nda_signature():
+    """Holt die hinterlegte mibeca-NDA-Signatur aus dem Blob. Gibt bytes oder None zurueck."""
+    try:
+        blob = _blob_container_lazy("vertraege").get_blob_client("mibeca-nda-signature.png")
+        return blob.download_blob().readall()
+    except Exception:
+        return None
+
+
 def _render_nda_pdf_bytes(form, variante='investor'):
     from jinja2 import Template
     from weasyprint import HTML
     html = Template(_NDA_HTML_TEMPLATE).render(form=form, variante=variante)
-    return HTML(string=html, base_url="/").write_pdf()
+    pdf_bytes = HTML(string=html, base_url="/").write_pdf()
+    # mibeca-Vorsignatur (Jennys handgezeichnete Unterschrift) automatisch einbetten,
+    # falls hinterlegt. Damit hat das NDA bereits beim Download durch den Interessenten
+    # die Berater-Signatur.
+    sig = _load_mibeca_nda_signature()
+    if sig:
+        try:
+            pdf_bytes = _embed_signature_in_pdf(
+                pdf_bytes, sig, "Jennifer Kaplan", {},
+                anchor_keywords=["Unterschrift Transaktionsberater", "Transaktionsberater", "Jennifer Kaplan"],
+                audit_trail=False,
+            )
+        except Exception:
+            pass
+    return pdf_bytes
+
+
+@app.route(route="mibeca-nda-signature", methods=["GET", "POST", "DELETE", "OPTIONS"])
+def mibeca_nda_signature_route(req: func.HttpRequest) -> func.HttpResponse:
+    """Hinterlegt die globale mibeca-NDA-Vorsignatur (Jennys handschriftliche Unterschrift)
+    als PNG im Blob. Admin-only.
+    GET    -> { exists: bool, dataUrl?: str }
+    POST   -> Body { signatureDataUrl }
+    DELETE -> entfernt die hinterlegte Signatur"""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    cont = _blob_container_lazy("vertraege")
+    if req.method == "GET":
+        sig = _load_mibeca_nda_signature()
+        if sig:
+            return ok_({"exists": True, "dataUrl": "data:image/png;base64," + base64.b64encode(sig).decode()})
+        return ok_({"exists": False})
+    if req.method == "DELETE":
+        try:
+            cont.delete_blob("mibeca-nda-signature.png")
+        except Exception:
+            pass
+        return ok_({"deleted": True})
+    # POST
+    body = req.get_json() or {}
+    sig_data = body.get("signatureDataUrl", "")
+    if not sig_data:
+        return err_("signatureDataUrl erforderlich", 400)
+    if sig_data.startswith("data:"):
+        sig_data = sig_data.split(",", 1)[1]
+    try:
+        sig_bytes = base64.b64decode(sig_data)
+    except Exception:
+        return err_("Ungueltige Signatur", 400)
+    try:
+        cont.upload_blob("mibeca-nda-signature.png", sig_bytes, overwrite=True)
+    except Exception as ex:
+        return err_(f"Speichern fehlgeschlagen: {ex}", 500)
+    return ok_({"saved": True})
 
 
 @app.route(route="nda-pdf", methods=["POST", "OPTIONS"])
@@ -2174,10 +2239,10 @@ def nda_zur_signatur(req: func.HttpRequest) -> func.HttpResponse:
             from azure.communication.email import EmailClient
             client = EmailClient.from_connection_string(ACS_CONN)
             html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
-                <h2 style="color:#097e92">NDA zur Unterschrift</h2>
+                <h2 style="color:#0088ba">NDA zur Unterschrift</h2>
                 <p>Hallo {form.get('vertreten','')},</p>
                 <p>im Rahmen unserer Zusammenarbeit als M&A-Berater bitten wir Sie um Unterzeichnung der beiliegenden Vertraulichkeitsvereinbarung (NDA).</p>
-                <p style="margin:24px 0"><a href="{sign_url}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">NDA ansehen &amp; unterschreiben</a></p>
+                <p style="margin:24px 0"><a href="{sign_url}" style="background:#0088ba;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">NDA ansehen &amp; unterschreiben</a></p>
                 <p style="font-size:12px;color:#666">Der Link ist {SIGNATURE_LINK_EXPIRY_DAYS} Tage gültig.</p>
                 </body></html>"""
             client.begin_send({
@@ -2289,11 +2354,11 @@ def vertrag_zur_signatur(req: func.HttpRequest) -> func.HttpResponse:
             from azure.communication.email import EmailClient
             client = EmailClient.from_connection_string(ACS_CONN)
             html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
-                <h2 style="color:#097e92">Dein Mandatsvertrag liegt zur Unterschrift bereit</h2>
+                <h2 style="color:#0088ba">Dein Mandatsvertrag liegt zur Unterschrift bereit</h2>
                 <p>Hallo {target_name or ''},</p>
                 <p>der Mandatsvertrag für dein Verkaufsprojekt ist fertig vorbereitet.
                 Du kannst ihn online ansehen und mit wenigen Klicks unterschreiben.</p>
-                <p style="margin:24px 0"><a href="{sign_url}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Vertrag ansehen &amp; unterschreiben</a></p>
+                <p style="margin:24px 0"><a href="{sign_url}" style="background:#0088ba;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Vertrag ansehen &amp; unterschreiben</a></p>
                 <p style="font-size:12px;color:#666">Der Link ist {SIGNATURE_LINK_EXPIRY_DAYS} Tage gültig.</p>
                 <p>Viele Grüße<br/>Dein mibeca-Team</p>
                 </body></html>"""
@@ -2383,7 +2448,7 @@ def sign_send_code(req: func.HttpRequest) -> func.HttpResponse:
         client = EmailClient.from_connection_string(ACS_CONN)
         html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a">
             <p>Dein Bestätigungscode für die Unterschrift lautet:</p>
-            <p style="font-size:28px;font-weight:700;letter-spacing:6px;background:#f0fdfa;padding:14px 22px;border-radius:10px;display:inline-block;color:#097e92">{code}</p>
+            <p style="font-size:28px;font-weight:700;letter-spacing:6px;background:#f0fdfa;padding:14px 22px;border-radius:10px;display:inline-block;color:#0088ba">{code}</p>
             <p>Der Code ist {SIGNATURE_CODE_EXPIRY_MIN} Minuten gültig.</p>
             </body></html>"""
         client.begin_send({
@@ -2676,10 +2741,10 @@ def vertrag_countersign(req: func.HttpRequest) -> func.HttpResponse:
             client = EmailClient.from_connection_string(ACS_CONN)
             download_url = f"{FRONTEND_BASE}/sign/{sig.get('token','')}"
             html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
-                <h2 style="color:#097e92">Dein Mandatsvertrag ist vollständig unterschrieben</h2>
+                <h2 style="color:#0088ba">Dein Mandatsvertrag ist vollständig unterschrieben</h2>
                 <p>Hallo {sig.get('lead_name','')},</p>
                 <p>{sig_name} hat den Vertrag für mibeca gegengezeichnet. Der Vertrag ist damit final unterzeichnet und liegt für dich zum Download bereit.</p>
-                <p style="margin:24px 0"><a href="{download_url}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Mein Exemplar herunterladen</a></p>
+                <p style="margin:24px 0"><a href="{download_url}" style="background:#0088ba;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Mein Exemplar herunterladen</a></p>
                 <p>Du findest den Vertrag ausserdem jederzeit in deinem Dashboard unter Vertraege.</p>
                 <p>Viele Grüße<br/>Dein mibeca-Team</p>
                 </body></html>"""
@@ -2760,11 +2825,11 @@ def _notify_new_entry(target_id, entry, sender_user_id=None):
         link = f"{FRONTEND_BASE}/?targetId={target_id}#verlauf"
         for rcpt in recipients:
             html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
-                <h3 style="color:#097e92">Neuer Eintrag im ITUKV Dashboard</h3>
+                <h3 style="color:#0088ba">Neuer Eintrag im ITUKV Dashboard</h3>
                 <p><strong>Projekt:</strong> {mb}</p>
                 <p><strong>Betreff:</strong> {betreff}</p>
-                <p style="background:#f8f9fa;border-left:3px solid #097e92;padding:12px;white-space:pre-wrap">{beschr}</p>
-                <p style="margin-top:24px"><a href="{link}" style="background:#097e92;color:white;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600">Im Dashboard öffnen</a></p>
+                <p style="background:#f8f9fa;border-left:3px solid #0088ba;padding:12px;white-space:pre-wrap">{beschr}</p>
+                <p style="margin-top:24px"><a href="{link}" style="background:#0088ba;color:white;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600">Im Dashboard öffnen</a></p>
                 </body></html>"""
             client.begin_send({
                 "senderAddress": ACS_SENDER,
@@ -3402,11 +3467,11 @@ def pr_zur_freigabe(req: func.HttpRequest) -> func.HttpResponse:
             client = EmailClient.from_connection_string(ACS_CONN)
             link = f"{FRONTEND_BASE}/?tab=erfolg"
             html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
-                <h2 style="color:#097e92">Pressemitteilung zur Freigabe</h2>
+                <h2 style="color:#0088ba">Pressemitteilung zur Freigabe</h2>
                 <p>Hallo {target_name or ''},</p>
                 <p>wir haben einen Pressetext zu Deinem Unternehmensverkauf vorbereitet. Bitte gib ihn frei
                 oder kommentiere gewuenschte Änderungen direkt im Dashboard.</p>
-                <p style="margin:24px 0"><a href="{link}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Pressetext ansehen &amp; freigeben</a></p>
+                <p style="margin:24px 0"><a href="{link}" style="background:#0088ba;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Pressetext ansehen &amp; freigeben</a></p>
                 </body></html>"""
             client.begin_send({
                 "senderAddress": ACS_SENDER,
@@ -3758,7 +3823,7 @@ def controlling_pdf(req: func.HttpRequest) -> func.HttpResponse:
 <style>
 @page {{ size: A4; margin: 18mm 16mm; }}
 body {{ font-family: Helvetica, Arial, sans-serif; color: #161e2a; font-size: 11pt; line-height: 1.5; }}
-h1 {{ color: #097e92; font-size: 22pt; margin: 0 0 4px; }}
+h1 {{ color: #0088ba; font-size: 22pt; margin: 0 0 4px; }}
 h2 {{ color: #0088ba; font-size: 14pt; margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #0088ba33; }}
 .meta {{ color: #666; font-size: 10pt; margin-bottom: 24px; }}
 .grid {{ display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0; }}
@@ -4050,13 +4115,13 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
             # An Interessent — Vorname aus name extrahieren
             vorname = (name or firma or "").split(" ")[0]
             html_int = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6;max-width:600px">
-<h2 style="color:#097e92">Dein Exposé zu Projekt {mb_nr.upper()}</h2>
+<h2 style="color:#0088ba">Dein Exposé zu Projekt {mb_nr.upper()}</h2>
 <p>Hallo {vorname},</p>
 <p>vielen Dank für Dein Interesse am Projekt <strong>{mb_nr.upper()}</strong>.</p>
 <p>Über den nachfolgenden Link erreichst Du Deinen persönlichen Projektbereich. Dort kannst Du das Exposé herunterladen, die Vertraulichkeitsvereinbarung (NDA) herunterladen und das unterschriebene NDA direkt wieder hochladen.</p>
-<p style="margin:24px 0"><a href="{expose_url}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Zum Exposé-Bereich</a></p>
+<p style="margin:24px 0"><a href="{expose_url}" style="background:#0088ba;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Zum Exposé-Bereich</a></p>
 
-<h3 style="color:#097e92;margin-top:32px">Das Unternehmen hat Dein Interesse geweckt – wie geht es jetzt weiter?</h3>
+<h3 style="color:#0088ba;margin-top:32px">Das Unternehmen hat Dein Interesse geweckt – wie geht es jetzt weiter?</h3>
 
 <p><strong>1. NDA herunterladen und unterschreiben</strong><br/>
 Um die Vertraulichkeit des Verkaufsprozesses zu gewährleisten, benötigen wir zunächst eine unterzeichnete Vertraulichkeitsvereinbarung (NDA).</p>
@@ -4078,13 +4143,13 @@ Sobald Dein NDA bei uns eingegangen ist, schalten wir die Terminbuchung mit unse
 <p><strong>4. Kontakt zum Unternehmen</strong><br/>
 Wenn die Rahmenbedingungen für beide Seiten grundsätzlich passen, stimmen wir die nächsten Schritte mit dem Verkäufer ab. Nach dessen Freigabe erhältst Du die Kontaktdaten des Unternehmens und kannst in die vertiefte Prüfung einsteigen.</p>
 
-<div style="background:#f7f8fa;border-left:4px solid #097e92;padding:12px 16px;margin:24px 0;border-radius:4px">
+<div style="background:#f7f8fa;border-left:4px solid #0088ba;padding:12px 16px;margin:24px 0;border-radius:4px">
   <p style="margin:0"><strong>Wichtiger Hinweis</strong><br/>
   Aus Gründen der Vertraulichkeit können weiterführende Informationen sowie Rückfragen zum Unternehmen erst nach Eingang des unterschriebenen NDA beantwortet werden.</p>
 </div>
 
 <p>Bei Fragen zum Ablauf erreichst Du Jennifer Kaplan unter:<br/>
-<a href="mailto:jk@mike-bergmann.de" style="color:#097e92">jk@mike-bergmann.de</a></p>
+<a href="mailto:jk@mike-bergmann.de" style="color:#0088ba">jk@mike-bergmann.de</a></p>
 
 <p>Wir freuen uns darauf, Dich durch den weiteren Kaufprozess zu begleiten.</p>
 
@@ -4231,10 +4296,10 @@ def nda_upload(req: func.HttpRequest) -> func.HttpResponse:
             html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
 <p>Hallo {_first_name(i.get('name')) or i.get('firma') or ''},</p>
 <p>vielen Dank für Dein unterschriebenes NDA zur Projektnummer <strong>{t.get('mbNr','')}</strong> &ndash; damit hast Du den ersten wichtigen Schritt gemacht!</p>
-<h3 style="color:#097e92">Wie geht es jetzt weiter?</h3>
+<h3 style="color:#0088ba">Wie geht es jetzt weiter?</h3>
 <p>Du hast nun Zugang zum Exposé, das Dir einen ersten Überblick über das Unternehmen gibt. Für tiefergehende Informationen und Zahlen ist ein persönliches Gespräch erforderlich.</p>
 <p>Buche hier Deinen Termin mit unserer M&amp;A-Beraterin Jennifer Kaplan:</p>
-{(('<p style="margin:24px 0"><a href="' + termin_url + '" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Termin jetzt buchen</a></p>') if termin_url else '<p><em>Termin-Link wird in Kuerze nachgereicht.</em></p>')}
+{(('<p style="margin:24px 0"><a href="' + termin_url + '" style="background:#0088ba;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Termin jetzt buchen</a></p>') if termin_url else '<p><em>Termin-Link wird in Kuerze nachgereicht.</em></p>')}
 <p>In diesem ca. 15-minuetigen Gespräch klaert Ihr:</p>
 <ul>
   <li>Ob das Unternehmen zu Deiner Zukaufstrategie passt</li>
@@ -4669,7 +4734,7 @@ def nda_public_sign(req: func.HttpRequest) -> func.HttpResponse:
 <p>Hallo {_first_name(i.get('name')) or i.get('firma') or ''},</p>
 <p>vielen Dank für Dein unterschriebenes NDA zur Projektnummer <strong>{t.get('mbNr','')}</strong> &ndash; damit hast Du den ersten wichtigen Schritt gemacht!</p>
 <p>Du hast nun Zugang zum Exposé und kannst direkt einen Termin mit unserer M&amp;A-Beraterin Jennifer Kaplan buchen:</p>
-<p style="margin:24px 0"><a href="{termin_url}" style="background:#097e92;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Termin jetzt buchen</a></p>
+<p style="margin:24px 0"><a href="{termin_url}" style="background:#0088ba;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Termin jetzt buchen</a></p>
 <p>Herzliche Grüße<br/>Dein M&amp;A-Team der Mike Bergmann Akademie</p>
 </body></html>"""
             nda_attachment = {
@@ -5770,7 +5835,7 @@ def daily_termin_reminders(dailyTimer: func.TimerRequest) -> None:
             notiz = tm.get("notiz", "")
             akte_url = f"{FRONTEND_BASE.rstrip('/')}/"
             html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.5">
-                <h2 style="color:#097e92">Termin-Erinnerung: {label_zeit}</h2>
+                <h2 style="color:#0088ba">Termin-Erinnerung: {label_zeit}</h2>
                 <table cellpadding="6" style="background:#f0fdfa;border-radius:8px;border-collapse:separate;margin:10px 0">
                   <tr><td>Datum:</td><td><strong>{d.strftime('%d.%m.%Y')}</strong></td></tr>
                   <tr><td>Mandat:</td><td>{mb_nr} &middot; {firma}</td></tr>
@@ -5778,7 +5843,7 @@ def daily_termin_reminders(dailyTimer: func.TimerRequest) -> None:
                   <tr><td>Titel:</td><td><strong>{titel}</strong></td></tr>
                   {f'<tr><td>Notiz:</td><td>{notiz}</td></tr>' if notiz else ''}
                 </table>
-                <p><a href="{akte_url}" style="background:#097e92;color:white;padding:10px 18px;border-radius:8px;text-decoration:none">Zur Akte</a></p>
+                <p><a href="{akte_url}" style="background:#0088ba;color:white;padding:10px 18px;border-radius:8px;text-decoration:none">Zur Akte</a></p>
                 <p style="font-size:11px;color:#888">Automatische Erinnerung des ITUKV Dashboards.</p>
             </body></html>"""
             subject = f"[ITUKV] Termin {label_zeit}: {titel} ({mb_nr})"
@@ -5831,7 +5896,7 @@ def monthly_status_reports(monthlyTimer: func.TimerRequest) -> None:
         # Mail mit Attachment
         filename = f"Statusbericht_{mb_nr}_{datetime.utcnow().date().isoformat()}.pdf"
         html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.5">
-            <h2 style="color:#097e92">Monats-Statusbericht: {mb_nr}</h2>
+            <h2 style="color:#0088ba">Monats-Statusbericht: {mb_nr}</h2>
             <p>Anbei der automatische Statusbericht fuer das Mandat <strong>{firma}</strong>.</p>
             <p style="color:#666;font-size:12px">Pruefe vor dem Weiterleiten an den Mandanten ob der Bericht den aktuellen Stand korrekt wiedergibt.</p>
         </body></html>"""
@@ -5929,7 +5994,7 @@ def _build_status_report_pdf(t):
 <style>
 @page {{ size: A4; margin: 18mm 16mm; }}
 body {{ font-family: Helvetica, Arial, sans-serif; color: #161e2a; font-size: 11pt; line-height: 1.45; }}
-h1 {{ color: #097e92; font-size: 20pt; margin: 0 0 4px; }}
+h1 {{ color: #0088ba; font-size: 20pt; margin: 0 0 4px; }}
 h2 {{ color: #0088ba; font-size: 13pt; margin: 18px 0 6px; padding-bottom: 3px; border-bottom: 1.5px solid #0088ba33; }}
 .meta {{ color: #666; font-size: 10pt; margin-bottom: 16px; }}
 .box {{ background: #f0fdfa; border-left: 3px solid #0088ba; padding: 10px 14px; margin: 8px 0; }}
