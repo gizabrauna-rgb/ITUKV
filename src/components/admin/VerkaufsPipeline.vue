@@ -55,10 +55,17 @@
               <span class="text-[10px] bg-white text-gray-600 px-1.5 py-0.5 rounded-full flex-shrink-0">{{ phaseMandate(p.id).length }}</span>
             </div>
           </div>
-          <div class="bg-gray-50 rounded-b-xl p-2 min-h-[120px] space-y-2">
-            <button v-for="m in phaseMandate(p.id)" :key="m.id"
+          <div class="bg-gray-50 rounded-b-xl p-2 min-h-[120px] space-y-2"
+            @dragover.prevent="dragOverPhase = p.id"
+            @dragleave="dragOverPhase = null"
+            @drop="onDrop($event, p.id)"
+            :class="{ 'ring-2 ring-orange-400': dragOverPhase === p.id }">
+            <div v-for="m in phaseMandate(p.id)" :key="m.id"
+              draggable="true"
+              @dragstart="onDragStart($event, m)"
+              @dragend="dragOverPhase = null"
               @click="$emit('open-akte', { targetId: m.id })"
-              class="block w-full text-left bg-white rounded-lg p-2 border border-gray-100 hover:border-orange-200 transition-colors">
+              class="block w-full text-left bg-white rounded-lg p-2 border border-gray-100 hover:border-orange-200 transition-colors cursor-move">
               <div class="flex items-center justify-between mb-1">
                 <span class="text-[10px] font-mono bg-orange-50 text-orange-700 px-1 rounded">{{ m.mbNr }}</span>
                 <span v-if="m.status" class="text-[9px] text-gray-500">{{ m.status }}</span>
@@ -68,7 +75,7 @@
               <div v-if="m.offen" class="text-[10px] text-amber-700 mt-1 flex items-center gap-1">
                 <ListTodo class="w-3 h-3" /> {{ m.offen }} offen
               </div>
-            </button>
+            </div>
           </div>
         </div>
       </div>
@@ -129,7 +136,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { Briefcase, ListTodo, ChevronLeft, ChevronRight, Info, X } from '@lucide/vue'
-import { getTargets } from '../../api.js'
+import { getTargets, authFetch } from '../../api.js'
 
 defineEmits(['open-akte'])
 
@@ -199,6 +206,44 @@ onMounted(async () => {
 watch(() => [ansicht.value, filterText.value, filterStatus.value], async () => { await nextTick(); updateScrollState() })
 
 const phasenInfoModal = ref(null)
+
+// === Drag & Drop ===
+const draggedMandat = ref(null)
+const dragOverPhase = ref(null)
+function onDragStart(ev, m) {
+  draggedMandat.value = m
+  ev.dataTransfer.effectAllowed = 'move'
+}
+async function onDrop(ev, targetPhaseId) {
+  ev.preventDefault()
+  dragOverPhase.value = null
+  const m = draggedMandat.value
+  if (!m || m.phaseId === targetPhaseId) return
+  if (!confirm(`Mandat ${m.mbNr} ${m.firma || m.name} auf Phase ${targetPhaseId} verschieben? Alle Aufgaben bis dahin werden als erledigt markiert.`)) {
+    draggedMandat.value = null
+    return
+  }
+  // Bringe die Phase via target-update — wir nutzen denselben Mechanismus wie das Dropdown
+  // in der Akte: alle Aufgaben in Phase 1..(N-1) auf done setzen.
+  try {
+    const t = await authFetch('/target-get', { method: 'POST', data: { id: m.id } })
+    const phasen = JSON.parse(t.phasenJson || '[]')
+    const now = new Date().toISOString()
+    for (const ph of phasen) {
+      if ((ph.id || 0) < targetPhaseId) {
+        for (const a of (ph.aufgaben || [])) {
+          if (!a.done) { a.done = true; a.datum = a.datum || now }
+        }
+      }
+    }
+    await authFetch('/target-update', { method: 'POST', data: { id: m.id, phasenJson: JSON.stringify(phasen) } })
+    // Mandat-Liste lokal aktualisieren
+    m.phaseId = targetPhaseId
+  } catch (e) {
+    alert('Verschieben fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
+  }
+  draggedMandat.value = null
+}
 
 function isPhaseDone(p) {
   return (p?.aufgaben || []).length > 0 && p.aufgaben.every(a => a.done)

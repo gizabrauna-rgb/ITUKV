@@ -1437,6 +1437,31 @@ def ausschreibung_versand(req: func.HttpRequest) -> func.HttpResponse:
             "betreff": f"Ausschreibung versendet — Verteiler: {filter_beschreibung}",
             "beschreibung": f'Marktansprache gestartet. Verteiler: {filter_beschreibung}. Betreff der Ausschreibung: „{betreff_tpl[:120]}".',
         })
+        # Phase-Auto-Advance: Mandat in der Verkaufs-Pipeline auf "Marktansprache" rutschen.
+        # Wir markieren alle Aufgaben in Phase 1+2 als erledigt + den „Anschreiben"-Task in Phase 3.
+        try:
+            t_fresh = dict(table_("targets").get_entity("target", tid))
+            phasen = json.loads(t_fresh.get("phasenJson") or "[]")
+            if isinstance(phasen, list) and phasen:
+                dirty = False
+                for ph in phasen:
+                    pid = ph.get("id", 0)
+                    if pid <= 2:
+                        for a in (ph.get("aufgaben") or []):
+                            if not a.get("done"):
+                                a["done"] = True; a["datum"] = a.get("datum") or now_iso
+                                dirty = True
+                    elif pid == 3:
+                        for a in (ph.get("aufgaben") or []):
+                            if a.get("auto") in ("anschreibenVerschickt", "interessentenAngelegt", "landingPublished"):
+                                if not a.get("done"):
+                                    a["done"] = True; a["datum"] = a.get("datum") or now_iso
+                                    dirty = True
+                if dirty:
+                    t_fresh["phasenJson"] = json.dumps(phasen, ensure_ascii=False)
+                    table_("targets").update_entity(t_fresh)
+        except Exception as ex:
+            logging.warning(f"Phase-Auto-Advance fehlgeschlagen: {ex}")
 
     return ok_({"sent": sent, "failed": failed, "skipped": skipped, "errors": errors[:10]})
 
