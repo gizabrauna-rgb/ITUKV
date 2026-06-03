@@ -1330,6 +1330,37 @@ def ausschreibung_versand(req: func.HttpRequest) -> func.HttpResponse:
     if not test_email:
         now_iso = datetime.utcnow().isoformat()
         autor = p.get("name") or p.get("email", "")
+        # Info-Mail an Mandant: Kampagne gestartet
+        mandant_email = (t.get("privatEmail") or "").strip()
+        if not mandant_email:
+            try:
+                for u in table_("users").query_entities("targetId eq @t", parameters={"t": tid}):
+                    if u.get("email"): mandant_email = u["email"]; break
+            except Exception: pass
+        if mandant_email:
+            try:
+                mandant_vorname = _first_name(t.get("vorname") or t.get("verkaueferName") or "")
+                info_html = (
+                    '<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">'
+                    f'<h2 style="color:#0088ba">Kampagne gestartet — Projekt {mb_nr}</h2>'
+                    f'<p>Hallo {mandant_vorname or "zusammen"},</p>'
+                    f'<p>kurze Info zu Deinem Projekt <strong>{mb_nr}</strong>: Wir haben heute die Marktansprache gestartet.</p>'
+                    f'<p><strong>{sent} potenzielle Interessenten</strong> haben soeben eine anonymisierte Ausschreibung erhalten und können sich über die Landing-Page für das Exposé eintragen.</p>'
+                    f'<p>Sobald die ersten Rückmeldungen kommen, melden wir uns mit den nächsten Schritten.</p>'
+                    f'<p>Viele Grüße<br/>Dein M&amp;A-Team der Mike Bergmann Akademie</p>'
+                    '</body></html>'
+                )
+                _acs_dispatch(client, {
+                    "senderAddress": ACS_SENDER,
+                    "recipients": {"to": [{"address": mandant_email}]},
+                    "content": {
+                        "subject": f"Kampagne gestartet — Projekt {mb_nr}",
+                        "plainText": f"Hallo {mandant_vorname},\n\nKampagne fuer Projekt {mb_nr} ist gestartet: {sent} potenzielle Interessenten wurden angeschrieben.\n\nViele Gruesse\nDein M&A-Team der Mike Bergmann Akademie",
+                        "html": info_html,
+                    },
+                })
+            except Exception as ex:
+                logging.warning(f"Mandant-Info-Mail fehlgeschlagen: {ex}")
         _verlauf_append(tid, {
             "id": "k" + str(int(datetime.utcnow().timestamp() * 1000)),
             "typ": "mail_out",
