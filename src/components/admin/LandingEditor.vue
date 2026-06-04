@@ -18,21 +18,50 @@
     </div>
 
     <!-- Status-Box -->
-    <div class="bg-white rounded-xl border border-gray-100 p-4 mb-4 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div :class="['w-3 h-3 rounded-full', landing.status === 'published' ? 'bg-green-500' : 'bg-gray-400']"></div>
-        <div>
-          <div class="font-medium text-sm">Status: {{ landing.status === 'published' ? 'Veröffentlicht (öffentlich erreichbar)' : 'Entwurf (noch nicht öffentlich)' }}</div>
-          <div v-if="landing.status === 'published'" class="text-xs text-gray-500">Live unter <a :href="liveUrl" target="_blank" class="text-[#0088ba] hover:underline">{{ liveUrl }}</a></div>
+    <div class="bg-white rounded-xl border border-gray-100 p-4 mb-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div :class="['w-3 h-3 rounded-full', landing.status === 'published' ? 'bg-green-500' : 'bg-gray-400']"></div>
+          <div>
+            <div class="font-medium text-sm">Status: {{ landing.status === 'published' ? 'Veröffentlicht (öffentlich erreichbar)' : 'Entwurf (noch nicht öffentlich)' }}</div>
+            <div v-if="landing.status === 'published'" class="text-xs text-gray-500">Live unter <a :href="liveUrl" target="_blank" class="text-[#0088ba] hover:underline">{{ liveUrl }}</a></div>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button v-if="landing.status !== 'published'" @click="publish" :disabled="saving" class="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 disabled:opacity-50">
+            Veröffentlichen
+          </button>
+          <button v-else @click="unpublish" :disabled="saving" class="px-4 py-2 border border-red-200 text-red-700 bg-red-50 rounded-xl text-sm hover:bg-red-100 disabled:opacity-50">
+            Zurückziehen
+          </button>
         </div>
       </div>
-      <div class="flex gap-2">
-        <button v-if="landing.status !== 'published'" @click="publish" :disabled="saving" class="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 disabled:opacity-50">
-          Veröffentlichen
-        </button>
-        <button v-else @click="unpublish" :disabled="saving" class="px-4 py-2 border border-red-200 text-red-700 bg-red-50 rounded-xl text-sm hover:bg-red-100 disabled:opacity-50">
-          Zurückziehen
-        </button>
+      <!-- Visit-Stats -->
+      <div v-if="landing.status === 'published'" class="mt-4 pt-3 border-t border-gray-100">
+        <div class="flex items-center justify-between mb-2">
+          <h4 class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Besuche</h4>
+          <button @click="ladeVisitStats" class="text-[11px] text-[#0088ba] hover:underline">Aktualisieren</button>
+        </div>
+        <div v-if="visitStatsLoading" class="text-xs text-gray-400">Lädt …</div>
+        <div v-else-if="visitStats && visitStats.total > 0" class="grid grid-cols-4 gap-3 text-center">
+          <div class="bg-blue-50 rounded-lg p-2">
+            <div class="text-xl font-bold text-blue-700">{{ visitStats.total }}</div>
+            <div class="text-[10px] text-gray-500 uppercase">Aufrufe gesamt</div>
+          </div>
+          <div class="bg-green-50 rounded-lg p-2">
+            <div class="text-xl font-bold text-green-700">{{ visitStats.uniqueVisitors }}</div>
+            <div class="text-[10px] text-gray-500 uppercase">Unique-Besucher</div>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-2">
+            <div class="text-xs font-medium text-gray-700">{{ fmtDate(visitStats.firstVisit) }}</div>
+            <div class="text-[10px] text-gray-500 uppercase">Erster Aufruf</div>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-2">
+            <div class="text-xs font-medium text-gray-700">{{ fmtDate(visitStats.lastVisit) }}</div>
+            <div class="text-[10px] text-gray-500 uppercase">Letzter Aufruf</div>
+          </div>
+        </div>
+        <div v-else class="text-xs text-gray-400">Noch keine Besuche getrackt.</div>
       </div>
     </div>
 
@@ -159,6 +188,22 @@ const liveUrl = computed(() => `${LANDING_BASE}/${(target.value?.mbNr || 'mb-xxx
 
 const zapierWebhookUrl = ref('')
 
+// Visit-Stats
+const visitStats = ref(null)
+const visitStatsLoading = ref(false)
+async function ladeVisitStats() {
+  if (!target.value?.mbNr) return
+  visitStatsLoading.value = true
+  try {
+    visitStats.value = await authFetch('/landing-visit-stats', { method: 'POST', data: { mbNr: target.value.mbNr.toLowerCase() } })
+  } catch (e) { visitStats.value = null }
+  finally { visitStatsLoading.value = false }
+}
+function fmtDate(iso) {
+  if (!iso) return '—'
+  try { return new Date(iso).toLocaleDateString('de-DE') } catch { return '—' }
+}
+
 onMounted(async () => {
   if (!props.targetId) { loaded.value = true; return }
   try {
@@ -170,6 +215,7 @@ onMounted(async () => {
       } catch {}
     }
     zapierWebhookUrl.value = target.value?.zapierWebhookUrl || ''
+    if (landing.value.status === 'published') ladeVisitStats()
   } catch (e) { console.error(e) }
   finally { loaded.value = true }
 })

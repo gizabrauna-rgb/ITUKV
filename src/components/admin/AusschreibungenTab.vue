@@ -44,6 +44,12 @@
                   <ExternalLink class="w-3 h-3" /> {{ it.liveUrl.replace(/^https?:\/\//, '') }}
                 </a>
               </div>
+              <!-- Visit-Stats Unter-Zeile -->
+              <div v-if="it.published && it.stats" class="flex items-center gap-3 mt-1.5 text-[11px]">
+                <span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">{{ it.stats.total }} Aufrufe</span>
+                <span class="bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">{{ it.stats.uniqueVisitors }} unique</span>
+                <span v-if="it.stats.lastVisit" class="text-gray-400">letzter: {{ fmtDate(it.stats.lastVisit) }}</span>
+              </div>
             </div>
           </div>
 
@@ -69,6 +75,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { Megaphone, Pencil, ExternalLink } from '@lucide/vue'
 import { getTargets, updateTarget } from '../../api.js'
+import { authFetch } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 
 defineEmits(['open-akte'])
@@ -121,6 +128,11 @@ function buildItem(t) {
   }
 }
 
+function fmtDate(iso) {
+  if (!iso) return ''
+  try { return new Date(iso).toLocaleDateString('de-DE') } catch { return '' }
+}
+
 onMounted(async () => {
   try {
     const targets = await getTargets()
@@ -132,6 +144,13 @@ onMounted(async () => {
         if (a.published !== b.published) return a.published ? -1 : 1
         return (b.mbNr || '').localeCompare(a.mbNr || '')
       })
+    // Visit-Stats parallel fuer alle online-Items laden (best-effort)
+    const online = items.value.filter(it => it.published && it.mbNr)
+    await Promise.all(online.map(async it => {
+      try {
+        it.stats = await authFetch('/landing-visit-stats', { method: 'POST', data: { mbNr: it.mbNr.toLowerCase() } })
+      } catch {}
+    }))
   } catch (e) {
     console.error(e)
     toast?.error?.('Mandate konnten nicht geladen werden.')
