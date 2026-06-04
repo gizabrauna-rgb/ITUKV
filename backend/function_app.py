@@ -1652,6 +1652,59 @@ def backfill_kontakt_verlauf(req: func.HttpRequest) -> func.HttpResponse:
     })
 
 
+@app.route(route="interessenten-fuer-kontakt", methods=["POST", "OPTIONS"])
+def interessenten_fuer_kontakt(req: func.HttpRequest) -> func.HttpResponse:
+    """Liefert fuer eine E-Mail (oder Firma) ALLE passenden Interessenten-
+    Eintraege ueber alle Mandate hinweg — inkl. deren Verlauf-Eintraegen.
+    Wird in der CRM-Akte als zusaetzliche Verlauf-Quelle gemerged.
+    Body: { email?: str, firma?: str }"""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    email = (body.get("email") or "").strip().lower()
+    firma = (body.get("firma") or "").strip().lower()
+    if not email and not firma:
+        return ok_({"interessenten": []})
+
+    mb_by_tid = {}
+    firma_by_tid = {}
+    for t in table_("targets").list_entities():
+        mb_by_tid[t.get("RowKey", "")] = t.get("mbNr", "") or ""
+        firma_by_tid[t.get("RowKey", "")] = t.get("firma", "") or t.get("verkaueferName", "") or ""
+
+    out = []
+    for inter in table_("interessenten").list_entities():
+        em = (inter.get("email", "") or "").strip().lower()
+        fi = (inter.get("firma", "") or "").strip().lower()
+        if email and em != email and not (firma and fi == firma):
+            continue
+        if not email and firma and fi != firma:
+            continue
+        tid = inter.get("targetId", "")
+        # Eigene Verlauf-Eintraege des Interessenten parsen
+        try: vlog = json.loads(inter.get("verlaufJson") or "[]")
+        except: vlog = []
+        if not isinstance(vlog, list): vlog = []
+        out.append({
+            "id": inter.get("RowKey", ""),
+            "mbNr": mb_by_tid.get(tid, ""),
+            "targetId": tid,
+            "mandantFirma": firma_by_tid.get(tid, ""),
+            "firma": inter.get("firma", "") or "",
+            "name": inter.get("name", "") or "",
+            "email": inter.get("email", "") or "",
+            "createdAt": inter.get("createdAt", "") or "",
+            "ndaStatus": inter.get("ndaStatus", "") or "",
+            "rating": inter.get("rating", 0) or 0,
+            "veto": bool(inter.get("veto", False)),
+            "verlauf": vlog,
+        })
+    return ok_({"interessenten": out})
+
+
 @app.route(route="versand-stats", methods=["POST", "OPTIONS"])
 def versand_stats(req: func.HttpRequest) -> func.HttpResponse:
     """Recherche: zaehlt fuer ein Mandat, an wie viele Kontakte tatsaechlich

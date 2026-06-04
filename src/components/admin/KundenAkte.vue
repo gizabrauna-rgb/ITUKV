@@ -334,7 +334,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { X, Pencil, CheckCircle2, Briefcase, StickyNote, FileText, Package, ScrollText, Mail, History, Sparkles, Phone, Calendar, MailCheck } from '@lucide/vue'
 import { updateKontakt } from '../../api.js'
 import { authFetch } from '../../api.js'
@@ -501,6 +501,22 @@ const notizen = computed(() => {
   } catch { return [] }
 })
 
+// Interessenten-Treffer fuer diese E-Mail/Firma (ueber alle Mandate hinweg)
+const interessentenLinks = ref([])
+async function ladeInteressentenLinks() {
+  const email = (props.kontakt?.email || '').trim().toLowerCase()
+  const firma = (props.kontakt?.firma || '').trim()
+  if (!email && !firma) { interessentenLinks.value = []; return }
+  try {
+    const r = await authFetch('/interessenten-fuer-kontakt', { method: 'POST', data: { email, firma } })
+    interessentenLinks.value = r.interessenten || []
+  } catch (e) {
+    interessentenLinks.value = []
+  }
+}
+onMounted(ladeInteressentenLinks)
+watch(() => props.kontakt?.RowKey, ladeInteressentenLinks)
+
 const verlaufAlle = computed(() => {
   const all = []
   // 1) Kontakt-eigener Verlauf (Mass-Mails, Inbound-Antworten, manuelle Eintraege)
@@ -518,7 +534,52 @@ const verlaufAlle = computed(() => {
       if (Array.isArray(arr)) arr.forEach(e => all.push({ ...e, _mbNr: p.mbNr, _quelle: 'mandat' }))
     } catch {}
   }
-  return all.sort((a, b) => (b.datum || '').localeCompare(a.datum || ''))
+  // 3) Interessenten-Verlauf (ueber alle Mandate, in denen die E-Mail/Firma als Interessent auftaucht)
+  for (const i of interessentenLinks.value) {
+    // Pro Interessent: synthesische "Eintragung über Landing-Page"-Zeile
+    all.push({
+      id: 'i-' + i.id,
+      typ: 'wichtig',
+      datum: i.createdAt || '',
+      autor: 'Landing-Page',
+      betreff: `Eintragung über Landing-Page ${i.mbNr}`,
+      beschreibung: `Kontakt hat sich über die Landing-Page zur Ausschreibung ${i.mbNr} (${i.mandantFirma}) eingetragen und ein Exposé angefordert.`,
+      _mbNr: i.mbNr,
+      _quelle: 'interessent',
+    })
+    // Zusaetzlich: synthesische "Ausschreibung versendet"-Zeile (1h vor Eintragung)
+    let mailDt = i.createdAt || ''
+    try {
+      const dt = new Date(i.createdAt)
+      dt.setHours(dt.getHours() - 1)
+      mailDt = dt.toISOString()
+    } catch {}
+    all.push({
+      id: 'i-mail-' + i.id,
+      typ: 'mail_out',
+      datum: mailDt,
+      autor: 'Versand',
+      betreff: `Ausschreibung ${i.mbNr} versendet`,
+      beschreibung: `Ausschreibung zum Projekt ${i.mbNr} wurde an diesen Kontakt versendet.`,
+      _mbNr: i.mbNr,
+      _quelle: 'interessent',
+    })
+    // Eigene Verlauf-Eintraege des Interessenten (z.B. „Exposé angefragt")
+    if (Array.isArray(i.verlauf)) {
+      i.verlauf.forEach(e => all.push({ ...e, _mbNr: i.mbNr, _quelle: 'interessent' }))
+    }
+  }
+  // Dedup nach (typ + _mbNr + datum-Tag) damit Backfill-Eintraege + synthesische sich nicht doppeln
+  const seen = new Set()
+  const deduped = []
+  for (const e of all) {
+    const day = (e.datum || '').slice(0, 10)
+    const key = `${e.typ}|${e._mbNr || e.kontextMbNr || ''}|${day}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    deduped.push(e)
+  }
+  return deduped.sort((a, b) => (b.datum || '').localeCompare(a.datum || ''))
 })
 
 const verlaufFilterTyp = ref('')
