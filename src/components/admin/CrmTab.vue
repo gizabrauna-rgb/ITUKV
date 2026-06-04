@@ -13,6 +13,9 @@
         <button @click="showImport = true" class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50">
           <Upload class="w-4 h-4" /> Importieren
         </button>
+        <button @click="runBackfill" :disabled="backfillRunning" class="flex items-center gap-2 px-3 py-2 border border-amber-200 bg-amber-50 text-amber-800 rounded-xl text-sm hover:bg-amber-100 disabled:opacity-60">
+          {{ backfillRunning ? 'Lädt…' : 'Verlauf nachtragen' }}
+        </button>
         <button @click="showNewModal = true" class="flex items-center gap-2 px-3 py-2 bg-[#0088ba] text-white rounded-xl text-sm hover:bg-[#00a0d8]">
           <UserPlus class="w-4 h-4" /> Neuer Kontakt
         </button>
@@ -911,6 +914,21 @@ async function sendTestMail() {
 }
 const showImport = ref(false)
 const showNewModal = ref(false)
+
+// One-Shot: Verlauf-Backfill fuer historische Landing-Page-Eintragungen
+const backfillRunning = ref(false)
+async function runBackfill() {
+  if (!confirm('Verlauf-Einträge für historische Landing-Page-Eintragungen nachtragen? (kann mehrfach laufen, schreibt nichts doppelt)')) return
+  backfillRunning.value = true
+  try {
+    const r = await authFetch('/backfill-kontakt-verlauf', { method: 'POST', data: { dryRun: false } })
+    alert(`Fertig!\n\n${r.createdMailOut} × „Ausschreibung versendet" eingetragen\n${r.createdWichtig} × „Landing-Page-Eintragung" eingetragen\n${r.touchedKontakte} Kontakte aktualisiert\n${r.skipped} ohne CRM-Kontakt übersprungen`)
+  } catch (e) {
+    alert('Backfill fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
+  } finally {
+    backfillRunning.value = false
+  }
+}
 const editKontakt = ref(null)
 const akteKontakt = ref(null)
 function openAkte(k) { akteKontakt.value = k }
