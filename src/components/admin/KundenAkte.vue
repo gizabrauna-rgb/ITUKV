@@ -514,8 +514,11 @@ async function ladeInteressentenLinks() {
     interessentenLinks.value = []
   }
 }
-onMounted(ladeInteressentenLinks)
-watch(() => props.kontakt?.RowKey, ladeInteressentenLinks)
+watch(
+  () => [props.kontakt?.RowKey, props.kontakt?.email, props.kontakt?.firma],
+  ladeInteressentenLinks,
+  { immediate: true }
+)
 
 const verlaufAlle = computed(() => {
   const all = []
