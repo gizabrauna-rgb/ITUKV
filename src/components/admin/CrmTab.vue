@@ -925,7 +925,11 @@ async function runBackfill() {
   backfillRunning.value = true
   try {
     const r = await authFetch('/backfill-kontakt-verlauf', { method: 'POST', data: { dryRun: false } })
-    alert(`Fertig!\n\n${r.createdMailOut} × „Ausschreibung versendet" eingetragen\n${r.createdWichtig} × „Landing-Page-Eintragung" eingetragen\n${r.touchedKontakte} Kontakte aktualisiert\n${r.skipped} ohne CRM-Kontakt übersprungen`)
+    // Kontakte-Liste sofort neu laden, damit Slide-Over die neuen Verlauf-Eintraege zeigt
+    allKontakte.value = await getKontakte()
+    applyFilters()
+    const dbg = (r.debug || []).slice(0, 10).join('\n')
+    alert(`Fertig!\n\n${r.createdMailOut} × „Ausschreibung versendet" eingetragen\n${r.createdWichtig} × „Landing-Page-Eintragung" eingetragen\n${r.touchedKontakte} Kontakte aktualisiert\n${r.skipped} ohne CRM-Kontakt übersprungen\n\nDebug (erste 10):\n${dbg || '(leer)'}`)
   } catch (e) {
     alert('Backfill fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
   } finally {
