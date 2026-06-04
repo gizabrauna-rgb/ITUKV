@@ -59,10 +59,17 @@
               <span class="text-[10px] bg-white text-gray-600 px-1.5 py-0.5 rounded-full flex-shrink-0">{{ phaseAkquisitionen(p.id).length }}</span>
             </div>
           </div>
-          <div class="bg-gray-50 rounded-b-xl p-2 min-h-[120px] space-y-2">
-            <button v-for="a in phaseAkquisitionen(p.id)" :key="a.akq.id"
+          <div class="bg-gray-50 rounded-b-xl p-2 min-h-[120px] space-y-2"
+            @dragover.prevent="dragOverPhase = p.id"
+            @dragleave="dragOverPhase = null"
+            @drop="onDropAkq($event, p.id)"
+            :class="{ 'ring-2 ring-blue-400': dragOverPhase === p.id }">
+            <div v-for="a in phaseAkquisitionen(p.id)" :key="a.akq.id"
+              draggable="true"
+              @dragstart="onDragStartAkq($event, a)"
+              @dragend="dragOverPhase = null"
               @click="$emit('open-akte', { targetId: a.investor.id })"
-              class="block w-full text-left bg-white rounded-lg p-2 border border-gray-100 hover:border-blue-200 transition-colors">
+              class="block w-full text-left bg-white rounded-lg p-2 border border-gray-100 hover:border-blue-200 transition-colors cursor-move">
               <div class="flex items-center justify-between mb-1">
                 <span class="text-[10px] font-mono bg-green-50 text-green-700 px-1 rounded">{{ a.investor.mbNr }}</span>
                 <span :class="['text-[9px] px-1 rounded-full', statusInfo(a.akq.status).cls]">{{ a.akq.status }}</span>
@@ -72,7 +79,7 @@
               <div v-if="offeneAufgaben(a.akq)" class="text-[10px] text-amber-700 mt-1 flex items-center gap-1">
                 <ListTodo class="w-3 h-3" /> {{ offeneAufgaben(a.akq) }} offen
               </div>
-            </button>
+            </div>
           </div>
         </div>
       </div>
@@ -135,7 +142,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { Target, ListTodo, ChevronLeft, ChevronRight, Info, X } from '@lucide/vue'
-import { getTargets } from '../../api.js'
+import { getTargets, authFetch } from '../../api.js'
 import { AKQ_PHASEN, AKQ_STATUS, phaseInfo, statusInfo } from '../../data/akquisitionsPhasen.js'
 
 defineEmits(['open-akte'])
@@ -162,6 +169,40 @@ onBeforeUnmount(() => {
 })
 
 const phasenInfoModal = ref(null)
+
+// === Drag & Drop ===
+const draggedAkq = ref(null)
+const dragOverPhase = ref(null)
+function onDragStartAkq(ev, a) {
+  draggedAkq.value = a
+  ev.dataTransfer.effectAllowed = 'move'
+}
+async function onDropAkq(ev, targetPhaseId) {
+  ev.preventDefault()
+  dragOverPhase.value = null
+  const a = draggedAkq.value
+  if (!a || (a.akq.phase || 1) === targetPhaseId) return
+  if (!confirm(`Akquisition „${a.akq.name}" auf Phase ${targetPhaseId} verschieben?`)) {
+    draggedAkq.value = null
+    return
+  }
+  try {
+    // Komplette Akquisitionen-Liste vom Käufer-Mandat laden, dann update der einen
+    const t = await authFetch('/target-get', { method: 'POST', data: { id: a.investor.id } })
+    let list = []
+    try { list = JSON.parse(t.akquisitionenJson || '[]') } catch {}
+    if (!Array.isArray(list)) list = []
+    const idx = list.findIndex(x => x.id === a.akq.id)
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], phase: targetPhaseId }
+      await authFetch('/target-update', { method: 'POST', data: { id: a.investor.id, akquisitionenJson: JSON.stringify(list) } })
+      a.akq.phase = targetPhaseId
+    }
+  } catch (e) {
+    alert('Verschieben fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
+  }
+  draggedAkq.value = null
+}
 
 const targets = ref([])
 const loading = ref(true)

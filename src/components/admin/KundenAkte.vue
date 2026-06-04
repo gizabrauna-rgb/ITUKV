@@ -182,32 +182,55 @@
 
           <!-- Verlauf (alle Projekte zusammen) -->
           <section v-else-if="tab === 'verlauf'">
-            <!-- Neuer Eintrag -->
-            <div v-if="verknuepfteProjekte.length" class="border border-gray-100 rounded-xl p-4 mb-5 bg-gray-50">
+            <!-- Action-Buttons (wie im Target-Verlauf) -->
+            <div class="flex flex-wrap gap-2 mb-4">
+              <button @click="openNeuerEintrag('mail_out')" class="flex items-center gap-1.5 px-3 py-1.5 bg-[#0088ba] text-white rounded-lg text-xs font-medium hover:bg-[#00a0d8]">
+                <Mail class="w-3.5 h-3.5" /> E-Mail senden
+              </button>
+              <button @click="openNeuerEintrag('telefon')" class="flex items-center gap-1.5 px-3 py-1.5 border border-green-200 bg-green-50 text-green-700 rounded-lg text-xs font-medium hover:bg-green-100">
+                <Phone class="w-3.5 h-3.5" /> Telefonat
+              </button>
+              <button @click="openNeuerEintrag('termin')" class="flex items-center gap-1.5 px-3 py-1.5 border border-purple-200 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-100">
+                <Calendar class="w-3.5 h-3.5" /> Termin
+              </button>
+              <button @click="openNeuerEintrag('notiz')" class="flex items-center gap-1.5 px-3 py-1.5 border border-amber-200 bg-amber-50 text-amber-800 rounded-lg text-xs font-medium hover:bg-amber-100">
+                <StickyNote class="w-3.5 h-3.5" /> Notiz
+              </button>
+              <button @click="openNeuerEintrag('mail_in')" class="flex items-center gap-1.5 px-3 py-1.5 border border-orange-200 bg-orange-50 text-orange-700 rounded-lg text-xs font-medium hover:bg-orange-100">
+                <MailCheck class="w-3.5 h-3.5" /> Antwort eingegangen
+              </button>
+            </div>
+
+            <!-- Neuer Eintrag (kontextueller Editor) -->
+            <div v-if="neuerEintragOffen" class="border border-gray-100 rounded-xl p-4 mb-5 bg-gray-50">
               <div class="flex items-center justify-between mb-2">
-                <h4 class="text-xs font-semibold text-gray-700 uppercase tracking-wide">Neuer Verlauf-Eintrag</h4>
-                <select v-if="verknuepfteProjekte.length > 1" v-model="verlaufTargetId"
-                  class="text-xs border border-gray-200 rounded-lg px-2 py-1">
-                  <option v-for="p in verknuepfteProjekte" :key="p.RowKey" :value="p.RowKey">
-                    {{ p.mbNr || '—' }} · {{ p.firma || p.verkaueferName }}
-                  </option>
-                </select>
-                <span v-else-if="verknuepfteProjekte[0]" class="text-[11px] text-gray-500">
-                  zu {{ verknuepfteProjekte[0].mbNr }}
-                </span>
+                <h4 class="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                  <span :class="['inline-block w-2 h-2 rounded-full mr-1.5', verlaufDotColor(verlaufTyp)]"></span>
+                  {{ verlaufLabel(verlaufTyp) }}
+                </h4>
+                <button @click="neuerEintragOffen = false" class="text-gray-400 hover:text-gray-600 text-xs">Schließen</button>
               </div>
-              <input v-model="verlaufBetreff" placeholder="Betreff (optional)"
+              <input v-model="verlaufBetreff" placeholder="Betreff / kurze Zusammenfassung"
                 class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 mb-2" />
-              <textarea v-model="verlaufBody" rows="3" placeholder="Notiz oder Nachricht…"
+              <textarea v-model="verlaufBody" :rows="verlaufTyp === 'notiz' ? 3 : 5" :placeholder="placeholderFuerTyp(verlaufTyp)"
                 class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 resize-none mb-2"></textarea>
-              <div class="flex items-center justify-between">
-                <label class="flex items-center gap-1.5 text-[11px] text-gray-600 cursor-pointer">
-                  <input type="checkbox" v-model="verlaufNotifyMandant" />
-                  <span>Mandant per Mail informieren</span>
-                </label>
-                <button @click="addVerlauf" :disabled="!verlaufBody.trim() || savingVerlauf"
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <select v-if="verknuepfteProjekte.length > 0" v-model="verlaufTargetId"
+                    class="text-xs border border-gray-200 rounded-lg px-2 py-1">
+                    <option value="">— ohne Projekt-Bezug —</option>
+                    <option v-for="p in verknuepfteProjekte" :key="p.RowKey" :value="p.RowKey">
+                      {{ p.mbNr || '—' }} · {{ p.firma || p.verkaueferName }}
+                    </option>
+                  </select>
+                  <label v-if="verlaufTyp === 'mail_out'" class="flex items-center gap-1.5 text-[11px] text-gray-600 cursor-pointer">
+                    <input type="checkbox" v-model="verlaufWirklichSenden" />
+                    <span>tatsächlich per E-Mail an {{ props.kontakt?.email || 'Kontakt' }} senden</span>
+                  </label>
+                </div>
+                <button @click="speichereEintrag" :disabled="!verlaufBody.trim() || savingVerlauf"
                   class="px-4 py-1.5 bg-[#0088ba] text-white rounded-lg text-xs font-medium hover:bg-[#00a0d8] disabled:opacity-50">
-                  {{ savingVerlauf ? 'Speichere…' : 'Hinzufügen' }}
+                  {{ savingVerlauf ? 'Speichere…' : 'Eintragen' }}
                 </button>
               </div>
             </div>
@@ -312,7 +335,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { X, Pencil, CheckCircle2, Briefcase, StickyNote, FileText, Package, ScrollText, Mail, History, Sparkles } from '@lucide/vue'
+import { X, Pencil, CheckCircle2, Briefcase, StickyNote, FileText, Package, ScrollText, Mail, History, Sparkles, Phone, Calendar, MailCheck } from '@lucide/vue'
 import { updateKontakt } from '../../api.js'
 import { authFetch } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
@@ -322,7 +345,7 @@ const props = defineProps({
   kontakt: { type: Object, default: null },
   targets: { type: Array, default: () => [] },
 })
-const emit = defineEmits(['close', 'edit', 'open-projekt', 'updated'])
+const emit = defineEmits(['close', 'edit', 'open-projekt', 'updated', 'refresh'])
 
 const tab = ref('uebersicht')
 const newNote = ref('')
@@ -344,6 +367,62 @@ const verlaufBetreff = ref('')
 const verlaufBody = ref('')
 const verlaufNotifyMandant = ref(true)
 const savingVerlauf = ref(false)
+const verlaufTyp = ref('notiz')
+const neuerEintragOffen = ref(false)
+const verlaufWirklichSenden = ref(false)
+function openNeuerEintrag(typ) {
+  verlaufTyp.value = typ
+  verlaufBetreff.value = ''
+  verlaufBody.value = ''
+  verlaufWirklichSenden.value = false
+  neuerEintragOffen.value = true
+}
+function placeholderFuerTyp(t) {
+  return {
+    mail_out: 'E-Mail-Text an Kontakt … (wird im Verlauf gespeichert; Häkchen unten = wirklich rausschicken)',
+    mail_in: 'Eingegangene Mail / Antwort hier reinkopieren …',
+    telefon: 'Worüber wurde gesprochen, was ist das Ergebnis, nächste Schritte …',
+    termin: 'Wann, mit wem, Ort/Link, Agenda, Outcome …',
+    notiz: 'Notiz oder interner Gedanke …',
+  }[t] || 'Inhalt …'
+}
+async function speichereEintrag() {
+  if (!verlaufBody.value.trim()) return
+  savingVerlauf.value = true
+  try {
+    // E-Mail wirklich versenden?
+    if (verlaufTyp.value === 'mail_out' && verlaufWirklichSenden.value && props.kontakt?.email) {
+      try {
+        await authFetch('/ausschreibung-versand', { method: 'POST', data: {
+          targetId: verlaufTargetId.value || (verknuepfteProjekte.value[0]?.RowKey || ''),
+          betreff: verlaufBetreff.value.trim() || '(ohne Betreff)',
+          text: verlaufBody.value.trim(),
+          recipients: [{ email: props.kontakt.email, firma: props.kontakt.firma || '', name: props.kontakt.name || '', ort: props.kontakt.ort || '' }],
+          skipExisting: false,
+          writeMandantInfo: false,
+          filterBeschreibung: 'Einzelversand aus Kontakt-Akte',
+        }})
+      } catch (e) {
+        alert('Versand fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
+      }
+    }
+    // Verlauf-Eintrag in kontakt.verlaufJson
+    await authFetch('/kontakt-verlauf-add', { method: 'POST', data: {
+      email: props.kontakt?.email,
+      eintrag: {
+        typ: verlaufTyp.value,
+        betreff: verlaufBetreff.value.trim() || verlaufLabel(verlaufTyp.value),
+        beschreibung: verlaufBody.value.trim(),
+      },
+    }})
+    neuerEintragOffen.value = false
+    verlaufBetreff.value = ''
+    verlaufBody.value = ''
+    emit('refresh')  // Parent soll Kontakt-Daten neu laden
+  } catch (e) {
+    alert('Speichern fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
+  } finally { savingVerlauf.value = false }
+}
 
 const dokumenteLoading = ref(false)
 const dokumenteGruppen = ref([])
