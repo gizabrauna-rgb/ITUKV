@@ -1527,6 +1527,127 @@ def ausschreibung_delete(req: func.HttpRequest) -> func.HttpResponse:
 
 
 # =========================================================================
+# BACKFILL — Verlauf-Eintraege fuer historische Landing-Page-Eintragungen
+# =========================================================================
+
+@app.route(route="backfill-kontakt-verlauf", methods=["POST", "OPTIONS"])
+def backfill_kontakt_verlauf(req: func.HttpRequest) -> func.HttpResponse:
+    """Einmaliger Backfill: fuer jede historische Interessenten-Anmeldung
+    werden zwei Verlauf-Eintraege im passenden Kontakt erzeugt, falls sie
+    noch nicht existieren:
+      1) mail_out  — „Ausschreibung mb-XXX erhalten"  (zeit: Interessent.createdAt - 1h)
+      2) wichtig   — „Ueber Landing-Page eingetragen" (zeit: Interessent.createdAt)
+    Body: optional { dryRun: bool }
+    """
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    dry = bool(body.get("dryRun"))
+
+    tc = table_("kontakte")
+    kt = table_("targets")
+    it = table_("interessenten")
+
+    # mb-Nr je targetId vorab laden
+    mb_by_tid = {}
+    for t in kt.list_entities():
+        mb_by_tid[t.get("RowKey", "")] = (t.get("mbNr", "") or "")
+
+    # Kontakte je email (lower) vorab laden — vermeidet N*M-Full-Scan
+    kontakte_by_email = {}
+    for k in tc.list_entities():
+        em = (k.get("email", "") or "").strip().lower()
+        if em: kontakte_by_email[em] = dict(k)
+
+    created_mail_out = 0
+    created_wichtig = 0
+    skipped = 0
+    touched_kontakte = set()
+
+    for inter in it.list_entities():
+        em = (inter.get("email", "") or "").strip().lower()
+        if not em: continue
+        kontakt = kontakte_by_email.get(em)
+        if not kontakt:
+            skipped += 1
+            continue
+        mb_nr = mb_by_tid.get(inter.get("targetId", ""), "")
+        if not mb_nr:
+            skipped += 1
+            continue
+        try: kverlauf = json.loads(kontakt.get("verlaufJson") or "[]")
+        except: kverlauf = []
+        if not isinstance(kverlauf, list): kverlauf = []
+
+        # Schon vorhandene Eintraege fuer dieses Mandat?
+        has_mail_out = any(
+            (e.get("kontextMbNr", "") or "").lower() == mb_nr.lower() and e.get("typ") == "mail_out"
+            for e in kverlauf
+        )
+        has_wichtig = any(
+            (e.get("kontextMbNr", "") or "").lower() == mb_nr.lower()
+            and e.get("typ") == "wichtig"
+            and "Landing" in (e.get("autor", "") or "") or
+            ("Landing" in (e.get("beschreibung", "") or "") and (e.get("kontextMbNr", "") or "").lower() == mb_nr.lower())
+            for e in kverlauf
+        )
+
+        created_at = inter.get("createdAt") or datetime.utcnow().isoformat()
+        # mail_out 1h vorher datieren (die Mail kam ja vor der Eintragung)
+        try:
+            dt = datetime.fromisoformat(created_at.replace("Z", ""))
+            mail_dt = (dt - timedelta(hours=1)).isoformat()
+        except Exception:
+            mail_dt = created_at
+
+        changed = False
+        if not has_mail_out:
+            kverlauf.append({
+                "id": "kv" + str(int(datetime.utcnow().timestamp() * 1000)) + secrets.token_hex(2),
+                "typ": "mail_out",
+                "datum": mail_dt,
+                "autor": "Versand (nachgetragen)",
+                "betreff": f"Ausschreibung {mb_nr} versendet",
+                "beschreibung": f"Ausschreibung zum Projekt {mb_nr} wurde an diesen Kontakt versendet (nachgetragen via Backfill).",
+                "kontextMbNr": mb_nr,
+                "kontextTargetId": inter.get("targetId", ""),
+            })
+            created_mail_out += 1
+            changed = True
+        if not has_wichtig:
+            kverlauf.append({
+                "id": "kv" + str(int(datetime.utcnow().timestamp() * 1000)) + secrets.token_hex(2),
+                "typ": "wichtig",
+                "datum": created_at,
+                "autor": "Landing-Page",
+                "betreff": f"Eintragung über Landing-Page {mb_nr}",
+                "beschreibung": f"Kontakt hat sich über die Landing-Page zur Ausschreibung {mb_nr} eingetragen und ein Exposé angefordert.",
+                "kontextMbNr": mb_nr,
+                "kontextTargetId": inter.get("targetId", ""),
+            })
+            created_wichtig += 1
+            changed = True
+        if changed and not dry:
+            kontakt["verlaufJson"] = json.dumps(kverlauf, ensure_ascii=False)
+            try:
+                tc.update_entity(kontakt)
+                touched_kontakte.add(kontakt.get("RowKey", ""))
+            except Exception as ex:
+                logging.warning(f"Backfill update fehlgeschlagen {em}: {ex}")
+
+    return ok_({
+        "dryRun": dry,
+        "createdMailOut": created_mail_out,
+        "createdWichtig": created_wichtig,
+        "skipped": skipped,
+        "touchedKontakte": len(touched_kontakte),
+    })
+
+
+# =========================================================================
 # INTERESSENTEN — Pro Target / Pro Ausschreibung
 # =========================================================================
 
