@@ -1652,6 +1652,76 @@ def backfill_kontakt_verlauf(req: func.HttpRequest) -> func.HttpResponse:
     })
 
 
+@app.route(route="landing-visit", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def landing_visit(req: func.HttpRequest) -> func.HttpResponse:
+    """Oeffentlicher Endpoint: registriert einen Landing-Page-Besuch.
+    Body: { mbNr }. Speichert in Tabelle 'landingvisits' mit IP-Hash + UA.
+    Robust gegen Mehrfach-Aufrufe."""
+    if req.method == "OPTIONS":
+        return opt_()
+    body = req.get_json() or {}
+    mb_nr = (body.get("mbNr") or "").strip().lower()
+    if not mb_nr:
+        return err_("mbNr erforderlich", 400)
+    # IP-Hash fuer Unique-Erkennung (datensparsam, kein Klartext)
+    import hashlib
+    ip = (req.headers.get("x-forwarded-for", "") or "").split(",")[0].strip() or "unknown"
+    ua = (req.headers.get("user-agent", "") or "")[:200]
+    ip_hash = hashlib.sha256((ip + ua).encode()).hexdigest()[:16]
+    try:
+        table_("landingvisits").create_entity({
+            "PartitionKey": mb_nr,
+            "RowKey": f"{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}-{ip_hash}",
+            "mbNr": mb_nr,
+            "ipHash": ip_hash,
+            "ua": ua,
+            "referer": (req.headers.get("referer", "") or "")[:300],
+            "createdAt": datetime.utcnow().isoformat(),
+        })
+    except Exception as ex:
+        logging.warning(f"landing-visit insert failed: {ex}")
+    return ok_({"tracked": True})
+
+
+@app.route(route="landing-visit-stats", methods=["POST", "OPTIONS"])
+def landing_visit_stats(req: func.HttpRequest) -> func.HttpResponse:
+    """Admin: liefert Visit-Stats fuer ein Mandat.
+    Body: { mbNr }
+    Antwort: { mbNr, total, uniqueVisitors, byDay: {YYYY-MM-DD: count}, firstVisit, lastVisit }"""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    mb_nr = (body.get("mbNr") or "").strip().lower()
+    if not mb_nr:
+        return err_("mbNr erforderlich", 400)
+    try:
+        items = list(table_("landingvisits").query_entities(f"PartitionKey eq '{mb_nr}'"))
+    except Exception:
+        items = []
+    total = len(items)
+    unique_ips = {i.get("ipHash") for i in items}
+    by_day = {}
+    first_v, last_v = None, None
+    for i in items:
+        d = (i.get("createdAt", "") or "")[:10]
+        if d:
+            by_day[d] = by_day.get(d, 0) + 1
+        cv = i.get("createdAt", "")
+        if not first_v or cv < first_v: first_v = cv
+        if not last_v or cv > last_v: last_v = cv
+    return ok_({
+        "mbNr": mb_nr,
+        "total": total,
+        "uniqueVisitors": len(unique_ips),
+        "byDay": by_day,
+        "firstVisit": first_v,
+        "lastVisit": last_v,
+    })
+
+
 @app.route(route="versand-preview", methods=["POST", "OPTIONS"])
 def versand_preview(req: func.HttpRequest) -> func.HttpResponse:
     """Prueft VOR dem Versand, wie viele der Empfaenger die Ausschreibung

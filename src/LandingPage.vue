@@ -194,6 +194,14 @@ onMounted(async () => {
   } catch (e) { console.error(e) }
   applySeo(data.value)
   loading.value = false
+  // Visit tracken (best-effort, fire-and-forget)
+  try {
+    fetch(`${apiBase}/landing-visit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mbNr }),
+    }).catch(() => {})
+  } catch {}
 })
 </script>
 

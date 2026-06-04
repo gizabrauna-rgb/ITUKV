@@ -956,10 +956,17 @@ async function runVersandStats() {
   if (!mb) return
   statsRunning.value = true
   try {
-    const r = await authFetch('/versand-stats', { method: 'POST', data: { mbNr: mb.trim().toLowerCase() } })
+    const mbLower = mb.trim().toLowerCase()
+    const [r, visits] = await Promise.all([
+      authFetch('/versand-stats', { method: 'POST', data: { mbNr: mbLower } }),
+      authFetch('/landing-visit-stats', { method: 'POST', data: { mbNr: mbLower } }).catch(() => ({})),
+    ])
     const fmt = d => d ? new Date(d).toLocaleString('de-DE') : '—'
     const preview = (r.preview || []).map(p => `• ${p.firma || p.email} (${fmt(p.datum)})`).join('\n')
-    alert(`Ausschreibung ${r.mbNr}\n\nVersendet an: ${r.total} Kontakte\nErster Versand: ${fmt(r.ersterVersand)}\nLetzter Versand: ${fmt(r.letzterVersand)}\n\nErste ${Math.min(20, r.total)} Empfänger:\n${preview}`)
+    const visitsBlock = visits && visits.total != null
+      ? `\n📊 LANDING-PAGE\nAufrufe gesamt: ${visits.total}\nUnique-Besucher: ${visits.uniqueVisitors}\nErster Aufruf: ${fmt(visits.firstVisit)}\nLetzter Aufruf: ${fmt(visits.lastVisit)}\n`
+      : ''
+    alert(`Ausschreibung ${r.mbNr}\n${visitsBlock}\n✉️ VERSAND\nVersendet an: ${r.total} Kontakte\nErster Versand: ${fmt(r.ersterVersand)}\nLetzter Versand: ${fmt(r.letzterVersand)}\n\nErste ${Math.min(20, r.total)} Empfänger:\n${preview}`)
   } catch (e) {
     alert('Recherche fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
   } finally {
