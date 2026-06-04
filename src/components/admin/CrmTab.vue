@@ -16,6 +16,9 @@
         <button @click="runBackfill" :disabled="backfillRunning" class="flex items-center gap-2 px-3 py-2 border border-amber-200 bg-amber-50 text-amber-800 rounded-xl text-sm hover:bg-amber-100 disabled:opacity-60">
           {{ backfillRunning ? 'Lädt…' : 'Verlauf nachtragen' }}
         </button>
+        <button @click="runVersandStats" :disabled="statsRunning" class="flex items-center gap-2 px-3 py-2 border border-blue-200 bg-blue-50 text-blue-800 rounded-xl text-sm hover:bg-blue-100 disabled:opacity-60">
+          {{ statsRunning ? 'Lädt…' : 'Versand-Recherche' }}
+        </button>
         <button @click="showNewModal = true" class="flex items-center gap-2 px-3 py-2 bg-[#0088ba] text-white rounded-xl text-sm hover:bg-[#00a0d8]">
           <UserPlus class="w-4 h-4" /> Neuer Kontakt
         </button>
@@ -927,6 +930,23 @@ async function runBackfill() {
     alert('Backfill fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
   } finally {
     backfillRunning.value = false
+  }
+}
+
+const statsRunning = ref(false)
+async function runVersandStats() {
+  const mb = prompt('Welches Mandat? (z.B. mb-250)', 'mb-250')
+  if (!mb) return
+  statsRunning.value = true
+  try {
+    const r = await authFetch('/versand-stats', { method: 'POST', data: { mbNr: mb.trim().toLowerCase() } })
+    const fmt = d => d ? new Date(d).toLocaleString('de-DE') : '—'
+    const preview = (r.preview || []).map(p => `• ${p.firma || p.email} (${fmt(p.datum)})`).join('\n')
+    alert(`Ausschreibung ${r.mbNr}\n\nVersendet an: ${r.total} Kontakte\nErster Versand: ${fmt(r.ersterVersand)}\nLetzter Versand: ${fmt(r.letzterVersand)}\n\nErste ${Math.min(20, r.total)} Empfänger:\n${preview}`)
+  } catch (e) {
+    alert('Recherche fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
+  } finally {
+    statsRunning.value = false
   }
 }
 const editKontakt = ref(null)

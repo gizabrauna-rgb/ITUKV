@@ -1556,87 +1556,91 @@ def backfill_kontakt_verlauf(req: func.HttpRequest) -> func.HttpResponse:
     for t in kt.list_entities():
         mb_by_tid[t.get("RowKey", "")] = (t.get("mbNr", "") or "")
 
-    # Kontakte je email (lower) vorab laden — vermeidet N*M-Full-Scan
+    # Pro E-Mail koennen MEHRERE kontakte existieren (Duplikate). Wir wollen
+    # ALLE Treffer aktualisieren, damit die Verlauf-Eintraege ueberall sichtbar sind.
     kontakte_by_email = {}
     for k in tc.list_entities():
         em = (k.get("email", "") or "").strip().lower()
-        if em: kontakte_by_email[em] = dict(k)
+        if em:
+            kontakte_by_email.setdefault(em, []).append(dict(k))
 
     created_mail_out = 0
     created_wichtig = 0
     skipped = 0
     touched_kontakte = set()
+    debug_log = []
 
     for inter in it.list_entities():
         em = (inter.get("email", "") or "").strip().lower()
         if not em: continue
-        kontakt = kontakte_by_email.get(em)
-        if not kontakt:
+        matches = kontakte_by_email.get(em, [])
+        if not matches:
             skipped += 1
+            debug_log.append(f"NO_KONTAKT_FOR {em}")
             continue
         mb_nr = mb_by_tid.get(inter.get("targetId", ""), "")
         if not mb_nr:
             skipped += 1
+            debug_log.append(f"NO_MBNR_FOR_INTERESSENT {em} tid={inter.get('targetId','')}")
             continue
-        try: kverlauf = json.loads(kontakt.get("verlaufJson") or "[]")
-        except: kverlauf = []
-        if not isinstance(kverlauf, list): kverlauf = []
-
-        # Schon vorhandene Eintraege fuer dieses Mandat?
-        has_mail_out = any(
-            (e.get("kontextMbNr", "") or "").lower() == mb_nr.lower() and e.get("typ") == "mail_out"
-            for e in kverlauf
-        )
-        has_wichtig = any(
-            (e.get("kontextMbNr", "") or "").lower() == mb_nr.lower()
-            and e.get("typ") == "wichtig"
-            and "Landing" in (e.get("autor", "") or "") or
-            ("Landing" in (e.get("beschreibung", "") or "") and (e.get("kontextMbNr", "") or "").lower() == mb_nr.lower())
-            for e in kverlauf
-        )
 
         created_at = inter.get("createdAt") or datetime.utcnow().isoformat()
-        # mail_out 1h vorher datieren (die Mail kam ja vor der Eintragung)
         try:
             dt = datetime.fromisoformat(created_at.replace("Z", ""))
             mail_dt = (dt - timedelta(hours=1)).isoformat()
         except Exception:
             mail_dt = created_at
 
-        changed = False
-        if not has_mail_out:
-            kverlauf.append({
-                "id": "kv" + str(int(datetime.utcnow().timestamp() * 1000)) + secrets.token_hex(2),
-                "typ": "mail_out",
-                "datum": mail_dt,
-                "autor": "Versand (nachgetragen)",
-                "betreff": f"Ausschreibung {mb_nr} versendet",
-                "beschreibung": f"Ausschreibung zum Projekt {mb_nr} wurde an diesen Kontakt versendet (nachgetragen via Backfill).",
-                "kontextMbNr": mb_nr,
-                "kontextTargetId": inter.get("targetId", ""),
-            })
-            created_mail_out += 1
-            changed = True
-        if not has_wichtig:
-            kverlauf.append({
-                "id": "kv" + str(int(datetime.utcnow().timestamp() * 1000)) + secrets.token_hex(2),
-                "typ": "wichtig",
-                "datum": created_at,
-                "autor": "Landing-Page",
-                "betreff": f"Eintragung über Landing-Page {mb_nr}",
-                "beschreibung": f"Kontakt hat sich über die Landing-Page zur Ausschreibung {mb_nr} eingetragen und ein Exposé angefordert.",
-                "kontextMbNr": mb_nr,
-                "kontextTargetId": inter.get("targetId", ""),
-            })
-            created_wichtig += 1
-            changed = True
-        if changed and not dry:
-            kontakt["verlaufJson"] = json.dumps(kverlauf, ensure_ascii=False)
-            try:
-                tc.update_entity(kontakt)
-                touched_kontakte.add(kontakt.get("RowKey", ""))
-            except Exception as ex:
-                logging.warning(f"Backfill update fehlgeschlagen {em}: {ex}")
+        for kontakt in matches:
+            try: kverlauf = json.loads(kontakt.get("verlaufJson") or "[]")
+            except: kverlauf = []
+            if not isinstance(kverlauf, list): kverlauf = []
+
+            has_mail_out = any(
+                (e.get("kontextMbNr", "") or "").lower() == mb_nr.lower() and e.get("typ") == "mail_out"
+                for e in kverlauf
+            )
+            has_wichtig = any(
+                (e.get("kontextMbNr", "") or "").lower() == mb_nr.lower() and e.get("typ") == "wichtig"
+                for e in kverlauf
+            )
+
+            changed = False
+            if not has_mail_out:
+                kverlauf.append({
+                    "id": "kv" + str(int(datetime.utcnow().timestamp() * 1000)) + secrets.token_hex(2),
+                    "typ": "mail_out",
+                    "datum": mail_dt,
+                    "autor": "Versand (nachgetragen)",
+                    "betreff": f"Ausschreibung {mb_nr} versendet",
+                    "beschreibung": f"Ausschreibung zum Projekt {mb_nr} wurde an diesen Kontakt versendet (nachgetragen via Backfill).",
+                    "kontextMbNr": mb_nr,
+                    "kontextTargetId": inter.get("targetId", ""),
+                })
+                created_mail_out += 1
+                changed = True
+            if not has_wichtig:
+                kverlauf.append({
+                    "id": "kv" + str(int(datetime.utcnow().timestamp() * 1000)) + secrets.token_hex(2),
+                    "typ": "wichtig",
+                    "datum": created_at,
+                    "autor": "Landing-Page",
+                    "betreff": f"Eintragung über Landing-Page {mb_nr}",
+                    "beschreibung": f"Kontakt hat sich über die Landing-Page zur Ausschreibung {mb_nr} eingetragen und ein Exposé angefordert.",
+                    "kontextMbNr": mb_nr,
+                    "kontextTargetId": inter.get("targetId", ""),
+                })
+                created_wichtig += 1
+                changed = True
+            if changed and not dry:
+                kontakt["verlaufJson"] = json.dumps(kverlauf, ensure_ascii=False)
+                try:
+                    tc.update_entity(kontakt)
+                    touched_kontakte.add(kontakt.get("RowKey", ""))
+                    debug_log.append(f"OK {em} rk={kontakt.get('RowKey','')[:8]} mb={mb_nr}")
+                except Exception as ex:
+                    logging.warning(f"Backfill update fehlgeschlagen {em}: {ex}")
+                    debug_log.append(f"UPDATE_FAIL {em}: {ex}")
 
     return ok_({
         "dryRun": dry,
@@ -1644,6 +1648,55 @@ def backfill_kontakt_verlauf(req: func.HttpRequest) -> func.HttpResponse:
         "createdWichtig": created_wichtig,
         "skipped": skipped,
         "touchedKontakte": len(touched_kontakte),
+        "debug": debug_log[:30],
+    })
+
+
+@app.route(route="versand-stats", methods=["POST", "OPTIONS"])
+def versand_stats(req: func.HttpRequest) -> func.HttpResponse:
+    """Recherche: zaehlt fuer ein Mandat, an wie viele Kontakte tatsaechlich
+    die Ausschreibung versendet wurde — basierend auf den mail_out-Eintraegen
+    in kontakte.verlaufJson mit passender kontextMbNr.
+    Body: { mbNr: 'mb-250' }
+    Antwort: { mbNr, total, kontakte: [{firma, email, datum}] (max 20 als Preview) }
+    """
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    mb_nr = (body.get("mbNr") or "").strip().lower()
+    if not mb_nr:
+        return err_("mbNr erforderlich", 400)
+    tc = table_("kontakte")
+    total = 0
+    preview = []
+    first_datum = None
+    last_datum = None
+    for k in tc.list_entities():
+        try: v = json.loads(k.get("verlaufJson") or "[]")
+        except: continue
+        if not isinstance(v, list): continue
+        for ev in v:
+            if ev.get("typ") == "mail_out" and (ev.get("kontextMbNr", "") or "").lower() == mb_nr:
+                total += 1
+                d = ev.get("datum", "") or ""
+                if not first_datum or d < first_datum: first_datum = d
+                if not last_datum or d > last_datum: last_datum = d
+                if len(preview) < 20:
+                    preview.append({
+                        "firma": k.get("firma", "") or "",
+                        "email": k.get("email", "") or "",
+                        "datum": d,
+                    })
+                break  # nur 1x pro Kontakt zaehlen
+    return ok_({
+        "mbNr": mb_nr,
+        "total": total,
+        "ersterVersand": first_datum,
+        "letzterVersand": last_datum,
+        "preview": preview,
     })
 
 
