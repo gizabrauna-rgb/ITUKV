@@ -837,7 +837,21 @@ async function sendAcs() {
 
 const sendProgress = ref(null)  // { total, sent, failed, skipped, current }
 async function doSend(recipients) {
-  if (!confirm(`Ausschreibung an ${recipients.length} Empfaenger versenden?`)) return
+  // Pre-Check: wie viele haben mb-XXX bereits bekommen?
+  let preview = null
+  try {
+    preview = await authFetch('/versand-preview', { method: 'POST', data: {
+      targetId: ausschreibungForm.value.targetId,
+      recipients: recipients.map(r => ({ email: r.email })),
+    }})
+  } catch (e) {
+    console.warn('versand-preview fehlgeschlagen:', e)
+  }
+  let confirmMsg = `Ausschreibung an ${recipients.length} Empfänger versenden?`
+  if (preview && preview.alreadySent > 0) {
+    confirmMsg = `⚠️ ${preview.alreadySent} von ${recipients.length} Empfängern haben die Ausschreibung ${preview.mbNr} bereits bekommen.\n\nDiese werden automatisch übersprungen.\n\nTatsächlich neu versendet: ${preview.neu} Mails\n\nFortfahren?`
+  }
+  if (!confirm(confirmMsg)) return
   sending.value = true
   // Chunk-Size 100 — bleibt unter HTTP-Timeout (4 Min) und schreibt pro Empfaenger sofort
   // einen Verlauf-Eintrag, damit beim Abbruch klar ist, wer schon eine Mail hat.

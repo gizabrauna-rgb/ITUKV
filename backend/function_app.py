@@ -1652,6 +1652,56 @@ def backfill_kontakt_verlauf(req: func.HttpRequest) -> func.HttpResponse:
     })
 
 
+@app.route(route="versand-preview", methods=["POST", "OPTIONS"])
+def versand_preview(req: func.HttpRequest) -> func.HttpResponse:
+    """Prueft VOR dem Versand, wie viele der Empfaenger die Ausschreibung
+    fuer dieses Mandat bereits bekommen haben (basierend auf mail_out-
+    Eintraegen im Kontakt mit passender kontextMbNr).
+    Body: { targetId, recipients: [{email}, ...] }
+    Antwort: { total, alreadySent, neu, alreadySentEmails[max 50] }"""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    tid = (body.get("targetId") or "").strip()
+    recipients = body.get("recipients") or []
+    if not (tid and recipients):
+        return err_("targetId und recipients erforderlich", 400)
+    try:
+        t = dict(table_("targets").get_entity("target", tid))
+    except Exception:
+        return err_("Target nicht gefunden", 404)
+    mb_nr = (t.get("mbNr", "") or "").lower()
+
+    # Alle Kontakte laden und prüfen, ob sie eine mail_out-Spur für diese mb-Nr haben
+    already = set()
+    for k in table_("kontakte").list_entities():
+        em = (k.get("email", "") or "").strip().lower()
+        if not em: continue
+        try: v = json.loads(k.get("verlaufJson") or "[]")
+        except: continue
+        if not isinstance(v, list): continue
+        for ev in v:
+            if ev.get("typ") == "mail_out" and (ev.get("kontextMbNr", "") or "").lower() == mb_nr:
+                already.add(em)
+                break
+
+    rec_emails = [(r.get("email") or "").strip().lower() for r in recipients]
+    rec_emails = [e for e in rec_emails if e]
+    duplicates = sorted({e for e in rec_emails if e in already})
+    total = len(rec_emails)
+    n_dup = len(duplicates)
+    return ok_({
+        "total": total,
+        "alreadySent": n_dup,
+        "neu": total - n_dup,
+        "alreadySentEmails": duplicates[:50],
+        "mbNr": t.get("mbNr", ""),
+    })
+
+
 @app.route(route="interessenten-fuer-kontakt", methods=["POST", "OPTIONS"])
 def interessenten_fuer_kontakt(req: func.HttpRequest) -> func.HttpResponse:
     """Liefert fuer eine E-Mail (oder Firma) ALLE passenden Interessenten-
