@@ -1712,6 +1712,22 @@ def landing_visit_stats(req: func.HttpRequest) -> func.HttpResponse:
         cv = i.get("createdAt", "")
         if not first_v or cv < first_v: first_v = cv
         if not last_v or cv > last_v: last_v = cv
+
+    # Anzahl der ausgefuellten Formulare (= Interessenten fuer das Target)
+    form_count = 0
+    try:
+        target_id = None
+        for t in table_("targets").list_entities():
+            if (t.get("mbNr", "") or "").lower() == mb_nr:
+                target_id = t.get("RowKey", "")
+                break
+        if target_id:
+            for inter in table_("interessenten").list_entities():
+                if (inter.get("targetId", "") or "") == target_id:
+                    form_count += 1
+    except Exception as ex:
+        logging.warning(f"form-count failed: {ex}")
+
     return ok_({
         "mbNr": mb_nr,
         "total": total,
@@ -1719,6 +1735,7 @@ def landing_visit_stats(req: func.HttpRequest) -> func.HttpResponse:
         "byDay": by_day,
         "firstVisit": first_v,
         "lastVisit": last_v,
+        "formSubmissions": form_count,
     })
 
 

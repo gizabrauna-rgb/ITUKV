@@ -47,7 +47,8 @@
               <!-- Visit-Stats Unter-Zeile -->
               <div v-if="it.published && it.stats" class="flex items-center gap-3 mt-1.5 text-[11px]">
                 <span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">{{ it.stats.total }} Aufrufe</span>
-                <span class="bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">{{ it.stats.uniqueVisitors }} unique</span>
+                <span class="bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium" title="Anzahl verschiedener Personen (gleiches Gerät zählt nur einmal)">{{ it.stats.uniqueVisitors }} verschiedene</span>
+                <span class="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-medium" title="Anzahl ausgefüllter Formulare">{{ it.stats.formSubmissions || 0 }} Formular ausgefüllt</span>
                 <span v-if="it.stats.lastVisit" class="text-gray-400">letzter: {{ fmtDate(it.stats.lastVisit) }}</span>
               </div>
             </div>

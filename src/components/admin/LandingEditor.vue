@@ -43,14 +43,18 @@
           <button @click="ladeVisitStats" class="text-[11px] text-[#0088ba] hover:underline">Aktualisieren</button>
         </div>
         <div v-if="visitStatsLoading" class="text-xs text-gray-400">Lädt …</div>
-        <div v-else-if="visitStats && visitStats.total > 0" class="grid grid-cols-4 gap-3 text-center">
+        <div v-else-if="visitStats && (visitStats.total > 0 || visitStats.formSubmissions > 0)" class="grid grid-cols-5 gap-3 text-center">
           <div class="bg-blue-50 rounded-lg p-2">
             <div class="text-xl font-bold text-blue-700">{{ visitStats.total }}</div>
             <div class="text-[10px] text-gray-500 uppercase">Aufrufe gesamt</div>
           </div>
           <div class="bg-green-50 rounded-lg p-2">
             <div class="text-xl font-bold text-green-700">{{ visitStats.uniqueVisitors }}</div>
-            <div class="text-[10px] text-gray-500 uppercase">Unique-Besucher</div>
+            <div class="text-[10px] text-gray-500 uppercase" title="Anzahl verschiedener Personen (gleiches Gerät zählt nur einmal, auch bei mehreren Aufrufen)">Verschiedene Besucher</div>
+          </div>
+          <div class="bg-amber-50 rounded-lg p-2">
+            <div class="text-xl font-bold text-amber-700">{{ visitStats.formSubmissions || 0 }}</div>
+            <div class="text-[10px] text-gray-500 uppercase" title="Anzahl ausgefüllter Formulare = Interessenten">Formular ausgefüllt</div>
           </div>
           <div class="bg-gray-50 rounded-lg p-2">
             <div class="text-xs font-medium text-gray-700">{{ fmtDate(visitStats.firstVisit) }}</div>
