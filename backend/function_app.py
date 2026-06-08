@@ -5384,6 +5384,24 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
   table.fin-tbl tr.subhdr td { background: #f9fafb; font-weight: 700; color: #0e7c92; border-top: 1pt solid #cbd5e1; padding-top: 8pt; }
   table.fin-tbl tr.total td { font-weight: 700; background: #f0f9fb; border-bottom: 1.5pt solid #0e7c92; }
   .footer-note { font-size: 8.5pt; color: #6b7280; margin-top: 24pt; padding-top: 12pt; border-top: 1pt solid #e5e7eb; line-height: 1.55; }
+
+  /* Querformat-Seite fuer "Aufteilung Geschaeftsbereiche" */
+  @page landscape {
+    size: A4 landscape; margin: 18mm 14mm 18mm 14mm;
+    @top-left { content: "Projekt {{ mbNr }} · mibeca GmbH"; font-size: 9pt; color: #888; }
+    @bottom-right { content: "Seite " counter(page) " / " counter(pages); font-size: 9pt; color: #888; }
+  }
+  .landscape-page { page: landscape; page-break-before: always; }
+  .landscape-page h2 { font-size: 16pt; color: #0e7c92; margin: 0 0 14pt 0; text-align: center; font-weight: 700; }
+  table.aufteilung { width: 100%; border-collapse: collapse; font-size: 8.5pt; table-layout: fixed; margin-top: 8pt; }
+  table.aufteilung th, table.aufteilung td { padding: 4pt 5pt; border-bottom: 1pt solid #eef2f5; line-height: 1.35; vertical-align: top; }
+  table.aufteilung thead.gruppe th { background: #0e7c92; color: white; font-weight: 700; text-align: center; padding: 6pt 4pt; }
+  table.aufteilung thead.spalten th { background: #f0f9fb; color: #0e7c92; font-weight: 700; text-align: right; border-bottom: 1.5pt solid #0e7c92; }
+  table.aufteilung thead.spalten th.label-h { text-align: left; }
+  table.aufteilung td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.aufteilung tr.kategorie td { font-weight: 700; color: #0e7c92; background: #f9fafb; border-top: 1.5pt solid #cbd5e1; padding-top: 8pt; }
+  table.aufteilung tr.summe td { font-weight: 700; background: #f0f9fb; border-bottom: 1.5pt solid #0e7c92; }
+  .fussnoten { margin-top: 12pt; font-size: 8pt; color: #6b7280; line-height: 1.5; }
 </style></head><body>
 
 <h1>Unternehmensexposé</h1>
@@ -5428,6 +5446,49 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
 {% endif %}
 
 <p class="footer-note">Dieses Exposé ist vertraulich und ausschließlich zur Information vorgesehener Empfänger bestimmt. Eine Weitergabe an Dritte ist ohne ausdrückliche Zustimmung der mibeca GmbH untersagt.</p>
+
+{% if aufteilung and aufteilung.rows %}
+<div class="landscape-page">
+  <h2>Aufteilung der Geschäftsbereiche</h2>
+  <table class="aufteilung">
+    <thead class="gruppe">
+      <tr>
+        <th rowspan="2" style="background:#f0f9fb;color:#0e7c92;border-bottom:1.5pt solid #0e7c92;text-align:left;width:22%">Position</th>
+        <th colspan="5">{{ aufteilung.istLabel or "2025" }}</th>
+        <th colspan="5">{{ aufteilung.planLabel or "Plan 2026" }}</th>
+      </tr>
+    </thead>
+    <thead class="spalten">
+      <tr>
+        <th>Gesamt GmbH</th>
+        <th>Anteil Systemhaus</th>
+        <th>%</th>
+        <th>Anteil Privatkunden</th>
+        <th>%</th>
+        <th>Gesamt GmbH</th>
+        <th>Systemhaus GmbH</th>
+        <th>%</th>
+        <th>Privatkunden GmbH</th>
+        <th>%</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in aufteilung.rows %}
+      <tr {% if row.istKategorie %}class="kategorie"{% elif row.istSumme %}class="summe"{% endif %}>
+        <td>{{ row.label }}</td>
+        {% for v in row.ist %}<td class="num">{{ v }}</td>{% endfor %}
+        {% for v in row.plan %}<td class="num">{{ v }}</td>{% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if aufteilung.fussnoten %}
+  <div class="fussnoten">
+    {% for f in aufteilung.fussnoten %}<div>{{ f }}</div>{% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
 
 </body></html>"""
 

@@ -86,6 +86,60 @@
       </table>
     </div>
 
+    <!-- Aufteilung der Geschäftsbereiche (Querformat-Anhang) -->
+    <div class="bg-white rounded-xl border border-gray-100 p-5 mb-3">
+      <div class="flex items-center justify-between mb-3">
+        <h4 class="font-semibold text-gray-800 text-sm">Aufteilung der Geschäftsbereiche <span class="text-xs font-normal text-gray-500">(Querformat-Anhang, optional)</span></h4>
+        <button @click="addAufteilungRow" class="px-3 py-1.5 bg-gray-100 rounded-lg text-xs whitespace-nowrap">+ Zeile</button>
+      </div>
+      <div class="flex gap-2 mb-3">
+        <input v-model="data.aufteilung.istLabel" @blur="save" placeholder="Spalten-Label IST (z.B. 2025)" class="input flex-1 text-sm" />
+        <input v-model="data.aufteilung.planLabel" @blur="save" placeholder="Spalten-Label Plan (z.B. Plan 2026)" class="input flex-1 text-sm" />
+      </div>
+      <table v-if="data.aufteilung.rows?.length" class="w-full text-[11px]">
+        <thead>
+          <tr class="text-gray-500">
+            <th class="text-left py-1 w-40">Position</th>
+            <th class="text-center py-1" colspan="5">IST</th>
+            <th class="text-center py-1" colspan="5">Plan</th>
+            <th class="w-6"></th>
+          </tr>
+          <tr class="text-gray-400 text-[10px]">
+            <th></th>
+            <th class="py-1">Gesamt</th><th class="py-1">Anteil SH</th><th class="py-1">%</th><th class="py-1">Anteil PK</th><th class="py-1">%</th>
+            <th class="py-1">Gesamt</th><th class="py-1">SH GmbH</th><th class="py-1">%</th><th class="py-1">PK GmbH</th><th class="py-1">%</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(row, ri) in data.aufteilung.rows" :key="ri" class="border-t border-gray-100">
+            <td class="py-1">
+              <input v-model="row.label" @blur="save" placeholder="Zeilenname" class="w-full px-1.5 py-1 border border-gray-200 rounded text-[11px]" />
+              <div class="flex gap-1 mt-0.5">
+                <label class="flex items-center gap-0.5 text-[9px] text-gray-400 cursor-pointer">
+                  <input type="checkbox" v-model="row.istKategorie" @change="save" class="scale-75" />Kat.
+                </label>
+                <label class="flex items-center gap-0.5 text-[9px] text-gray-400 cursor-pointer">
+                  <input type="checkbox" v-model="row.istSumme" @change="save" class="scale-75" />Summe
+                </label>
+              </div>
+            </td>
+            <td v-for="ji in 5" :key="'i'+ji" class="py-1">
+              <input v-model="row.ist[ji-1]" @blur="save" placeholder="0" class="w-full px-1 py-0.5 border border-gray-200 rounded text-[11px] text-right" />
+            </td>
+            <td v-for="ji in 5" :key="'p'+ji" class="py-1">
+              <input v-model="row.plan[ji-1]" @blur="save" placeholder="0" class="w-full px-1 py-0.5 border border-gray-200 rounded text-[11px] text-right" />
+            </td>
+            <td><button @click="data.aufteilung.rows.splice(ri, 1); save()" class="text-red-400 hover:text-red-600 p-0.5"><X class="w-3 h-3" /></button></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="mt-3">
+        <label class="text-xs text-gray-500">Fußnoten (eine pro Zeile)</label>
+        <textarea v-model="aufteilungFussnotenText" @blur="syncFussnoten" rows="2" placeholder="z.B. 1) Für 2026: Eigenes Büro für Systemhausteam …" class="input resize-y text-xs"></textarea>
+      </div>
+    </div>
+
     <p class="text-xs text-gray-400 text-center mt-4">Auto-Speichern beim Verlassen jedes Feldes.</p>
 
     <!-- PDF-Vorschau Modal -->
@@ -131,7 +185,9 @@ const data = ref({
   subheadline: '',
   sektionen: JSON.parse(JSON.stringify(DEFAULT_SEKTIONEN)),
   finanzen: { einleitung: '', jahreInput: '', jahre: [], rows: [] },
+  aufteilung: { istLabel: '2025', planLabel: 'Plan 2026', rows: [], fussnoten: [] },
 })
+const aufteilungFussnotenText = ref('')
 const exposeStatus = ref('draft')
 
 const hasFragebogen = computed(() => !!target.value?.fragebogenJson)
@@ -154,6 +210,17 @@ function placeholderFor(label) {
 
 function addRow() {
   data.value.finanzen.rows.push({ label: '', werte: (data.value.finanzen.jahre || []).map(() => '') })
+}
+
+function addAufteilungRow() {
+  if (!data.value.aufteilung) data.value.aufteilung = { istLabel: '2025', planLabel: 'Plan 2026', rows: [], fussnoten: [] }
+  data.value.aufteilung.rows.push({ label: '', istKategorie: false, istSumme: false, ist: ['','','','',''], plan: ['','','','',''] })
+  save()
+}
+function syncFussnoten() {
+  if (!data.value.aufteilung) data.value.aufteilung = { istLabel: '2025', planLabel: 'Plan 2026', rows: [], fussnoten: [] }
+  data.value.aufteilung.fussnoten = (aufteilungFussnotenText.value || '').split('\n').map(s => s.trim()).filter(Boolean)
+  save()
 }
 
 function parseJahre() {
@@ -264,6 +331,15 @@ onMounted(async () => {
         if (e.stand) data.value.stand = e.stand
         if (Array.isArray(e.sektionen) && e.sektionen.length) data.value.sektionen = e.sektionen
         if (e.finanzen) Object.assign(data.value.finanzen, e.finanzen)
+        if (e.aufteilung) {
+          data.value.aufteilung = {
+            istLabel: e.aufteilung.istLabel || '2025',
+            planLabel: e.aufteilung.planLabel || 'Plan 2026',
+            rows: Array.isArray(e.aufteilung.rows) ? e.aufteilung.rows : [],
+            fussnoten: Array.isArray(e.aufteilung.fussnoten) ? e.aufteilung.fussnoten : [],
+          }
+          aufteilungFussnotenText.value = (data.value.aufteilung.fussnoten || []).join('\n')
+        }
         if (e.status) exposeStatus.value = e.status
       } catch {}
     }
