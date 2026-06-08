@@ -5362,25 +5362,28 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
     @top-left { content: "Projekt {{ mbNr }} · mibeca GmbH"; font-size: 9pt; color: #888; }
     @bottom-right { content: "Seite " counter(page) " / " counter(pages); font-size: 9pt; color: #888; }
   }
-  html, body { font-family: "Helvetica", "Arial", system-ui, sans-serif; font-size: 10.5pt; line-height: 1.75; color: #1f2937; }
+  html, body { font-family: "Helvetica", "Arial", system-ui, sans-serif; font-size: 10.5pt; line-height: 1.65; color: #1f2937; }
   h1 { font-size: 24pt; font-weight: 700; color: #0e7c92; margin: 0 0 6pt 0; letter-spacing: -0.3pt; }
-  .hl-line { color: #6b7280; font-size: 10pt; margin: 4pt 0 28pt 0; padding-bottom: 12pt; border-bottom: 1pt solid #e5e7eb; }
-  .headline-box { background: linear-gradient(to right, #0e7c92, #0a9aaf); color: white; padding: 26pt 30pt; border-radius: 8pt; margin-bottom: 32pt; }
-  .headline-box h2 { font-size: 15pt; margin: 0 0 10pt 0; font-weight: 700; line-height: 1.4; }
-  .headline-box p { margin: 0; opacity: 0.95; font-size: 11pt; line-height: 1.6; }
-  .section { display: flex; gap: 22pt; margin-bottom: 26pt; page-break-inside: avoid; }
-  .section-label { width: 130pt; flex-shrink: 0; font-weight: 700; color: #0e7c92; font-size: 10.5pt; line-height: 1.4; padding-top: 2pt; }
-  .section-body { flex: 1; }
-  .section-body p { margin: 0 0 12pt 0; text-align: left; white-space: pre-wrap; }
+  .hl-line { color: #6b7280; font-size: 10pt; margin: 4pt 0 24pt 0; padding-bottom: 12pt; border-bottom: 1pt solid #e5e7eb; }
+  .headline-box { background: linear-gradient(to right, #0e7c92, #0a9aaf); color: white; padding: 22pt 26pt; border-radius: 8pt; margin-bottom: 24pt; }
+  .headline-box h2 { font-size: 15pt; margin: 0 0 8pt 0; font-weight: 700; line-height: 1.4; }
+  .headline-box p { margin: 0; opacity: 0.95; font-size: 11pt; line-height: 1.55; }
+  .section { display: flex; gap: 20pt; margin-bottom: 20pt; page-break-inside: avoid; }
+  .section-label { width: 110pt; flex-shrink: 0; font-weight: 700; color: #0e7c92; font-size: 10.5pt; line-height: 1.35; padding-top: 1pt; }
+  .section-body { flex: 1; min-width: 0; }
+  .section-body p { margin: 0 0 9pt 0; text-align: left; }
   .section-body p:last-child { margin-bottom: 0; }
-  .section-body ul { margin: 8pt 0 12pt 0; padding-left: 18pt; }
-  .section-body li { margin-bottom: 6pt; }
-  table { width: 100%; border-collapse: collapse; margin: 14pt 0; font-size: 9.5pt; }
-  th, td { padding: 8pt 8pt; text-align: left; border-bottom: 1pt solid #e5e7eb; line-height: 1.45; }
-  th { background: #f0f9fb; color: #0e7c92; font-weight: 700; }
-  td.num { text-align: right; font-variant-numeric: tabular-nums; }
-  tr.spacer td { padding: 4pt 0; border: none; }
-  .footer-note { font-size: 9pt; color: #6b7280; margin-top: 28pt; padding-top: 14pt; border-top: 1pt solid #e5e7eb; line-height: 1.6; }
+  .section-body ul { margin: 4pt 0 10pt 0; padding-left: 16pt; list-style: disc; }
+  .section-body li { margin-bottom: 4pt; line-height: 1.55; }
+  .section-body ul + p { margin-top: 8pt; }
+  table { width: 100%; border-collapse: collapse; margin: 8pt 0 0 0; font-size: 9.5pt; table-layout: auto; }
+  table.fin-tbl { font-size: 9pt; }
+  table.fin-tbl th { background: #f0f9fb; color: #0e7c92; font-weight: 700; padding: 7pt 6pt; text-align: left; border-bottom: 1.5pt solid #0e7c92; white-space: nowrap; }
+  table.fin-tbl th.num, table.fin-tbl td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  table.fin-tbl td { padding: 6pt 6pt; border-bottom: 1pt solid #eef2f5; line-height: 1.4; }
+  table.fin-tbl tr.subhdr td { background: #f9fafb; font-weight: 700; color: #0e7c92; border-top: 1pt solid #cbd5e1; padding-top: 8pt; }
+  table.fin-tbl tr.total td { font-weight: 700; background: #f0f9fb; border-bottom: 1.5pt solid #0e7c92; }
+  .footer-note { font-size: 8.5pt; color: #6b7280; margin-top: 24pt; padding-top: 12pt; border-top: 1pt solid #e5e7eb; line-height: 1.55; }
 </style></head><body>
 
 <h1>Unternehmensexposé</h1>
@@ -5395,24 +5398,27 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
 {% if s.body %}
 <div class="section">
   <div class="section-label">{{ s.label }}</div>
-  <div class="section-body"><p>{{ s.body }}</p></div>
+  <div class="section-body">{{ s.body_html | safe }}</div>
 </div>
 {% endif %}
 {% endfor %}
 
 {% if finanzen %}
-<div class="section">
+<div class="section" style="page-break-inside: auto;">
   <div class="section-label">Umsätze, Erträge</div>
   <div class="section-body">
-    <p>{{ finanzen.einleitung or "" }}</p>
+    {% if finanzen.einleitung_html %}{{ finanzen.einleitung_html | safe }}{% elif finanzen.einleitung %}<p>{{ finanzen.einleitung }}</p>{% endif %}
     {% if finanzen.jahre %}
-    <table>
+    <table class="fin-tbl">
       <thead>
-        <tr><th>Position</th>{% for j in finanzen.jahre %}<th class="num">{{ j }}</th>{% endfor %}</tr>
+        <tr><th style="width: 42%">Position</th>{% for j in finanzen.jahre %}<th class="num">{{ j }}</th>{% endfor %}</tr>
       </thead>
       <tbody>
         {% for row in finanzen.rows %}
-        <tr><td>{{ row.label }}</td>{% for v in row.werte %}<td class="num">{{ v }}</td>{% endfor %}</tr>
+        <tr {% if row.istKopf %}class="subhdr"{% elif row.istSumme %}class="total"{% endif %}>
+          <td>{{ row.label }}</td>
+          {% for v in row.werte %}<td class="num">{{ v }}</td>{% endfor %}
+        </tr>
         {% endfor %}
       </tbody>
     </table>
@@ -5426,9 +5432,66 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
 </body></html>"""
 
 
+def _body_to_html(text):
+    """Konvertiert Plain-Text-Body in sauberes HTML:
+    - Zeilen, die mit • / - / · / * beginnen, werden zu <ul><li>
+    - Leerzeilen trennen Absaetze
+    - „Schluessel: Wert"-Aufzaehlungen mit Tabulator werden zu Definitions-Tabelle
+    """
+    import re
+    if not text: return ""
+    text = str(text)
+    lines = text.split("\n")
+    out, buf = [], []
+    in_list = False
+
+    def flush_buf():
+        nonlocal buf
+        if buf:
+            joined = "<br>".join(buf)
+            out.append(f"<p>{joined}</p>")
+            buf = []
+    def flush_list():
+        nonlocal in_list
+        if in_list:
+            out.append("</ul>")
+            in_list = False
+
+    for raw in lines:
+        s = raw.rstrip()
+        stripped = s.lstrip()
+        # Bullet erkennen: • Text, - Text, * Text, · Text (auch mit oder ohne Leerzeichen danach)
+        m = re.match(r"^([•\-·\*])\s*(.+)$", stripped)
+        if m:
+            flush_buf()
+            if not in_list:
+                out.append("<ul>")
+                in_list = True
+            out.append(f"<li>{m.group(2).strip()}</li>")
+        elif not stripped:
+            flush_buf()
+            flush_list()
+        else:
+            flush_list()
+            buf.append(stripped)
+    flush_buf()
+    flush_list()
+    return "\n".join(out)
+
+
 def _render_expose_pdf_bytes(data):
     from jinja2 import Template
     from weasyprint import HTML
+    # Sektionen praerendern, damit Bullets sauber als <ul> erscheinen
+    sektionen = data.get("sektionen") or []
+    for s in sektionen:
+        s["body_html"] = _body_to_html(s.get("body", ""))
+    # Finanzen-Einleitung ebenfalls
+    fin = data.get("finanzen") or {}
+    if fin.get("einleitung"):
+        fin["einleitung_html"] = _body_to_html(fin["einleitung"])
+    data["sektionen"] = sektionen
+    data["finanzen"] = fin
     html = Template(_EXPOSE_HTML_TEMPLATE).render(**data)
     return HTML(string=html, base_url="/").write_pdf()
 
