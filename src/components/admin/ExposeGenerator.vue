@@ -88,9 +88,19 @@
 
     <!-- Aufteilung der Geschäftsbereiche (Querformat-Anhang) -->
     <div class="bg-white rounded-xl border border-gray-100 p-5 mb-3">
-      <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
         <h4 class="font-semibold text-gray-800 text-sm">Aufteilung der Geschäftsbereiche <span class="text-xs font-normal text-gray-500">(Querformat-Anhang, optional)</span></h4>
-        <button @click="addAufteilungRow" class="px-3 py-1.5 bg-gray-100 rounded-lg text-xs whitespace-nowrap">+ Zeile</button>
+        <div class="flex gap-2 flex-wrap">
+          <button @click="showPasteModal = true" class="px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs whitespace-nowrap hover:bg-blue-100">
+            📋 Aus Excel einfügen
+          </button>
+          <label class="px-3 py-1.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs whitespace-nowrap hover:bg-purple-100 cursor-pointer">
+            <span v-if="!pdfUploading">🤖 PDF hochladen (KI)</span>
+            <span v-else>Liest PDF …</span>
+            <input ref="pdfFileInput" type="file" accept="application/pdf" class="hidden" @change="onPdfUpload" />
+          </label>
+          <button @click="addAufteilungRow" class="px-3 py-1.5 bg-gray-100 rounded-lg text-xs whitespace-nowrap">+ Zeile</button>
+        </div>
       </div>
       <div class="flex gap-2 mb-3">
         <input v-model="data.aufteilung.istLabel" @blur="save" placeholder="Spalten-Label IST (z.B. 2025)" class="input flex-1 text-sm" />
@@ -137,6 +147,33 @@
       <div class="mt-3">
         <label class="text-xs text-gray-500">Fußnoten (eine pro Zeile)</label>
         <textarea v-model="aufteilungFussnotenText" @blur="syncFussnoten" rows="2" placeholder="z.B. 1) Für 2026: Eigenes Büro für Systemhausteam …" class="input resize-y text-xs"></textarea>
+      </div>
+    </div>
+
+    <!-- Excel-Paste Modal -->
+    <div v-if="showPasteModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" @click.self="showPasteModal = false">
+      <div class="bg-white rounded-2xl w-full max-w-2xl flex flex-col overflow-hidden shadow-2xl">
+        <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+          <h3 class="font-bold text-gray-900">Aus Excel einfügen</h3>
+          <button @click="showPasteModal = false" class="p-1.5 hover:bg-gray-100 rounded-lg"><X class="w-5 h-5 text-gray-500" /></button>
+        </div>
+        <div class="p-5">
+          <p class="text-xs text-gray-600 mb-2">
+            Markiere in Excel die Tabelle (Spalte „Position" + 10 Zahlen-Spalten) und kopiere mit <kbd class="px-1 bg-gray-100 rounded">Cmd+C</kbd>. Hier einfügen:
+          </p>
+          <textarea v-model="pasteText" rows="10" placeholder="Position	2025 Gesamt	Anteil SH	%	Anteil PK	%	Plan Gesamt	SH GmbH	%	PK GmbH	%
+Umsatz Handel	1.540.729 €	197.772 €	13%	1.342.957 €	87%	955.007 €	171.042 €	18%	783.965 €	82%
+..." class="w-full p-3 border-2 border-gray-200 rounded-lg text-xs font-mono"></textarea>
+          <p class="text-[11px] text-gray-500 mt-2">
+            💡 Tipp: Zeilen mit Text in der ersten Spalte und KEINEN Zahlen werden automatisch als <strong>Kategorie-Header</strong> erkannt. Zeilen mit „Summe", „Gesamt" oder „EBIT" im Label als <strong>Summen-Zeile</strong>.
+          </p>
+        </div>
+        <div class="flex justify-end gap-2 px-5 py-3 border-t border-gray-100 bg-gray-50">
+          <button @click="showPasteModal = false" class="px-4 py-2 text-sm border border-gray-200 rounded-xl">Abbrechen</button>
+          <button @click="applyPaste" :disabled="!pasteText.trim()" class="px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium disabled:opacity-50">
+            Übernehmen
+          </button>
+        </div>
       </div>
     </div>
 
@@ -221,6 +258,90 @@ function syncFussnoten() {
   if (!data.value.aufteilung) data.value.aufteilung = { istLabel: '2025', planLabel: 'Plan 2026', rows: [], fussnoten: [] }
   data.value.aufteilung.fussnoten = (aufteilungFussnotenText.value || '').split('\n').map(s => s.trim()).filter(Boolean)
   save()
+}
+
+// ===== Excel-Paste =====
+const showPasteModal = ref(false)
+const pasteText = ref('')
+function cleanNum(s) {
+  if (s == null) return ''
+  // Entferne: Tausenderpunkte, Euro-Zeichen, Leerzeichen, Prozentzeichen. Komma → Punkt.
+  return String(s).trim().replace(/ /g, ' ').replace(/[€\s]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(/,/g, '.').replace(/%/g, '')
+}
+function isNumericCell(s) {
+  if (!s || !s.trim()) return false
+  const cleaned = cleanNum(s)
+  return /^-?\d+(\.\d+)?$/.test(cleaned)
+}
+function applyPaste() {
+  const txt = pasteText.value || ''
+  const lines = txt.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
+  if (!lines.length) { showPasteModal.value = false; return }
+  if (!data.value.aufteilung) data.value.aufteilung = { istLabel: '2025', planLabel: 'Plan 2026', rows: [], fussnoten: [] }
+  const newRows = []
+  for (const line of lines) {
+    const cells = line.split('\t').map(c => c.trim())
+    if (!cells.length) continue
+    const label = cells[0] || ''
+    // Header-Zeilen ueberspringen (z.B. "Position 2025 Anteil ...")
+    if (/^position$/i.test(label) && cells.slice(1).every(c => !isNumericCell(c))) continue
+    // Numbers: nimm naechste 10 Zellen
+    const nums = cells.slice(1, 11)
+    const allEmpty = nums.every(c => !c)
+    const ist = []; const plan = []
+    for (let i = 0; i < 5; i++) ist.push(cleanNum(nums[i] || ''))
+    for (let i = 0; i < 5; i++) plan.push(cleanNum(nums[5 + i] || ''))
+    const lower = label.toLowerCase()
+    const istSumme = /^(jahresumsatz|summe|gesamt|ebit|total)/i.test(label) || lower.includes('gesamt')
+    const istKategorie = allEmpty || (!ist.some(Boolean) && !plan.some(Boolean) && !istSumme)
+    newRows.push({ label, istKategorie, istSumme: istSumme && !istKategorie, ist, plan })
+  }
+  if (newRows.length) {
+    if (confirm(`${newRows.length} Zeilen erkannt. Bestehende Zeilen ersetzen?`)) {
+      data.value.aufteilung.rows = newRows
+    } else {
+      data.value.aufteilung.rows.push(...newRows)
+    }
+    save()
+  }
+  pasteText.value = ''
+  showPasteModal.value = false
+}
+
+// ===== PDF-Upload mit KI =====
+const pdfUploading = ref(false)
+const pdfFileInput = ref(null)
+async function onPdfUpload(ev) {
+  const file = ev.target.files?.[0]
+  if (!file) return
+  pdfUploading.value = true
+  try {
+    // Datei als Base64 senden (umgeht Multipart-Komplikationen)
+    const buf = await file.arrayBuffer()
+    const b64 = btoa(new Uint8Array(buf).reduce((s, b) => s + String.fromCharCode(b), ''))
+    const r = await authFetch('/aufteilung-parse-pdf', { method: 'POST', data: { fileBase64: b64 } })
+    if (!r.rows?.length) { toast.warn('Keine Tabelle erkannt im PDF.'); return }
+    if (!data.value.aufteilung) data.value.aufteilung = { istLabel: '2025', planLabel: 'Plan 2026', rows: [], fussnoten: [] }
+    const replace = data.value.aufteilung.rows.length === 0 || confirm(`KI hat ${r.rows.length} Zeilen erkannt. Bestehende ersetzen?`)
+    if (replace) {
+      data.value.aufteilung.rows = r.rows
+      if (r.istLabel) data.value.aufteilung.istLabel = r.istLabel
+      if (r.planLabel) data.value.aufteilung.planLabel = r.planLabel
+      if (r.fussnoten?.length) {
+        data.value.aufteilung.fussnoten = r.fussnoten
+        aufteilungFussnotenText.value = r.fussnoten.join('\n')
+      }
+    } else {
+      data.value.aufteilung.rows.push(...r.rows)
+    }
+    save()
+    toast.success(`${r.rows.length} Zeilen aus PDF übernommen.`)
+  } catch (e) {
+    toast.error('PDF-Auswertung fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
+  } finally {
+    pdfUploading.value = false
+    if (pdfFileInput.value) pdfFileInput.value.value = ''
+  }
 }
 
 function parseJahre() {

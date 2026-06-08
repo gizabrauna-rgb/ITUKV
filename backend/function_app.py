@@ -5606,6 +5606,155 @@ _LOI_HTML_TEMPLATE = """<!DOCTYPE html><html lang="de"><head><meta charset="utf-
 </body></html>"""
 
 
+@app.route(route="aufteilung-parse-pdf", methods=["POST", "OPTIONS"])
+def aufteilung_parse_pdf(req: func.HttpRequest) -> func.HttpResponse:
+    """Liest eine hochgeladene PDF-Seite via Azure OpenAI Vision und extrahiert
+    die "Aufteilung Geschaeftsbereiche"-Tabelle als strukturierte Zeilen.
+    Body: multipart/form-data mit Feld 'file' (PDF). Antwort: { rows: [...], fussnoten: [...] }"""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+
+    # File aus Multipart oder JSON-Base64
+    pdf_bytes = None
+    try:
+        files = req.files if hasattr(req, "files") else {}
+        if files and "file" in files:
+            pdf_bytes = files["file"].read()
+    except Exception:
+        pass
+    if not pdf_bytes:
+        # Fallback: JSON {fileBase64}
+        try:
+            body = req.get_json() or {}
+            b64 = body.get("fileBase64", "")
+            if b64:
+                import base64
+                pdf_bytes = base64.b64decode(b64)
+        except Exception:
+            pass
+    if not pdf_bytes:
+        # Fallback: raw body
+        pdf_bytes = req.get_body()
+    if not pdf_bytes or len(pdf_bytes) < 100:
+        return err_("Keine Datei empfangen", 400)
+
+    # PDF → PNG (erste Seite, hoehere DPI fuer bessere OCR-Qualitaet)
+    try:
+        import fitz
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        if doc.page_count < 1:
+            return err_("PDF leer", 400)
+        # Wenn mehrseitig: alle Seiten als separate Bilder schicken (max 3)
+        images_b64 = []
+        import base64
+        for pno in range(min(doc.page_count, 3)):
+            pg = doc[pno]
+            pix = pg.get_pixmap(dpi=200)
+            png_bytes = pix.tobytes("png")
+            images_b64.append(base64.b64encode(png_bytes).decode())
+        doc.close()
+    except Exception as ex:
+        return err_(f"PDF konnte nicht gelesen werden: {ex}", 500)
+
+    aoai_endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT", "")
+    aoai_key = os.environ.get("AZURE_OPENAI_KEY", "")
+    aoai_deployment = os.environ.get("AZURE_OPENAI_DEPLOYMENT", "gpt-4o-mini")
+    if not (aoai_endpoint and aoai_key):
+        return err_("Azure OpenAI nicht konfiguriert", 500)
+
+    prompt = """Du erhältst PDF-Seiten mit der Tabelle „Aufteilung der Geschäftsbereiche" eines IT-Systemhauses.
+
+Extrahiere ALLE Zeilen der Tabelle als JSON. Die Tabelle hat 10 Zahlen-Spalten pro Zeile, gruppiert in 2 Blöcke:
+
+IST (5 Spalten): Gesamt GmbH | Anteil Systemhaus | % | Anteil Privatkunden | %
+PLAN (5 Spalten): Gesamt GmbH | Systemhaus GmbH | % | Privatkunden GmbH | %
+
+Antworte AUSSCHLIESSLICH mit gültigem JSON nach diesem Schema:
+{
+  "istLabel": "z.B. 2025",
+  "planLabel": "z.B. Plan 2026",
+  "rows": [
+    {
+      "label": "Umsätze",
+      "istKategorie": true,
+      "istSumme": false,
+      "ist": ["","","","",""],
+      "plan": ["","","","",""]
+    },
+    {
+      "label": "Umsatz Handel",
+      "istKategorie": false,
+      "istSumme": false,
+      "ist": ["1540729","197772","13","1342957","87"],
+      "plan": ["955007","171042","18","783965","82"]
+    },
+    {
+      "label": "Jahresumsatz gesamt",
+      "istKategorie": false,
+      "istSumme": true,
+      "ist": ["2977706","929423","31","2048283","69"],
+      "plan": ["2085897","873783","42","1212114","58"]
+    }
+  ],
+  "fussnoten": ["1) Für 2026: ..."]
+}
+
+Regeln:
+- Zahlen OHNE Tausenderpunkte (1540729 statt 1.540.729)
+- Prozent-Zellen NUR die Zahl (13 statt 13%)
+- Leere Zellen als leerer String ""
+- Überschriften-Zeilen (z.B. "Umsätze", "Waren", "Betriebsaufwand"): istKategorie=true, alle 10 Zahlen leer
+- Summen-Zeilen (z.B. "Jahresumsatz gesamt", "Summe Waren", "EBIT", "Summe Betriebsaufwand"): istSumme=true
+- Fußnoten (Texte unter der Tabelle, oft mit 1) 2) markiert) in das fussnoten-Array
+- Reihenfolge der Zeilen wie im Original
+
+Antworte nur mit JSON, kein Markdown, keine Erklärung."""
+
+    try:
+        import urllib.request
+        content = [{"type": "text", "text": prompt}]
+        for b64 in images_b64:
+            content.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}})
+        body = json.dumps({
+            "messages": [{"role": "user", "content": content}],
+            "max_tokens": 4000,
+            "temperature": 0.1,
+            "response_format": {"type": "json_object"},
+        }).encode()
+        url = f"{aoai_endpoint.rstrip('/')}/openai/deployments/{aoai_deployment}/chat/completions?api-version=2024-02-15-preview"
+        rq = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json", "api-key": aoai_key}, method="POST")
+        with urllib.request.urlopen(rq, timeout=90) as r:
+            rj = json.loads(r.read().decode())
+            ai_text = rj["choices"][0]["message"]["content"]
+        parsed = json.loads(ai_text)
+    except Exception as ex:
+        return err_(f"AI-Extraktion fehlgeschlagen: {ex}", 500)
+
+    # Validierung / Normalisierung
+    rows = []
+    for r in (parsed.get("rows") or []):
+        row = {
+            "label": r.get("label", "") or "",
+            "istKategorie": bool(r.get("istKategorie", False)),
+            "istSumme": bool(r.get("istSumme", False)),
+            "ist": [str(x) if x is not None else "" for x in (r.get("ist") or [])],
+            "plan": [str(x) if x is not None else "" for x in (r.get("plan") or [])],
+        }
+        # auf 5 Elemente padden / kuerzen
+        row["ist"] = (row["ist"] + ["", "", "", "", ""])[:5]
+        row["plan"] = (row["plan"] + ["", "", "", "", ""])[:5]
+        rows.append(row)
+    return ok_({
+        "istLabel": parsed.get("istLabel", "") or "",
+        "planLabel": parsed.get("planLabel", "") or "",
+        "rows": rows,
+        "fussnoten": parsed.get("fussnoten") or [],
+    })
+
+
 @app.route(route="loi-pdf", methods=["POST", "OPTIONS"])
 def loi_pdf(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
