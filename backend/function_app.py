@@ -5385,23 +5385,25 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
   table.fin-tbl tr.total td { font-weight: 700; background: #f0f9fb; border-bottom: 1.5pt solid #0e7c92; }
   .footer-note { font-size: 8.5pt; color: #6b7280; margin-top: 24pt; padding-top: 12pt; border-top: 1pt solid #e5e7eb; line-height: 1.55; }
 
-  /* Querformat-Seite fuer "Aufteilung Geschaeftsbereiche" */
+  /* Querformat-Seite fuer "Aufteilung Geschaeftsbereiche" — alles auf EINE Seite */
   @page landscape {
-    size: A4 landscape; margin: 18mm 14mm 18mm 14mm;
-    @top-left { content: "Projekt {{ mbNr }} · mibeca GmbH"; font-size: 9pt; color: #888; }
-    @bottom-right { content: "Seite " counter(page) " / " counter(pages); font-size: 9pt; color: #888; }
+    size: A4 landscape; margin: 10mm 10mm 10mm 10mm;
+    @top-left { content: "Projekt {{ mbNr }} · mibeca GmbH"; font-size: 8pt; color: #888; }
+    @bottom-right { content: "Seite " counter(page) " / " counter(pages); font-size: 8pt; color: #888; }
   }
   .landscape-page { page: landscape; page-break-before: always; }
-  .landscape-page h2 { font-size: 16pt; color: #0e7c92; margin: 0 0 14pt 0; text-align: center; font-weight: 700; }
-  table.aufteilung { width: 100%; border-collapse: collapse; font-size: 8.5pt; table-layout: fixed; margin-top: 8pt; }
-  table.aufteilung th, table.aufteilung td { padding: 4pt 5pt; border-bottom: 1pt solid #eef2f5; line-height: 1.35; vertical-align: top; }
-  table.aufteilung thead.gruppe th { background: #0e7c92; color: white; font-weight: 700; text-align: center; padding: 6pt 4pt; }
-  table.aufteilung thead.spalten th { background: #f0f9fb; color: #0e7c92; font-weight: 700; text-align: right; border-bottom: 1.5pt solid #0e7c92; }
+  .landscape-page h2 { font-size: 13pt; color: #0e7c92; margin: 0 0 8pt 0; text-align: center; font-weight: 700; }
+  table.aufteilung { width: 100%; border-collapse: collapse; font-size: 7.5pt; table-layout: fixed; margin-top: 4pt; }
+  table.aufteilung col.label-c { width: 18%; }
+  table.aufteilung col.num-c { width: 8.2%; }
+  table.aufteilung th, table.aufteilung td { padding: 2.5pt 4pt; border-bottom: 1pt solid #eef2f5; line-height: 1.25; vertical-align: middle; }
+  table.aufteilung thead.gruppe th { background: #0e7c92; color: white; font-weight: 700; text-align: center; padding: 4pt 3pt; font-size: 8pt; }
+  table.aufteilung thead.spalten th { background: #f0f9fb; color: #0e7c92; font-weight: 700; text-align: right; border-bottom: 1.5pt solid #0e7c92; font-size: 7pt; padding: 4pt 3pt; }
   table.aufteilung thead.spalten th.label-h { text-align: left; }
   table.aufteilung td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  table.aufteilung tr.kategorie td { font-weight: 700; color: #0e7c92; background: #f9fafb; border-top: 1.5pt solid #cbd5e1; padding-top: 8pt; }
-  table.aufteilung tr.summe td { font-weight: 700; background: #f0f9fb; border-bottom: 1.5pt solid #0e7c92; }
-  .fussnoten { margin-top: 12pt; font-size: 8pt; color: #6b7280; line-height: 1.5; }
+  table.aufteilung tr.kategorie td { font-weight: 700; color: #0e7c92; background: #f9fafb; border-top: 1pt solid #cbd5e1; padding-top: 4pt; }
+  table.aufteilung tr.summe td { font-weight: 700; background: #f0f9fb; border-bottom: 1pt solid #0e7c92; }
+  .fussnoten { margin-top: 6pt; font-size: 7pt; color: #6b7280; line-height: 1.4; }
 </style></head><body>
 
 <h1>Unternehmensexposé</h1>
@@ -5451,9 +5453,14 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
 <div class="landscape-page">
   <h2>Aufteilung der Geschäftsbereiche</h2>
   <table class="aufteilung">
+    <colgroup>
+      <col class="label-c" />
+      <col class="num-c" /><col class="num-c" /><col class="num-c" /><col class="num-c" /><col class="num-c" />
+      <col class="num-c" /><col class="num-c" /><col class="num-c" /><col class="num-c" /><col class="num-c" />
+    </colgroup>
     <thead class="gruppe">
       <tr>
-        <th rowspan="2" style="background:#f0f9fb;color:#0e7c92;border-bottom:1.5pt solid #0e7c92;text-align:left;width:22%">Position</th>
+        <th rowspan="2" style="background:#f0f9fb;color:#0e7c92;border-bottom:1.5pt solid #0e7c92;text-align:left">Position</th>
         <th colspan="5">{{ aufteilung.istLabel or "2025" }}</th>
         <th colspan="5">{{ aufteilung.planLabel or "Plan 2026" }}</th>
       </tr>
@@ -5476,8 +5483,8 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
       {% for row in aufteilung.rows %}
       <tr {% if row.istKategorie %}class="kategorie"{% elif row.istSumme %}class="summe"{% endif %}>
         <td>{{ row.label }}</td>
-        {% for v in row.ist %}<td class="num">{{ v }}</td>{% endfor %}
-        {% for v in row.plan %}<td class="num">{{ v }}</td>{% endfor %}
+        {% for v in (row.ist_fmt if row.ist_fmt is defined else row.ist) %}<td class="num">{{ v }}</td>{% endfor %}
+        {% for v in (row.plan_fmt if row.plan_fmt is defined else row.plan) %}<td class="num">{{ v }}</td>{% endfor %}
       </tr>
       {% endfor %}
     </tbody>
@@ -5540,6 +5547,32 @@ def _body_to_html(text):
     return "\n".join(out)
 
 
+def _fmt_eur(s):
+    """Formatiert "1540729" → "1.540.729 €", "" → "", "0" → "0 €" """
+    if s in (None, ""): return ""
+    try:
+        # Komma → Punkt, dann float
+        n = float(str(s).replace(",", ".").replace(" ", "").replace("€", ""))
+        # Integer-Darstellung mit Tausenderpunkt (DE: . als Tausender)
+        if abs(n - int(n)) < 0.01:
+            txt = f"{int(round(n)):,}".replace(",", ".")
+        else:
+            txt = f"{n:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return f"{txt} €"
+    except Exception:
+        return str(s)
+
+def _fmt_pct(s):
+    """Formatiert "13" → "13%", "" → "" """
+    if s in (None, ""): return ""
+    try:
+        n = float(str(s).replace(",", ".").replace("%", "").strip())
+        if abs(n - int(n)) < 0.01:
+            return f"{int(round(n))}%"
+        return f"{n:.1f}%".replace(".", ",")
+    except Exception:
+        return str(s)
+
 def _render_expose_pdf_bytes(data):
     from jinja2 import Template
     from weasyprint import HTML
@@ -5551,8 +5584,28 @@ def _render_expose_pdf_bytes(data):
     fin = data.get("finanzen") or {}
     if fin.get("einleitung"):
         fin["einleitung_html"] = _body_to_html(fin["einleitung"])
+    # Aufteilung: Zahlen formatieren (Spalten 0,1,3 = €, Spalten 2,4 = %)
+    auf = data.get("aufteilung") or {}
+    if auf.get("rows"):
+        for r in auf["rows"]:
+            if r.get("istKategorie"):
+                # Kategorie-Zeilen behalten leere Zellen
+                r["ist_fmt"] = ["", "", "", "", ""]
+                r["plan_fmt"] = ["", "", "", "", ""]
+                continue
+            ist_in = r.get("ist") or ["", "", "", "", ""]
+            plan_in = r.get("plan") or ["", "", "", "", ""]
+            r["ist_fmt"] = [
+                _fmt_eur(ist_in[0]), _fmt_eur(ist_in[1]), _fmt_pct(ist_in[2]),
+                _fmt_eur(ist_in[3]), _fmt_pct(ist_in[4]),
+            ]
+            r["plan_fmt"] = [
+                _fmt_eur(plan_in[0]), _fmt_eur(plan_in[1]), _fmt_pct(plan_in[2]),
+                _fmt_eur(plan_in[3]), _fmt_pct(plan_in[4]),
+            ]
     data["sektionen"] = sektionen
     data["finanzen"] = fin
+    data["aufteilung"] = auf
     html = Template(_EXPOSE_HTML_TEMPLATE).render(**data)
     return HTML(string=html, base_url="/").write_pdf()
 
