@@ -5358,26 +5358,29 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="de"><head><meta charset="utf-8"><title>Exposé {{ mbNr }}</title>
 <style>
   @page {
-    size: A4; margin: 24mm 18mm 24mm 18mm;
+    size: A4; margin: 28mm 22mm 28mm 22mm;
     @top-left { content: "Projekt {{ mbNr }} · mibeca GmbH"; font-size: 9pt; color: #888; }
     @bottom-right { content: "Seite " counter(page) " / " counter(pages); font-size: 9pt; color: #888; }
   }
-  html, body { font-family: "Helvetica", "Arial", system-ui, sans-serif; font-size: 10.5pt; line-height: 1.55; color: #1f2937; }
-  h1 { font-size: 22pt; font-weight: 700; color: #0e7c92; margin: 0; }
-  .hl-line { color: #6b7280; font-size: 10pt; margin: 4pt 0 18pt 0; padding-bottom: 8pt; border-bottom: 1pt solid #e5e7eb; }
-  .headline-box { background: linear-gradient(to right, #0e7c92, #0a9aaf); color: white; padding: 18pt 22pt; border-radius: 6pt; margin-bottom: 18pt; }
-  .headline-box h2 { font-size: 14pt; margin: 0 0 6pt 0; font-weight: 700; }
-  .headline-box p { margin: 0; opacity: 0.95; font-size: 11pt; }
-  .section { display: flex; gap: 16pt; margin-bottom: 14pt; page-break-inside: avoid; }
-  .section-label { width: 130pt; flex-shrink: 0; font-weight: 700; color: #0e7c92; font-size: 10.5pt; }
+  html, body { font-family: "Helvetica", "Arial", system-ui, sans-serif; font-size: 10.5pt; line-height: 1.75; color: #1f2937; }
+  h1 { font-size: 24pt; font-weight: 700; color: #0e7c92; margin: 0 0 6pt 0; letter-spacing: -0.3pt; }
+  .hl-line { color: #6b7280; font-size: 10pt; margin: 4pt 0 28pt 0; padding-bottom: 12pt; border-bottom: 1pt solid #e5e7eb; }
+  .headline-box { background: linear-gradient(to right, #0e7c92, #0a9aaf); color: white; padding: 26pt 30pt; border-radius: 8pt; margin-bottom: 32pt; }
+  .headline-box h2 { font-size: 15pt; margin: 0 0 10pt 0; font-weight: 700; line-height: 1.4; }
+  .headline-box p { margin: 0; opacity: 0.95; font-size: 11pt; line-height: 1.6; }
+  .section { display: flex; gap: 22pt; margin-bottom: 26pt; page-break-inside: avoid; }
+  .section-label { width: 130pt; flex-shrink: 0; font-weight: 700; color: #0e7c92; font-size: 10.5pt; line-height: 1.4; padding-top: 2pt; }
   .section-body { flex: 1; }
-  .section-body p { margin: 0 0 6pt 0; text-align: justify; white-space: pre-wrap; }
-  .section-body ul { margin: 4pt 0; padding-left: 16pt; }
-  table { width: 100%; border-collapse: collapse; margin: 6pt 0; font-size: 9.5pt; }
-  th, td { padding: 4pt 6pt; text-align: left; border-bottom: 1pt solid #e5e7eb; }
-  th { background: #f9fafb; color: #0e7c92; font-weight: 700; }
+  .section-body p { margin: 0 0 12pt 0; text-align: left; white-space: pre-wrap; }
+  .section-body p:last-child { margin-bottom: 0; }
+  .section-body ul { margin: 8pt 0 12pt 0; padding-left: 18pt; }
+  .section-body li { margin-bottom: 6pt; }
+  table { width: 100%; border-collapse: collapse; margin: 14pt 0; font-size: 9.5pt; }
+  th, td { padding: 8pt 8pt; text-align: left; border-bottom: 1pt solid #e5e7eb; line-height: 1.45; }
+  th { background: #f0f9fb; color: #0e7c92; font-weight: 700; }
   td.num { text-align: right; font-variant-numeric: tabular-nums; }
-  .footer-note { font-size: 9pt; color: #6b7280; margin-top: 18pt; padding-top: 10pt; border-top: 1pt solid #e5e7eb; }
+  tr.spacer td { padding: 4pt 0; border: none; }
+  .footer-note { font-size: 9pt; color: #6b7280; margin-top: 28pt; padding-top: 14pt; border-top: 1pt solid #e5e7eb; line-height: 1.6; }
 </style></head><body>
 
 <h1>Unternehmensexposé</h1>
