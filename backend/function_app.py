@@ -5382,9 +5382,9 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
   table.fin-tbl th.num, table.fin-tbl td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
   table.fin-tbl td { padding: 6pt 8pt; border: 1pt solid #b8dde6; line-height: 1.4; }
   /* Sub-Header (z.B. "darin enthalten", "Umsatzverteilung"): volle Breite, hellgrauer Hintergrund, fett */
-  table.fin-tbl tr.subhdr td { background: #ffffff; font-weight: 700; color: #0e7c92; padding-top: 10pt; padding-bottom: 4pt; border-left: none; border-right: none; border-top: 1pt solid #b8dde6; }
+  table.fin-tbl tr.subhdr td { background: #e8f3f6; font-weight: 700; color: #0e7c92; padding-top: 8pt; padding-bottom: 6pt; border-left: 1pt solid #b8dde6; border-right: 1pt solid #b8dde6; border-top: 1.5pt solid #0e7c92; }
   /* Summen-Zeile: blauer Hintergrund + fett */
-  table.fin-tbl tr.total td { font-weight: 700; background: #cfe7ee; color: #0e7c92; }
+  table.fin-tbl tr.total td { font-weight: 700; background: #cfe7ee; color: #0e7c92; border-top: 1pt solid #0e7c92; }
   /* Optionale Spacer-Zeile zwischen Sektionen */
   table.fin-tbl tr.spacer td { background: transparent; border: none; padding: 4pt 0; }
   .footer-note { font-size: 8.5pt; color: #6b7280; margin-top: 24pt; padding-top: 12pt; border-top: 1pt solid #e5e7eb; line-height: 1.55; }
@@ -5639,11 +5639,22 @@ def _render_expose_pdf_bytes(data):
     if fin.get("einleitung"):
         fin["einleitung_html"] = _body_to_html(fin["einleitung"])
     # Zahlen in Finanz-Rows formatieren (EUR mit Tausenderpunkten, % wo Label "%" enthaelt)
+    # Plus: Auto-Erkennung von Summen-Zeilen und Sub-Header anhand des Labels
+    import re as _re
     if fin.get("rows"):
         for r in fin["rows"]:
-            label = (r.get("label") or "")
+            label = (r.get("label") or "").strip()
+            label_lower = label.lower()
             is_pct_row = ("%" in label) or ("Marge" in label) or ("Quote" in label)
             werte = r.get("werte") or []
+            # Auto: Summen-Zeile? (wenn nicht explizit gesetzt)
+            if not r.get("istSumme") and not r.get("istKopf"):
+                if _re.search(r"\b(ebit|rohertrag|summe|gesamt|jahresumsatz|gewinn|betriebsergebnis)\b", label_lower):
+                    r["istSumme"] = True
+            # Auto: Sub-Header? (Werte alle leer und Label gesetzt)
+            if not r.get("istSumme") and not r.get("istKopf"):
+                if label and not any(str(w).strip() for w in werte):
+                    r["istKopf"] = True
             r["werte_fmt"] = [
                 _fmt_pct(v) if is_pct_row else _fmt_eur(v)
                 for v in werte
