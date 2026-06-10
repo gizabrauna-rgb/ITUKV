@@ -207,7 +207,7 @@ const apiBase = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azureweb
 const DEFAULT_SEKTIONEN = [
   { label: 'Unternehmen / Historie', body: '' },
   { label: 'Geschäftsfelder', body: '' },
-  { label: 'Mitarbeiter', body: '' },
+  { label: 'Mitarbeiter & Management', body: '' },
   { label: 'Kunden und Kundenstruktur', body: '' },
   { label: 'Lieferanten und Kooperationspartner', body: '' },
   { label: 'Wettbewerber & Marketing', body: '' },
@@ -236,7 +236,7 @@ function placeholderFor(label) {
   const m = {
     'Unternehmen / Historie': 'z.B. Sitz, Gründungsjahr, Mitarbeiterzahl, Geschäftsmodell-Highlights',
     'Geschäftsfelder': 'z.B. Systemhaus + Privatkundengeschäft, jeweils mit Umsatzanteilen',
-    'Mitarbeiter': 'z.B. Aufteilung in Vollzeit/Teilzeit, Durchschnittsbetriebszugehörigkeit',
+    'Mitarbeiter & Management': 'z.B. Team-Aufteilung, Management-Zeitanteile, Eigenverantwortung, Wissens-Transfer',
     'Kunden und Kundenstruktur': 'z.B. Anzahl Bestandskunden, Vertragsverteilung, Klumpenrisiko',
     'Lieferanten und Kooperationspartner': 'z.B. Hauptlieferanten, technologische Schwerpunkte',
     'Wettbewerber & Marketing': 'z.B. Marktposition, Marketing-Mix',

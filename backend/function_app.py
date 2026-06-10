@@ -5377,12 +5377,16 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
   .section-body li { margin-bottom: 4pt; line-height: 1.55; }
   .section-body ul + p { margin-top: 8pt; }
   table { width: 100%; border-collapse: collapse; margin: 8pt 0 0 0; font-size: 9.5pt; table-layout: auto; }
-  table.fin-tbl { font-size: 9pt; }
-  table.fin-tbl th { background: #f0f9fb; color: #0e7c92; font-weight: 700; padding: 7pt 6pt; text-align: left; border-bottom: 1.5pt solid #0e7c92; white-space: nowrap; }
+  table.fin-tbl { font-size: 9pt; border: 1pt solid #b8dde6; }
+  table.fin-tbl th { background: #cfe7ee; color: #0e7c92; font-weight: 700; padding: 7pt 8pt; text-align: left; border: 1pt solid #b8dde6; white-space: nowrap; }
   table.fin-tbl th.num, table.fin-tbl td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-  table.fin-tbl td { padding: 6pt 6pt; border-bottom: 1pt solid #eef2f5; line-height: 1.4; }
-  table.fin-tbl tr.subhdr td { background: #f9fafb; font-weight: 700; color: #0e7c92; border-top: 1pt solid #cbd5e1; padding-top: 8pt; }
-  table.fin-tbl tr.total td { font-weight: 700; background: #f0f9fb; border-bottom: 1.5pt solid #0e7c92; }
+  table.fin-tbl td { padding: 6pt 8pt; border: 1pt solid #b8dde6; line-height: 1.4; }
+  /* Sub-Header (z.B. "darin enthalten", "Umsatzverteilung"): volle Breite, hellgrauer Hintergrund, fett */
+  table.fin-tbl tr.subhdr td { background: #ffffff; font-weight: 700; color: #0e7c92; padding-top: 10pt; padding-bottom: 4pt; border-left: none; border-right: none; border-top: 1pt solid #b8dde6; }
+  /* Summen-Zeile: blauer Hintergrund + fett */
+  table.fin-tbl tr.total td { font-weight: 700; background: #cfe7ee; color: #0e7c92; }
+  /* Optionale Spacer-Zeile zwischen Sektionen */
+  table.fin-tbl tr.spacer td { background: transparent; border: none; padding: 4pt 0; }
   .footer-note { font-size: 8.5pt; color: #6b7280; margin-top: 24pt; padding-top: 12pt; border-top: 1pt solid #e5e7eb; line-height: 1.55; }
 
   /* Querformat-Seite fuer "Aufteilung Geschaeftsbereiche" — alles auf EINE Seite */
@@ -5431,14 +5435,18 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
     {% if finanzen.jahre %}
     <table class="fin-tbl">
       <thead>
-        <tr><th style="width: 42%">Position</th>{% for j in finanzen.jahre %}<th class="num">{{ j }}</th>{% endfor %}</tr>
+        <tr><th style="width: 42%">&nbsp;</th>{% for j in finanzen.jahre %}<th class="num">{{ j }}</th>{% endfor %}</tr>
       </thead>
       <tbody>
         {% for row in finanzen.rows %}
-        <tr {% if row.istKopf %}class="subhdr"{% elif row.istSumme %}class="total"{% endif %}>
+        {% if row.istKopf %}
+        <tr class="subhdr"><td colspan="{{ finanzen.jahre|length + 1 }}">{{ row.label }}</td></tr>
+        {% else %}
+        <tr {% if row.istSumme %}class="total"{% endif %}>
           <td>{{ row.label }}</td>
-          {% for v in row.werte %}<td class="num">{{ v }}</td>{% endfor %}
+          {% for v in (row.werte_fmt if row.werte_fmt is defined else row.werte) %}<td class="num">{{ v }}</td>{% endfor %}
         </tr>
+        {% endif %}
         {% endfor %}
       </tbody>
     </table>
@@ -5584,6 +5592,16 @@ def _render_expose_pdf_bytes(data):
     fin = data.get("finanzen") or {}
     if fin.get("einleitung"):
         fin["einleitung_html"] = _body_to_html(fin["einleitung"])
+    # Zahlen in Finanz-Rows formatieren (EUR mit Tausenderpunkten, % wo Label "%" enthaelt)
+    if fin.get("rows"):
+        for r in fin["rows"]:
+            label = (r.get("label") or "")
+            is_pct_row = ("%" in label) or ("Marge" in label) or ("Quote" in label)
+            werte = r.get("werte") or []
+            r["werte_fmt"] = [
+                _fmt_pct(v) if is_pct_row else _fmt_eur(v)
+                for v in werte
+            ]
     # Aufteilung: Zahlen formatieren (Spalten 0,1,3 = €, Spalten 2,4 = %)
     auf = data.get("aufteilung") or {}
     if auf.get("rows"):
