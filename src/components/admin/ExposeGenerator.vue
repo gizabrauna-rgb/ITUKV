@@ -67,6 +67,7 @@
       <div class="flex gap-2 mb-2">
         <input v-model="data.finanzen.jahreInput" @blur="parseJahre" placeholder="Jahre (Komma-getrennt), z.B. 2023, 2024, 2025, Plan 2026" class="input flex-1 text-sm" />
         <button @click="addRow" class="px-3 py-2 bg-gray-100 rounded-lg text-xs whitespace-nowrap">+ Zeile</button>
+        <button @click="addSubheader" class="px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs whitespace-nowrap">+ Zwischenüberschrift</button>
       </div>
       <table v-if="data.finanzen.jahre?.length" class="w-full text-xs">
         <thead><tr>
@@ -90,7 +91,11 @@
             <td v-for="(_, ji) in data.finanzen.jahre" :key="ji" class="py-1">
               <input v-model="row.werte[ji]" @blur="save" placeholder="0" :disabled="row.istKopf" class="w-full px-1.5 py-1 border border-gray-200 rounded text-xs text-right disabled:bg-gray-50 disabled:text-gray-300" />
             </td>
-            <td><button @click="data.finanzen.rows.splice(ri, 1); save()" class="text-red-400 hover:text-red-600 p-1"><X class="w-3 h-3" /></button></td>
+            <td class="whitespace-nowrap">
+              <button @click="moveRow(ri, -1)" :disabled="ri === 0" class="text-gray-400 hover:text-gray-700 disabled:opacity-30 p-0.5" title="Nach oben">↑</button>
+              <button @click="moveRow(ri, 1)" :disabled="ri === data.finanzen.rows.length - 1" class="text-gray-400 hover:text-gray-700 disabled:opacity-30 p-0.5" title="Nach unten">↓</button>
+              <button @click="data.finanzen.rows.splice(ri, 1); save()" class="text-red-400 hover:text-red-600 p-1" title="Löschen"><X class="w-3 h-3 inline" /></button>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -150,7 +155,11 @@
             <td v-for="ji in 5" :key="'p'+ji" class="py-1">
               <input v-model="row.plan[ji-1]" @blur="save" placeholder="0" class="w-full px-1 py-0.5 border border-gray-200 rounded text-[11px] text-right" />
             </td>
-            <td><button @click="data.aufteilung.rows.splice(ri, 1); save()" class="text-red-400 hover:text-red-600 p-0.5"><X class="w-3 h-3" /></button></td>
+            <td class="whitespace-nowrap">
+              <button @click="moveAufteilungRow(ri, -1)" :disabled="ri === 0" class="text-gray-400 hover:text-gray-700 disabled:opacity-30 p-0.5" title="Nach oben">↑</button>
+              <button @click="moveAufteilungRow(ri, 1)" :disabled="ri === data.aufteilung.rows.length - 1" class="text-gray-400 hover:text-gray-700 disabled:opacity-30 p-0.5" title="Nach unten">↓</button>
+              <button @click="data.aufteilung.rows.splice(ri, 1); save()" class="text-red-400 hover:text-red-600 p-0.5"><X class="w-3 h-3 inline" /></button>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -258,10 +267,30 @@ function placeholderFor(label) {
 function addRow() {
   data.value.finanzen.rows.push({ label: '', werte: (data.value.finanzen.jahre || []).map(() => '') })
 }
+function addSubheader() {
+  data.value.finanzen.rows.push({ label: '', istKopf: true, werte: (data.value.finanzen.jahre || []).map(() => '') })
+  save()
+}
+function moveRow(idx, dir) {
+  const arr = data.value.finanzen.rows
+  const newIdx = idx + dir
+  if (newIdx < 0 || newIdx >= arr.length) return
+  const [item] = arr.splice(idx, 1)
+  arr.splice(newIdx, 0, item)
+  save()
+}
 
 function addAufteilungRow() {
   if (!data.value.aufteilung) data.value.aufteilung = { istLabel: '2025', planLabel: 'Plan 2026', rows: [], fussnoten: [] }
   data.value.aufteilung.rows.push({ label: '', istKategorie: false, istSumme: false, ist: ['','','','',''], plan: ['','','','',''] })
+  save()
+}
+function moveAufteilungRow(idx, dir) {
+  const arr = data.value.aufteilung.rows
+  const newIdx = idx + dir
+  if (newIdx < 0 || newIdx >= arr.length) return
+  const [item] = arr.splice(idx, 1)
+  arr.splice(newIdx, 0, item)
   save()
 }
 function syncFussnoten() {
