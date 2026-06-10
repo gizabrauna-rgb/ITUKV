@@ -5385,6 +5385,10 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
   table.fin-tbl td { padding: 5pt 8pt; border: 1pt solid #b8dde6; line-height: 1.35; }
   /* Sub-Header (z.B. "darin enthalten", "Umsatzverteilung"): volle Breite, hellgrauer Hintergrund, fett */
   table.fin-tbl tr.subhdr td { background: #e8f3f6; font-weight: 700; color: #0e7c92; padding-top: 8pt; padding-bottom: 6pt; border-left: 1pt solid #b8dde6; border-right: 1pt solid #b8dde6; border-top: 1.5pt solid #0e7c92; }
+  /* Sub-Bloecke (Betriebswirtschaftliche Daten / darin enthalten / Umsatzverteilung): jeder Block ungebrochen */
+  .fin-block { page-break-inside: avoid; margin-bottom: 14pt; }
+  .fin-block:last-child { margin-bottom: 0; }
+  .fin-block-titel { font-weight: 700; color: #0e7c92; font-size: 10.5pt; margin-bottom: 4pt; padding-left: 2pt; }
   /* Summen-Zeile: blauer Hintergrund + fett */
   table.fin-tbl tr.total td { font-weight: 700; background: #cfe7ee; color: #0e7c92; border-top: 1pt solid #0e7c92; }
   /* Optionale Spacer-Zeile zwischen Sektionen */
@@ -5434,7 +5438,30 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
   <div class="section-label">Umsätze, Erträge</div>
   <div class="section-body">
     {% if finanzen.einleitung_html %}{{ finanzen.einleitung_html | safe }}{% elif finanzen.einleitung %}<p>{{ finanzen.einleitung }}</p>{% endif %}
-    {% if finanzen.jahre %}
+    {% if finanzen.jahre and finanzen.bloecke %}
+      {% for block in finanzen.bloecke %}
+      <div class="fin-block">
+        {% if block.titel %}<div class="fin-block-titel">{{ block.titel }}</div>{% endif %}
+        <table class="fin-tbl">
+          <colgroup>
+            <col class="label-c" />
+            {% for j in finanzen.jahre %}<col class="year-c" />{% endfor %}
+          </colgroup>
+          <thead>
+            <tr><th>&nbsp;</th>{% for j in finanzen.jahre %}<th class="num">{{ j }}</th>{% endfor %}</tr>
+          </thead>
+          <tbody>
+            {% for row in block.rows %}
+            <tr {% if row.istSumme %}class="total"{% endif %}>
+              <td>{{ row.label }}</td>
+              {% for v in (row.werte_fmt if row.werte_fmt is defined else row.werte) %}<td class="num">{{ v }}</td>{% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endfor %}
+    {% elif finanzen.jahre %}
     <table class="fin-tbl">
       <colgroup>
         <col class="label-c" />
@@ -5445,14 +5472,10 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
       </thead>
       <tbody>
         {% for row in finanzen.rows %}
-        {% if row.istKopf %}
-        <tr class="subhdr"><td colspan="{{ finanzen.jahre|length + 1 }}">{{ row.label }}</td></tr>
-        {% else %}
         <tr {% if row.istSumme %}class="total"{% endif %}>
           <td>{{ row.label }}</td>
           {% for v in (row.werte_fmt if row.werte_fmt is defined else row.werte) %}<td class="num">{{ v }}</td>{% endfor %}
         </tr>
-        {% endif %}
         {% endfor %}
       </tbody>
     </table>
@@ -5674,6 +5697,20 @@ def _render_expose_pdf_bytes(data):
                 _fmt_pct(v) if is_pct_row else _fmt_eur(v)
                 for v in werte
             ]
+    # Aus flacher rows-Liste Sub-Bloecke bilden, damit jeder Block am Stueck umbrochen wird
+    if fin.get("rows"):
+        bloecke = []
+        current = {"titel": "", "rows": []}
+        for r in fin["rows"]:
+            if r.get("istKopf"):
+                if current["rows"]:
+                    bloecke.append(current)
+                current = {"titel": r.get("label", "") or "", "rows": []}
+            else:
+                current["rows"].append(r)
+        if current["rows"]:
+            bloecke.append(current)
+        fin["bloecke"] = bloecke
     # Aufteilung: Zahlen formatieren (Spalten 0,1,3 = €, Spalten 2,4 = %)
     auf = data.get("aufteilung") or {}
     if auf.get("rows"):
