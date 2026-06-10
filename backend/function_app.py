@@ -5368,9 +5368,9 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
   .headline-box { background: linear-gradient(to right, #0e7c92, #0a9aaf); color: white; padding: 22pt 26pt; border-radius: 8pt; margin-bottom: 24pt; }
   .headline-box h2 { font-size: 15pt; margin: 0 0 8pt 0; font-weight: 700; line-height: 1.4; }
   .headline-box p { margin: 0; opacity: 0.95; font-size: 11pt; line-height: 1.55; }
-  .section { display: flex; gap: 20pt; margin-bottom: 20pt; page-break-inside: avoid; }
-  .section-label { width: 110pt; flex-shrink: 0; font-weight: 700; color: #0e7c92; font-size: 10.5pt; line-height: 1.35; padding-top: 1pt; }
-  .section-body { flex: 1; min-width: 0; }
+  .section { position: relative; padding-left: 130pt; margin-bottom: 20pt; }
+  .section-label { position: absolute; left: 0; top: 0; width: 110pt; font-weight: 700; color: #0e7c92; font-size: 10.5pt; line-height: 1.35; padding-top: 1pt; }
+  .section-body { min-width: 0; }
   .section-body p { margin: 0 0 9pt 0; text-align: left; }
   .section-body p:last-child { margin-bottom: 0; }
   .section-body ul { margin: 4pt 0 10pt 0; padding-left: 16pt; list-style: disc; }
@@ -5378,10 +5378,11 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
   .section-body ul + p { margin-top: 8pt; }
   table { width: 100%; border-collapse: collapse; margin: 8pt 0 0 0; font-size: 9.5pt; table-layout: auto; }
   table.fin-tbl { font-size: 9pt; border: 1pt solid #b8dde6; table-layout: fixed; width: 100%; }
-  table.fin-tbl col.label-c { width: 40%; }
-  table.fin-tbl col.year-c { width: 15%; }
-  table.fin-tbl th { background: #cfe7ee; color: #0e7c92; font-weight: 700; padding: 6pt 6pt; text-align: left; border: 1pt solid #b8dde6; white-space: nowrap; font-size: 8.5pt; }
-  table.fin-tbl th.num, table.fin-tbl td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  table.fin-tbl col.label-c { width: 36%; }
+  table.fin-tbl col.year-c { width: 16%; }
+  table.fin-tbl th { background: #cfe7ee; color: #0e7c92; font-weight: 700; padding: 6pt 5pt; text-align: right; border: 1pt solid #b8dde6; font-size: 8pt; line-height: 1.2; word-wrap: break-word; }
+  table.fin-tbl th:first-child { text-align: left; }
+  table.fin-tbl td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
   table.fin-tbl td { padding: 5pt 6pt; border: 1pt solid #b8dde6; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word; hyphens: auto; }
   table.fin-tbl td:first-child { font-size: 8.5pt; }
   /* Sub-Header (z.B. "darin enthalten", "Umsatzverteilung"): volle Breite, hellgrauer Hintergrund, fett */
