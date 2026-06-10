@@ -5407,15 +5407,29 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
   .landscape-page { page: landscape; page-break-before: always; }
   .landscape-page h2 { font-size: 13pt; color: #0e7c92; margin: 0 0 8pt 0; text-align: center; font-weight: 700; }
   table.aufteilung { width: 100%; border-collapse: collapse; font-size: 7.5pt; table-layout: fixed; margin-top: 4pt; }
-  table.aufteilung col.label-c { width: 18%; }
+  table.aufteilung col.label-c { width: 16%; }
+  table.aufteilung col.gap-c { width: 2%; }
   table.aufteilung col.num-c { width: 8.2%; }
-  table.aufteilung th, table.aufteilung td { padding: 2.5pt 4pt; border-bottom: 1pt solid #eef2f5; line-height: 1.25; vertical-align: middle; }
-  table.aufteilung thead.gruppe th { background: #0e7c92; color: white; font-weight: 700; text-align: center; padding: 4pt 3pt; font-size: 8pt; }
-  table.aufteilung thead.spalten th { background: #f0f9fb; color: #0e7c92; font-weight: 700; text-align: right; border-bottom: 1.5pt solid #0e7c92; font-size: 7pt; padding: 4pt 3pt; }
-  table.aufteilung thead.spalten th.label-h { text-align: left; }
+  table.aufteilung td { padding: 3pt 5pt; line-height: 1.3; vertical-align: middle; border: 1pt solid #b8dde6; }
+  table.aufteilung td.lab { font-weight: 400; padding-left: 14pt; border-right: none; border-left: 1pt solid #b8dde6; }
+  table.aufteilung td.gap { border: none; background: transparent !important; padding: 0; }
+  /* Header: Jahres-Titel ueber Datenbereich, ohne Hintergrund */
+  table.aufteilung tr.gruppe td { border: none; background: transparent; }
+  table.aufteilung tr.gruppe th { border: none; background: transparent; color: #0e7c92; font-weight: 700; text-align: center; padding: 4pt 3pt; font-size: 9pt; }
+  /* Sub-Header: hellblau, blaue Schrift, rechtsbuendig */
+  table.aufteilung tr.spalten td { border: none; background: transparent; }
+  table.aufteilung tr.spalten th { background: #d4ebf2; color: #0e7c92; font-weight: 700; text-align: right; font-size: 7pt; padding: 4pt 5pt; border: 1pt solid #b8dde6; line-height: 1.2; }
   table.aufteilung td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  table.aufteilung tr.kategorie td { font-weight: 700; color: #0e7c92; background: #f9fafb; border-top: 1pt solid #cbd5e1; padding-top: 4pt; }
-  table.aufteilung tr.summe td { font-weight: 700; background: #f0f9fb; border-bottom: 1pt solid #0e7c92; }
+  /* Kategorie-Zeile: hellblau ueber Label-Spalte UND Daten-Spalten (gap bleibt transparent) */
+  table.aufteilung tr.kategorie td { font-weight: 700; color: #0e7c92; background: #d4ebf2; padding: 4pt 5pt; }
+  table.aufteilung tr.kategorie td.lab { padding-left: 5pt; }
+  table.aufteilung tr.kategorie td.gap { background: transparent !important; border: none; }
+  /* Summen-Zeile: gleiches Schema wie Kategorie */
+  table.aufteilung tr.summe td { font-weight: 700; color: #0e7c92; background: #d4ebf2; }
+  table.aufteilung tr.summe td.lab { padding-left: 5pt; }
+  table.aufteilung tr.summe td.gap { background: transparent !important; border: none; }
+  /* Spacer-Zeile zwischen Bloecken */
+  table.aufteilung tr.spacer td { border: none; background: transparent; padding: 4pt 0; height: 6pt; }
   .fussnoten { margin-top: 6pt; font-size: 7pt; color: #6b7280; line-height: 1.4; }
 </style></head><body>
 
@@ -5508,17 +5522,20 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
   <table class="aufteilung">
     <colgroup>
       <col class="label-c" />
+      <col class="gap-c" />
       <col class="num-c" /><col class="num-c" /><col class="num-c" /><col class="num-c" /><col class="num-c" />
       <col class="num-c" /><col class="num-c" /><col class="num-c" /><col class="num-c" /><col class="num-c" />
     </colgroup>
     <thead>
       <tr class="gruppe">
-        <th class="label-h" style="background:#f0f9fb;color:#0e7c92;border-bottom:1.5pt solid #0e7c92;text-align:left">Position</th>
+        <td></td>
+        <td class="gap"></td>
         <th colspan="5">{{ aufteilung.istLabel or "2025" }}</th>
         <th colspan="5">{{ aufteilung.planLabel or "Plan 2026" }}</th>
       </tr>
       <tr class="spalten">
-        <th class="label-h" style="background:#f0f9fb;border-bottom:1.5pt solid #0e7c92">&nbsp;</th>
+        <td></td>
+        <td class="gap"></td>
         <th>Gesamt GmbH</th>
         <th>Anteil Systemhaus</th>
         <th>%</th>
@@ -5533,11 +5550,21 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
     </thead>
     <tbody>
       {% for row in aufteilung.rows %}
-      <tr {% if row.istKategorie %}class="kategorie"{% elif row.istSumme %}class="summe"{% endif %}>
-        <td>{{ row.label }}</td>
+      {% if row.istKategorie %}
+      <tr class="spacer"><td colspan="12"></td></tr>
+      <tr class="kategorie">
+        <td class="lab">{{ row.label }}</td>
+        <td class="gap"></td>
+        <td colspan="10"></td>
+      </tr>
+      {% else %}
+      <tr {% if row.istSumme %}class="summe"{% endif %}>
+        <td class="lab">{{ row.label }}</td>
+        <td class="gap"></td>
         {% for v in (row.ist_fmt if row.ist_fmt is defined else row.ist) %}<td class="num">{{ v }}</td>{% endfor %}
         {% for v in (row.plan_fmt if row.plan_fmt is defined else row.plan) %}<td class="num">{{ v }}</td>{% endfor %}
       </tr>
+      {% endif %}
       {% endfor %}
     </tbody>
   </table>
