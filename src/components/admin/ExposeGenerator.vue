@@ -54,7 +54,7 @@
     <!-- Sektionen -->
     <div v-for="(sec, idx) in data.sektionen" :key="idx" class="bg-white rounded-xl border border-gray-100 p-5 mb-3">
       <div class="flex items-center justify-between mb-2">
-        <h4 class="font-semibold text-gray-800 text-sm">{{ sec.label }}</h4>
+        <input v-model="sec.label" @blur="save" class="font-semibold text-gray-800 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-200 focus:border-[#0088ba] focus:outline-none px-1 py-0.5 -mx-1 flex-1" placeholder="Sektion-Label" />
       </div>
       <textarea v-model="sec.body" @blur="save" rows="6" :placeholder="placeholderFor(sec.label)" class="input resize-y"></textarea>
     </div>
@@ -450,7 +450,13 @@ onMounted(async () => {
         if (e.headline !== undefined) data.value.headline = e.headline
         if (e.subheadline !== undefined) data.value.subheadline = e.subheadline
         if (e.stand) data.value.stand = e.stand
-        if (Array.isArray(e.sektionen) && e.sektionen.length) data.value.sektionen = e.sektionen
+        if (Array.isArray(e.sektionen) && e.sektionen.length) {
+          // Migration: altes Label "Mitarbeiter" → "Mitarbeiter & Management"
+          data.value.sektionen = e.sektionen.map(s => ({
+            ...s,
+            label: s.label === 'Mitarbeiter' ? 'Mitarbeiter & Management' : s.label,
+          }))
+        }
         if (e.finanzen) Object.assign(data.value.finanzen, e.finanzen)
         if (e.aufteilung) {
           data.value.aufteilung = {
