@@ -5377,18 +5377,20 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
   .section-body li { margin-bottom: 4pt; line-height: 1.55; }
   .section-body ul + p { margin-top: 8pt; }
   table { width: 100%; border-collapse: collapse; margin: 8pt 0 0 0; font-size: 9.5pt; table-layout: auto; }
-  table.fin-tbl { font-size: 9pt; border: 1pt solid #b8dde6; table-layout: fixed; }
-  table.fin-tbl col.label-c { width: 36%; }
-  table.fin-tbl col.year-c { width: 16%; }
-  table.fin-tbl th { background: #cfe7ee; color: #0e7c92; font-weight: 700; padding: 7pt 8pt; text-align: left; border: 1pt solid #b8dde6; white-space: nowrap; }
+  table.fin-tbl { font-size: 9pt; border: 1pt solid #b8dde6; table-layout: fixed; width: 100%; }
+  table.fin-tbl col.label-c { width: 40%; }
+  table.fin-tbl col.year-c { width: 15%; }
+  table.fin-tbl th { background: #cfe7ee; color: #0e7c92; font-weight: 700; padding: 6pt 6pt; text-align: left; border: 1pt solid #b8dde6; white-space: nowrap; font-size: 8.5pt; }
   table.fin-tbl th.num, table.fin-tbl td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-  table.fin-tbl td { padding: 5pt 8pt; border: 1pt solid #b8dde6; line-height: 1.35; }
+  table.fin-tbl td { padding: 5pt 6pt; border: 1pt solid #b8dde6; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word; hyphens: auto; }
+  table.fin-tbl td:first-child { font-size: 8.5pt; }
   /* Sub-Header (z.B. "darin enthalten", "Umsatzverteilung"): volle Breite, hellgrauer Hintergrund, fett */
   table.fin-tbl tr.subhdr td { background: #e8f3f6; font-weight: 700; color: #0e7c92; padding-top: 8pt; padding-bottom: 6pt; border-left: 1pt solid #b8dde6; border-right: 1pt solid #b8dde6; border-top: 1.5pt solid #0e7c92; }
-  /* Sub-Bloecke (Betriebswirtschaftliche Daten / darin enthalten / Umsatzverteilung): jeder Block ungebrochen */
-  .fin-block { page-break-inside: avoid; margin-bottom: 14pt; }
-  .fin-block:last-child { margin-bottom: 0; }
-  .fin-block-titel { font-weight: 700; color: #0e7c92; font-size: 10.5pt; margin-bottom: 4pt; padding-left: 2pt; }
+  /* Sub-Bloecke (Betriebswirtschaftliche Daten / darin enthalten / Umsatzverteilung):
+     jeder Block ungebrochen, Indent bleibt erhalten weil eigene .section */
+  .section.fin-block { page-break-inside: avoid; margin-bottom: 14pt; }
+  .section.fin-block:last-of-type { margin-bottom: 0; }
+  .fin-block-titel { font-weight: 700; color: #0e7c92; font-size: 10.5pt; margin-bottom: 5pt; padding-left: 1pt; }
   /* Summen-Zeile: blauer Hintergrund + fett */
   table.fin-tbl tr.total td { font-weight: 700; background: #cfe7ee; color: #0e7c92; border-top: 1pt solid #0e7c92; }
   /* Optionale Spacer-Zeile zwischen Sektionen */
@@ -5434,13 +5436,21 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
 {% endfor %}
 
 {% if finanzen %}
-<div class="section" style="page-break-inside: auto;">
-  <div class="section-label">Umsätze, Erträge</div>
-  <div class="section-body">
-    {% if finanzen.einleitung_html %}{{ finanzen.einleitung_html | safe }}{% elif finanzen.einleitung %}<p>{{ finanzen.einleitung }}</p>{% endif %}
-    {% if finanzen.jahre and finanzen.bloecke %}
-      {% for block in finanzen.bloecke %}
-      <div class="fin-block">
+  {% if finanzen.jahre and finanzen.bloecke %}
+    {# Einleitung als eigene Section mit Label "Umsätze, Erträge" #}
+    {% if finanzen.einleitung_html or finanzen.einleitung %}
+    <div class="section">
+      <div class="section-label">Umsätze, Erträge</div>
+      <div class="section-body">
+        {% if finanzen.einleitung_html %}{{ finanzen.einleitung_html | safe }}{% else %}<p>{{ finanzen.einleitung }}</p>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+    {# Jeder Block als eigene Section damit Indent erhalten bleibt bei Umbruch #}
+    {% for block in finanzen.bloecke %}
+    <div class="section fin-block">
+      <div class="section-label">{% if loop.first and not (finanzen.einleitung_html or finanzen.einleitung) %}Umsätze, Erträge{% endif %}</div>
+      <div class="section-body">
         {% if block.titel %}<div class="fin-block-titel">{{ block.titel }}</div>{% endif %}
         <table class="fin-tbl">
           <colgroup>
@@ -5460,28 +5470,33 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
           </tbody>
         </table>
       </div>
-      {% endfor %}
-    {% elif finanzen.jahre %}
-    <table class="fin-tbl">
-      <colgroup>
-        <col class="label-c" />
-        {% for j in finanzen.jahre %}<col class="year-c" />{% endfor %}
-      </colgroup>
-      <thead>
-        <tr><th>&nbsp;</th>{% for j in finanzen.jahre %}<th class="num">{{ j }}</th>{% endfor %}</tr>
-      </thead>
-      <tbody>
-        {% for row in finanzen.rows %}
-        <tr {% if row.istSumme %}class="total"{% endif %}>
-          <td>{{ row.label }}</td>
-          {% for v in (row.werte_fmt if row.werte_fmt is defined else row.werte) %}<td class="num">{{ v }}</td>{% endfor %}
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% endif %}
+    </div>
+    {% endfor %}
+  {% elif finanzen.jahre %}
+  <div class="section">
+    <div class="section-label">Umsätze, Erträge</div>
+    <div class="section-body">
+      {% if finanzen.einleitung_html %}{{ finanzen.einleitung_html | safe }}{% elif finanzen.einleitung %}<p>{{ finanzen.einleitung }}</p>{% endif %}
+      <table class="fin-tbl">
+        <colgroup>
+          <col class="label-c" />
+          {% for j in finanzen.jahre %}<col class="year-c" />{% endfor %}
+        </colgroup>
+        <thead>
+          <tr><th>&nbsp;</th>{% for j in finanzen.jahre %}<th class="num">{{ j }}</th>{% endfor %}</tr>
+        </thead>
+        <tbody>
+          {% for row in finanzen.rows %}
+          <tr {% if row.istSumme %}class="total"{% endif %}>
+            <td>{{ row.label }}</td>
+            {% for v in (row.werte_fmt if row.werte_fmt is defined else row.werte) %}<td class="num">{{ v }}</td>{% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
-</div>
+  {% endif %}
 {% endif %}
 
 <p class="footer-note">Dieses Exposé ist vertraulich und ausschließlich zur Information vorgesehener Empfänger bestimmt. Eine Weitergabe an Dritte ist ohne ausdrückliche Zustimmung der mibeca GmbH untersagt.</p>
