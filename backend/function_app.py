@@ -5407,9 +5407,9 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
   .landscape-page { page: landscape; page-break-before: always; }
   .landscape-page h2 { font-size: 13pt; color: #0e7c92; margin: 0 0 8pt 0; text-align: center; font-weight: 700; }
   table.aufteilung { width: 100%; border-collapse: collapse; font-size: 7.5pt; table-layout: fixed; margin-top: 4pt; }
-  table.aufteilung col.label-c { width: 16%; }
-  table.aufteilung col.gap-c { width: 2%; }
-  table.aufteilung col.num-c { width: 8.2%; }
+  table.aufteilung col.label-c { width: 15%; }
+  table.aufteilung col.gap-c { width: 1.7%; }
+  table.aufteilung col.num-c { width: 8.16%; }
   table.aufteilung td { padding: 3pt 5pt; line-height: 1.3; vertical-align: middle; border: 1pt solid #b8dde6; }
   table.aufteilung td.lab { font-weight: 400; padding-left: 14pt; border-right: none; border-left: 1pt solid #b8dde6; }
   table.aufteilung td.gap { border: none; background: transparent !important; padding: 0; }
@@ -5524,6 +5524,7 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
       <col class="label-c" />
       <col class="gap-c" />
       <col class="num-c" /><col class="num-c" /><col class="num-c" /><col class="num-c" /><col class="num-c" />
+      <col class="gap-c" />
       <col class="num-c" /><col class="num-c" /><col class="num-c" /><col class="num-c" /><col class="num-c" />
     </colgroup>
     <thead>
@@ -5531,6 +5532,7 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
         <td></td>
         <td class="gap"></td>
         <th colspan="5">{{ aufteilung.istLabel or "2025" }}</th>
+        <td class="gap"></td>
         <th colspan="5">{{ aufteilung.planLabel or "Plan 2026" }}</th>
       </tr>
       <tr class="spalten">
@@ -5541,6 +5543,7 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
         <th>%</th>
         <th>Anteil Privatkunden</th>
         <th>%</th>
+        <td class="gap"></td>
         <th>Gesamt GmbH</th>
         <th>Systemhaus GmbH</th>
         <th>%</th>
@@ -5551,17 +5554,20 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
     <tbody>
       {% for row in aufteilung.rows %}
       {% if row.istKategorie %}
-      <tr class="spacer"><td colspan="12"></td></tr>
+      <tr class="spacer"><td colspan="13"></td></tr>
       <tr class="kategorie">
         <td class="lab">{{ row.label }}</td>
         <td class="gap"></td>
-        <td colspan="10"></td>
+        <td colspan="5"></td>
+        <td class="gap"></td>
+        <td colspan="5"></td>
       </tr>
       {% else %}
       <tr {% if row.istSumme %}class="summe"{% endif %}>
         <td class="lab">{{ row.label }}</td>
         <td class="gap"></td>
         {% for v in (row.ist_fmt if row.ist_fmt is defined else row.ist) %}<td class="num">{{ v }}</td>{% endfor %}
+        <td class="gap"></td>
         {% for v in (row.plan_fmt if row.plan_fmt is defined else row.plan) %}<td class="num">{{ v }}</td>{% endfor %}
       </tr>
       {% endif %}
