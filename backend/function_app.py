@@ -5511,15 +5511,14 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
       <col class="num-c" /><col class="num-c" /><col class="num-c" /><col class="num-c" /><col class="num-c" />
       <col class="num-c" /><col class="num-c" /><col class="num-c" /><col class="num-c" /><col class="num-c" />
     </colgroup>
-    <thead class="gruppe">
-      <tr>
-        <th rowspan="2" style="background:#f0f9fb;color:#0e7c92;border-bottom:1.5pt solid #0e7c92;text-align:left">Position</th>
+    <thead>
+      <tr class="gruppe">
+        <th class="label-h" style="background:#f0f9fb;color:#0e7c92;border-bottom:1.5pt solid #0e7c92;text-align:left">Position</th>
         <th colspan="5">{{ aufteilung.istLabel or "2025" }}</th>
         <th colspan="5">{{ aufteilung.planLabel or "Plan 2026" }}</th>
       </tr>
-    </thead>
-    <thead class="spalten">
-      <tr>
+      <tr class="spalten">
+        <th class="label-h" style="background:#f0f9fb;border-bottom:1.5pt solid #0e7c92">&nbsp;</th>
         <th>Gesamt GmbH</th>
         <th>Anteil Systemhaus</th>
         <th>%</th>
