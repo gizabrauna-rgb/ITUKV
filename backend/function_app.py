@@ -5377,10 +5377,12 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
   .section-body li { margin-bottom: 4pt; line-height: 1.55; }
   .section-body ul + p { margin-top: 8pt; }
   table { width: 100%; border-collapse: collapse; margin: 8pt 0 0 0; font-size: 9.5pt; table-layout: auto; }
-  table.fin-tbl { font-size: 9pt; border: 1pt solid #b8dde6; }
+  table.fin-tbl { font-size: 9pt; border: 1pt solid #b8dde6; table-layout: fixed; }
+  table.fin-tbl col.label-c { width: 36%; }
+  table.fin-tbl col.year-c { width: 16%; }
   table.fin-tbl th { background: #cfe7ee; color: #0e7c92; font-weight: 700; padding: 7pt 8pt; text-align: left; border: 1pt solid #b8dde6; white-space: nowrap; }
   table.fin-tbl th.num, table.fin-tbl td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-  table.fin-tbl td { padding: 6pt 8pt; border: 1pt solid #b8dde6; line-height: 1.4; }
+  table.fin-tbl td { padding: 5pt 8pt; border: 1pt solid #b8dde6; line-height: 1.35; }
   /* Sub-Header (z.B. "darin enthalten", "Umsatzverteilung"): volle Breite, hellgrauer Hintergrund, fett */
   table.fin-tbl tr.subhdr td { background: #e8f3f6; font-weight: 700; color: #0e7c92; padding-top: 8pt; padding-bottom: 6pt; border-left: 1pt solid #b8dde6; border-right: 1pt solid #b8dde6; border-top: 1.5pt solid #0e7c92; }
   /* Summen-Zeile: blauer Hintergrund + fett */
@@ -5434,8 +5436,12 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
     {% if finanzen.einleitung_html %}{{ finanzen.einleitung_html | safe }}{% elif finanzen.einleitung %}<p>{{ finanzen.einleitung }}</p>{% endif %}
     {% if finanzen.jahre %}
     <table class="fin-tbl">
+      <colgroup>
+        <col class="label-c" />
+        {% for j in finanzen.jahre %}<col class="year-c" />{% endfor %}
+      </colgroup>
       <thead>
-        <tr><th style="width: 42%">&nbsp;</th>{% for j in finanzen.jahre %}<th class="num">{{ j }}</th>{% endfor %}</tr>
+        <tr><th>&nbsp;</th>{% for j in finanzen.jahre %}<th class="num">{{ j }}</th>{% endfor %}</tr>
       </thead>
       <tbody>
         {% for row in finanzen.rows %}
@@ -5647,9 +5653,18 @@ def _render_expose_pdf_bytes(data):
             label_lower = label.lower()
             is_pct_row = ("%" in label) or ("Marge" in label) or ("Quote" in label)
             werte = r.get("werte") or []
-            # Auto: Summen-Zeile? (wenn nicht explizit gesetzt)
+            # Auto: Summen-Zeile? Konservativ: nur wenn Label klar als Total formuliert ist
+            # - beginnt mit "=" oder "Summe"
+            # - ist exakt "EBIT" oder "Jahresumsatz"
+            # - enthaelt "(EBIT)" am Ende (z.B. "= Betriebsergebnis (EBIT)")
             if not r.get("istSumme") and not r.get("istKopf"):
-                if _re.search(r"\b(ebit|rohertrag|summe|gesamt|jahresumsatz|gewinn|betriebsergebnis)\b", label_lower):
+                lab = label.strip()
+                if (
+                    lab.startswith("=") or
+                    lab.lower().startswith("summe") or
+                    lab in ("EBIT", "Jahresumsatz", "Rohertrag") or
+                    lab.lower().endswith("(ebit)")
+                ):
                     r["istSumme"] = True
             # Auto: Sub-Header? (Werte alle leer und Label gesetzt)
             if not r.get("istSumme") and not r.get("istKopf"):
