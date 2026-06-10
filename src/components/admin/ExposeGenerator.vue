@@ -76,9 +76,19 @@
         </tr></thead>
         <tbody>
           <tr v-for="(row, ri) in data.finanzen.rows" :key="ri" class="border-t border-gray-100">
-            <td class="py-1"><input v-model="row.label" @blur="save" placeholder="z.B. Umsatz" class="w-full px-1.5 py-1 border border-gray-200 rounded text-xs" /></td>
+            <td class="py-1">
+              <input v-model="row.label" @blur="save" placeholder="z.B. Umsatz" class="w-full px-1.5 py-1 border border-gray-200 rounded text-xs" />
+              <div class="flex gap-1 mt-0.5">
+                <label class="flex items-center gap-0.5 text-[9px] text-gray-400 cursor-pointer" title="Kategorie/Sub-Header (z.B. „darin enthalten" oder „Umsatzverteilung") — Werte werden ignoriert">
+                  <input type="checkbox" v-model="row.istKopf" @change="save" class="scale-75" />Kategorie
+                </label>
+                <label class="flex items-center gap-0.5 text-[9px] text-gray-400 cursor-pointer" title="Summen-Zeile (z.B. EBIT, Summe) — wird blau hinterlegt + fett">
+                  <input type="checkbox" v-model="row.istSumme" @change="save" class="scale-75" />Summe
+                </label>
+              </div>
+            </td>
             <td v-for="(_, ji) in data.finanzen.jahre" :key="ji" class="py-1">
-              <input v-model="row.werte[ji]" @blur="save" placeholder="0" class="w-full px-1.5 py-1 border border-gray-200 rounded text-xs text-right" />
+              <input v-model="row.werte[ji]" @blur="save" placeholder="0" :disabled="row.istKopf" class="w-full px-1.5 py-1 border border-gray-200 rounded text-xs text-right disabled:bg-gray-50 disabled:text-gray-300" />
             </td>
             <td><button @click="data.finanzen.rows.splice(ri, 1); save()" class="text-red-400 hover:text-red-600 p-1"><X class="w-3 h-3" /></button></td>
           </tr>

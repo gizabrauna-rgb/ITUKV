@@ -5511,13 +5511,36 @@ _EXPOSE_HTML_TEMPLATE = """<!DOCTYPE html>
 def _body_to_html(text):
     """Konvertiert Plain-Text-Body in sauberes HTML:
     - Zeilen, die mit • / - / · / * beginnen, werden zu <ul><li>
+    - Wenn ein Bullet-Marker allein in einer Zeile steht und die nachste
+      Zeile Text ist, wird der Text als Bullet-Inhalt verwendet
     - Leerzeilen trennen Absaetze
-    - „Schluessel: Wert"-Aufzaehlungen mit Tabulator werden zu Definitions-Tabelle
     """
     import re
     if not text: return ""
     text = str(text)
-    lines = text.split("\n")
+    raw_lines = text.split("\n")
+
+    # Pre-Pass: Bullet-Marker allein in einer Zeile + Text in nachster Zeile zusammenfassen
+    lines = []
+    i = 0
+    while i < len(raw_lines):
+        s = raw_lines[i].rstrip()
+        stripped = s.lstrip()
+        # Marker allein (nur "•" oder "- " mit nichts dahinter)?
+        if re.match(r"^[•\-·\*]\s*$", stripped):
+            # Suche naechste nicht-leere Zeile
+            j = i + 1
+            while j < len(raw_lines) and not raw_lines[j].strip():
+                j += 1
+            if j < len(raw_lines):
+                # Verschmelze
+                indent = s[:len(s) - len(stripped)]
+                lines.append(f"{indent}{stripped[0]} {raw_lines[j].strip()}")
+                i = j + 1
+                continue
+        lines.append(s)
+        i += 1
+
     out, buf = [], []
     in_list = False
 
@@ -5536,7 +5559,6 @@ def _body_to_html(text):
     for raw in lines:
         s = raw.rstrip()
         stripped = s.lstrip()
-        # Bullet erkennen: • Text, - Text, * Text, · Text (auch mit oder ohne Leerzeichen danach)
         m = re.match(r"^([•\-·\*])\s*(.+)$", stripped)
         if m:
             flush_buf()
@@ -5556,12 +5578,36 @@ def _body_to_html(text):
 
 
 def _fmt_eur(s):
-    """Formatiert "1540729" → "1.540.729 €", "" → "", "0" → "0 €" """
+    """Formatiert Zahlen verschiedener Eingabe-Formate als "1.540.729 €":
+    - "1540729" → 1.540.729 €
+    - "1.540.729 €" → 1.540.729 € (DE-Format: Punkt=Tausender, Komma=Dezimal)
+    - "1540729.50" → 1.540.729,50 €
+    - "1.540.729,50" → 1.540.729,50 €
+    """
     if s in (None, ""): return ""
+    raw = str(s).strip().replace(" ", "").replace("\xa0", "").replace("€", "")
+    if not raw: return ""
+    # Erkenne ob DE-Format (Punkt=Tausender, Komma=Dezimal) oder EN/raw-Format
+    has_comma = "," in raw
+    has_dot = "." in raw
     try:
-        # Komma → Punkt, dann float
-        n = float(str(s).replace(",", ".").replace(" ", "").replace("€", ""))
-        # Integer-Darstellung mit Tausenderpunkt (DE: . als Tausender)
+        if has_comma and has_dot:
+            # DE-Format: 1.540.729,50 → Tausenderpunkte raus, Komma zu Punkt
+            cleaned = raw.replace(".", "").replace(",", ".")
+        elif has_comma and not has_dot:
+            # Nur Komma: deutscher Dezimaltrenner
+            cleaned = raw.replace(",", ".")
+        elif has_dot and not has_comma:
+            # Nur Punkt(e): ENTWEDER Tausender ODER Dezimal.
+            # Heuristik: wenn nach dem letzten Punkt genau 3 Ziffern stehen UND es Punkte gibt → Tausender
+            parts = raw.split(".")
+            if len(parts) >= 2 and all(len(p) == 3 for p in parts[1:]):
+                cleaned = raw.replace(".", "")
+            else:
+                cleaned = raw  # Dezimalpunkt
+        else:
+            cleaned = raw
+        n = float(cleaned)
         if abs(n - int(n)) < 0.01:
             txt = f"{int(round(n)):,}".replace(",", ".")
         else:
