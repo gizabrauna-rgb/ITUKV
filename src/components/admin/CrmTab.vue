@@ -13,12 +13,6 @@
         <button @click="showImport = true" class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50">
           <Upload class="w-4 h-4" /> Importieren
         </button>
-        <button @click="runBackfill" :disabled="backfillRunning" class="flex items-center gap-2 px-3 py-2 border border-amber-200 bg-amber-50 text-amber-800 rounded-xl text-sm hover:bg-amber-100 disabled:opacity-60">
-          {{ backfillRunning ? 'Lädt…' : 'Verlauf nachtragen' }}
-        </button>
-        <button @click="runVersandStats" :disabled="statsRunning" class="flex items-center gap-2 px-3 py-2 border border-blue-200 bg-blue-50 text-blue-800 rounded-xl text-sm hover:bg-blue-100 disabled:opacity-60">
-          {{ statsRunning ? 'Lädt…' : 'Versand-Recherche' }}
-        </button>
         <button @click="showNewModal = true" class="flex items-center gap-2 px-3 py-2 bg-[#0088ba] text-white rounded-xl text-sm hover:bg-[#00a0d8]">
           <UserPlus class="w-4 h-4" /> Neuer Kontakt
         </button>
@@ -932,47 +926,6 @@ async function sendTestMail() {
 const showImport = ref(false)
 const showNewModal = ref(false)
 
-// One-Shot: Verlauf-Backfill fuer historische Landing-Page-Eintragungen
-const backfillRunning = ref(false)
-async function runBackfill() {
-  if (!confirm('Verlauf-Einträge für historische Landing-Page-Eintragungen nachtragen? (kann mehrfach laufen, schreibt nichts doppelt)')) return
-  backfillRunning.value = true
-  try {
-    const r = await authFetch('/backfill-kontakt-verlauf', { method: 'POST', data: { dryRun: false } })
-    // Kontakte-Liste sofort neu laden, damit Slide-Over die neuen Verlauf-Eintraege zeigt
-    allKontakte.value = await getKontakte()
-    const dbg = (r.debug || []).slice(0, 10).join('\n')
-    alert(`Fertig!\n\n${r.createdMailOut} × „Ausschreibung versendet" eingetragen\n${r.createdWichtig} × „Landing-Page-Eintragung" eingetragen\n${r.touchedKontakte} Kontakte aktualisiert\n${r.skipped} ohne CRM-Kontakt übersprungen\n\nDebug (erste 10):\n${dbg || '(leer)'}`)
-  } catch (e) {
-    alert('Backfill fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
-  } finally {
-    backfillRunning.value = false
-  }
-}
-
-const statsRunning = ref(false)
-async function runVersandStats() {
-  const mb = prompt('Welches Mandat? (z.B. mb-250)', 'mb-250')
-  if (!mb) return
-  statsRunning.value = true
-  try {
-    const mbLower = mb.trim().toLowerCase()
-    const [r, visits] = await Promise.all([
-      authFetch('/versand-stats', { method: 'POST', data: { mbNr: mbLower } }),
-      authFetch('/landing-visit-stats', { method: 'POST', data: { mbNr: mbLower } }).catch(() => ({})),
-    ])
-    const fmt = d => d ? new Date(d).toLocaleString('de-DE') : '—'
-    const preview = (r.preview || []).map(p => `• ${p.firma || p.email} (${fmt(p.datum)})`).join('\n')
-    const visitsBlock = visits && visits.total != null
-      ? `\n📊 LANDING-PAGE\nAufrufe gesamt: ${visits.total}\nUnique-Besucher: ${visits.uniqueVisitors}\nErster Aufruf: ${fmt(visits.firstVisit)}\nLetzter Aufruf: ${fmt(visits.lastVisit)}\n`
-      : ''
-    alert(`Ausschreibung ${r.mbNr}\n${visitsBlock}\n✉️ VERSAND\nVersendet an: ${r.total} Kontakte\nErster Versand: ${fmt(r.ersterVersand)}\nLetzter Versand: ${fmt(r.letzterVersand)}\n\nErste ${Math.min(20, r.total)} Empfänger:\n${preview}`)
-  } catch (e) {
-    alert('Recherche fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
-  } finally {
-    statsRunning.value = false
-  }
-}
 const editKontakt = ref(null)
 const akteKontakt = ref(null)
 function openAkte(k) { akteKontakt.value = k }
