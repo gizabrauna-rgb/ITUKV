@@ -6139,9 +6139,14 @@ def dokument_download(req: func.HttpRequest) -> func.HttpResponse:
     # Disposition: "inline" fuer Browser-darstellbare Typen, "attachment" sonst
     inline_types = ("application/pdf", "image/", "video/", "audio/", "text/")
     disp = "inline" if any(ct.startswith(t) for t in inline_types) else "attachment"
+    # RFC 5987: filename* fuer Non-ASCII (Umlaute etc.) + ASCII-Fallback in filename=
+    import urllib.parse
+    ascii_safe = file_name.encode("ascii", "ignore").decode("ascii") or "file"
+    encoded = urllib.parse.quote(file_name, safe="")
+    content_disp = f"{disp}; filename=\"{ascii_safe}\"; filename*=UTF-8''{encoded}"
     return func.HttpResponse(data, status_code=200,
                              mimetype=ct,
-                             headers={**CORS, "Content-Disposition": f'{disp}; filename="{file_name}"'})
+                             headers={**CORS, "Content-Disposition": content_disp})
 
 
 @app.route(route="dokument-delete", methods=["POST", "OPTIONS"])
