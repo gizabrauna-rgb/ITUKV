@@ -849,31 +849,54 @@ async function doSend(recipients) {
   sending.value = true
   // Chunk-Size 100 — bleibt unter HTTP-Timeout (4 Min) und schreibt pro Empfaenger sofort
   // einen Verlauf-Eintrag, damit beim Abbruch klar ist, wer schon eine Mail hat.
-  const chunkSize = 100
+  const chunkSize = 50  // kleinere Chunks -> jeder Request < 1 Min, weniger Timeout-Risiko
   sendProgress.value = { total: recipients.length, sent: 0, failed: 0, skipped: 0, current: 0 }
   let aborted = false
-  try {
-    for (let i = 0; i < recipients.length; i += chunkSize) {
-      const chunk = recipients.slice(i, i + chunkSize)
-      sendProgress.value.current = i + chunk.length
+
+  // Sendet einen Chunk mit bis zu 3 Auto-Retries bei Network-Fehlern.
+  async function sendChunkWithRetry(chunk, writeMandantInfo, chunkIdx) {
+    let lastErr = null
+    for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        const r = await authFetch('/ausschreibung-versand', { method: 'POST', data: {
+        return await authFetch('/ausschreibung-versand', { method: 'POST', data: {
           targetId: ausschreibungForm.value.targetId,
           betreff: ausschreibungForm.value.betreff,
           text: ausschreibungForm.value.text,
           recipients: chunk,
           skipExisting: true,
-          writeMandantInfo: i === 0,  // nur beim ersten Chunk
+          writeMandantInfo,
           filterBeschreibung: ausschreibungForm.value.filterBeschreibung,
         }})
+      } catch (e) {
+        lastErr = e
+        const msg = (e?.message || '') + ' ' + (e?.response?.data?.error || '')
+        // Auto-Retry nur bei klar transienten Fehlern (Network, 5xx, Timeout)
+        const transient = /network|timeout|fetch|503|502|504/i.test(msg) || !e?.response
+        if (!transient || attempt === 3) throw e
+        const waitSec = attempt * 5
+        console.warn(`Chunk ${chunkIdx} Versuch ${attempt} fehlgeschlagen (${msg.slice(0,60)}…) – Retry in ${waitSec}s`)
+        toast.warn(`Chunk ${chunkIdx}: Verbindung weg, versuche in ${waitSec}s erneut…`)
+        await new Promise(r => setTimeout(r, waitSec * 1000))
+      }
+    }
+    throw lastErr
+  }
+
+  try {
+    for (let i = 0; i < recipients.length; i += chunkSize) {
+      const chunk = recipients.slice(i, i + chunkSize)
+      const chunkIdx = Math.floor(i / chunkSize) + 1
+      sendProgress.value.current = i + chunk.length
+      try {
+        const r = await sendChunkWithRetry(chunk, i === 0, chunkIdx)
         sendProgress.value.sent += (r.sent || 0)
         sendProgress.value.failed += (r.failed || 0)
         sendProgress.value.skipped += (r.skipped || 0)
-        if (r.errors?.length) console.warn(`Chunk ${i/chunkSize+1} Fehler:`, r.errors)
+        if (r.errors?.length) console.warn(`Chunk ${chunkIdx} Fehler:`, r.errors)
       } catch (e) {
-        console.error(`Chunk ${i/chunkSize+1} abgebrochen:`, e)
+        console.error(`Chunk ${chunkIdx} endgültig abgebrochen:`, e)
         aborted = true
-        toast.error(`Chunk-Versand abgebrochen bei ${i + chunk.length} von ${recipients.length} — ` + (e?.response?.data?.error || e.message))
+        toast.error(`Chunk-Versand abgebrochen bei ${i + chunk.length} von ${recipients.length} (nach 3 Versuchen) — ` + (e?.response?.data?.error || e.message))
         break
       }
     }
