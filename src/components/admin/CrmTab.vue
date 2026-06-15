@@ -249,13 +249,13 @@
             <div class="text-sm text-gray-700 whitespace-pre-wrap border-t border-gray-200 pt-2">{{ replaceVars(ausschreibungForm.text, firstSelected) }}</div>
           </div>
         </div>
-        <div v-if="sendProgress" class="px-6 py-3 border-t border-gray-100 bg-blue-50">
-          <div class="text-xs text-gray-700 mb-1.5 flex justify-between">
-            <span>Versand läuft: <strong>{{ sendProgress.current }} / {{ sendProgress.total }}</strong></span>
-            <span>{{ sendProgress.sent }} ✓ · {{ sendProgress.skipped }} übersprungen · {{ sendProgress.failed }} Fehler</span>
+        <div v-if="sendProgress" class="px-6 py-4 border-t-2 border-[#0088ba] bg-blue-50 sticky bottom-[68px] z-20">
+          <div class="text-sm text-gray-800 mb-2 flex justify-between font-medium">
+            <span>Versand läuft: <strong class="text-[#0088ba]">{{ sendProgress.current }} / {{ sendProgress.total }}</strong> ({{ Math.round((sendProgress.current / sendProgress.total) * 100) }}%)</span>
+            <span class="text-xs text-gray-600">{{ sendProgress.sent }} ✓ · {{ sendProgress.skipped }} übersprungen · {{ sendProgress.failed }} Fehler</span>
           </div>
-          <div class="w-full bg-white rounded-full h-2 overflow-hidden">
-            <div class="bg-[#0088ba] h-full transition-all" :style="`width: ${(sendProgress.current / sendProgress.total) * 100}%`"></div>
+          <div class="w-full bg-white rounded-full h-3 overflow-hidden border border-blue-200">
+            <div class="bg-gradient-to-r from-[#0088ba] to-[#00b3f0] h-full transition-all duration-500" :style="`width: ${(sendProgress.current / sendProgress.total) * 100}%`"></div>
           </div>
         </div>
         <div class="px-6 py-4 border-t border-gray-100 sticky bottom-0 bg-white flex flex-wrap justify-end gap-2">
