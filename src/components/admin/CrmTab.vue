@@ -264,14 +264,8 @@
             class="flex items-center gap-2 px-4 py-2 border border-amber-200 bg-amber-50 text-amber-800 rounded-xl text-sm disabled:opacity-50">
             <Send class="w-4 h-4" /> Test-Mail an mich
           </button>
-          <button @click="sendMailto" :disabled="!canSend" class="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-xl text-sm disabled:opacity-50">
-            <Mail class="w-4 h-4" /> E-Mail-App öffnen
-          </button>
-          <button @click="downloadCsv" :disabled="!canSend" class="flex items-center gap-2 px-4 py-2 border border-[#0088ba] text-[#0088ba] rounded-xl text-sm disabled:opacity-50">
-            <Download class="w-4 h-4" /> Für Serien-Mail (CSV)
-          </button>
           <button @click="sendAcs" :disabled="!canSend || sending" class="flex items-center gap-2 px-4 py-2 bg-[#0088ba] text-white rounded-xl text-sm font-medium disabled:opacity-50">
-            <Send class="w-4 h-4" /> {{ sending ? 'Sende…' : 'Direkt senden (ACS)' }}
+            <Send class="w-4 h-4" /> {{ sending ? 'Sende…' : 'Versenden (von jk@itukv.de)' }}
           </button>
         </div>
       </div>
@@ -749,26 +743,8 @@ function replaceVars(text, k) {
     .replaceAll('{exposeUrl}', landingUrl)
 }
 
-function sendMailto() {
-  const subject = encodeURIComponent(ausschreibungForm.value.betreff)
-  const body = encodeURIComponent(ausschreibungForm.value.text)
-  const bcc = selectedKontakte.value.map(k => k.email).filter(Boolean).join(',')
-  window.location.href = `mailto:?bcc=${bcc}&subject=${subject}&body=${body}`
-}
-
-function downloadCsv() {
-  const fields = ['firma','name','email','plz','ort','betreff','text']
-  const rows = selectedKontakte.value.map(k => [
-    k.firma || '', k.name || '', k.email || '', k.plz || '', k.ort || '',
-    replaceVars(ausschreibungForm.value.betreff, k),
-    replaceVars(ausschreibungForm.value.text, k).replaceAll('\n', ' | ')
-  ].map(v => `"${(v + '').replaceAll('"', '""')}"`).join(';'))
-  const csv = '﻿' + [fields.join(';'), ...rows].join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a'); a.href = url; a.download = 'ausschreibung_serienmail.csv'; a.click()
-  URL.revokeObjectURL(url)
-}
+// sendMailto und downloadCsv entfernt — sie öffneten den lokalen Mail-Client
+// bzw. luden eine CSV. Versand laeuft nur ueber ACS (jk@itukv.de).
 
 const sending = ref(false)
 // Sicherheits-Pruefung: identifiziert Empfaenger, die wahrscheinlich Mitarbeiter
