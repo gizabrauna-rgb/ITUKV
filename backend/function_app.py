@@ -1519,6 +1519,81 @@ def versand_chunk_processor(versandTimer: func.TimerRequest) -> None:
         logging.info(f"Versand-Timer fertig: {chunks_done} Chunks in {elapsed:.0f}s")
 
 
+@app.route(route="interessenten-expose-resend", methods=["POST", "OPTIONS"])
+def interessenten_expose_resend(req: func.HttpRequest) -> func.HttpResponse:
+    """Sendet allen Interessenten eines Targets seit einem Datum erneut den
+    persoenlichen Exposé-Link per Mail.
+    Body: { targetId, sinceDate (YYYY-MM-DD) }
+    """
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    if not ACS_CONN:
+        return err_("ACS nicht konfiguriert", 500)
+    body = req.get_json() or {}
+    tid = (body.get("targetId") or "").strip()
+    since = (body.get("sinceDate") or "").strip()
+    if not (tid and since):
+        return err_("targetId und sinceDate erforderlich", 400)
+    try:
+        t = dict(table_("targets").get_entity("target", tid))
+    except Exception:
+        return err_("Target nicht gefunden", 404)
+    mb_nr = (t.get("mbNr", "") or "").lower()
+
+    # Interessenten sammeln (unique nach Email)
+    inters = table_("interessenten")
+    seen = set()
+    cands = []
+    for i in inters.list_entities():
+        if i.get("targetId") != tid: continue
+        cr = i.get("createdAt", "") or ""
+        if not cr.startswith(since): continue
+        em = (i.get("email", "") or "").strip().lower()
+        if not em or em in seen: continue
+        seen.add(em)
+        cands.append(dict(i))
+
+    from azure.communication.email import EmailClient
+    client = EmailClient.from_connection_string(ACS_CONN)
+    sent = 0; failed = 0; errors = []
+    for i in cands:
+        em = (i.get("email", "") or "").strip()
+        name = i.get("name", "") or i.get("firma", "") or "Interessent"
+        vorname = _first_name(name) or name.split(" ")[0]
+        token = i.get("exposeToken", "") or ""
+        if not token:
+            failed += 1; errors.append({"email": em, "error": "kein Token"}); continue
+        expose_url = f"{LANDING_BASE}/expose-{mb_nr}/{token}"
+        html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6;max-width:600px">
+<p>Hallo {vorname},</p>
+<p>Du hast Dich vorhin für das Exposé zu Projekt <strong>{mb_nr.upper()}</strong> über unsere Landing-Page eingetragen. Hier nochmal direkt Dein persönlicher Link:</p>
+<p style="margin:24px 0"><a href="{expose_url}" style="background:#0088ba;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Zum Exposé</a></p>
+<p>Über den Link erreichst Du Deinen persönlichen Projektbereich – Exposé herunterladen, NDA herunterladen und unterschrieben hochladen.</p>
+<p>Falls Du Fragen hast, antworte einfach auf diese Mail.</p>
+<p>Viele Grüße<br/>Jennifer Kaplan<br/>M&amp;A-Beraterin<br/>mibeca GmbH | Mike Bergmann Akademie</p>
+</body></html>"""
+        plain = f"Hallo {vorname},\n\nDein persönlicher Exposé-Link zu Projekt {mb_nr.upper()}:\n{expose_url}\n\nViele Grüße\nJennifer Kaplan"
+        try:
+            client.begin_send({
+                "senderAddress": ACS_SENDER,
+                "recipients": {"to": [{"address": em}]},
+                "content": {
+                    "subject": f"Dein Exposé-Link zu Projekt {mb_nr.upper()}",
+                    "plainText": plain,
+                    "html": html,
+                },
+                **({"replyTo": acs_reply_to()} if acs_reply_to() else {}),
+            })
+            sent += 1
+        except Exception as ex:
+            failed += 1
+            errors.append({"email": em, "error": str(ex)})
+    return ok_({"sent": sent, "failed": failed, "total": len(cands), "errors": errors[:5]})
+
+
 @app.route(route="ausschreibung-versand-start", methods=["POST", "OPTIONS"])
 def ausschreibung_versand_start(req: func.HttpRequest) -> func.HttpResponse:
     """Startet Background-Versand: splittet Empfaenger in Chunks und queued sie.
@@ -4822,15 +4897,23 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
     }
     table_("interessenten").create_entity(entity)
 
-    # CRM-Eintrag: als Kauf-Interessent anlegen oder bestehenden anreichern (dedupe per email)
-    try:
-        tc = table_("kontakte")
-        existing = None
-        if email:
-            for k in tc.list_entities():
-                if (k.get("email", "") or "").strip().lower() == email.lower():
+    # === Performance-Fix: EIN serverseitig-gefilterter Lookup statt zwei Full-Scans ===
+    tc = table_("kontakte")
+    existing = None
+    if email:
+        try:
+            # OData-Filter: server-seitig, viel schneller als client-side list_entities
+            email_lower = email.lower().replace("'", "''")
+            res = tc.query_entities(f"email eq '{email}'")
+            for k in res:
+                em = (k.get("email", "") or "").strip().lower()
+                if em == email_lower:
                     existing = dict(k); break
-        # Bevorzugt korrekter Firmenname aus Impressum
+        except Exception as ex:
+            logging.warning(f"Kontakt-Lookup fehlgeschlagen: {ex}")
+
+    # CRM-Eintrag: anlegen oder anreichern
+    try:
         firma_final = enrich.get("firmenname") or firma
         ort_final = enrich.get("ort") or ort
         plz_final = str(enrich.get("postleitzahl") or "") or plz
@@ -4847,11 +4930,14 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
                 kom = existing.get("kommentar", "")
                 addon = f"[{mb_nr}] {body.get('kommentar')}"
                 updates["kommentar"] = (kom + "\n" + addon).strip() if kom else addon
-            try: tc.update_entity(updates, mode="replace")
+            try:
+                tc.update_entity(updates, mode="replace")
+                existing = updates  # fuer den Verlauf-Eintrag weiter unten
             except Exception as ex: logging.warning(f"CRM-Anreicherung fehlgeschlagen: {ex}")
         else:
-            tc.create_entity({
-                "PartitionKey": "kontakt", "RowKey": str(uuid.uuid4()),
+            new_rk = str(uuid.uuid4())
+            new_kontakt = {
+                "PartitionKey": "kontakt", "RowKey": new_rk,
                 "firma": firma_final, "name": name, "email": email,
                 "telefon": body.get("telefon", ""), "website": website,
                 "plz": plz_final, "ort": ort_final,
@@ -4863,21 +4949,16 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
                 "herkunft": f"Landing-Page {mb_nr}",
                 "createdAt": datetime.utcnow().isoformat(),
                 "updatedAt": datetime.utcnow().isoformat(),
-            })
+            }
+            tc.create_entity(new_kontakt)
+            existing = new_kontakt  # fuer den Verlauf-Eintrag weiter unten
     except Exception as ex:
         logging.warning(f"CRM-Eintrag fehlgeschlagen: {ex}")
 
-    # Eintrag im Kontakt-Verlauf (kontakte.verlaufJson) — fuer CRM-Akten-Ansicht
-    # (KEIN Eintrag im Target-Verlauf — das ist nur Mandanten-Kommunikation.
-    #  Interessenten-Anmeldungen sieht mibeca im Interessenten-Tab.)
+    # Verlauf-Eintrag — nutzt das bereits gefundene 'existing' (kein zweiter Scan!)
     try:
-        tc = table_("kontakte")
-        kontakt = None
-        for k in tc.list_entities():
-            if (k.get("email", "") or "").strip().lower() == (email or "").lower():
-                kontakt = dict(k); break
-        if kontakt:
-            try: kverlauf = json.loads(kontakt.get("verlaufJson") or "[]")
+        if existing:
+            try: kverlauf = json.loads(existing.get("verlaufJson") or "[]")
             except: kverlauf = []
             if not isinstance(kverlauf, list): kverlauf = []
             kverlauf.append({
@@ -4890,8 +4971,8 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
                 "kontextTargetId": target_id,
                 "kontextMbNr": mb_nr,
             })
-            kontakt["verlaufJson"] = json.dumps(kverlauf, ensure_ascii=False)
-            tc.update_entity(kontakt)
+            existing["verlaufJson"] = json.dumps(kverlauf, ensure_ascii=False)
+            tc.update_entity(existing, mode="replace")
     except Exception as ex:
         logging.warning(f"Kontakt-Verlauf-Eintrag (Anmeldung) fehlgeschlagen: {ex}")
 
