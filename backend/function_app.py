@@ -1240,6 +1240,356 @@ def ausschreibung_update(req: func.HttpRequest) -> func.HttpResponse:
     return ok_(dict(ent))
 
 
+# =========================================================================
+# BACKGROUND-VERSAND: Queue-basiertes Ausschreibungs-Versenden
+# Frontend feuert nur 1 Request, Backend verarbeitet alles selbst.
+# =========================================================================
+
+VERSAND_QUEUE_NAME = "versand-queue"
+
+def _versand_queue_client():
+    from azure.storage.queue import QueueClient
+    conn = os.environ.get("AzureWebJobsStorage") or os.environ.get("AZURE_TABLE_STORAGE_CONNECTION_STRING") or ""
+    qc = QueueClient.from_connection_string(conn, VERSAND_QUEUE_NAME)
+    try: qc.create_queue()
+    except Exception: pass
+    return qc
+
+def _versand_job_get(job_id):
+    try: return dict(table_("versandjobs").get_entity(job_id, "meta"))
+    except Exception: return None
+
+def _versand_job_update(job_id, updates):
+    """Atomares Update einer Job-Zeile mit ETag-Schutz (Retry bei Konflikt)."""
+    from azure.data.tables import UpdateMode
+    from azure.core.exceptions import ResourceModifiedError
+    t = table_("versandjobs")
+    for attempt in range(8):
+        try:
+            ent = dict(t.get_entity(job_id, "meta"))
+            for k, v in updates.items():
+                if k.startswith("+"):  # increment
+                    real = k[1:]
+                    ent[real] = (ent.get(real, 0) or 0) + v
+                else:
+                    ent[k] = v
+            ent["updatedAt"] = datetime.utcnow().isoformat()
+            t.update_entity(ent, mode=UpdateMode.REPLACE)
+            return ent
+        except ResourceModifiedError:
+            continue
+        except Exception as ex:
+            logging.warning(f"versandjobs update fehlgeschlagen: {ex}")
+            return None
+    logging.error(f"versandjobs update nach 8 Versuchen aufgegeben: {job_id}")
+    return None
+
+
+def _process_versand_chunk(payload):
+    """Verarbeitet einen einzelnen Chunk-Auftrag aus der Queue (oder direkt).
+    Erwartet payload mit: jobId, chunkIdx, recipients[], targetId, betreff, text,
+    writeMandantInfo, filterBeschreibung, autor.
+    Aktualisiert Job-Counter atomar."""
+    job_id = payload.get("jobId", "")
+    chunk_idx = payload.get("chunkIdx", 0)
+    recipients = payload.get("recipients") or []
+    tid = payload.get("targetId", "")
+    betreff_tpl = payload.get("betreff", "") or ""
+    text_tpl = payload.get("text", "") or ""
+    write_mandant_info = bool(payload.get("writeMandantInfo", False))
+    filter_beschreibung = payload.get("filterBeschreibung", "") or "alle Kontakte"
+    autor = payload.get("autor", "")
+
+    if not ACS_CONN:
+        logging.error("ACS nicht konfiguriert — kann Chunk nicht versenden")
+        return
+
+    try:
+        t = dict(table_("targets").get_entity("target", tid))
+    except Exception:
+        logging.error(f"Target {tid} nicht gefunden — Chunk wird verworfen")
+        return
+    mb_nr = t.get("mbNr", "")
+    expose_url = f"{LANDING_BASE}/{mb_nr.lower()}" if mb_nr else ""
+
+    def render(tpl, k):
+        vorname = _first_name(k.get("name", ""))
+        return (tpl or "").replace("{firma}", k.get("firma", "") or "") \
+                          .replace("{vorname}", vorname) \
+                          .replace("{name}", k.get("name", "") or "") \
+                          .replace("{ort}", k.get("ort", "") or "") \
+                          .replace("{mbNr}", mb_nr) \
+                          .replace("{exposeUrl}", expose_url)
+
+    def text_to_html(txt):
+        import html as _html, re as _re
+        safe = _html.escape(txt or "")
+        safe = _re.sub(r"(https?://[\w./?=&%#\-:+,;@!~$'()*]+)", r'<a href="\1" style="color:#0088ba">\1</a>', safe)
+        paragraphs = [p.replace("\n", "<br>") for p in safe.split("\n\n")]
+        return "".join(f"<p>{p}</p>" for p in paragraphs)
+
+    from azure.communication.email import EmailClient
+    client = EmailClient.from_connection_string(ACS_CONN)
+    tc = table_("kontakte")
+    sent = 0; skipped = 0; failed = 0
+
+    # Kontakte einmal pre-loaden fuer diesen Chunk (nicht alle, nur die benötigten Emails)
+    chunk_emails = {(r.get("email") or "").strip().lower() for r in recipients if r.get("email")}
+    kontakte_by_email = {}
+    for k in tc.list_entities():
+        em = (k.get("email", "") or "").strip().lower()
+        if em in chunk_emails:
+            kontakte_by_email[em] = dict(k)
+
+    def already_sent_to(email_lc):
+        k = kontakte_by_email.get(email_lc)
+        if not k: return False
+        try: v = json.loads(k.get("verlaufJson") or "[]")
+        except: return False
+        if not isinstance(v, list): return False
+        for ev in v:
+            if (ev.get("kontextMbNr", "") or "").lower() == mb_nr.lower() and ev.get("typ") == "mail_out":
+                return True
+        return False
+
+    for r in recipients:
+        rec_email = (r.get("email") or "").strip().lower()
+        if not rec_email:
+            continue
+        if already_sent_to(rec_email):
+            skipped += 1
+            continue
+        try:
+            subj = render(betreff_tpl, r)
+            html_body = ('<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6;max-width:600px">'
+                         + text_to_html(render(text_tpl, r))
+                         + '</body></html>')
+            msg = {
+                "senderAddress": ACS_SENDER,
+                "recipients": {"to": [{"address": r["email"]}]},
+                "content": {"subject": subj, "plainText": render(text_tpl, r), "html": html_body},
+            }
+            try:
+                token = secrets.token_urlsafe(12)
+                _replytokens_table().create_entity({
+                    "PartitionKey": "token", "RowKey": token,
+                    "targetId": tid,
+                    "kontaktEmail": rec_email,
+                    "originalSender": autor,
+                    "createdAt": datetime.utcnow().isoformat(),
+                })
+                reply_domain = os.environ.get("REPLY_DOMAIN", "reply.itukv.de")
+                msg["replyTo"] = [{"address": f"verlauf+{token}@{reply_domain}", "displayName": "Jennifer Kaplan"}]
+            except Exception:
+                rt = acs_reply_to()
+                if rt: msg["replyTo"] = rt
+            client.begin_send(msg)
+            sent += 1
+            # Verlauf-Eintrag in Kontakt
+            if rec_email in kontakte_by_email:
+                kontakt = kontakte_by_email[rec_email]
+                try: kverlauf = json.loads(kontakt.get("verlaufJson") or "[]")
+                except: kverlauf = []
+                if not isinstance(kverlauf, list): kverlauf = []
+                kverlauf.append({
+                    "id": "kv" + str(int(datetime.utcnow().timestamp() * 1000)) + secrets.token_hex(2),
+                    "typ": "mail_out",
+                    "datum": datetime.utcnow().isoformat(),
+                    "autor": autor,
+                    "betreff": subj,
+                    "beschreibung": render(text_tpl, r),
+                    "kontextTargetId": tid,
+                    "kontextMbNr": mb_nr,
+                })
+                kontakt["verlaufJson"] = json.dumps(kverlauf, ensure_ascii=False)
+                try: tc.update_entity(kontakt)
+                except Exception as ex: logging.warning(f"Kontakt-Verlauf-Write {rec_email}: {ex}")
+        except Exception as ex:
+            failed += 1
+            logging.warning(f"Chunk-Versand {rec_email} fehlgeschlagen: {ex}")
+
+    # Job-Counter atomar updaten
+    _versand_job_update(job_id, {
+        "+sent": sent,
+        "+skipped": skipped,
+        "+failed": failed,
+        "+chunksDone": 1,
+    })
+
+    # Mandant-Info-Mail + Phase-Auto-Advance NUR beim ersten Chunk (writeMandantInfo=true)
+    if write_mandant_info:
+        now_iso = datetime.utcnow().isoformat()
+        mandant_email = (t.get("privatEmail") or "").strip()
+        if mandant_email:
+            try:
+                mandant_vorname = _first_name(t.get("vorname") or t.get("verkaueferName") or "")
+                info_html = (
+                    '<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">'
+                    f'<h2 style="color:#0088ba">Kampagne gestartet — Projekt {mb_nr}</h2>'
+                    f'<p>Hallo {mandant_vorname or "zusammen"},</p>'
+                    f'<p>kurze Info zu Deinem Projekt <strong>{mb_nr}</strong>: Wir haben soeben die Marktansprache gestartet.</p>'
+                    f'<p>Die Ausschreibung läuft an potenzielle Interessenten, die sich über die Landing-Page für das Exposé eintragen können.</p>'
+                    f'<p>Sobald die ersten Rückmeldungen kommen, melden wir uns mit den nächsten Schritten.</p>'
+                    f'<p>Viele Grüße<br/>Dein M&amp;A-Team der Mike Bergmann Akademie</p>'
+                    '</body></html>'
+                )
+                client.begin_send({
+                    "senderAddress": ACS_SENDER,
+                    "recipients": {"to": [{"address": mandant_email}]},
+                    "content": {
+                        "subject": f"Kampagne gestartet — Projekt {mb_nr}",
+                        "plainText": f"Hallo {mandant_vorname},\n\nKampagne fuer Projekt {mb_nr} ist gestartet.\n\nViele Gruesse",
+                        "html": info_html,
+                    },
+                })
+            except Exception as ex:
+                logging.warning(f"Mandant-Info-Mail fehlgeschlagen: {ex}")
+        _verlauf_append(tid, {
+            "id": "k" + str(int(datetime.utcnow().timestamp() * 1000)),
+            "typ": "mail_out",
+            "datum": now_iso,
+            "autor": autor,
+            "betreff": f"Ausschreibung versendet — Verteiler: {filter_beschreibung}",
+            "beschreibung": f'Marktansprache gestartet (Background-Job). Verteiler: {filter_beschreibung}.',
+        })
+        # Phase-Auto-Advance
+        try:
+            t_fresh = dict(table_("targets").get_entity("target", tid))
+            phasen = json.loads(t_fresh.get("phasenJson") or "[]")
+            if isinstance(phasen, list) and phasen:
+                dirty = False
+                for ph in phasen:
+                    pid = ph.get("id", 0)
+                    if pid <= 2:
+                        for a in (ph.get("aufgaben") or []):
+                            if not a.get("done"):
+                                a["done"] = True; a["datum"] = a.get("datum") or now_iso
+                                dirty = True
+                    elif pid == 3:
+                        for a in (ph.get("aufgaben") or []):
+                            if a.get("auto") in ("anschreibenVerschickt", "interessentenAngelegt", "landingPublished"):
+                                if not a.get("done"):
+                                    a["done"] = True; a["datum"] = a.get("datum") or now_iso
+                                    dirty = True
+                if dirty:
+                    t_fresh["phasenJson"] = json.dumps(phasen, ensure_ascii=False)
+                    table_("targets").update_entity(t_fresh)
+        except Exception as ex:
+            logging.warning(f"Phase-Auto-Advance fehlgeschlagen: {ex}")
+
+    # Check ob das der letzte Chunk war
+    job = _versand_job_get(job_id)
+    if job and job.get("chunksDone", 0) >= job.get("chunksTotal", 0):
+        _versand_job_update(job_id, {"status": "done"})
+
+
+@app.queue_trigger(arg_name="msg", queue_name=VERSAND_QUEUE_NAME, connection="AzureWebJobsStorage")
+def process_versand_chunk(msg: func.QueueMessage):
+    try:
+        payload = json.loads(msg.get_body().decode("utf-8"))
+        _process_versand_chunk(payload)
+    except Exception as ex:
+        logging.error(f"Queue-Chunk-Verarbeitung fehlgeschlagen: {ex}", exc_info=True)
+        raise
+
+
+@app.route(route="ausschreibung-versand-start", methods=["POST", "OPTIONS"])
+def ausschreibung_versand_start(req: func.HttpRequest) -> func.HttpResponse:
+    """Startet Background-Versand: splittet Empfaenger in Chunks und queued sie.
+    Body: { targetId, betreff, text, recipients[], filterBeschreibung? }
+    Antwort: { jobId, chunksTotal, total }"""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    tid = (body.get("targetId") or "").strip()
+    betreff = (body.get("betreff") or "").strip()
+    text = body.get("text") or ""
+    recipients = body.get("recipients") or []
+    filter_beschreibung = (body.get("filterBeschreibung") or "alle Kontakte").strip()
+    if not (tid and betreff and text and recipients):
+        return err_("targetId, betreff, text, recipients erforderlich", 400)
+
+    # Job anlegen
+    job_id = "job" + datetime.utcnow().strftime("%Y%m%d%H%M%S") + secrets.token_hex(3)
+    chunk_size = 10
+    chunks_total = (len(recipients) + chunk_size - 1) // chunk_size
+    autor = p.get("name") or p.get("email", "")
+    now_iso = datetime.utcnow().isoformat()
+    try:
+        table_("versandjobs").create_entity({
+            "PartitionKey": job_id, "RowKey": "meta",
+            "targetId": tid,
+            "betreff": betreff,
+            "filterBeschreibung": filter_beschreibung,
+            "autor": autor,
+            "total": len(recipients),
+            "chunksTotal": chunks_total,
+            "chunksDone": 0,
+            "sent": 0,
+            "skipped": 0,
+            "failed": 0,
+            "status": "queued",
+            "createdAt": now_iso,
+            "updatedAt": now_iso,
+        })
+    except Exception as ex:
+        return err_(f"Job-Anlage fehlgeschlagen: {ex}", 500)
+
+    # Chunks in Queue legen
+    qc = _versand_queue_client()
+    for ci in range(chunks_total):
+        chunk = recipients[ci*chunk_size:(ci+1)*chunk_size]
+        payload = {
+            "jobId": job_id,
+            "chunkIdx": ci,
+            "recipients": chunk,
+            "targetId": tid,
+            "betreff": betreff,
+            "text": text,
+            "writeMandantInfo": (ci == 0),
+            "filterBeschreibung": filter_beschreibung,
+            "autor": autor,
+        }
+        try:
+            import base64
+            msg_text = base64.b64encode(json.dumps(payload, ensure_ascii=False).encode("utf-8")).decode("ascii")
+            qc.send_message(msg_text)
+        except Exception as ex:
+            logging.error(f"Queue-Send chunk {ci} fehlgeschlagen: {ex}")
+    return ok_({"jobId": job_id, "chunksTotal": chunks_total, "total": len(recipients)})
+
+
+@app.route(route="ausschreibung-versand-status", methods=["GET", "OPTIONS"])
+def ausschreibung_versand_status(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    job_id = (req.params.get("jobId") or "").strip()
+    if not job_id:
+        return err_("jobId erforderlich", 400)
+    job = _versand_job_get(job_id)
+    if not job:
+        return err_("Job nicht gefunden", 404)
+    return ok_({
+        "jobId": job_id,
+        "status": job.get("status", ""),
+        "total": job.get("total", 0),
+        "chunksTotal": job.get("chunksTotal", 0),
+        "chunksDone": job.get("chunksDone", 0),
+        "sent": job.get("sent", 0),
+        "skipped": job.get("skipped", 0),
+        "failed": job.get("failed", 0),
+        "createdAt": job.get("createdAt", ""),
+        "updatedAt": job.get("updatedAt", ""),
+        "filterBeschreibung": job.get("filterBeschreibung", ""),
+    })
+
+
 @app.route(route="ausschreibung-versand", methods=["POST", "OPTIONS"])
 def ausschreibung_versand(req: func.HttpRequest) -> func.HttpResponse:
     """Versendet die Ausschreibung als Massen-Mail via ACS — chunk-faehig.

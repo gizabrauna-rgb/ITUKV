@@ -824,67 +824,56 @@ async function doSend(recipients) {
   if (!confirm(confirmMsg)) return
   sending.value = true
 
-  // Mini-Chunks (10 Empfaenger) + 60s Timeout + KEIN Abbruch bei Fehler.
-  // Idee: jeder Request ist klein und schnell. Wenn er trotzdem timeoutet,
-  // hat Backend wahrscheinlich schon versendet (Dedup faengt Doppel ab).
-  // Wir fahren stoisch weiter bis alle Chunks gefeuert sind.
-  const chunkSize = 10
-  const TIMEOUT_MS = 60000
-  sendProgress.value = { total: recipients.length, sent: 0, failed: 0, skipped: 0, current: 0, networkRecoveries: 0, chunksDone: 0, chunksTotal: Math.ceil(recipients.length / chunkSize) }
-  let aborted = false
-
-  async function sendChunk(chunk, writeMandantInfo, chunkIdx) {
-    const ctrl = new AbortController()
-    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS)
-    try {
-      return await authFetch('/ausschreibung-versand', {
-        method: 'POST',
-        signal: ctrl.signal,
-        data: {
-          targetId: ausschreibungForm.value.targetId,
-          betreff: ausschreibungForm.value.betreff,
-          text: ausschreibungForm.value.text,
-          recipients: chunk,
-          skipExisting: true,
-          writeMandantInfo,
-          filterBeschreibung: ausschreibungForm.value.filterBeschreibung,
-        }
-      })
-    } finally {
-      clearTimeout(timer)
-    }
-  }
-
+  // NEUER FIRE-AND-FORGET FLOW:
+  // 1) Ein einziger Request: Backend nimmt alle Empfaenger, queued sie
+  // 2) Polling alle 5s fuer Progress
+  // 3) Tab kann zu, Versand laeuft im Backend autonom weiter
   try {
-    for (let i = 0; i < recipients.length; i += chunkSize) {
-      const chunk = recipients.slice(i, i + chunkSize)
-      const chunkIdx = Math.floor(i / chunkSize) + 1
-      sendProgress.value.current = i + chunk.length
-      try {
-        const r = await sendChunk(chunk, i === 0, chunkIdx)
-        sendProgress.value.sent += (r.sent || 0)
-        sendProgress.value.failed += (r.failed || 0)
-        sendProgress.value.skipped += (r.skipped || 0)
-        if (r.errors?.length) console.warn(`Chunk ${chunkIdx} Fehler:`, r.errors)
-      } catch (e) {
-        // Timeout oder Network Error: Backend hat fast sicher trotzdem versendet.
-        // Wir laufen stoisch weiter. Dedup-Logik auf Backend-Seite verhindert Doppel.
-        sendProgress.value.networkRecoveries++
-        console.warn(`Chunk ${chunkIdx} HTTP fehlgeschlagen (`, e?.message || e, `) — weiter mit naechstem`)
-      }
-      sendProgress.value.chunksDone = chunkIdx
-      // 1 Sek Pause zwischen Chunks damit Backend Atem holt
-      await new Promise(r => setTimeout(r, 1000))
+    const job = await authFetch('/ausschreibung-versand-start', { method: 'POST', data: {
+      targetId: ausschreibungForm.value.targetId,
+      betreff: ausschreibungForm.value.betreff,
+      text: ausschreibungForm.value.text,
+      recipients: recipients,
+      filterBeschreibung: ausschreibungForm.value.filterBeschreibung,
+    }})
+    sendProgress.value = {
+      jobId: job.jobId,
+      total: job.total,
+      chunksTotal: job.chunksTotal,
+      chunksDone: 0,
+      sent: 0, skipped: 0, failed: 0,
+      current: 0,
+      status: 'queued',
+      backgroundJob: true,
     }
-    const p = sendProgress.value
-    toast.success(`Versand-Schleife durch: ${p.sent} bestätigt, ${p.skipped} übersprungen, ${p.networkRecoveries} HTTP-Aussetzer (Backend hat trotzdem versendet). Check DB für tatsächlichen Endstand.`)
-    showAusschreibungModal.value = false
-    riskyModal.value = null
-  } finally {
+    toast.success(`Versand gestartet im Hintergrund — Job ${job.jobId.slice(0,16)}…`)
+    // Polling-Intervall starten
+    if (statusPollIntervalId) clearInterval(statusPollIntervalId)
+    statusPollIntervalId = setInterval(async () => {
+      try {
+        const s = await authFetch(`/ausschreibung-versand-status?jobId=${encodeURIComponent(job.jobId)}`)
+        sendProgress.value.sent = s.sent
+        sendProgress.value.skipped = s.skipped
+        sendProgress.value.failed = s.failed
+        sendProgress.value.chunksDone = s.chunksDone
+        sendProgress.value.current = (s.sent || 0) + (s.skipped || 0) + (s.failed || 0)
+        sendProgress.value.status = s.status
+        if (s.status === 'done') {
+          clearInterval(statusPollIntervalId); statusPollIntervalId = null
+          sending.value = false
+          toast.success(`Versand abgeschlossen: ${s.sent} gesendet, ${s.skipped} übersprungen, ${s.failed} Fehler.`)
+        }
+      } catch (e) {
+        console.warn('Status-Poll fehlgeschlagen:', e?.message || e)
+      }
+    }, 5000)
+  } catch (e) {
     sending.value = false
-    setTimeout(() => { sendProgress.value = null }, 60000)
+    toast.error('Background-Start fehlgeschlagen: ' + (e?.response?.data?.error || e.message))
   }
 }
+
+let statusPollIntervalId = null
 
 function confirmRiskyAndSend() {
   if (!riskyModal.value) return

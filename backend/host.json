@@ -15,6 +15,13 @@
   "extensions": {
     "http": {
       "routePrefix": "api"
+    },
+    "queues": {
+      "maxPollingInterval": "00:00:05",
+      "visibilityTimeout": "00:05:00",
+      "batchSize": 1,
+      "maxDequeueCount": 3,
+      "newBatchThreshold": 0
     }
   }
 }
