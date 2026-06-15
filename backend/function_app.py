@@ -1333,31 +1333,12 @@ def _process_versand_chunk(payload):
     tc = table_("kontakte")
     sent = 0; skipped = 0; failed = 0
 
-    # Kontakte einmal pre-loaden fuer diesen Chunk (nicht alle, nur die benötigten Emails)
-    chunk_emails = {(r.get("email") or "").strip().lower() for r in recipients if r.get("email")}
-    kontakte_by_email = {}
-    for k in tc.list_entities():
-        em = (k.get("email", "") or "").strip().lower()
-        if em in chunk_emails:
-            kontakte_by_email[em] = dict(k)
-
-    def already_sent_to(email_lc):
-        k = kontakte_by_email.get(email_lc)
-        if not k: return False
-        try: v = json.loads(k.get("verlaufJson") or "[]")
-        except: return False
-        if not isinstance(v, list): return False
-        for ev in v:
-            if (ev.get("kontextMbNr", "") or "").lower() == mb_nr.lower() and ev.get("typ") == "mail_out":
-                return True
-        return False
-
+    # PRE-RESOLVED RowKeys aus Queue-Message: kein Full-Table-Scan mehr!
+    # Jede recipient-Zeile enthaelt jetzt 'kontaktPk' und 'kontaktRk' (oder leer).
+    # Dedup wurde bereits im start-Endpoint gemacht — wir senden hier bedingungslos.
     for r in recipients:
         rec_email = (r.get("email") or "").strip().lower()
         if not rec_email:
-            continue
-        if already_sent_to(rec_email):
-            skipped += 1
             continue
         try:
             subj = render(betreff_tpl, r)
@@ -1385,25 +1366,29 @@ def _process_versand_chunk(payload):
                 if rt: msg["replyTo"] = rt
             client.begin_send(msg)
             sent += 1
-            # Verlauf-Eintrag in Kontakt
-            if rec_email in kontakte_by_email:
-                kontakt = kontakte_by_email[rec_email]
-                try: kverlauf = json.loads(kontakt.get("verlaufJson") or "[]")
-                except: kverlauf = []
-                if not isinstance(kverlauf, list): kverlauf = []
-                kverlauf.append({
-                    "id": "kv" + str(int(datetime.utcnow().timestamp() * 1000)) + secrets.token_hex(2),
-                    "typ": "mail_out",
-                    "datum": datetime.utcnow().isoformat(),
-                    "autor": autor,
-                    "betreff": subj,
-                    "beschreibung": render(text_tpl, r),
-                    "kontextTargetId": tid,
-                    "kontextMbNr": mb_nr,
-                })
-                kontakt["verlaufJson"] = json.dumps(kverlauf, ensure_ascii=False)
-                try: tc.update_entity(kontakt)
-                except Exception as ex: logging.warning(f"Kontakt-Verlauf-Write {rec_email}: {ex}")
+            # Verlauf-Eintrag in Kontakt — gezielter Lookup per RowKey (O(1) statt O(N))
+            pk = r.get("kontaktPk") or "kontakt"
+            rk = r.get("kontaktRk") or ""
+            if rk:
+                try:
+                    kontakt = dict(tc.get_entity(pk, rk))
+                    try: kverlauf = json.loads(kontakt.get("verlaufJson") or "[]")
+                    except: kverlauf = []
+                    if not isinstance(kverlauf, list): kverlauf = []
+                    kverlauf.append({
+                        "id": "kv" + str(int(datetime.utcnow().timestamp() * 1000)) + secrets.token_hex(2),
+                        "typ": "mail_out",
+                        "datum": datetime.utcnow().isoformat(),
+                        "autor": autor,
+                        "betreff": subj,
+                        "beschreibung": render(text_tpl, r),
+                        "kontextTargetId": tid,
+                        "kontextMbNr": mb_nr,
+                    })
+                    kontakt["verlaufJson"] = json.dumps(kverlauf, ensure_ascii=False)
+                    tc.update_entity(kontakt)
+                except Exception as ex:
+                    logging.warning(f"Kontakt-Verlauf-Write {rec_email} (pk={pk}, rk={rk}): {ex}")
         except Exception as ex:
             failed += 1
             logging.warning(f"Chunk-Versand {rec_email} fehlgeschlagen: {ex}")
@@ -1512,6 +1497,51 @@ def ausschreibung_versand_start(req: func.HttpRequest) -> func.HttpResponse:
     if not (tid and betreff and text and recipients):
         return err_("targetId, betreff, text, recipients erforderlich", 400)
 
+    # mb-Nr fuer Dedup ermitteln
+    try:
+        target = dict(table_("targets").get_entity("target", tid))
+        mb_nr = (target.get("mbNr", "") or "").lower()
+    except Exception:
+        return err_("Target nicht gefunden", 404)
+
+    # 1× Full-Scan: alle Kontakte + bereits-versendet-Erkennung + RowKey-Mapping
+    tc = table_("kontakte")
+    email_to_kontakt = {}  # email -> { pk, rk, alreadySent }
+    for k in tc.list_entities():
+        em = (k.get("email", "") or "").strip().lower()
+        if not em: continue
+        already = False
+        try:
+            v = json.loads(k.get("verlaufJson") or "[]")
+            if isinstance(v, list):
+                for ev in v:
+                    if (ev.get("kontextMbNr", "") or "").lower() == mb_nr and ev.get("typ") == "mail_out":
+                        already = True
+                        break
+        except: pass
+        email_to_kontakt[em] = {
+            "pk": k.get("PartitionKey", "kontakt"),
+            "rk": k.get("RowKey", ""),
+            "alreadySent": already,
+        }
+
+    # Recipients filtern (skipExisting=True ist Default) + RowKeys anhaengen
+    skip_existing = bool(body.get("skipExisting", True))
+    enriched = []
+    pre_skipped = 0
+    for r in recipients:
+        em = (r.get("email") or "").strip().lower()
+        info = email_to_kontakt.get(em, {})
+        if skip_existing and info.get("alreadySent"):
+            pre_skipped += 1
+            continue
+        r2 = {**r, "kontaktPk": info.get("pk", ""), "kontaktRk": info.get("rk", "")}
+        enriched.append(r2)
+    recipients = enriched
+
+    if not recipients:
+        return ok_({"jobId": "", "chunksTotal": 0, "total": 0, "preSkipped": pre_skipped, "note": "Alle Empfaenger haben bereits Ausschreibung erhalten."})
+
     # Job anlegen
     job_id = "job" + datetime.utcnow().strftime("%Y%m%d%H%M%S") + secrets.token_hex(3)
     chunk_size = 10
@@ -1526,10 +1556,11 @@ def ausschreibung_versand_start(req: func.HttpRequest) -> func.HttpResponse:
             "filterBeschreibung": filter_beschreibung,
             "autor": autor,
             "total": len(recipients),
+            "preSkipped": pre_skipped,
             "chunksTotal": chunks_total,
             "chunksDone": 0,
             "sent": 0,
-            "skipped": 0,
+            "skipped": pre_skipped,
             "failed": 0,
             "status": "queued",
             "createdAt": now_iso,
@@ -1559,7 +1590,7 @@ def ausschreibung_versand_start(req: func.HttpRequest) -> func.HttpResponse:
             qc.send_message(msg_text)
         except Exception as ex:
             logging.error(f"Queue-Send chunk {ci} fehlgeschlagen: {ex}")
-    return ok_({"jobId": job_id, "chunksTotal": chunks_total, "total": len(recipients)})
+    return ok_({"jobId": job_id, "chunksTotal": chunks_total, "total": len(recipients), "preSkipped": pre_skipped})
 
 
 @app.route(route="ausschreibung-versand-status", methods=["GET", "OPTIONS"])
