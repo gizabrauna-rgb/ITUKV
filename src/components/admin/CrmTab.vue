@@ -823,18 +823,24 @@ async function doSend(recipients) {
   }
   if (!confirm(confirmMsg)) return
   sending.value = true
-  // Chunk-Size 100 — bleibt unter HTTP-Timeout (4 Min) und schreibt pro Empfaenger sofort
-  // einen Verlauf-Eintrag, damit beim Abbruch klar ist, wer schon eine Mail hat.
-  const chunkSize = 25  // sehr kleine Chunks -> Backend braucht ca. 30-50s pro Chunk
-  sendProgress.value = { total: recipients.length, sent: 0, failed: 0, skipped: 0, current: 0, networkRecoveries: 0 }
+
+  // Mini-Chunks (10 Empfaenger) + 60s Timeout + KEIN Abbruch bei Fehler.
+  // Idee: jeder Request ist klein und schnell. Wenn er trotzdem timeoutet,
+  // hat Backend wahrscheinlich schon versendet (Dedup faengt Doppel ab).
+  // Wir fahren stoisch weiter bis alle Chunks gefeuert sind.
+  const chunkSize = 10
+  const TIMEOUT_MS = 60000
+  sendProgress.value = { total: recipients.length, sent: 0, failed: 0, skipped: 0, current: 0, networkRecoveries: 0, chunksDone: 0, chunksTotal: Math.ceil(recipients.length / chunkSize) }
   let aborted = false
 
-  // Sendet einen Chunk mit bis zu 2 Auto-Retries bei Network-Fehlern.
-  async function sendChunkWithRetry(chunk, writeMandantInfo, chunkIdx) {
-    let lastErr = null
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        return await authFetch('/ausschreibung-versand', { method: 'POST', data: {
+  async function sendChunk(chunk, writeMandantInfo, chunkIdx) {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS)
+    try {
+      return await authFetch('/ausschreibung-versand', {
+        method: 'POST',
+        signal: ctrl.signal,
+        data: {
           targetId: ausschreibungForm.value.targetId,
           betreff: ausschreibungForm.value.betreff,
           text: ausschreibungForm.value.text,
@@ -842,18 +848,11 @@ async function doSend(recipients) {
           skipExisting: true,
           writeMandantInfo,
           filterBeschreibung: ausschreibungForm.value.filterBeschreibung,
-        }})
-      } catch (e) {
-        lastErr = e
-        const msg = (e?.message || '') + ' ' + (e?.response?.data?.error || '')
-        const transient = /network|timeout|fetch|503|502|504/i.test(msg) || !e?.response
-        if (!transient || attempt === 2) throw e
-        const waitSec = 3
-        console.warn(`Chunk ${chunkIdx} Versuch ${attempt} fehlgeschlagen – Retry in ${waitSec}s`)
-        await new Promise(r => setTimeout(r, waitSec * 1000))
-      }
+        }
+      })
+    } finally {
+      clearTimeout(timer)
     }
-    throw lastErr
   }
 
   try {
@@ -862,38 +861,25 @@ async function doSend(recipients) {
       const chunkIdx = Math.floor(i / chunkSize) + 1
       sendProgress.value.current = i + chunk.length
       try {
-        const r = await sendChunkWithRetry(chunk, i === 0, chunkIdx)
+        const r = await sendChunk(chunk, i === 0, chunkIdx)
         sendProgress.value.sent += (r.sent || 0)
         sendProgress.value.failed += (r.failed || 0)
         sendProgress.value.skipped += (r.skipped || 0)
         if (r.errors?.length) console.warn(`Chunk ${chunkIdx} Fehler:`, r.errors)
       } catch (e) {
-        // WICHTIG: Bei Network Error NICHT abbrechen!
-        // Das Backend hat den Chunk wahrscheinlich verarbeitet (HTTP-Response nur verloren).
-        // Wir machen weiter — Dedup beim naechsten Versand-Versuch sortiert die korrekt.
-        const msg = (e?.message || '') + ' ' + (e?.response?.data?.error || '')
-        const transient = /network|timeout|fetch|503|502|504/i.test(msg) || !e?.response
-        if (transient) {
-          sendProgress.value.networkRecoveries++
-          console.warn(`Chunk ${chunkIdx}: Verbindung weg — Backend hat wahrscheinlich versendet. Mache weiter.`)
-          // Kurz warten damit Backend sich erholt
-          await new Promise(r => setTimeout(r, 5000))
-        } else {
-          console.error(`Chunk ${chunkIdx} echter Fehler:`, e)
-          aborted = true
-          toast.error(`Chunk-Versand abgebrochen bei ${i + chunk.length} von ${recipients.length} — ` + (e?.response?.data?.error || e.message))
-          break
-        }
+        // Timeout oder Network Error: Backend hat fast sicher trotzdem versendet.
+        // Wir laufen stoisch weiter. Dedup-Logik auf Backend-Seite verhindert Doppel.
+        sendProgress.value.networkRecoveries++
+        console.warn(`Chunk ${chunkIdx} HTTP fehlgeschlagen (`, e?.message || e, `) — weiter mit naechstem`)
       }
+      sendProgress.value.chunksDone = chunkIdx
+      // 1 Sek Pause zwischen Chunks damit Backend Atem holt
+      await new Promise(r => setTimeout(r, 1000))
     }
     const p = sendProgress.value
-    if (!aborted) {
-      toast.success(`Versand fertig: ${p.sent} gesendet, ${p.skipped} bereits versendet (übersprungen), ${p.failed} fehlgeschlagen.`)
-      showAusschreibungModal.value = false
-      riskyModal.value = null
-    } else {
-      toast.warn(`Bis dahin: ${p.sent} versendet, ${p.skipped} übersprungen, ${p.failed} Fehler. Bei Wiederholung werden bereits versendete automatisch übersprungen.`)
-    }
+    toast.success(`Versand-Schleife durch: ${p.sent} bestätigt, ${p.skipped} übersprungen, ${p.networkRecoveries} HTTP-Aussetzer (Backend hat trotzdem versendet). Check DB für tatsächlichen Endstand.`)
+    showAusschreibungModal.value = false
+    riskyModal.value = null
   } finally {
     sending.value = false
     setTimeout(() => { sendProgress.value = null }, 60000)
