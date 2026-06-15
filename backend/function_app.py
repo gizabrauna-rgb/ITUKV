@@ -1468,14 +1468,55 @@ def _process_versand_chunk(payload):
         _versand_job_update(job_id, {"status": "done"})
 
 
-@app.queue_trigger(arg_name="msg", queue_name=VERSAND_QUEUE_NAME, connection="AzureWebJobsStorage")
-def process_versand_chunk(msg: func.QueueMessage):
+@app.timer_trigger(schedule="0 */1 * * * *", arg_name="versandTimer", run_on_startup=False, use_monitor=True)
+def versand_chunk_processor(versandTimer: func.TimerRequest) -> None:
+    """Verarbeitet ausstehende Versand-Chunks. Laeuft jede Minute, picks bis zu
+    20 Chunks pro Aufruf (max ~3 Min Backend-Zeit, bleibt unter 5-Min-Timeout)."""
+    import time
+    start_ts = time.time()
+    MAX_SECONDS = 200  # 3:20 min - bleibt unter 5min-Timeout
+    MAX_CHUNKS_PER_RUN = 20
+    chunks_done = 0
     try:
-        payload = json.loads(msg.get_body().decode("utf-8"))
-        _process_versand_chunk(payload)
+        chunks_table = table_("versandchunks")
+        # Hole alle pending chunks (sortiert nach jobId, idx)
+        try:
+            pending = list(chunks_table.query_entities("status eq 'pending'"))
+        except Exception as ex:
+            logging.warning(f"Versand-Timer: pending-Abfrage fehlgeschlagen: {ex}")
+            return
+        pending.sort(key=lambda x: (x.get("PartitionKey",""), x.get("idx", 0)))
+        logging.info(f"Versand-Timer: {len(pending)} ausstehende Chunks gefunden")
+        for c in pending:
+            if chunks_done >= MAX_CHUNKS_PER_RUN: break
+            if (time.time() - start_ts) > MAX_SECONDS: break
+            try:
+                payload = json.loads(c.get("payloadJson", "{}"))
+                # Status auf "processing" setzen
+                c["status"] = "processing"
+                try: chunks_table.update_entity(c, mode="replace")
+                except: pass
+                # Chunk verarbeiten
+                _process_versand_chunk(payload)
+                # Status auf "done"
+                c["status"] = "done"
+                c["doneAt"] = datetime.utcnow().isoformat()
+                try: chunks_table.update_entity(c, mode="replace")
+                except Exception as ex: logging.warning(f"Chunk-status-update fehlgeschlagen: {ex}")
+                chunks_done += 1
+            except Exception as ex:
+                logging.error(f"Chunk verarbeiten fehlgeschlagen: {ex}", exc_info=True)
+                # Chunk auf "failed" setzen damit wir nicht endlos retryen
+                try:
+                    c["status"] = "failed"
+                    c["error"] = str(ex)[:500]
+                    chunks_table.update_entity(c, mode="replace")
+                except: pass
     except Exception as ex:
-        logging.error(f"Queue-Chunk-Verarbeitung fehlgeschlagen: {ex}", exc_info=True)
-        raise
+        logging.error(f"Versand-Timer crashed: {ex}", exc_info=True)
+    finally:
+        elapsed = time.time() - start_ts
+        logging.info(f"Versand-Timer fertig: {chunks_done} Chunks in {elapsed:.0f}s")
 
 
 @app.route(route="ausschreibung-versand-start", methods=["POST", "OPTIONS"])
@@ -1569,8 +1610,8 @@ def ausschreibung_versand_start(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as ex:
         return err_(f"Job-Anlage fehlgeschlagen: {ex}", 500)
 
-    # Chunks in Queue legen
-    qc = _versand_queue_client()
+    # Chunks in versandchunks-Table speichern (Timer Trigger arbeitet sie ab)
+    chunks_table = table_("versandchunks")
     for ci in range(chunks_total):
         chunk = recipients[ci*chunk_size:(ci+1)*chunk_size]
         payload = {
@@ -1585,11 +1626,16 @@ def ausschreibung_versand_start(req: func.HttpRequest) -> func.HttpResponse:
             "autor": autor,
         }
         try:
-            import base64
-            msg_text = base64.b64encode(json.dumps(payload, ensure_ascii=False).encode("utf-8")).decode("ascii")
-            qc.send_message(msg_text)
+            chunks_table.create_entity({
+                "PartitionKey": job_id,
+                "RowKey": f"chunk_{ci:06d}",
+                "idx": ci,
+                "status": "pending",
+                "payloadJson": json.dumps(payload, ensure_ascii=False),
+                "createdAt": now_iso,
+            })
         except Exception as ex:
-            logging.error(f"Queue-Send chunk {ci} fehlgeschlagen: {ex}")
+            logging.error(f"Chunk-{ci}-Speichern fehlgeschlagen: {ex}")
     return ok_({"jobId": job_id, "chunksTotal": chunks_total, "total": len(recipients), "preSkipped": pre_skipped})
 
 
