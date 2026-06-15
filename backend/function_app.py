@@ -56,24 +56,59 @@ _ALLOWED_ORIGINS = set(filter(None, [
 ] + [o.strip().rstrip("/") for o in os.environ.get("FRONTEND_BASE_URL", "").split(",") if o.strip()]))
 
 _DEFAULT_ALLOW_ORIGIN = "https://dashboard.itukv.de"
-
-CORS = {
-    "Access-Control-Allow-Origin": _DEFAULT_ALLOW_ORIGIN,
-    "Vary": "Origin",
-    "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, x-webhook-key",
-    "Content-Type": "application/json",
+_ALLOWED_ORIGINS = {
+    "https://dashboard.itukv.de",
+    "https://targets.itukv.de",
+    "http://localhost:5173",
+    "http://localhost:4173",
 }
 
+# Pro-Request Origin via ContextVar — wird in jedem Handler via _origin_from_req() gesetzt
+from contextvars import ContextVar
+_origin_ctx = ContextVar("origin", default=_DEFAULT_ALLOW_ORIGIN)
+
+def _origin_from_req(req):
+    """Liest Origin-Header aus Request und setzt ContextVar."""
+    try:
+        o = (req.headers.get("Origin", "") if req else "").strip().rstrip("/")
+        if o in _ALLOWED_ORIGINS:
+            _origin_ctx.set(o)
+            return o
+    except Exception: pass
+    _origin_ctx.set(_DEFAULT_ALLOW_ORIGIN)
+    return _DEFAULT_ALLOW_ORIGIN
+
+def _cors_headers():
+    return {
+        "Access-Control-Allow-Origin": _origin_ctx.get(),
+        "Vary": "Origin",
+        "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, x-webhook-key",
+        "Content-Type": "application/json",
+    }
+
+# CORS-Konstante: stellt sich zur Laufzeit dynamisch zusammen.
+# Wir verwenden eine Klasse, die wie ein dict reagiert, aber bei jedem Zugriff
+# die aktuellen Header berechnet.
+class _DynamicCors(dict):
+    def __iter__(self): return iter(_cors_headers())
+    def __getitem__(self, k): return _cors_headers()[k]
+    def __contains__(self, k): return k in _cors_headers()
+    def keys(self): return _cors_headers().keys()
+    def values(self): return _cors_headers().values()
+    def items(self): return _cors_headers().items()
+    def get(self, k, default=None): return _cors_headers().get(k, default)
+
+CORS = _DynamicCors()
 
 def ok_(data, status=200):
-    return func.HttpResponse(json.dumps(data, default=str), status_code=status, headers=CORS)
+    return func.HttpResponse(json.dumps(data, default=str), status_code=status, headers=_cors_headers())
 
 def err_(msg, status=400):
-    return func.HttpResponse(json.dumps({"error": msg}), status_code=status, headers=CORS)
+    return func.HttpResponse(json.dumps({"error": msg}), status_code=status, headers=_cors_headers())
 
 def opt_():
-    return func.HttpResponse("", status_code=204, headers=CORS)
+    return func.HttpResponse("", status_code=204, headers=_cors_headers())
 
 
 def pdf_response(pdf_bytes, filename, inline=True):
@@ -2033,6 +2068,7 @@ def landing_visit(req: func.HttpRequest) -> func.HttpResponse:
     """Oeffentlicher Endpoint: registriert einen Landing-Page-Besuch.
     Body: { mbNr }. Speichert in Tabelle 'landingvisits' mit IP-Hash + UA.
     Robust gegen Mehrfach-Aufrufe."""
+    _origin_from_req(req)
     if req.method == "OPTIONS":
         return opt_()
     body = req.get_json() or {}
@@ -4798,6 +4834,7 @@ def lessons_learned_aggregat(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="landing-public", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def landing_public(req: func.HttpRequest) -> func.HttpResponse:
     """Public: liefert Landing-Page-Daten für eine mb-Nr."""
+    _origin_from_req(req)
     if req.method == "OPTIONS":
         return opt_()
     mb_nr = (req.params.get("mbNr") or "").strip().lower()
@@ -4837,6 +4874,7 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
     KRITISCH: dieser Endpoint MUSS unter allen Umstaenden in < 30 Sek antworten.
     Strategie: Kritischer Pfad zuerst (interessent + mail), alles andere
     best-effort mit Try/Except + harten Timeouts."""
+    _origin_from_req(req)  # CORS dynamisch fuer targets.itukv.de
     if req.method == "OPTIONS":
         return opt_()
     import threading
@@ -5144,6 +5182,7 @@ def expose_public(req: func.HttpRequest) -> func.HttpResponse:
 def nda_upload(req: func.HttpRequest) -> func.HttpResponse:
     """Public: Interessent laedt unterschriebenes NDA hoch.
     Body: { token, fileName, fileData (base64), email-Verifikation? }"""
+    _origin_from_req(req)
     if req.method == "OPTIONS":
         return opt_()
     body = req.get_json() or {}
@@ -5396,6 +5435,7 @@ def _build_nda_form_for_interessent(i, t):
 @app.route(route="nda-public-pdf", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def nda_public_pdf(req: func.HttpRequest) -> func.HttpResponse:
     """Public: liefert NDA-PDF mit Interessenten-Daten vorbefuellt (zur Unterschrift)."""
+    _origin_from_req(req)
     if req.method == "OPTIONS":
         return opt_()
     token = (req.params.get("token") or "").strip()
@@ -5447,6 +5487,7 @@ def expose_public_pdf(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="nda-public-send-code", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def nda_public_send_code(req: func.HttpRequest) -> func.HttpResponse:
     """Public: 6-stelligen Bestätigungscode an die hinterlegte E-Mail schicken (vor Online-Signatur)."""
+    _origin_from_req(req)
     if req.method == "OPTIONS":
         return opt_()
     body = req.get_json() or {}
@@ -5499,6 +5540,7 @@ def nda_public_send_code(req: func.HttpRequest) -> func.HttpResponse:
 def nda_public_sign(req: func.HttpRequest) -> func.HttpResponse:
     """Public: Interessent signiert NDA online via Canvas.
     Body: { token, signatureDataUrl, code }"""
+    _origin_from_req(req)
     if req.method == "OPTIONS":
         return opt_()
     body = req.get_json() or {}
