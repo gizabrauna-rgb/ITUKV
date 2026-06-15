@@ -4832,20 +4832,24 @@ def landing_public(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="landing-anfrage", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
-    """Public: ein Interessent registriert sich für mb-XXX."""
+    """Public: ein Interessent registriert sich für mb-XXX.
+
+    KRITISCH: dieser Endpoint MUSS unter allen Umstaenden in < 30 Sek antworten.
+    Strategie: Kritischer Pfad zuerst (interessent + mail), alles andere
+    best-effort mit Try/Except + harten Timeouts."""
     if req.method == "OPTIONS":
         return opt_()
+    import threading
+    request_start = datetime.utcnow()
     body = req.get_json() or {}
     mb_nr = (body.get("mbNr") or "").strip().lower()
     firma = (body.get("firma") or "").strip()
-    # Name: kombiniert aus vorname+nachname ODER altes "name"-Feld (Abwärtskompat)
     vorname = (body.get("vorname") or "").strip()
     nachname = (body.get("nachname") or "").strip()
     name = (vorname + " " + nachname).strip() or (body.get("name") or "").strip()
     email = (body.get("email") or "").strip()
     website = (body.get("website") or "").strip()
     plz_ort = (body.get("plzOrt") or "").strip()
-    # PLZ/Ort splitten falls zusammen eingegeben
     plz, ort = (body.get("plz", "") or "").strip(), (body.get("ort", "") or "").strip()
     if plz_ort:
         import re as _re
@@ -4854,19 +4858,31 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
         else: ort = plz_ort
     if not (mb_nr and email and (firma or name)):
         return err_("mbNr, email und firma oder name erforderlich", 400)
-    # Target finden
-    items = list(table_("targets").list_entities())
-    t = next((x for x in items if (x.get("mbNr", "") or "").lower() == mb_nr), None)
-    if not t:
-        return err_("Projekt nicht gefunden", 404)
-    target_id = t.get("RowKey", "")
 
-    # Lead-Anreicherung versuchen (Impressum-Crawl + AI)
-    enrich = {}
+    # Target finden — kleine Tabelle, schnell (~50 rows)
     try:
-        enrich = enrich_lead_data(website, email)
+        items = list(table_("targets").list_entities())
+        t = next((x for x in items if (x.get("mbNr", "") or "").lower() == mb_nr), None)
+        if not t:
+            return err_("Projekt nicht gefunden", 404)
+        target_id = t.get("RowKey", "")
     except Exception as ex:
-        logging.warning(f"Anreicherung fehlgeschlagen: {ex}")
+        logging.error(f"Target-Lookup fehlgeschlagen: {ex}")
+        return err_("Projekt nicht gefunden", 404)
+
+    # Lead-Anreicherung — mit HARTEM Timeout (max 5 Sek), best-effort
+    enrich = {}
+    enrich_result = [None]
+    def _do_enrich():
+        try: enrich_result[0] = enrich_lead_data(website, email)
+        except Exception as ex: logging.warning(f"Anreicherung-Thread fehlgeschlagen: {ex}")
+    th = threading.Thread(target=_do_enrich, daemon=True)
+    th.start()
+    th.join(timeout=5.0)
+    if enrich_result[0] is not None:
+        enrich = enrich_result[0]
+    else:
+        logging.warning(f"Anreicherung übersprungen (Timeout > 5s) fuer {website}")
 
     # Interessent anlegen
     iid = str(uuid.uuid4())
