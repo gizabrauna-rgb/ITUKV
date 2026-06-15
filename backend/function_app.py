@@ -4922,9 +4922,23 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
     else:
         logging.warning(f"Anreicherung übersprungen (Timeout > 5s) fuer {website}")
 
-    # Interessent anlegen
-    iid = str(uuid.uuid4())
-    token = secrets.token_urlsafe(24)
+    # DUBLETTEN-CHECK: existiert bereits ein Interessent mit gleicher Email für dieses Target?
+    # Falls ja, bestehenden updaten statt neuen anlegen. Token bleibt erhalten (gleicher Link).
+    existing_i = None
+    try:
+        for ii in table_("interessenten").query_entities(f"email eq '{email.replace(chr(39), chr(39)*2)}'"):
+            if ii.get("targetId") == target_id:
+                existing_i = dict(ii); break
+    except Exception as ex:
+        logging.warning(f"Interessenten-Dubletten-Check fehlgeschlagen: {ex}")
+
+    # Interessent anlegen oder bestehenden updaten
+    if existing_i:
+        iid = existing_i.get("RowKey")
+        token = existing_i.get("exposeToken") or secrets.token_urlsafe(24)
+    else:
+        iid = str(uuid.uuid4())
+        token = secrets.token_urlsafe(24)
     entity = {
         "PartitionKey": "interessent", "RowKey": iid,
         "targetId": target_id,
@@ -4949,7 +4963,11 @@ def landing_anfrage(req: func.HttpRequest) -> func.HttpResponse:
         "enrichEmailImpressum": enrich.get("email_impressum", "") or "",
         "enrichUstId": enrich.get("umsatzsteuer_id", "") or "",
     }
-    table_("interessenten").create_entity(entity)
+    # Bei Bestand: createdAt vom ersten Submit beibehalten, sonst jetzt setzen
+    if existing_i:
+        entity["createdAt"] = existing_i.get("createdAt") or entity["createdAt"]
+        entity["updatedAt"] = datetime.utcnow().isoformat()
+    table_("interessenten").upsert_entity(entity)
 
     # === Performance-Fix: EIN serverseitig-gefilterter Lookup statt zwei Full-Scans ===
     tc = table_("kontakte")
