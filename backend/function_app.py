@@ -158,11 +158,17 @@ def is_blacklisted(email):
 
 
 _PLZ = None
-def get_plz_coords():
-    global _PLZ
+_PLZ_CC = None
+
+def _load_plz():
+    """Laedt die PLZ-Koordinaten einmalig. Baut zwei Nachschlage-Speicher:
+    _PLZ    -> nur nach PLZ (DE bevorzugt, Rueckwaerts-Kompatibilitaet)
+    _PLZ_CC -> nach 'LAND|PLZ' (eindeutig; loest AT/CH-Ueberschneidungen)."""
+    global _PLZ, _PLZ_CC
     if _PLZ is not None:
-        return _PLZ
+        return
     _PLZ = {}
+    _PLZ_CC = {}
     try:
         import csv
         csv_path = os.path.join(os.path.dirname(__file__), "plz_geocoord.csv")
@@ -170,15 +176,50 @@ def get_plz_coords():
             reader = csv.DictReader(f)
             for row in reader:
                 plz = (row.get("plz") or "").strip()
+                cc = (row.get("country") or "").strip().upper()
                 if not plz:
                     continue
                 try:
-                    _PLZ[plz] = (float(row["lat"]), float(row["lon"]))
+                    latlon = (float(row["lat"]), float(row["lon"]))
                 except Exception:
                     continue
+                if cc:
+                    _PLZ_CC[f"{cc}|{plz}"] = latlon
+                # Plain-Speicher: DE hat Vorrang, AT/CH ueberschreiben kein DE
+                if plz not in _PLZ or cc == "DE":
+                    _PLZ[plz] = latlon
     except Exception:
         pass
+
+
+def get_plz_coords():
+    _load_plz()
     return _PLZ
+
+
+def get_plz_coords_cc():
+    _load_plz()
+    return _PLZ_CC
+
+
+def plz_coord(plz, land=""):
+    """Land-bewusste Koordinaten-Suche. Verhindert, dass AT-Kontakte auf
+    CH-Koordinaten (oder umgekehrt) landen, weil beide 4-stellige PLZ nutzen."""
+    _load_plz()
+    plz = str(plz or "").strip()
+    if not plz:
+        return None
+    land = (land or "").strip().upper()
+    if land:
+        v = _PLZ_CC.get(f"{land}|{plz}")
+        if v:
+            return v
+        # 5-stellige DE-PLZ sind eindeutig -> Plain-Fallback erlaubt.
+        # 4-stellige AT/CH-PLZ NICHT: lieber ohne Koordinate als im falschen Land.
+        if len(plz) == 5:
+            return _PLZ.get(plz)
+        return None
+    return _PLZ.get(plz)
 
 
 def _b64u(b):
@@ -1527,7 +1568,6 @@ def kontakte_locations_route(req: func.HttpRequest) -> func.HttpResponse:
     p = auth_user(req)
     if not p or p.get("role") != "admin":
         return err_("Nicht autorisiert", 401)
-    coords = get_plz_coords()
 
     kontakte_out = []
     without_k = 0
@@ -1538,7 +1578,7 @@ def kontakte_locations_route(req: func.HttpRequest) -> func.HttpResponse:
     ss_count = len(ss_items)
     for k in ss_items:
         plz = str(k.get("plz","")).strip()
-        c = coords.get(plz)
+        c = plz_coord(plz, k.get("land",""))
         if not c:
             without_k += 1
             continue
@@ -1576,7 +1616,7 @@ def kontakte_locations_route(req: func.HttpRequest) -> func.HttpResponse:
         if not bool(k.get("istInvestor", False)):
             continue  # nur Investoren uebernehmen; Kunden kommen jetzt aus SalesSuite
         plz = str(k.get("plz","")).strip()
-        c = coords.get(plz)
+        c = plz_coord(plz, k.get("land",""))
         if not c:
             without_k += 1
             continue
@@ -1615,7 +1655,7 @@ def kontakte_locations_route(req: func.HttpRequest) -> func.HttpResponse:
     targets_out = []
     for t in targets_items:
         plz = str(t.get("plz","")).strip()
-        c = coords.get(plz)
+        c = plz_coord(plz, t.get("land",""))
         if c:
             targets_out.append({
                 "id": t.get("RowKey"),
