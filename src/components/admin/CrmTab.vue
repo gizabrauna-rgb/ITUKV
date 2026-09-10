@@ -133,7 +133,7 @@
             <td class="px-4 py-3 text-sm text-gray-500">{{ k.plz }} {{ k.ort }}</td>
             <td class="px-4 py-3">
               <div class="flex flex-wrap gap-1">
-                <span v-for="p in produktListe.filter(p => k[p.key])" :key="p.key"
+                <span v-for="p in produktListe.filter(p => p.key !== 'istExKunde' && k[p.key])" :key="p.key"
                   :class="[p.color, 'text-white text-[10px] font-bold px-1.5 py-0.5 rounded']" :title="p.label">
                   {{ p.label }}
                 </span>
@@ -631,6 +631,7 @@ const produktListe = [
   { key: 'hatMSQ', label: 'MSQ', color: 'bg-indigo-500' },
   { key: 'hatKMQ', label: 'KMQ', color: 'bg-cyan-600' },
   { key: 'hatKIT', label: 'KIT', color: 'bg-fuchsia-500' },
+  { key: 'istExKunde', label: 'Ex-Kunde', color: 'bg-slate-500' },
 ]
 
 function toggleProdukt(key) {
