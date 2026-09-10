@@ -9,8 +9,16 @@ const props = defineProps({
   centerPlz: { type: String, default: '' },
   centerCoords: { type: Object, default: null },
   radiusKm: { type: Number, default: 0 },
-  colorByProdukt: { type: String, default: '' },  // wenn gesetzt: Pin-Farbe nach diesem Produkt
+  colorByProdukt: { type: String, default: '' },   // Einzel-Produkt (Abwaertskompatibilitaet)
+  colorByProdukte: { type: Array, default: () => [] },  // Mehrfachauswahl: Pin-Farbe nach vorhandenem Produkt
+  crmBasis: { type: String, default: '' },  // Basis-URL fuer "Kontakt im CRM oeffnen" (SalesSuite)
 })
+
+// Baut den Direktlink zu einem SalesSuite-Kontakt aus seiner ID.
+function crmLink(k) {
+  if (!props.crmBasis || !k.id || k.quelle !== 'salessuite') return ''
+  return `${props.crmBasis}/${encodeURIComponent(k.id)}/contact-info`
+}
 
 // Hex-Farben pro Produkt (für die Karte)
 const PRODUKT_COLORS = {
@@ -49,7 +57,13 @@ const TYP_COLORS = {
 }
 
 function colorForKontakt(k) {
-  // Wenn nach einem Produkt gefiltert wird → Pin-Farbe nach Produkt
+  // Mehrfachauswahl: Pin nach dem ersten gewaehlten Produkt faerben, das der Kontakt WIRKLICH hat
+  if (props.colorByProdukte && props.colorByProdukte.length) {
+    for (const p of props.colorByProdukte) {
+      if (k[p] === true && PRODUKT_COLORS[p]) return PRODUKT_COLORS[p]
+    }
+  }
+  // Einzel-Produkt (Abwaertskompatibilitaet)
   if (props.colorByProdukt && PRODUKT_COLORS[props.colorByProdukt]) {
     return PRODUKT_COLORS[props.colorByProdukt]
   }
@@ -88,6 +102,10 @@ function renderMarkers() {
     if (k.lat == null || k.lon == null) continue
     const color = colorForKontakt(k)
     const mailLink = k.email ? `<a href="mailto:${escapeHtml(k.email)}" style="color:${color};text-decoration:none;font-size:11px">${escapeHtml(k.email)}</a>` : ''
+    const crm = crmLink(k)
+    const crmHtml = crm
+      ? `<p style="margin: 8px 0 0 0;"><a href="${escapeHtml(crm)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;background:#161e2a;color:#fff;text-decoration:none;font-size:11px;font-weight:600;padding:4px 8px;border-radius:6px">Kontakt im CRM öffnen ↗</a></p>`
+      : ''
     const popupHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; min-width: 180px;">
         <p style="font-weight: 600; color: #161e2a; margin: 0 0 4px 0; font-size: 14px;">${escapeHtml(k.firma)}</p>
@@ -95,6 +113,7 @@ function renderMarkers() {
         <p style="margin: 0 0 4px 0; color: #64748b; font-size: 12px;">${k.plz ? escapeHtml(k.plz) + ' ' : ''}${escapeHtml(k.ort || '')}</p>
         ${mailLink ? `<p style="margin: 4px 0 0 0;">${mailLink}</p>` : ''}
         <p style="margin: 6px 0 0 0; color: ${color}; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">${escapeHtml(k.typ || k.kundenstatus || 'Kontakt')}</p>
+        ${crmHtml}
       </div>`
     L.marker([k.lat, k.lon], { icon: makeIcon(color, 10) })
       .bindPopup(popupHtml)
@@ -158,7 +177,7 @@ onMounted(() => {
   )
 })
 
-watch(() => [props.kontakte, props.targets, props.centerPlz, props.radiusKm, props.centerCoords],
+watch(() => [props.kontakte, props.targets, props.centerPlz, props.radiusKm, props.centerCoords, props.colorByProdukt, props.colorByProdukte],
   () => renderMarkers(), { deep: true })
 
 onBeforeUnmount(() => {

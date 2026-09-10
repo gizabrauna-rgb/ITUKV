@@ -1561,14 +1561,10 @@ def plz_resolve(req: func.HttpRequest) -> func.HttpResponse:
     return err_("PLZ nicht gefunden", 404)
 
 
-@app.route(route="kontakte/locations", methods=["GET", "OPTIONS"])
-def kontakte_locations_route(req: func.HttpRequest) -> func.HttpResponse:
-    if req.method == "OPTIONS":
-        return opt_()
-    p = auth_user(req)
-    if not p or p.get("role") != "admin":
-        return err_("Nicht autorisiert", 401)
-
+def _build_kontakte_locations():
+    """Baut die Kartendaten (Kunden aus SalesSuite + M&A-Investoren + Targets).
+    Wird von zwei Routen genutzt: der Admin-Route (Dashboard) und der internen,
+    per Geheim-Schluessel abgesicherten Route (Sales-Recherche-Portal)."""
     kontakte_out = []
     without_k = 0
     flag_fields = ['hatUC','hatUCS','hatMC','hatFKE','hatUVE','hatVME','hatKIwerkOne','hatMSQ','hatKMQ','hatKIT']
@@ -1669,14 +1665,39 @@ def kontakte_locations_route(req: func.HttpRequest) -> func.HttpResponse:
                 "typ": "TARGET",
             })
 
-    return ok_({
+    return {
         "kontakte": kontakte_out,
         "targets": targets_out,
         "total": len(kontakte_out),
         "quelleSalessuite": ss_count,
         "quelleInvestoren": invest_count,
         "withoutCoords": without_k,
-    })
+    }
+
+
+@app.route(route="kontakte/locations", methods=["GET", "OPTIONS"])
+def kontakte_locations_route(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 401)
+    return ok_(_build_kontakte_locations())
+
+
+@app.route(route="internal/kundenkarte", methods=["GET", "OPTIONS"])
+def internal_kundenkarte_route(req: func.HttpRequest) -> func.HttpResponse:
+    """Server-zu-Server-Endpunkt fuer das Sales-Recherche-Portal.
+    Kein Nutzer-Login, sondern ein geheimer Schluessel (Header x-internal-key),
+    der nur dem Recherche-Backend bekannt ist. Liefert dieselben Kartendaten,
+    nur lesend."""
+    if req.method == "OPTIONS":
+        return opt_()
+    expected = os.environ.get("INTERNAL_MAP_KEY", "")
+    provided = req.headers.get("x-internal-key", "")
+    if not expected or not provided or not secrets.compare_digest(provided, expected):
+        return err_("Nicht autorisiert", 401)
+    return ok_(_build_kontakte_locations())
 
 
 # =========================================================================

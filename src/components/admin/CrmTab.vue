@@ -3,6 +3,9 @@
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-xl font-bold text-gray-900">Kundenstamm</h2>
       <div class="flex gap-2">
+        <button @click="reloadData" :disabled="reloading" class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 disabled:opacity-50" title="Kundendaten neu laden">
+          <RefreshCw :class="['w-4 h-4', reloading && 'animate-spin']" /> Aktualisieren
+        </button>
         <button @click="toggleView" class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50">
           <Map v-if="view === 'list'" class="w-4 h-4" /> <List v-else class="w-4 h-4" />
           {{ view === 'list' ? 'Kartenansicht' : 'Listenansicht' }}
@@ -32,6 +35,7 @@
           <option>Kunde</option>
           <option>Ex-Kunde</option>
           <option>Nichtkunde</option>
+          <option>Target</option>
         </select>
         <select v-model="filterLand" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
           <option value="">Land (alle)</option>
@@ -184,7 +188,8 @@
         :center-plz="filterCenterPlz"
         :center-coords="centerCoords"
         :radius-km="filterRadiusKm"
-        :color-by-produkt="selectedProdukte[0] || ''" />
+        :color-by-produkte="selectedProdukte"
+        :crm-basis="CRM_KONTAKT_BASIS" />
     </div>
 
     <!-- Sticky Aktion-Leiste bei Auswahl -->
@@ -468,12 +473,15 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { Map, List, Download, Upload, UserPlus, Search, Mail, Pencil, X, CheckCircle, Megaphone, Send, Filter, Plus } from '@lucide/vue'
+import { Map, List, Download, Upload, UserPlus, Search, Mail, Pencil, X, CheckCircle, Megaphone, Send, Filter, Plus, RefreshCw } from '@lucide/vue'
 import { getKontakte, createKontakt, updateKontakt, importKontakte, exportKontakte, deleteKontakt } from '../../api.js'
 import { toast } from '../../composables/useToast.js'
 import { authFetch } from '../../api.js'
 import KundenMap from '../KundenMap.vue'
 import KundenAkte from './KundenAkte.vue'
+
+// Basis-Adresse für den Direktlink zu einem Kontakt in der SalesSuite (mibeca-Mandant).
+const CRM_KONTAKT_BASIS = 'https://app.salessuite.com/t/f60e911a-d412-4aff-8728-7ed137984a83/contacts'
 
 const allKontakte = ref([])
 const filtered = ref([])
@@ -483,6 +491,16 @@ const view = ref('list')
 const filterCenterPlz = ref('')
 const filterRadiusKm = ref(0)
 const showDuplikate = ref(false)
+
+// Ermittelt das Land robust: explizites DE/AT/CH gilt; sonst aus PLZ ableiten
+// (5-stellig = Deutschland; AT/CH sind 4-stellig und nicht eindeutig, bleiben wie sie sind).
+function effLand(x) {
+  const l = String(x.land || '').toUpperCase()
+  if (l === 'DE' || l === 'AT' || l === 'CH') return l
+  const plz = String(x.plz || '').trim()
+  if (plz.length === 5) return 'DE'
+  return l
+}
 
 // Haversine: Entfernung in km zwischen zwei lat/lon Punkten
 function distanceKm(lat1, lon1, lat2, lon2) {
@@ -533,10 +551,12 @@ const visibleList = computed(() => {
     const q = search.value.toLowerCase()
     r = r.filter(k => ((k.firma||'') + ' ' + (k.name||'') + ' ' + (k.email||'') + ' ' + (k.telefon||'') + ' ' + (k.ort||'') + ' ' + (k.plz||'') + ' ' + (k.land||'') + ' ' + (k.landInfo||'') + ' ' + (k.sucht||'') + ' ' + (k.bietet||'') + ' ' + (k.kommentar||'') + ' ' + (k.notizenJson||'') + ' ' + (k.ansprechpartnerJson||'')).toLowerCase().includes(q))
   }
-  // Länder-Filter (DE / AT / CH)
-  if (filterLand.value) r = r.filter(k => k.land === filterLand.value)
+  // Länder-Filter (DE / AT / CH) — Land aus PLZ ableiten, wenn Feld leer/unbekannt
+  if (filterLand.value) r = r.filter(k => effLand(k) === filterLand.value)
   // Typ-Filter
   if (filterTyp.value) r = r.filter(k => k.typ === filterTyp.value)
+  // Status "Target" = nur Verkäufer-Ebene → keine Kontakte anzeigen
+  if (filterStatus.value === 'Target') return []
   // Status-Filter
   if (filterStatus.value) r = r.filter(k => {
     // Klassifizierungs-Hilfsfunktionen — jeder Kontakt landet in genau einer Kategorie
@@ -558,9 +578,9 @@ const visibleList = computed(() => {
   if (filterCenterPlz.value && filterRadiusKm.value && centerCoords.value) {
     r = r.filter(k => k.lat && k.lon && distanceKm(centerCoords.value.lat, centerCoords.value.lon, k.lat, k.lon) <= filterRadiusKm.value)
   }
-  // Produkt-Filter (Mehrfachauswahl: ALLE ausgewählten müssen wahr sein)
+  // Produkt-Filter (Mehrfachauswahl, ODER: mindestens EINES der gewählten Produkte)
   if (selectedProdukte.value.length) {
-    r = r.filter(k => selectedProdukte.value.every(p => k[p] === true))
+    r = r.filter(k => selectedProdukte.value.some(p => k[p] === true))
   }
   // Duplikate-Filter: zeige nur Kontakte, deren Firma mehrfach vorkommt
   if (showDuplikate.value) {
@@ -575,7 +595,17 @@ const visibleList = computed(() => {
 })
 
 const visibleTargets = computed(() => {
+  // Targets sind keine Kunden/Ex-Kunden/Investoren und haben keine Produkte.
+  // Nur zeigen bei "alle" (kein Status) oder gezielt Status "Target".
+  // Produktfilter blendet Targets immer aus (Targets haben keine Produkte).
+  if (selectedProdukte.value.length) return []
+  if (filterStatus.value && filterStatus.value !== 'Target') return []
   let r = (mapData.value.targets || [])
+  if (filterLand.value) r = r.filter(t => effLand(t) === filterLand.value)
+  if (search.value) {
+    const q = search.value.toLowerCase()
+    r = r.filter(t => ((t.firma||'') + ' ' + (t.verkaueferName||'') + ' ' + (t.ort||'') + ' ' + (t.region||'') + ' ' + (t.plz||'') + ' ' + (t.mbNr||'')).toLowerCase().includes(q))
+  }
   if (filterCenterPlz.value && filterRadiusKm.value && centerCoords.value) {
     r = r.filter(t => t.lat && t.lon && distanceKm(centerCoords.value.lat, centerCoords.value.lon, t.lat, t.lon) <= filterRadiusKm.value)
   }
@@ -942,6 +972,14 @@ async function loadData() {
   } finally {
     loading.value = false
   }
+}
+
+// Daten frisch nachladen (Button "Aktualisieren")
+const reloading = ref(false)
+async function reloadData() {
+  if (reloading.value) return
+  reloading.value = true
+  try { await loadData() } finally { reloading.value = false }
 }
 
 onMounted(loadData)
