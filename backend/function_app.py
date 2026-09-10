@@ -399,123 +399,6 @@ def health_route(req: func.HttpRequest) -> func.HttpResponse:
     )
 
 
-@app.route(route="salessuite-probe", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
-def salessuite_probe_route(req: func.HttpRequest) -> func.HttpResponse:
-    """TEMPORAERER Diagnose-Endpunkt (read-only).
-    Prueft, ob der SalesSuite-API-Key funktioniert und welcher Auth-Header
-    akzeptiert wird. Gibt KEINE Kundendaten aus – nur Status-Codes + Zaehler.
-    Wird nach dem Test wieder entfernt."""
-    if req.method == "OPTIONS":
-        return opt_()
-
-    import requests as _rq
-
-    key = os.environ.get("SALESSUITE_API_KEY", "")
-    if not key:
-        return err_("SALESSUITE_API_KEY ist nicht gesetzt", 500)
-
-    base = "https://api.salessuite.com/api"
-    url = base + "/v2/contact/search"
-    body = {"page": 1, "pageSize": 1}
-
-    header_variants = {
-        "x-api-key": {"x-api-key": key},
-        "authorization_bearer": {"Authorization": "Bearer " + key},
-        "api-key": {"api-key": key},
-    }
-
-    results = []
-    ok_variant = None
-    for name, hdr in header_variants.items():
-        h = {"Content-Type": "application/json", "Accept": "application/json"}
-        h.update(hdr)
-        entry = {"variant": name}
-        try:
-            r = _rq.post(url, headers=h, json=body, timeout=15)
-            entry["status"] = r.status_code
-            if r.status_code == 200:
-                ok_variant = ok_variant or name
-                try:
-                    j = r.json()
-                    sample = None
-                    if isinstance(j, dict):
-                        entry["responseKeys"] = list(j.keys())[:20]
-                        for cnt in ("total", "totalCount", "count", "totalElements"):
-                            if cnt in j:
-                                entry["total"] = j.get(cnt)
-                                break
-                        for arrk in ("data", "items", "results", "content", "contacts"):
-                            if isinstance(j.get(arrk), list) and j.get(arrk):
-                                sample = j[arrk][0]
-                                break
-                    elif isinstance(j, list):
-                        entry["responseType"] = "list"
-                        entry["listLen"] = len(j)
-                        if j:
-                            sample = j[0]
-                    # NUR Feldnamen, keine Werte
-                    if isinstance(sample, dict):
-                        entry["wrapperKeys"] = sorted(sample.keys())
-                        inner = sample.get("contact") if isinstance(sample.get("contact"), dict) else sample
-                        keys = sorted(inner.keys())
-                        entry["sampleKeys"] = keys
-                        entry["landFields"] = [k for k in keys if any(
-                            t in k.lower() for t in ("country", "land", "plz", "zip", "postal", "ort", "city", "adress", "address"))]
-                        entry["produktFields"] = [k for k in keys if any(
-                            t in k.lower() for t in ("uc", "mc", "fke", "vme", "uve", "msq", "kiq", "kiwerk", "produkt", "product", "hat", "x_"))]
-                        mcp = sample.get("mainContactPerson")
-                        if isinstance(mcp, dict):
-                            entry["mainContactPersonKeys"] = sorted(mcp.keys())
-                except Exception as e:
-                    entry["note"] = "200 aber JSON-Auswertung fehlgeschlagen: " + str(e)[:120]
-            else:
-                # Fehlermeldung hilft, das erwartete Schema zu erkennen
-                entry["bodySnippet"] = (r.text or "")[:300]
-        except Exception as e:
-            entry["error"] = str(e)[:200]
-        results.append(entry)
-
-    # 2. Werte-Analyse: nur Produkt-/Status-/Land-Felder (keine persoenlichen Daten)
-    value_probe = {}
-    if ok_variant:
-        h = {"Content-Type": "application/json", "Accept": "application/json", "x-api-key": key}
-        inspect_fields = [
-            "x_hat_uc", "x_hat_ucs_softwareentwickler", "x_hat_mc", "x_hat_fke",
-            "x_hat_uve", "x_hat_vme", "x_hat_kiwerk_one", "x_hat_msq", "x_kmq", "x_hat_kit",
-            "x_hat_kk", "x_kundenstatus", "x_kundenstatus:info", "countryCode", "countryCode:info",
-        ]
-        try:
-            r2 = _rq.post(url, headers=h, json={"page": 1, "pageSize": 100}, timeout=30)
-            arr = r2.json() if r2.status_code == 200 else []
-            if isinstance(arr, dict):
-                for arrk in ("data", "items", "results", "content", "contacts"):
-                    if isinstance(arr.get(arrk), list):
-                        arr = arr[arrk]; break
-            value_probe["_scanned"] = len(arr) if isinstance(arr, list) else 0
-            distinct = {f: [] for f in inspect_fields}
-            for it in (arr if isinstance(arr, list) else []):
-                c = it.get("contact") if isinstance(it, dict) and isinstance(it.get("contact"), dict) else it
-                if not isinstance(c, dict):
-                    continue
-                for f in inspect_fields:
-                    v = c.get(f)
-                    if v not in (None, "", [], {}) and v not in distinct[f] and len(distinct[f]) < 6:
-                        distinct[f].append(v)
-            value_probe["distinctValues"] = {f: distinct[f] for f in inspect_fields if distinct[f]}
-            value_probe["emptyFields"] = [f for f in inspect_fields if not distinct[f]]
-        except Exception as e:
-            value_probe["error"] = str(e)[:200]
-
-    return ok_({
-        "keyPresent": True,
-        "keyLength": len(key),
-        "endpoint": url,
-        "workingHeader": ok_variant,
-        "attempts": results,
-        "valueProbe": value_probe,
-    })
-
-
 # =========================================================================
 # SALESSUITE LIVE-SYNC — holt Kontakte aus dem CRM in Tabelle salessuite_kontakte
 # =========================================================================
@@ -598,23 +481,19 @@ def _ss_map_contact(item):
     return ent
 
 
-@app.route(route="salessuite-sync", methods=["GET", "POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
-def salessuite_sync_route(req: func.HttpRequest) -> func.HttpResponse:
-    """Holt alle Kontakte aus SalesSuite (read-only) und speichert sie in
-    Tabelle 'salessuite_kontakte'. Aendert NICHTS an bestehenden Tabellen.
-    (Temporaer anonym fuer den Aufbau – wird spaeter abgesichert.)"""
-    if req.method == "OPTIONS":
-        return opt_()
-
+def _run_salessuite_sync(dry=False, max_pages=40):
+    """Kernlogik des SalesSuite-Abgleichs (read-only aus dem CRM).
+    Holt alle Kontakte und speichert sie in Tabelle 'salessuitekontakte'.
+    Liefert ein Statistik-dict. Wird vom Knopf-Endpunkt UND vom Nacht-Timer genutzt.
+    Wirft RuntimeError, wenn der API-Key fehlt."""
     import requests as _rq
 
     key = os.environ.get("SALESSUITE_API_KEY", "")
     if not key:
-        return err_("SALESSUITE_API_KEY ist nicht gesetzt", 500)
+        raise RuntimeError("SALESSUITE_API_KEY ist nicht gesetzt")
 
-    dry = (req.params.get("dry") == "1")
     try:
-        max_pages = min(int(req.params.get("maxPages", "40")), 300)
+        max_pages = min(int(max_pages), 300)
     except Exception:
         max_pages = 40
     url = SALESSUITE_BASE + "/v2/contact/search"
@@ -757,7 +636,7 @@ def salessuite_sync_route(req: func.HttpRequest) -> func.HttpResponse:
     if not dry:
         _flush()
 
-    return ok_({
+    return {
         "dryRun": dry,
         "fetched": fetched,
         "matched": matched,
@@ -778,7 +657,45 @@ def salessuite_sync_route(req: func.HttpRequest) -> func.HttpResponse:
         "byCountry": dict(sorted(by_country.items(), key=lambda x: -x[1])),
         "byProdukt": by_produkt,
         "errors": errors[:10],
-    })
+    }
+
+
+@app.route(route="salessuite-sync", methods=["GET", "POST", "OPTIONS"])
+def salessuite_sync_route(req: func.HttpRequest) -> func.HttpResponse:
+    """Loest den SalesSuite-Abgleich manuell aus (nur Admin).
+    Schreibt neue/aktualisierte Kontakte in Tabelle 'salessuitekontakte'."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p or p.get("role") != "admin":
+        return err_("Nicht autorisiert", 403)
+
+    dry = (req.params.get("dry") == "1")
+    try:
+        max_pages = min(int(req.params.get("maxPages", "40")), 300)
+    except Exception:
+        max_pages = 40
+    try:
+        result = _run_salessuite_sync(dry=dry, max_pages=max_pages)
+    except RuntimeError as ex:
+        return err_(str(ex), 500)
+    return ok_(result)
+
+
+@app.timer_trigger(schedule="0 0 3 * * *", arg_name="ssTimer", run_on_startup=False, use_monitor=True)
+def salessuite_sync_timer(ssTimer: func.TimerRequest) -> None:
+    """Taeglicher Automatik-Abgleich um 03:00 (lokale Zeit, siehe App-Setting
+    WEBSITE_TIME_ZONE). Holt neue SalesSuite-Kontakte, damit sie ohne manuelles
+    Zutun auf der Karte landen."""
+    try:
+        logging.info("SalesSuite-Timer: taeglicher Abgleich startet")
+        res = _run_salessuite_sync(dry=False, max_pages=300)
+        logging.info(
+            "SalesSuite-Timer fertig: fetched=%s matched=%s written=%s",
+            res.get("fetched"), res.get("matched"), res.get("written"),
+        )
+    except Exception as ex:
+        logging.error(f"SalesSuite-Timer fehlgeschlagen: {ex}", exc_info=True)
 
 
 @app.route(route="stats", methods=["GET", "OPTIONS"])

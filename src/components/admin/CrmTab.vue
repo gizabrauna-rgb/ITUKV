@@ -3,8 +3,8 @@
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-xl font-bold text-gray-900">Kundenstamm</h2>
       <div class="flex gap-2">
-        <button @click="reloadData" :disabled="reloading" class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 disabled:opacity-50" title="Kundendaten neu laden">
-          <RefreshCw :class="['w-4 h-4', reloading && 'animate-spin']" /> Aktualisieren
+        <button @click="reloadData" :disabled="reloading" class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 disabled:opacity-50" title="SalesSuite-Abgleich starten (holt neue Kontakte, dauert ~30-60 Sek.)">
+          <RefreshCw :class="['w-4 h-4', reloading && 'animate-spin']" /> {{ reloading ? 'Gleiche ab…' : 'Aktualisieren' }}
         </button>
         <button @click="toggleView" class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50">
           <Map v-if="view === 'list'" class="w-4 h-4" /> <List v-else class="w-4 h-4" />
@@ -974,12 +974,25 @@ async function loadData() {
   }
 }
 
-// Daten frisch nachladen (Button "Aktualisieren")
+// Button "Aktualisieren": echter SalesSuite-Abgleich, danach Karte neu laden.
+// Der Abgleich holt neue/geaenderte Kontakte aus dem CRM (dauert ~30-60 Sek.).
 const reloading = ref(false)
 async function reloadData() {
   if (reloading.value) return
   reloading.value = true
-  try { await loadData() } finally { reloading.value = false }
+  try {
+    // 1) Echten Abgleich anstossen (nur Admin, Backend prueft die Rolle)
+    await authFetch('/salessuite-sync', { method: 'POST', timeout: 180000 })
+  } catch (e) {
+    // Abgleich fehlgeschlagen -> trotzdem versuchen, den aktuellen Stand zu zeigen
+    console.error('SalesSuite-Abgleich fehlgeschlagen:', e)
+  }
+  try {
+    // 2) Karte mit frischem Stand neu laden
+    await loadData()
+  } finally {
+    reloading.value = false
+  }
 }
 
 onMounted(loadData)
