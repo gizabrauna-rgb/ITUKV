@@ -33,6 +33,12 @@
           <option>Ex-Kunde</option>
           <option>Nichtkunde</option>
         </select>
+        <select v-model="filterLand" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
+          <option value="">Land (alle)</option>
+          <option value="DE">Deutschland</option>
+          <option value="AT">Österreich</option>
+          <option value="CH">Schweiz</option>
+        </select>
         <label class="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none">
           <input type="checkbox" v-model="showDuplikate" class="rounded text-[#0088ba]" />
           nur Duplikate
@@ -525,8 +531,10 @@ const visibleList = computed(() => {
   // Such-Filter
   if (search.value) {
     const q = search.value.toLowerCase()
-    r = r.filter(k => ((k.firma||'') + ' ' + (k.name||'') + ' ' + (k.email||'') + ' ' + (k.telefon||'') + ' ' + (k.ort||'') + ' ' + (k.plz||'') + ' ' + (k.sucht||'') + ' ' + (k.bietet||'') + ' ' + (k.kommentar||'') + ' ' + (k.notizenJson||'') + ' ' + (k.ansprechpartnerJson||'')).toLowerCase().includes(q))
+    r = r.filter(k => ((k.firma||'') + ' ' + (k.name||'') + ' ' + (k.email||'') + ' ' + (k.telefon||'') + ' ' + (k.ort||'') + ' ' + (k.plz||'') + ' ' + (k.land||'') + ' ' + (k.landInfo||'') + ' ' + (k.sucht||'') + ' ' + (k.bietet||'') + ' ' + (k.kommentar||'') + ' ' + (k.notizenJson||'') + ' ' + (k.ansprechpartnerJson||'')).toLowerCase().includes(q))
   }
+  // Länder-Filter (DE / AT / CH)
+  if (filterLand.value) r = r.filter(k => k.land === filterLand.value)
   // Typ-Filter
   if (filterTyp.value) r = r.filter(k => k.typ === filterTyp.value)
   // Status-Filter
@@ -575,13 +583,14 @@ const visibleTargets = computed(() => {
 })
 
 const hasAnyFilter = computed(() =>
-  !!(search.value || filterTyp.value || filterStatus.value || filterCenterPlz.value || filterRadiusKm.value || selectedProdukte.value.length)
+  !!(search.value || filterTyp.value || filterStatus.value || filterLand.value || filterCenterPlz.value || filterRadiusKm.value || selectedProdukte.value.length)
 )
 
 function clearAllFilters() {
   search.value = ''
   filterTyp.value = ''
   filterStatus.value = ''
+  filterLand.value = ''
   filterCenterPlz.value = ''
   filterRadiusKm.value = 0
   selectedProdukte.value = []
@@ -607,6 +616,7 @@ function exportFilteredCsv() {
 const search = ref('')
 const filterTyp = ref('')
 const filterStatus = ref('')
+const filterLand = ref('')
 const showProduktFilter = ref(false)
 const selectedProdukte = ref([])
 

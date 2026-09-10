@@ -358,6 +358,388 @@ def health_route(req: func.HttpRequest) -> func.HttpResponse:
     )
 
 
+@app.route(route="salessuite-probe", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def salessuite_probe_route(req: func.HttpRequest) -> func.HttpResponse:
+    """TEMPORAERER Diagnose-Endpunkt (read-only).
+    Prueft, ob der SalesSuite-API-Key funktioniert und welcher Auth-Header
+    akzeptiert wird. Gibt KEINE Kundendaten aus – nur Status-Codes + Zaehler.
+    Wird nach dem Test wieder entfernt."""
+    if req.method == "OPTIONS":
+        return opt_()
+
+    import requests as _rq
+
+    key = os.environ.get("SALESSUITE_API_KEY", "")
+    if not key:
+        return err_("SALESSUITE_API_KEY ist nicht gesetzt", 500)
+
+    base = "https://api.salessuite.com/api"
+    url = base + "/v2/contact/search"
+    body = {"page": 1, "pageSize": 1}
+
+    header_variants = {
+        "x-api-key": {"x-api-key": key},
+        "authorization_bearer": {"Authorization": "Bearer " + key},
+        "api-key": {"api-key": key},
+    }
+
+    results = []
+    ok_variant = None
+    for name, hdr in header_variants.items():
+        h = {"Content-Type": "application/json", "Accept": "application/json"}
+        h.update(hdr)
+        entry = {"variant": name}
+        try:
+            r = _rq.post(url, headers=h, json=body, timeout=15)
+            entry["status"] = r.status_code
+            if r.status_code == 200:
+                ok_variant = ok_variant or name
+                try:
+                    j = r.json()
+                    sample = None
+                    if isinstance(j, dict):
+                        entry["responseKeys"] = list(j.keys())[:20]
+                        for cnt in ("total", "totalCount", "count", "totalElements"):
+                            if cnt in j:
+                                entry["total"] = j.get(cnt)
+                                break
+                        for arrk in ("data", "items", "results", "content", "contacts"):
+                            if isinstance(j.get(arrk), list) and j.get(arrk):
+                                sample = j[arrk][0]
+                                break
+                    elif isinstance(j, list):
+                        entry["responseType"] = "list"
+                        entry["listLen"] = len(j)
+                        if j:
+                            sample = j[0]
+                    # NUR Feldnamen, keine Werte
+                    if isinstance(sample, dict):
+                        entry["wrapperKeys"] = sorted(sample.keys())
+                        inner = sample.get("contact") if isinstance(sample.get("contact"), dict) else sample
+                        keys = sorted(inner.keys())
+                        entry["sampleKeys"] = keys
+                        entry["landFields"] = [k for k in keys if any(
+                            t in k.lower() for t in ("country", "land", "plz", "zip", "postal", "ort", "city", "adress", "address"))]
+                        entry["produktFields"] = [k for k in keys if any(
+                            t in k.lower() for t in ("uc", "mc", "fke", "vme", "uve", "msq", "kiq", "kiwerk", "produkt", "product", "hat", "x_"))]
+                        mcp = sample.get("mainContactPerson")
+                        if isinstance(mcp, dict):
+                            entry["mainContactPersonKeys"] = sorted(mcp.keys())
+                except Exception as e:
+                    entry["note"] = "200 aber JSON-Auswertung fehlgeschlagen: " + str(e)[:120]
+            else:
+                # Fehlermeldung hilft, das erwartete Schema zu erkennen
+                entry["bodySnippet"] = (r.text or "")[:300]
+        except Exception as e:
+            entry["error"] = str(e)[:200]
+        results.append(entry)
+
+    # 2. Werte-Analyse: nur Produkt-/Status-/Land-Felder (keine persoenlichen Daten)
+    value_probe = {}
+    if ok_variant:
+        h = {"Content-Type": "application/json", "Accept": "application/json", "x-api-key": key}
+        inspect_fields = [
+            "x_hat_uc", "x_hat_ucs_softwareentwickler", "x_hat_mc", "x_hat_fke",
+            "x_hat_uve", "x_hat_vme", "x_hat_kiwerk_one", "x_hat_msq", "x_kmq", "x_hat_kit",
+            "x_hat_kk", "x_kundenstatus", "x_kundenstatus:info", "countryCode", "countryCode:info",
+        ]
+        try:
+            r2 = _rq.post(url, headers=h, json={"page": 1, "pageSize": 100}, timeout=30)
+            arr = r2.json() if r2.status_code == 200 else []
+            if isinstance(arr, dict):
+                for arrk in ("data", "items", "results", "content", "contacts"):
+                    if isinstance(arr.get(arrk), list):
+                        arr = arr[arrk]; break
+            value_probe["_scanned"] = len(arr) if isinstance(arr, list) else 0
+            distinct = {f: [] for f in inspect_fields}
+            for it in (arr if isinstance(arr, list) else []):
+                c = it.get("contact") if isinstance(it, dict) and isinstance(it.get("contact"), dict) else it
+                if not isinstance(c, dict):
+                    continue
+                for f in inspect_fields:
+                    v = c.get(f)
+                    if v not in (None, "", [], {}) and v not in distinct[f] and len(distinct[f]) < 6:
+                        distinct[f].append(v)
+            value_probe["distinctValues"] = {f: distinct[f] for f in inspect_fields if distinct[f]}
+            value_probe["emptyFields"] = [f for f in inspect_fields if not distinct[f]]
+        except Exception as e:
+            value_probe["error"] = str(e)[:200]
+
+    return ok_({
+        "keyPresent": True,
+        "keyLength": len(key),
+        "endpoint": url,
+        "workingHeader": ok_variant,
+        "attempts": results,
+        "valueProbe": value_probe,
+    })
+
+
+# =========================================================================
+# SALESSUITE LIVE-SYNC — holt Kontakte aus dem CRM in Tabelle salessuite_kontakte
+# =========================================================================
+
+SALESSUITE_BASE = "https://api.salessuite.com/api"
+SALESSUITE_TABLE = "salessuitekontakte"
+
+# Diese Status kommen NICHT auf die Karte (Muell / Doppel / Sub-Kontakte)
+SS_EXCLUDE_STATUS = {
+    "Fake",
+    "Kunden-Dublette (anderen Kontakt aufrufen)",
+    "Kunden-Mitarbeiter",
+}
+
+# Produkt-Feld SalesSuite -> Dashboard-Flag (genau die Namen, die die Karte kennt)
+SS_PRODUKT_MAP = {
+    "x_hat_uc": "hatUC",
+    "x_hat_ucs_softwareentwickler": "hatUCS",
+    "x_hat_mc": "hatMC",
+    "x_hat_fke": "hatFKE",
+    "x_hat_uve": "hatUVE",
+    "x_hat_vme": "hatVME",
+    "x_hat_kiwerk_one": "hatKIwerkOne",
+    "x_hat_msq": "hatMSQ",
+    "x_kmq": "hatKMQ",
+    "x_hat_kit": "hatKIT",
+}
+
+
+def _ss_first(v):
+    """SalesSuite liefert viele Felder als Liste (z.B. ['CH']). Erstes Element als Text."""
+    if isinstance(v, list):
+        return str(v[0]) if v else ""
+    if v is None:
+        return ""
+    return str(v)
+
+
+def _ss_map_contact(item):
+    """Wandelt einen SalesSuite-Kontakt in die Dashboard-/Karten-Form um."""
+    c = item.get("contact") if isinstance(item.get("contact"), dict) else item
+    if not isinstance(c, dict):
+        return None
+    mcp = item.get("mainContactPerson") if isinstance(item.get("mainContactPerson"), dict) else {}
+
+    vor = (mcp.get("firstName") or "").strip()
+    nach = (mcp.get("lastName") or "").strip()
+    ap_name = (vor + " " + nach).strip()
+    funktion = _ss_first(mcp.get("x_funktion:info")) or _ss_first(mcp.get("x_funktion"))
+
+    kundenstatus = _ss_first(c.get("x_kundenstatus:info"))
+    land = _ss_first(c.get("countryCode"))
+    land_info = _ss_first(c.get("countryCode:info"))
+
+    ent = {
+        "PartitionKey": "ss",
+        "RowKey": str(c.get("id") or item.get("id") or _ss_first(c.get("x_kundennummer")) or ""),
+        "firma": c.get("companyName") or "",
+        "name": ap_name,
+        "geschaeftsfuehrer": ap_name,
+        "email": (mcp.get("email") or "").strip(),
+        "telefon": (mcp.get("phone") or "").strip(),
+        "website": c.get("website") or "",
+        "adresse": c.get("address") or "",
+        "plz": _ss_first(c.get("postalCode")),
+        "ort": c.get("city") or "",
+        "funktion": funktion,
+        "land": land,
+        "landInfo": land_info,
+        "kundenstatus": kundenstatus,
+        "typ": kundenstatus,
+        "kundennummer": _ss_first(c.get("x_kundennummer")),
+        "istKunde": kundenstatus == "Kunde",
+        "istExKunde": kundenstatus in ("Ex-Kunde", "Ehemaliger Kunde"),
+        "quelle": "salessuite",
+    }
+    # Produkt-Haekchen: SalesSuite speichert true, wenn Produkt vorhanden
+    for ss_field, flag in SS_PRODUKT_MAP.items():
+        ent[flag] = c.get(ss_field) is True
+    return ent
+
+
+@app.route(route="salessuite-sync", methods=["GET", "POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def salessuite_sync_route(req: func.HttpRequest) -> func.HttpResponse:
+    """Holt alle Kontakte aus SalesSuite (read-only) und speichert sie in
+    Tabelle 'salessuite_kontakte'. Aendert NICHTS an bestehenden Tabellen.
+    (Temporaer anonym fuer den Aufbau – wird spaeter abgesichert.)"""
+    if req.method == "OPTIONS":
+        return opt_()
+
+    import requests as _rq
+
+    key = os.environ.get("SALESSUITE_API_KEY", "")
+    if not key:
+        return err_("SALESSUITE_API_KEY ist nicht gesetzt", 500)
+
+    dry = (req.params.get("dry") == "1")
+    try:
+        max_pages = min(int(req.params.get("maxPages", "40")), 300)
+    except Exception:
+        max_pages = 40
+    url = SALESSUITE_BASE + "/v2/contact/search"
+    headers = {"Content-Type": "application/json", "Accept": "application/json", "x-api-key": key}
+    page_size = 100
+
+    fetched = 0
+    written = 0
+    matched = 0
+    skipped_no_key = 0
+    mit_plz = 0
+    mit_produkt = 0
+    mit_plz_und_relevant = 0
+    mit_voll_adresse = 0
+    mit_gf = 0
+    mit_adresse_und_gf = 0
+    funktion_counts = {}
+    by_status = {}
+    by_status_voll = {}
+    by_country = {}
+    by_produkt = {v: 0 for v in SS_PRODUKT_MAP.values()}
+    errors = []
+
+    tbl = None if dry else table_(SALESSUITE_TABLE)
+    batch = []
+    seen_keys = set()
+
+    # Geocoding-Abdeckung pruefen: haben die PLZ Koordinaten?
+    plz_coords = get_plz_coords()
+    geo_hit = {}
+    geo_miss = {}
+    geo_miss_beispiele = []
+
+    def _flush():
+        nonlocal written
+        if not batch:
+            return
+        try:
+            tbl.submit_transaction([("upsert", e) for e in batch])
+            written += len(batch)
+        except Exception:
+            # Fallback: einzeln schreiben, damit ein fehlerhafter Datensatz nicht alles blockiert
+            for e in batch:
+                try:
+                    tbl.upsert_entity(e)
+                    written += 1
+                except Exception as ex:
+                    errors.append("write %s: %s" % (e.get("RowKey"), str(ex)[:100]))
+        batch.clear()
+
+    for page in range(1, max_pages + 1):
+        try:
+            r = _rq.post(url, headers=headers, json={"page": page, "pageSize": page_size}, timeout=40)
+        except Exception as e:
+            errors.append("page %d: %s" % (page, str(e)[:150]))
+            break
+        if r.status_code != 200:
+            errors.append("page %d: HTTP %d %s" % (page, r.status_code, (r.text or "")[:120]))
+            break
+        arr = r.json()
+        if isinstance(arr, dict):
+            for arrk in ("data", "items", "results", "content", "contacts"):
+                if isinstance(arr.get(arrk), list):
+                    arr = arr[arrk]; break
+        if not isinstance(arr, list) or not arr:
+            break  # leere Seite = Ende erreicht
+
+        for item in arr:
+            fetched += 1
+            ent = _ss_map_contact(item)
+            if not ent:
+                continue
+            st = ent["kundenstatus"] or "(leer)"
+            by_status[st] = by_status.get(st, 0) + 1
+            co = ent["land"] or "(leer)"
+            by_country[co] = by_country.get(co, 0) + 1
+            has_produkt = False
+            for flag in by_produkt:
+                if ent.get(flag):
+                    by_produkt[flag] += 1
+                    has_produkt = True
+            has_plz = bool((ent.get("plz") or "").strip())
+            if has_plz:
+                mit_plz += 1
+            if has_produkt:
+                mit_produkt += 1
+            # "relevant" = auf Karte sinnvoll: hat PLZ UND (echter Status oder Produkt)
+            irrelevant_status = {"", "Fake", "Kunden-Dublette (anderen Kontakt aufrufen)"}
+            if has_plz and (has_produkt or (ent["kundenstatus"] not in irrelevant_status)):
+                mit_plz_und_relevant += 1
+            # Vollstaendige Adresse (Strasse + PLZ + Ort) und Geschaeftsfuehrer/Ansprechpartner
+            voll_adresse = bool((ent.get("adresse") or "").strip()) and has_plz and bool((ent.get("ort") or "").strip())
+            hat_gf = bool((ent.get("geschaeftsfuehrer") or "").strip())
+            if voll_adresse:
+                mit_voll_adresse += 1
+                by_status_voll[st] = by_status_voll.get(st, 0) + 1
+            if hat_gf:
+                mit_gf += 1
+            if voll_adresse and hat_gf:
+                mit_adresse_und_gf += 1
+            fk = (ent.get("funktion") or "(leer)")
+            funktion_counts[fk] = funktion_counts.get(fk, 0) + 1
+
+            # ---- ENDGUELTIGER KARTEN-FILTER ----
+            # muss: vollstaendige Adresse + Ansprechpartner/GF
+            # raus: Fake, Dubletten, Kunden-Mitarbeiter
+            passes = (
+                voll_adresse
+                and hat_gf
+                and (ent["kundenstatus"] not in SS_EXCLUDE_STATUS)
+            )
+            if not passes:
+                continue
+            matched += 1
+            # Geocoding-Check
+            _plz = (ent.get("plz") or "").strip()
+            _co = ent.get("land") or "(leer)"
+            if _plz in plz_coords:
+                geo_hit[_co] = geo_hit.get(_co, 0) + 1
+            else:
+                geo_miss[_co] = geo_miss.get(_co, 0) + 1
+                if _co in ("CH", "AT") and len(geo_miss_beispiele) < 10:
+                    geo_miss_beispiele.append(_co + ":" + _plz)
+            if not ent["RowKey"]:
+                skipped_no_key += 1
+                continue
+            if not dry:
+                # Duplikate (gleiche ID) innerhalb eines Laufs ueberschreiben, nicht doppeln
+                if ent["RowKey"] in seen_keys:
+                    continue
+                seen_keys.add(ent["RowKey"])
+                batch.append(ent)
+                if len(batch) >= 100:
+                    _flush()
+
+        # Robust: nicht bei kurzer Seite abbrechen (transiente Teil-Seiten),
+        # sondern nur wenn eine Seite komplett leer ist (siehe oben).
+        # Sicherheits-Cap max_pages verhindert Endlosschleife.
+
+    if not dry:
+        _flush()
+
+    return ok_({
+        "dryRun": dry,
+        "fetched": fetched,
+        "matched": matched,
+        "written": written,
+        "skippedNoKey": skipped_no_key,
+        "mitPlz": mit_plz,
+        "mitProdukt": mit_produkt,
+        "mitPlzUndRelevant": mit_plz_und_relevant,
+        "mitVollAdresse": mit_voll_adresse,
+        "mitGeschaeftsfuehrer": mit_gf,
+        "mitAdresseUndGf": mit_adresse_und_gf,
+        "geoHitByCountry": dict(sorted(geo_hit.items(), key=lambda x: -x[1])),
+        "geoMissByCountry": dict(sorted(geo_miss.items(), key=lambda x: -x[1])),
+        "geoMissBeispieleCHAT": geo_miss_beispiele,
+        "topFunktionen": dict(sorted(funktion_counts.items(), key=lambda x: -x[1])[:15]),
+        "byStatus": dict(sorted(by_status.items(), key=lambda x: -x[1])),
+        "byStatusVollAdresse": dict(sorted(by_status_voll.items(), key=lambda x: -x[1])),
+        "byCountry": dict(sorted(by_country.items(), key=lambda x: -x[1])),
+        "byProdukt": by_produkt,
+        "errors": errors[:10],
+    })
+
+
 @app.route(route="stats", methods=["GET", "OPTIONS"])
 def stats_route(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
@@ -1147,46 +1529,86 @@ def kontakte_locations_route(req: func.HttpRequest) -> func.HttpResponse:
         return err_("Nicht autorisiert", 401)
     coords = get_plz_coords()
 
-    # Kontakte
-    kontakte_items = [dict(i) for i in table_("kontakte").list_entities()]
     kontakte_out = []
     without_k = 0
     flag_fields = ['hatUC','hatUCS','hatMC','hatFKE','hatUVE','hatVME','hatKIwerkOne','hatMSQ','hatKMQ','hatKIT']
-    for k in kontakte_items:
+
+    # --- 1) Kunden / Leads LIVE aus SalesSuite (Tabelle salessuitekontakte) ---
+    ss_items = [dict(i) for i in table_(SALESSUITE_TABLE).list_entities()]
+    ss_count = len(ss_items)
+    for k in ss_items:
         plz = str(k.get("plz","")).strip()
         c = coords.get(plz)
-        if c:
-            entry = {
-                "id": k.get("RowKey"),
-                "firma": k.get("firma","") or k.get("name",""),
-                "name": k.get("name",""),
-                "geschaeftsfuehrer": k.get("geschaeftsfuehrer",""),
-                "branche": k.get("branche",""),
-                "email": k.get("email",""),
-                "telefon": k.get("telefon",""),
-                "website": k.get("website",""),
-                "plz": k.get("plz",""),
-                "ort": k.get("ort",""),
-                "typ": k.get("typ","") or k.get("kundenstatus",""),
-                "kundenstatus": k.get("kundenstatus",""),
-                "istKunde": bool(k.get("istKunde", False)),
-                "istExKunde": bool(k.get("istExKunde", False)),
-                "istInvestor": bool(k.get("istInvestor", False)),
-                "istTarget": bool(k.get("istTarget", False)),
-                "istNichtkunde": bool(k.get("istNichtkunde", False)),
-                "mitarbeiter": k.get("mitarbeiter",""),
-                "umsatzTeur": k.get("umsatzTeur",""),
-                "sucht": k.get("sucht",""),
-                "bietet": k.get("bietet",""),
-                "lat": c[0], "lon": c[1],
-            }
-            # Produkt-Flags
-            for f in flag_fields:
-                if k.get(f) is True:
-                    entry[f] = True
-            kontakte_out.append(entry)
-        else:
+        if not c:
             without_k += 1
+            continue
+        kundenstatus = k.get("kundenstatus","") or ""
+        entry = {
+            "id": k.get("RowKey"),
+            "firma": k.get("firma","") or k.get("name",""),
+            "name": k.get("name",""),
+            "geschaeftsfuehrer": k.get("geschaeftsfuehrer",""),
+            "email": k.get("email",""),
+            "telefon": k.get("telefon",""),
+            "website": k.get("website",""),
+            "plz": k.get("plz",""),
+            "ort": k.get("ort",""),
+            "land": k.get("land",""),
+            "landInfo": k.get("landInfo",""),
+            "typ": kundenstatus,
+            "kundenstatus": kundenstatus,
+            "istKunde": bool(k.get("istKunde", False)),
+            "istExKunde": bool(k.get("istExKunde", False)),
+            "istInvestor": (kundenstatus == "Investor"),
+            "istTarget": False,
+            "quelle": "salessuite",
+            "lat": c[0], "lon": c[1],
+        }
+        for f in flag_fields:
+            if k.get(f) is True:
+                entry[f] = True
+        kontakte_out.append(entry)
+
+    # --- 2) M&A-Investoren aus bisheriger Tabelle 'kontakte' erhalten ---
+    alt_items = [dict(i) for i in table_("kontakte").list_entities()]
+    invest_count = 0
+    for k in alt_items:
+        if not bool(k.get("istInvestor", False)):
+            continue  # nur Investoren uebernehmen; Kunden kommen jetzt aus SalesSuite
+        plz = str(k.get("plz","")).strip()
+        c = coords.get(plz)
+        if not c:
+            without_k += 1
+            continue
+        invest_count += 1
+        entry = {
+            "id": k.get("RowKey"),
+            "firma": k.get("firma","") or k.get("name",""),
+            "name": k.get("name",""),
+            "geschaeftsfuehrer": k.get("geschaeftsfuehrer",""),
+            "branche": k.get("branche",""),
+            "email": k.get("email",""),
+            "telefon": k.get("telefon",""),
+            "website": k.get("website",""),
+            "plz": k.get("plz",""),
+            "ort": k.get("ort",""),
+            "land": k.get("land",""),
+            "landInfo": k.get("landInfo",""),
+            "typ": k.get("typ","") or "Investor",
+            "kundenstatus": k.get("kundenstatus",""),
+            "istKunde": False,
+            "istExKunde": False,
+            "istInvestor": True,
+            "istTarget": bool(k.get("istTarget", False)),
+            "investorTyp": k.get("investorTyp",""),
+            "mitarbeiter": k.get("mitarbeiter",""),
+            "umsatzTeur": k.get("umsatzTeur",""),
+            "sucht": k.get("sucht",""),
+            "bietet": k.get("bietet",""),
+            "quelle": "ma",
+            "lat": c[0], "lon": c[1],
+        }
+        kontakte_out.append(entry)
 
     # Targets (Verkäufer)
     targets_items = [dict(i) for i in table_("targets").list_entities()]
@@ -1210,7 +1632,9 @@ def kontakte_locations_route(req: func.HttpRequest) -> func.HttpResponse:
     return ok_({
         "kontakte": kontakte_out,
         "targets": targets_out,
-        "total": len(kontakte_items),
+        "total": len(kontakte_out),
+        "quelleSalessuite": ss_count,
+        "quelleInvestoren": invest_count,
         "withoutCoords": without_k,
     })
 
