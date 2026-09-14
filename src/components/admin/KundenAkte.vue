@@ -10,7 +10,7 @@
             <p class="text-sm text-gray-500 truncate">{{ kontakt.name }}<span v-if="kontakt.ort"> · {{ kontakt.plz }} {{ kontakt.ort }}</span></p>
             <div class="flex flex-wrap gap-1 mt-2">
               <span v-if="kontakt.istKunde" class="text-[11px] px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700">Kunde</span>
-              <span v-if="kontakt.istExKunde" class="text-[11px] px-2 py-0.5 rounded-full font-medium bg-slate-200 text-slate-700">Ex-Kunde</span>
+              <span v-if="kontakt.istExKunde" class="text-[11px] px-2 py-0.5 rounded-full font-medium bg-slate-200 text-slate-700">Bestand</span>
               <span v-if="kontakt.istInvestor" class="text-[11px] px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-700">
                 Investor<span v-if="kontakt.investorTyp"> · {{ kontakt.investorTyp }}</span>
               </span>

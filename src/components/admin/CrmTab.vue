@@ -33,7 +33,7 @@
           <option value="">Status (alle)</option>
           <option>Investor</option>
           <option>Kunde</option>
-          <option>Ex-Kunde</option>
+          <option value="Ex-Kunde">Bestand</option>
           <option>Nichtkunde</option>
           <option>Target</option>
         </select>
@@ -130,7 +130,7 @@
                   Investor<span v-if="k.investorTyp || (k.typ && ['PE','Systemhausgruppe','Strategisch','Sonstige'].includes(k.typ))"> · {{ k.investorTyp || k.typ }}</span>
                 </span>
                 <span v-if="k.istKunde" class="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700">Kunde</span>
-                <span v-if="k.istExKunde" class="text-xs px-2 py-0.5 rounded-full font-medium bg-slate-200 text-slate-700">Ex-Kunde</span>
+                <span v-if="k.istExKunde" class="text-xs px-2 py-0.5 rounded-full font-medium bg-slate-200 text-slate-700">Bestand</span>
                 <span v-if="!k.istTarget && !k.istInvestor && !k.istKunde && !k.istExKunde && k.typ" :class="typClass(k.typ)" class="text-xs px-2 py-0.5 rounded-full font-medium">{{ k.typ }}</span>
               </div>
             </td>
@@ -178,7 +178,7 @@
           <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full" style="background:#f97316"></span>Target</span>
           <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#22c55e"></span>Investor</span>
           <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#60a5fa"></span>Kunde</span>
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#475569"></span>Ex-Kunde</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:#475569"></span>Bestand</span>
           <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full border border-gray-300" style="background:#d4d4d8"></span>Nichtkunde</span>
         </div>
       </div>
@@ -401,7 +401,7 @@
                 <input type="checkbox" v-model="form.istKunde" class="rounded text-[#0088ba]" /> Kunde
               </label>
               <label class="flex items-center gap-1.5 text-sm cursor-pointer">
-                <input type="checkbox" v-model="form.istExKunde" class="rounded text-[#0088ba]" /> Ex-Kunde
+                <input type="checkbox" v-model="form.istExKunde" class="rounded text-[#0088ba]" /> Bestand
               </label>
               <label class="flex items-center gap-1.5 text-sm cursor-pointer">
                 <input type="checkbox" v-model="form.istInvestor" class="rounded text-[#0088ba]" /> Investor
@@ -661,7 +661,7 @@ const produktListe = [
   { key: 'hatMSQ', label: 'MSQ', color: 'bg-indigo-500' },
   { key: 'hatKMQ', label: 'KMQ', color: 'bg-cyan-600' },
   { key: 'hatKIT', label: 'KIT', color: 'bg-fuchsia-500' },
-  { key: 'istExKunde', label: 'Ex-Kunde', color: 'bg-slate-500' },
+  { key: 'istExKunde', label: 'Bestand', color: 'bg-slate-500' },
 ]
 
 function toggleProdukt(key) {

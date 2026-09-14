@@ -93,6 +93,12 @@ function escapeHtml(s) {
     .replaceAll('"', '&quot;').replaceAll("'", '&#39;')
 }
 
+// Anzeige-Umwandlung: intern bleibt der SalesSuite-Wert "Ex-Kunde",
+// angezeigt wird auf Wunsch von Mike der Begriff "Bestand".
+function statusLabel(s) {
+  return s === 'Ex-Kunde' ? 'Bestand' : s
+}
+
 function renderMarkers() {
   if (!mapInstance || !markersLayer) return
   markersLayer.clearLayers()
@@ -112,7 +118,7 @@ function renderMarkers() {
         ${k.name ? `<p style="margin: 0 0 4px 0; color: #475569; font-size: 12px;">${escapeHtml(k.name)}</p>` : ''}
         <p style="margin: 0 0 4px 0; color: #64748b; font-size: 12px;">${k.plz ? escapeHtml(k.plz) + ' ' : ''}${escapeHtml(k.ort || '')}</p>
         ${mailLink ? `<p style="margin: 4px 0 0 0;">${mailLink}</p>` : ''}
-        <p style="margin: 6px 0 0 0; color: ${color}; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">${escapeHtml(k.typ || k.kundenstatus || 'Kontakt')}</p>
+        <p style="margin: 6px 0 0 0; color: ${color}; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">${escapeHtml(statusLabel(k.typ || k.kundenstatus || 'Kontakt'))}</p>
         ${crmHtml}
       </div>`
     L.marker([k.lat, k.lon], { icon: makeIcon(color, 10) })

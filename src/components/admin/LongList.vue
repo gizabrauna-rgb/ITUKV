@@ -94,7 +94,7 @@
             <span v-if="k.istInternesTarget" class="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide">In-House Match</span>
             <span v-if="k.istInternesTarget && k.mbNr" class="text-[10px] font-mono bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">{{ k.mbNr }}</span>
             <span v-if="k.istKunde && !k.istInternesTarget" class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">Kunde</span>
-            <span v-if="k.istExKunde" class="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded-full font-semibold">Ex-Kunde</span>
+            <span v-if="k.istExKunde" class="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded-full font-semibold">Bestand</span>
           </div>
           <div class="text-xs text-gray-500 mt-0.5">
             {{ k.plz }} {{ k.ort }} · {{ k.mitarbeiter || '?' }} MA · {{ k.umsatz || '?' }} Umsatz
