@@ -67,24 +67,21 @@
           </div>
         </div>
 
-        <!-- Teaser: ungenutzte Werthebel -->
+        <!-- Teaser: ungenutzte Werthebel (Ueberschrift/Text je nach Ziel individuell) -->
         <div v-if="result.hebel?.length" class="bg-white rounded-2xl border border-gray-100 p-6 md:p-8">
           <div class="flex items-center gap-2 mb-1">
             <TrendingUp class="w-5 h-5 text-[#0088ba]" />
-            <h3 class="text-lg font-bold text-gray-900">Hier liegt Dein größtes ungenutztes Potenzial</h3>
+            <h3 class="text-lg font-bold text-gray-900">{{ zielTexte.titel }}</h3>
           </div>
-          <p class="text-sm text-gray-600 mb-5">
-            Diese Punkte heben Deinen Faktor – und damit Deinen Kaufpreis – am stärksten. <strong>Was</strong> zählt, siehst Du hier. <strong>Wie</strong> Du es konkret umsetzt, gehen wir gemeinsam durch.
-          </p>
+          <p class="text-sm text-gray-600 mb-5">{{ zielTexte.sub }}</p>
           <ul class="space-y-3">
             <li v-for="(h, i) in result.hebel" :key="i" class="flex items-start gap-3 bg-gray-50 rounded-xl p-4">
               <span class="flex-shrink-0 w-6 h-6 rounded-full bg-[#0088ba] text-white text-xs font-bold flex items-center justify-center">{{ i + 1 }}</span>
               <span class="text-sm text-gray-700">{{ h }}</span>
             </li>
           </ul>
-          <div class="flex items-center gap-2 mt-4 text-sm text-gray-500">
-            <MessageCircle class="w-4 h-4 text-[#0088ba]" />
-            <span>Den konkreten Fahrplan für Deine Hebel gehen wir gemeinsam im persönlichen Gespräch durch.</span>
+          <div class="mt-5 rounded-xl bg-[#0088ba]/5 border border-[#0088ba]/15 p-4">
+            <p class="text-sm text-gray-700 leading-relaxed">{{ zielTexte.gespraech }}</p>
           </div>
         </div>
 
@@ -96,19 +93,13 @@
           </div>
         </div>
 
-        <!-- CTA-Text -->
-        <div class="bg-[#161e2a] rounded-2xl p-8 text-center text-white">
-          <h3 class="text-xl font-bold mb-2">Lass uns persönlich über Deinen nächsten Schritt sprechen</h3>
-          <p class="text-gray-300 text-sm max-w-lg mx-auto">
-            In einem kostenlosen, vertraulichen Strategiegespräch zeigen wir Dir, wie Du genau diese Hebel ziehst – ob Du verkaufen oder selbst zukaufen willst. Unser Rekord vom ersten Gespräch bis zum Verkauf: 11 Tage.
-          </p>
-          <template v-if="!CAL_ENABLED">
-            <a href="https://www.itukv.de" target="_blank" rel="noopener"
-              class="inline-block mt-5 px-6 py-3 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8]">
-              Kostenloses Strategiegespräch sichern
-            </a>
-            <p class="text-xs text-gray-400 mt-4">Kostenlos · vertraulich · unverbindlich – wir melden uns bei Dir.</p>
-          </template>
+        <!-- Fallback-Button, falls der Kalender einmal nicht laedt -->
+        <div v-if="!CAL_ENABLED" class="bg-white rounded-2xl border border-gray-100 p-6 text-center">
+          <a href="https://www.itukv.de" target="_blank" rel="noopener"
+            class="inline-block px-6 py-3 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8]">
+            Kostenloses Strategiegespräch sichern
+          </a>
+          <p class="text-xs text-gray-400 mt-4">Kostenlos · vertraulich · unverbindlich – wir melden uns bei Dir.</p>
         </div>
 
         <!-- Direkter Buchungskalender (Cal.com Inline-Embed) – eigene helle Karte -->
@@ -321,7 +312,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
-import { CheckCircle2, TrendingUp, MessageCircle, Link2, Check } from '@lucide/vue'
+import { CheckCircle2, TrendingUp, Link2, Check } from '@lucide/vue'
 
 // Vertrauensbelege (statische Marktbeweise, keine Live-Daten)
 const belege = [
@@ -493,6 +484,42 @@ function firmaMitArtikel(firma) {
   }
   return f                                                    // reiner Name / e.K. -> ohne Artikel
 }
+// Ergebnis-Texte je nach gewaehltem Ziel (Verkauf, Zukauf, Nachfolge ...).
+// Individualisiert Ueberschrift, Unterzeile und den Gespraechs-Hinweis.
+const ZIEL_TEXTE = {
+  verkauf: {
+    titel: 'Hier liegt Dein größtes ungenutztes Verkaufspotenzial',
+    sub: 'Diese Punkte heben Deinen Faktor – und damit Deinen Verkaufspreis – am stärksten. Was zählt, siehst Du hier. Wie Du es vor dem Verkauf konkret umsetzt, gehen wir gemeinsam durch.',
+    gespraech: 'Wer diese Hebel vor dem Verkauf zieht, holt beim Kaufpreis oft deutlich mehr heraus. Genau da setzen wir an: Im kostenlosen Erstgespräch zeigen wir Dir, welcher Hebel bei Dir am schnellsten wirkt und wie ein Verkauf diskret und begleitet abläuft.',
+  },
+  zukauf: {
+    titel: 'Hier liegt Dein größtes Potenzial für den nächsten Zukauf',
+    sub: 'Wer verkaufsfähig ist, ist auch stark genug, ein anderes Unternehmen zu übernehmen. Diese Punkte machen Dich als Käufer attraktiv und finanzierbar. Was zählt, siehst Du hier – wie Du gezielt zukaufst, gehen wir gemeinsam durch.',
+    gespraech: 'Für einen erfolgreichen Zukauf zählt, dass Dein eigenes Unternehmen stark aufgestellt ist und Du die richtigen Ziele findest. Im kostenlosen Erstgespräch zeigen wir Dir, wie wir passende Übernahmekandidaten identifizieren und den Kauf für Dich begleiten.',
+  },
+  nachfolge: {
+    titel: 'Hier liegt Dein größtes Potenzial für eine geregelte Nachfolge',
+    sub: 'Je unabhängiger Dein Unternehmen von Dir läuft, desto reibungsloser die Nachfolge – und desto höher der Wert. Was zählt, siehst Du hier. Wie Du die Übergabe vorbereitest, gehen wir gemeinsam durch.',
+    gespraech: 'Eine gute Nachfolge braucht Vorlauf. Im kostenlosen Erstgespräch zeigen wir Dir, wie Du Dein Unternehmen übergabefähig machst und einen passenden Nachfolger findest – diskret und Schritt für Schritt begleitet.',
+  },
+  beteiligung: {
+    titel: 'Hier liegt Dein größtes Potenzial für einen Teilverkauf',
+    sub: 'Diese Punkte machen Dich für Investoren und Partner attraktiv – und heben Deinen Unternehmenswert. Was zählt, siehst Du hier. Wie Du einen Partner an Bord holst, gehen wir gemeinsam durch.',
+    gespraech: 'Ob Investor oder Partner: Ein Teilverkauf gelingt am besten, wenn Dein Unternehmen sauber aufgestellt und der Wert belastbar ist. Im kostenlosen Erstgespräch zeigen wir Dir, wie so ein Einstieg strukturiert und zu Deinen Bedingungen abläuft.',
+  },
+  wert: {
+    titel: 'Hier liegt Dein größtes ungenutztes Potenzial',
+    sub: 'Diese Punkte heben Deinen Faktor – und damit Deinen Unternehmenswert – am stärksten. Was zählt, siehst Du hier. Wie Du es konkret umsetzt, gehen wir gemeinsam durch.',
+    gespraech: 'Deine Zahlen sind ein guter Startpunkt. Im kostenlosen Erstgespräch ordnen wir Deinen Wert realistisch ein und zeigen Dir, welche Hebel ihn am schnellsten steigern – ganz ohne Verkaufsdruck.',
+  },
+  offen: {
+    titel: 'Hier liegt Dein größtes ungenutztes Potenzial',
+    sub: 'Diese Punkte heben Deinen Faktor – und damit Deinen Kaufpreis – am stärksten. Was zählt, siehst Du hier. Wie Du es konkret umsetzt, gehen wir gemeinsam durch.',
+    gespraech: 'Egal, wohin die Reise geht – verkaufen, zukaufen oder erst mal Klarheit gewinnen: Im kostenlosen Erstgespräch sortieren wir gemeinsam Deine Optionen und zeigen Dir, welcher nächste Schritt für Dich wirklich sinnvoll ist.',
+  },
+}
+const zielTexte = computed(() => ZIEL_TEXTE[result.value?.ziel] || ZIEL_TEXTE.offen)
+
 const linkKopiert = ref(false)
 const smsAngefragt = ref(false)
 async function ergebnisLinkKopieren() {

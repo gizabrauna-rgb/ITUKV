@@ -1299,6 +1299,7 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
         "schwerpunkte": enrich.get("schwerpunkte", []) or [],
         "firma": firma or enrich.get("firmenname") or "",
         "name": name,
+        "ziel": ziel,
     })
 
 
@@ -1416,6 +1417,7 @@ def checkliste_result(req: func.HttpRequest) -> func.HttpResponse:
         "schwerpunkte": schwerpunkte,
         "firma": row.get("firma", ""),
         "name": row.get("name", ""),
+        "ziel": row.get("ziel", ""),
     })
 
 
