@@ -1462,6 +1462,241 @@ def checkliste_result(req: func.HttpRequest) -> func.HttpResponse:
     })
 
 
+# Ziel-Beschriftungen fuer die PDF-Kopfzeile
+_CHECKLISTE_ZIEL_LABELS = {
+    "verkauf": "Verkauf / Exit",
+    "zukauf": "Zukauf / Wachstum",
+    "nachfolge": "Nachfolge",
+    "beteiligung": "Beteiligung / Investor",
+    "wert": "Unternehmenswert ermitteln",
+    "offen": "Noch offen",
+}
+
+_CHECKLISTE_PDF_TEMPLATE = """<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8"><style>
+  @page { size: A4; margin: 22mm 18mm 20mm 18mm;
+    @bottom-center { content: "mibeca GmbH · Schillerstr. 1 · 29525 Uelzen · www.itukv.de";
+      font-size: 8pt; color: #9aa5ad; }
+    @bottom-right { content: "Seite " counter(page) " / " counter(pages);
+      font-size: 8pt; color: #9aa5ad; } }
+  * { box-sizing: border-box; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #2a333a;
+    font-size: 10.5pt; line-height: 1.45; margin: 0; }
+  h1 { font-size: 19pt; color: #0088ba; margin: 0 0 2px 0; }
+  h2 { font-size: 12.5pt; color: #0088ba; margin: 22px 0 8px 0;
+    border-bottom: 2px solid #e3eef4; padding-bottom: 4px; }
+  .sub { color: #6b7780; font-size: 9.5pt; margin: 0 0 14px 0; }
+  .meta { width: 100%; border-collapse: collapse; margin: 6px 0 4px 0; }
+  .meta td { padding: 3px 0; font-size: 10pt; vertical-align: top; }
+  .meta td.k { color: #6b7780; width: 34%; }
+  .meta td.v { font-weight: bold; }
+  .ergebnis { background: #f2f9fc; border: 1px solid #cfe7f2; border-radius: 8px;
+    padding: 14px 16px; margin: 10px 0 4px 0; }
+  .ergebnis .row { display: flex; }
+  .kpi { display: inline-block; margin-right: 34px; }
+  .kpi .label { color: #6b7780; font-size: 9pt; text-transform: uppercase;
+    letter-spacing: .04em; }
+  .kpi .val { font-size: 17pt; font-weight: bold; color: #0088ba; }
+  table.fragen { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  table.fragen td { padding: 6px 8px; border-bottom: 1px solid #eef2f4;
+    font-size: 10pt; vertical-align: top; }
+  table.fragen td.a { width: 58px; text-align: center; font-weight: bold;
+    white-space: nowrap; }
+  .grp { font-size: 10.5pt; font-weight: bold; color: #0d3547;
+    background: #eef6fa; padding: 6px 8px; margin-top: 12px; }
+  .ja { color: #1a9c53; }
+  .nein { color: #b33; }
+  .neu { color: #9aa5ad; }
+  table.zahlen { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  table.zahlen th, table.zahlen td { padding: 5px 7px; border: 1px solid #e3eef4;
+    font-size: 9.5pt; text-align: right; }
+  table.zahlen th { background: #eef6fa; color: #0d3547; text-align: right; }
+  table.zahlen td.j, table.zahlen th.j { text-align: left; font-weight: bold; }
+  .text { margin: 6px 0; }
+  ul.hebel { margin: 6px 0 0 0; padding-left: 18px; }
+  ul.hebel li { margin-bottom: 5px; }
+  .foot { margin-top: 26px; padding-top: 10px; border-top: 1px solid #e3eef4;
+    color: #6b7780; font-size: 9pt; }
+  .avoid { page-break-inside: avoid; }
+</style></head><body>
+
+  <h1>Deine ITUKV-Checkliste</h1>
+  <p class="sub">IT-Unternehmen kaufen &amp; verkaufen &middot; Auswertung von {{ datum }}</p>
+
+  <table class="meta">
+    {% if firma %}<tr><td class="k">Unternehmen</td><td class="v">{{ firma }}</td></tr>{% endif %}
+    {% if name %}<tr><td class="k">Ausgefüllt von</td><td class="v">{{ name }}</td></tr>{% endif %}
+    {% if ziel_label %}<tr><td class="k">Dein Ziel</td><td class="v">{{ ziel_label }}</td></tr>{% endif %}
+  </table>
+
+  <div class="ergebnis avoid">
+    <span class="kpi"><span class="label">Bewertungsfaktor</span><br>
+      <span class="val">{{ faktor if faktor else '–' }}{% if faktor %} / 7{% endif %}</span></span>
+    <span class="kpi"><span class="label">Grober Wertbereich</span><br>
+      <span class="val">{{ wert_range }}</span></span>
+    <span class="kpi"><span class="label">Ja-Antworten</span><br>
+      <span class="val">{{ ja_count }} / {{ fragen_gesamt }}</span></span>
+  </div>
+
+  {% if ansprache %}
+  <h2>Deine persönliche Einschätzung</h2>
+  <div class="text">{{ ansprache }}</div>
+  {% endif %}
+
+  {% if hebel %}
+  <h2>Deine größten ungenutzten Werthebel</h2>
+  <ul class="hebel">{% for h in hebel %}<li>{{ h }}</li>{% endfor %}</ul>
+  {% endif %}
+
+  <h2>Deine Antworten im Detail</h2>
+  {% for g in frage_gruppen %}
+  <div class="avoid">
+    <div class="grp">{{ g.name }}</div>
+    <table class="fragen">
+      {% for f in g.fragen %}
+      <tr>
+        <td>{{ f.text }}</td>
+        <td class="a {% if f.antwort == 'Ja' %}ja{% elif f.antwort == 'Nein' %}nein{% else %}neu{% endif %}">{{ f.antwort }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endfor %}
+
+  {% if jahre_rows %}
+  <h2>Deine betriebswirtschaftlichen Zahlen</h2>
+  <table class="zahlen avoid">
+    <tr>
+      <th class="j">Jahr</th><th>Umsatz</th><th>EBIT</th>
+      <th>ber. EBIT</th><th>Vertragsumsatz</th><th>Mitarbeiter</th>
+    </tr>
+    {% for r in jahre_rows %}
+    <tr>
+      <td class="j">{{ r.jahr }}{% if r.geplant %} (Plan){% endif %}</td>
+      <td>{{ r.umsatz }}</td><td>{{ r.ebit }}</td>
+      <td>{{ r.bereinigtesEbit }}</td><td>{{ r.vertragsumsatz }}</td>
+      <td>{{ r.mitarbeiter }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  <div class="foot">
+    Diese Auswertung ist eine erste, grobe Orientierung auf Basis Deiner Angaben und ersetzt
+    keine belastbare Unternehmensbewertung. Den konkreten Fahrplan besprechen wir gerne
+    persönlich mit Dir. &middot; mibeca GmbH &middot; www.itukv.de
+  </div>
+
+</body></html>"""
+
+
+def _render_checkliste_pdf_bytes(row: dict) -> bytes:
+    """Baut aus einem Checklisten-Datensatz ein PDF (WeasyPrint + Jinja2)."""
+    from jinja2 import Template
+    from weasyprint import HTML
+
+    def _j(field, default):
+        try:
+            return json.loads(row.get(field) or "")
+        except Exception:
+            return default
+
+    antworten = _j("antwortenJson", {}) or {}
+    ausw = _j("auswertungJson", {}) or {}
+    hebel = _j("hebelJson", []) or []
+    jahre = _j("zahlenJahreJson", []) or []
+    if not isinstance(jahre, list):
+        jahre = []
+
+    # Fragen nach Gruppen buendeln, inkl. gegebener Antwort
+    reihenfolge = []
+    by_gruppe = {}
+    for f in CHECKLISTE_FRAGEN:
+        g = f["gruppe"]
+        if g not in by_gruppe:
+            by_gruppe[g] = []
+            reihenfolge.append(g)
+        a = antworten.get(f["key"])
+        by_gruppe[g].append({
+            "text": f["text"],
+            "antwort": "Ja" if a is True else ("Nein" if a is False else "–"),
+        })
+    frage_gruppen = [{"name": g, "fragen": by_gruppe[g]} for g in reihenfolge]
+
+    jahre_rows = []
+    for jj in jahre:
+        if not isinstance(jj, dict):
+            continue
+        jahre_rows.append({
+            "jahr": (jj.get("jahr") or "–"),
+            "geplant": bool(jj.get("geplant")),
+            "umsatz": (jj.get("umsatz") or "–"),
+            "ebit": (jj.get("ebit") or "–"),
+            "bereinigtesEbit": (jj.get("bereinigtesEbit") or "–"),
+            "vertragsumsatz": (jj.get("vertragsumsatz") or "–"),
+            "mitarbeiter": (jj.get("mitarbeiter") or "–"),
+        })
+
+    wert_min = ausw.get("wertMinEur")
+    wert_max = ausw.get("wertMaxEur")
+    if wert_min and wert_max:
+        wert_range = f"{_fmt_eur(wert_min)} – {_fmt_eur(wert_max)}"
+    elif ausw.get("wertMidEur"):
+        wert_range = _fmt_eur(ausw.get("wertMidEur"))
+    else:
+        wert_range = "im Gespräch"
+
+    ziel = (row.get("ziel") or "").strip().lower()
+    ctx = {
+        "datum": datetime.now().strftime("%d.%m.%Y"),
+        "firma": (row.get("firma") or "").strip(),
+        "name": (row.get("name") or "").strip(),
+        "ziel_label": _CHECKLISTE_ZIEL_LABELS.get(ziel, ""),
+        "faktor": ausw.get("faktor"),
+        "wert_range": wert_range,
+        "ja_count": ausw.get("jaCount", row.get("jaCount", "–")),
+        "fragen_gesamt": ausw.get("fragenGesamt", len(CHECKLISTE_FRAGEN)),
+        "ansprache": (row.get("ansprache") or "").strip(),
+        "hebel": hebel,
+        "frage_gruppen": frage_gruppen,
+        "jahre_rows": jahre_rows,
+    }
+    html = Template(_CHECKLISTE_PDF_TEMPLATE, autoescape=True).render(**ctx)
+    return HTML(string=html, base_url="/").write_pdf()
+
+
+@app.route(route="checkliste-pdf", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def checkliste_pdf(req: func.HttpRequest) -> func.HttpResponse:
+    """Public: liefert die ausgefuellte Checkliste als PDF-Download.
+    Zugriff ueber den persoenlichen Ergebnis-Token (?r=... oder ?token=...)."""
+    _origin_from_req(req)
+    if req.method == "OPTIONS":
+        return opt_()
+    token = (req.params.get("token") or req.params.get("r") or "").strip()
+    if not token:
+        return err_("Kein Ergebnis-Token angegeben", 400)
+    token_safe = token.replace("'", "''")
+    row = None
+    try:
+        for c in table_("checklisten").query_entities(
+            f"PartitionKey eq 'checkliste' and resultToken eq '{token_safe}'"):
+            row = dict(c); break
+    except Exception as ex:
+        logging.error(f"Checkliste-PDF Abfrage fehlgeschlagen: {ex}")
+        return err_("Ergebnis konnte nicht geladen werden", 500)
+    if not row:
+        return err_("Ergebnis nicht gefunden", 404)
+    try:
+        pdf_bytes = _render_checkliste_pdf_bytes(row)
+    except Exception as ex:
+        logging.error(f"Checkliste-PDF Rendering fehlgeschlagen: {ex}")
+        return err_("PDF konnte nicht erstellt werden", 500)
+    import re as _re
+    firma = (row.get("firma") or "").strip()
+    safe = _re.sub(r"[^A-Za-z0-9_-]+", "-", firma).strip("-") or "Checkliste"
+    return pdf_response(pdf_bytes, f"ITUKV-Checkliste-{safe}.pdf", inline=False)
+
+
 @app.route(route="checkliste-send-sms", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def checkliste_send_sms(req: func.HttpRequest) -> func.HttpResponse:
     """Public: schickt dem Ausfueller seinen persoenlichen Ergebnis-Link per SMS.

@@ -135,6 +135,16 @@
             <Check class="w-4 h-4 flex-shrink-0" />
             <span>Wir haben Dir diesen Link zusätzlich per SMS an Deine Nummer geschickt.</span>
           </div>
+
+          <!-- PDF-Download der kompletten ausgefüllten Checkliste -->
+          <div v-if="pdfUrl" class="mt-4 pt-4 border-t border-gray-100">
+            <p class="text-xs text-gray-500 mb-2">Du willst Deine Checkliste schwarz auf weiß? Lad Dir Deine komplette Auswertung mit allen Antworten als PDF herunter.</p>
+            <a :href="pdfUrl" target="_blank" rel="noopener"
+              class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-[#0088ba] bg-[#f2f9fc] border-2 border-[#cfe7f2] rounded-xl hover:bg-[#e6f4fa]">
+              <FileDown class="w-4 h-4" />
+              Checkliste als PDF herunterladen
+            </a>
+          </div>
         </div>
 
         <!-- Rechtlicher Hinweis -->
@@ -317,7 +327,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
-import { CheckCircle2, TrendingUp, Link2, Check, CalendarClock } from '@lucide/vue'
+import { CheckCircle2, TrendingUp, Link2, Check, CalendarClock, FileDown } from '@lucide/vue'
 
 // Vertrauensbelege (statische Marktbeweise, keine Live-Daten)
 const belege = [
@@ -328,6 +338,12 @@ const belege = [
 ]
 
 const apiBase = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
+
+// Download-Link fuer die ausgefuellte Checkliste als PDF (ueber den Ergebnis-Token).
+const pdfUrl = computed(() => {
+  const token = result.value?.resultToken
+  return token ? `${apiBase}/checkliste-pdf?r=${encodeURIComponent(token)}` : ''
+})
 
 // Direkter Buchungskalender (Cal.com Inline-Embed) auf der Ergebnisseite.
 const CAL_ENABLED = true
