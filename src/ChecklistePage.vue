@@ -126,6 +126,13 @@
             </button>
           </div>
         </div>
+
+        <!-- Rechtlicher Hinweis -->
+        <p class="text-[11px] leading-relaxed text-gray-400 text-center px-2">
+          Diese Einschätzung ist eine unverbindliche Ersteinschätzung auf Basis Deiner Angaben und ersetzt
+          kein Wertgutachten. Der tatsächliche Kaufpreis hängt von einer detaillierten Prüfung und den
+          Marktbedingungen ab.
+        </p>
       </div>
 
       <!-- Analyse läuft -->
@@ -175,6 +182,10 @@
               </select>
               <input v-model="form.telefon" placeholder="Mobilnummer" class="input flex-1" inputmode="tel" />
             </div>
+            <label v-if="form.telefon.trim()" class="flex items-start gap-2 text-xs text-gray-600">
+              <input type="checkbox" v-model="form.smsEinverstaendnis" class="mt-0.5" />
+              <span>Schickt mir meinen persönlichen Ergebnis-Link zusätzlich per SMS, damit ich ihn jederzeit wieder aufrufen kann.</span>
+            </label>
             <input v-model="form.website" placeholder="Website (z. B. www.firma.de)" class="input" />
             <input v-model="form.plzOrt" placeholder="Sitz (PLZ + Ort)" class="input" />
             <label class="flex items-start gap-2 text-xs text-gray-600 pt-1">
@@ -345,6 +356,7 @@ const analyseProzent = ref(0)
 const form = reactive({
   firma: '', name: '', email: '', telefonVorwahl: '+49', telefon: '', website: '', plzOrt: '',
   websiteEinverstaendnis: true,
+  smsEinverstaendnis: false,
   antworten: {},
   zahlen: {
     jahre: JAHRE.map(j => ({
@@ -440,6 +452,7 @@ async function abschicken() {
       body: JSON.stringify({
         kontakt: { firma: form.firma, name: form.name, email: form.email, telefon, website, plzOrt: form.plzOrt },
         websiteEinverstaendnis: form.websiteEinverstaendnis,
+        smsEinverstaendnis: form.smsEinverstaendnis && !!telefon,
         antworten: form.antworten,
         zahlen: { jahre: form.zahlen.jahre },
         motive: form.motive,
@@ -465,6 +478,15 @@ async function abschicken() {
   if (fehler) { errMsg.value = fehler; return }
   result.value = apiResult
   window.scrollTo({ top: 0, behavior: 'smooth' })
+
+  // Ergebnis-Link per SMS zuschicken (fire-and-forget, nur bei Einwilligung + Nummer)
+  if (form.smsEinverstaendnis && telefon && apiResult?.resultToken) {
+    fetch(`${apiBase}/checkliste-send-sms`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: apiResult.resultToken }),
+    }).catch(() => {})
+  }
 }
 </script>
 

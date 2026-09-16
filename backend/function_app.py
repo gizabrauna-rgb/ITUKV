@@ -992,6 +992,71 @@ def _checkliste_wert_insight(ausw: dict, ebit_teur, umsatz_teur, vertrag_teur) -
     return {"hook": hook, "beleg": beleg, "potenzialEur": potenzial}
 
 
+def _normalize_msisdn(raw: str) -> str:
+    """Normalisiert eine Telefonnummer nach E.164 (z. B. +491701234567).
+    Erwartet i. d. R. bereits Vorwahl (+49/+43/+41), faellt sonst auf +49 zurueck."""
+    import re as _re
+    s = (raw or "").strip()
+    if not s:
+        return ""
+    plus = s.startswith("+")
+    digits = _re.sub(r"\D", "", s)
+    if not digits:
+        return ""
+    if plus:
+        return "+" + digits
+    if digits.startswith("00"):
+        return "+" + digits[2:]
+    if digits.startswith("0"):
+        return "+49" + digits[1:]
+    return "+" + digits
+
+
+def _send_itukv_sms(to_number: str, body: str) -> dict:
+    """Sendet eine SMS – bevorzugt ueber einen Zapier-Webhook (ITUKV_SMS_WEBHOOK_URL
+    oder ZAPIER_SMS_WEBHOOK_URL), sonst direkt ueber ClickSend
+    (CLICKSEND_USERNAME/CLICKSEND_API_KEY). Absender: ITUKV_SMS_FROM (Default 'ITUKV').
+    Solange keine Zugangsdaten gesetzt sind, passiert nichts (config_missing).
+    Muster uebernommen aus dem KIwerk-Projekt."""
+    import os as _os, requests as _rq
+    if not to_number:
+        return {"success": False, "error": "Keine Zielnummer.", "status": "no_number"}
+    from_ = _os.environ.get("ITUKV_SMS_FROM", "ITUKV")
+    webhook_url = _os.environ.get("ITUKV_SMS_WEBHOOK_URL", "") or _os.environ.get("ZAPIER_SMS_WEBHOOK_URL", "")
+    if webhook_url:
+        try:
+            resp = _rq.post(webhook_url, timeout=15, json={"to": to_number, "body": body, "from": from_})
+            if 200 <= resp.status_code < 300:
+                return {"success": True, "status": "zapier_queued", "error": ""}
+            return {"success": False, "status": "zapier_http_error", "error": f"HTTP {resp.status_code}: {resp.text[:200]}"}
+        except Exception as e:
+            return {"success": False, "status": "zapier_exception", "error": str(e)[:300]}
+    user = _os.environ.get("CLICKSEND_USERNAME", "")
+    key = _os.environ.get("CLICKSEND_API_KEY", "")
+    if not (user and key):
+        return {"success": False, "status": "config_missing",
+                "error": "Kein ITUKV_SMS_WEBHOOK_URL / ZAPIER_SMS_WEBHOOK_URL und keine ClickSend-Zugangsdaten gesetzt."}
+    try:
+        resp = _rq.post(
+            "https://rest.clicksend.com/v3/sms/send",
+            auth=(user, key),
+            json={"messages": [{"to": to_number, "body": body, "from": from_, "source": "itukv-checkliste"}]},
+            timeout=15,
+        )
+        data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+        if resp.status_code == 200 and data.get("response_code") == "SUCCESS":
+            msgs = data.get("data", {}).get("messages", [])
+            first = msgs[0] if msgs else {}
+            status = first.get("status", "")
+            if status in ("SUCCESS", "QUEUED"):
+                return {"success": True, "message_id": first.get("message_id", ""), "status": status, "error": ""}
+            return {"success": False, "status": status, "error": first.get("status_text", "Unbekannter Status")}
+        return {"success": False, "status": "http_error",
+                "error": f"HTTP {resp.status_code}: {(data.get('response_msg') or resp.text)[:200]}"}
+    except Exception as e:
+        return {"success": False, "status": "exception", "error": str(e)[:300]}
+
+
 @app.route(route="checkliste-submit", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
     """Public: jemand fuellt die ITUKV-Checkliste aus.
@@ -1015,6 +1080,8 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
     if website and not website.lower().startswith(("http://", "https://")):
         website = "https://" + website
     plz_ort = (kontakt.get("plzOrt") or "").strip()
+    sms_consent = bool(body.get("smsEinverstaendnis") or kontakt.get("smsEinverstaendnis"))
+    telefon_e164 = _normalize_msisdn(telefon)
     # Mehrjahres-Zahlen auslesen (Tabelle 2023..laufendes Jahr)
     jahre_clean, beeb_latest, trend_auto = _zahlen_aus_jahren(zahlen)
 
@@ -1070,6 +1137,10 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
         "website": website, "plz": plz, "ort": ort, "mitarbeiter": mitarbeiter,
         "resultToken": token,
         "createdAt": datetime.utcnow().isoformat(),
+        # SMS-Versand: Einwilligung + normalisierte Nummer + Status (idempotent)
+        "smsConsent": sms_consent,
+        "telefonE164": telefon_e164,
+        "smsStatus": "",
         # Motive (Freitext)
         "motivMotivation": (motive.get("motivation") or "")[:1000],
         "motivZeitpunkt": (motive.get("zeitpunkt") or "")[:200],
@@ -1237,6 +1308,65 @@ def checkliste_result(req: func.HttpRequest) -> func.HttpResponse:
         "firma": row.get("firma", ""),
         "name": row.get("name", ""),
     })
+
+
+@app.route(route="checkliste-send-sms", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def checkliste_send_sms(req: func.HttpRequest) -> func.HttpResponse:
+    """Public: schickt dem Ausfueller seinen persoenlichen Ergebnis-Link per SMS.
+    Nur wenn Einwilligung vorliegt und eine Handynummer hinterlegt ist.
+    Idempotent: pro Token wird hoechstens einmal versendet (smsStatus)."""
+    _origin_from_req(req)
+    if req.method == "OPTIONS":
+        return opt_()
+    body = req.get_json() or {}
+    token = (body.get("token") or body.get("resultToken") or "").strip()
+    if not token:
+        return err_("Kein Ergebnis-Token angegeben", 400)
+    token_safe = token.replace("'", "''")
+    row = None
+    try:
+        for c in table_("checklisten").query_entities(
+            f"PartitionKey eq 'checkliste' and resultToken eq '{token_safe}'"):
+            row = dict(c); break
+    except Exception as ex:
+        logging.error(f"Checkliste-SMS Abfrage fehlgeschlagen: {ex}")
+        return err_("Ergebnis konnte nicht geladen werden", 500)
+    if not row:
+        return err_("Ergebnis nicht gefunden", 404)
+
+    # Guards: Einwilligung + Nummer + noch nicht versendet
+    if not row.get("smsConsent"):
+        return ok_({"ok": False, "status": "no_consent", "sent": False})
+    if (row.get("smsStatus") or "") in ("sent", "queued"):
+        return ok_({"ok": True, "status": row.get("smsStatus"), "sent": False, "alreadySent": True})
+    to_number = _normalize_msisdn(row.get("telefonE164") or row.get("telefon") or "")
+    if not to_number:
+        return ok_({"ok": False, "status": "no_number", "sent": False})
+
+    ergebnis_link = row.get("ergebnisLink", f"{CHECKLISTE_BASE_URL}/?r={token}")
+    vorname = ((row.get("name") or "").strip().split(" ") or [""])[0]
+    anrede = f"Hallo {vorname}, " if vorname else "Hallo, "
+    sms_body = (
+        f"{anrede}hier ist Dein persoenliches Ergebnis der ITUKV-Checkliste: "
+        f"{ergebnis_link} — Du kannst es jederzeit erneut aufrufen. "
+        f"Fragen? Antworte einfach auf diese SMS. Jenny Kaplan"
+    )
+    res = _send_itukv_sms(to_number, sms_body)
+
+    # Status idempotent speichern
+    try:
+        new_status = "sent" if res.get("success") else (res.get("status") or "error")
+        upd = {**row, "smsStatus": new_status,
+               "smsAt": datetime.utcnow().isoformat(),
+               "smsError": (res.get("error") or "")[:400]}
+        table_("checklisten").update_entity(upd, mode="replace")
+    except Exception as ex:
+        logging.warning(f"Checkliste-SMS Status speichern fehlgeschlagen: {ex}")
+
+    if res.get("success"):
+        return ok_({"ok": True, "status": res.get("status", "sent"), "sent": True})
+    return ok_({"ok": False, "status": res.get("status", "error"),
+                "sent": False, "error": res.get("error", "")})
 
 
 @app.route(route="checkliste-list", methods=["GET", "OPTIONS"])
