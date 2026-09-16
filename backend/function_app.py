@@ -721,10 +721,10 @@ CHECKLISTE_FRAGEN = [
     {"key": "f8", "gruppe": "Vertragseinnahmen und Vertrieb", "text": "Gibt es eigene Vertriebsmitarbeiter, die nur Vertrieb machen (keine Techniker)?"},
     {"key": "f9", "gruppe": "Vertragseinnahmen und Vertrieb", "text": "Gibt es eine eigene Marketingabteilung, die selbständig Konzepte für Neukunden, Mitarbeiter und Sichtbarkeit entwickelt und umsetzt?"},
     {"key": "f10", "gruppe": "Vertragseinnahmen und Vertrieb", "text": "Gibt es eine aktive Neukundengewinnung durch Online-Marketing, die planbar neue Kunden bringt („Online-Marketing-Maschine“)?"},
-    # 4. KnowHow und Technologien
-    {"key": "f11", "gruppe": "KnowHow und Technologien", "text": "Führt Dein Unternehmen regelmäßig neue, zukunftsträchtige Technologien ein (z. B. Cloud, Microsoft Azure, Managed IT Security)?"},
-    {"key": "f12", "gruppe": "KnowHow und Technologien", "text": "Machst Du mindestens 50 % Deiner Umsätze in spezialisierten Nischen (nicht klassisches Systemhausgeschäft)?"},
-    {"key": "f13", "gruppe": "KnowHow und Technologien", "text": "Sind mindestens 30 % Deiner Techniker mit hohen Hersteller-Zertifizierungen qualifiziert?"},
+    # 4. Know-how und Technologien
+    {"key": "f11", "gruppe": "Know-how und Technologien", "text": "Führt Dein Unternehmen regelmäßig neue, zukunftsträchtige Technologien ein (z. B. Cloud, Microsoft Azure, Managed IT Security)?"},
+    {"key": "f12", "gruppe": "Know-how und Technologien", "text": "Machst Du mindestens 50 % Deiner Umsätze in spezialisierten Nischen (nicht klassisches Systemhausgeschäft)?"},
+    {"key": "f13", "gruppe": "Know-how und Technologien", "text": "Sind mindestens 30 % Deiner Techniker mit hohen Hersteller-Zertifizierungen qualifiziert?"},
 ]
 
 
