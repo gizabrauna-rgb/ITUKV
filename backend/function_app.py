@@ -1012,11 +1012,13 @@ def _normalize_msisdn(raw: str) -> str:
     return "+" + digits
 
 
-def _send_itukv_sms(to_number: str, body: str) -> dict:
+def _send_itukv_sms(to_number: str, body: str, meta: dict = None) -> dict:
     """Sendet eine SMS – bevorzugt ueber einen Zapier-Webhook (ITUKV_SMS_WEBHOOK_URL
     oder ZAPIER_SMS_WEBHOOK_URL), sonst direkt ueber ClickSend
     (CLICKSEND_USERNAME/CLICKSEND_API_KEY). Absender: ITUKV_SMS_FROM (Default 'ITUKV').
     Solange keine Zugangsdaten gesetzt sind, passiert nichts (config_missing).
+    `meta` (optional): zusaetzliche Kontaktfelder, die dem Webhook mitgegeben werden
+    (z. B. name, email, firma, telefon, website, plz, ort).
     Muster uebernommen aus dem KIwerk-Projekt."""
     import os as _os, requests as _rq
     if not to_number:
@@ -1025,7 +1027,13 @@ def _send_itukv_sms(to_number: str, body: str) -> dict:
     webhook_url = _os.environ.get("ITUKV_SMS_WEBHOOK_URL", "") or _os.environ.get("ZAPIER_SMS_WEBHOOK_URL", "")
     if webhook_url:
         try:
-            resp = _rq.post(webhook_url, timeout=15, json={"to": to_number, "body": body, "from": from_})
+            payload = {"to": to_number, "body": body, "from": from_}
+            if meta:
+                # Nur nicht-leere Zusatzfelder mitschicken
+                for k, v in meta.items():
+                    if v not in (None, ""):
+                        payload[k] = v
+            resp = _rq.post(webhook_url, timeout=15, json=payload)
             if 200 <= resp.status_code < 300:
                 return {"success": True, "status": "zapier_queued", "error": ""}
             return {"success": False, "status": "zapier_http_error", "error": f"HTTP {resp.status_code}: {resp.text[:200]}"}
@@ -1377,7 +1385,21 @@ def checkliste_send_sms(req: func.HttpRequest) -> func.HttpResponse:
         f"Du kannst es jederzeit erneut aufrufen. "
         f"Fragen? Antworte einfach auf diese SMS. Jenny Kaplan"
     )
-    res = _send_itukv_sms(to_number, sms_body)
+    # Zusatzfelder fuer den Webhook (Zapier): Kontaktdaten des Ausfuellers
+    plz = (row.get("plz") or "").strip()
+    ort = (row.get("ort") or "").strip()
+    sms_meta = {
+        "name": (row.get("name") or "").strip(),
+        "email": (row.get("email") or "").strip(),
+        "firma": (row.get("firma") or "").strip(),
+        "telefon": (row.get("telefon") or "").strip(),
+        "website": (row.get("website") or "").strip(),
+        "plz": plz,
+        "ort": ort,
+        "plzOrt": (f"{plz} {ort}".strip()),
+        "ergebnisLink": ergebnis_link,
+    }
+    res = _send_itukv_sms(to_number, sms_body, meta=sms_meta)
 
     # Status idempotent speichern
     try:
