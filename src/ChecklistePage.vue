@@ -177,7 +177,7 @@
       <template v-else>
         <!-- Fortschritt -->
         <div class="flex items-center gap-2 mb-6">
-          <div v-for="s in 3" :key="s" class="flex-1 h-1.5 rounded-full" :class="s <= step ? 'bg-[#0088ba]' : 'bg-gray-200'"></div>
+          <div v-for="s in STEPS_TOTAL" :key="s" class="flex-1 h-1.5 rounded-full" :class="s <= step ? 'bg-[#0088ba]' : 'bg-gray-200'"></div>
         </div>
 
         <form @submit.prevent="onNext">
@@ -208,28 +208,41 @@
             </label>
           </div>
 
-          <!-- SCHRITT 2: Ja/Nein -->
-          <div v-show="step === 2" class="space-y-4">
-            <div v-for="gruppe in gruppen" :key="gruppe" class="bg-white rounded-2xl border border-gray-100 p-6">
-              <h3 class="text-base font-bold text-gray-900 mb-3">{{ gruppe }}</h3>
-              <div class="space-y-3">
-                <div v-for="f in fragenIn(gruppe)" :key="f.key" class="flex items-start justify-between gap-4">
-                  <p class="text-sm text-gray-700 flex-1">{{ f.text }}</p>
-                  <div class="flex gap-1 flex-shrink-0">
-                    <button type="button" @click="form.antworten[f.key] = true"
-                      class="px-3 py-1.5 rounded-lg text-xs font-semibold border-2 transition"
-                      :class="form.antworten[f.key] === true ? 'bg-green-500 border-green-500 text-white' : 'border-gray-200 text-gray-500 hover:border-green-300'">Ja</button>
-                    <button type="button" @click="form.antworten[f.key] = false"
-                      class="px-3 py-1.5 rounded-lg text-xs font-semibold border-2 transition"
-                      :class="form.antworten[f.key] === false ? 'bg-gray-400 border-gray-400 text-white' : 'border-gray-200 text-gray-500 hover:border-gray-300'">Nein</button>
-                  </div>
+          <!-- SCHRITT 2: Ziel -->
+          <div v-show="step === 2" class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h2 class="text-lg font-bold text-gray-900 mb-1">Was ist Dein Ziel?</h2>
+            <p class="text-sm text-gray-500 mb-4">Damit wir Deine Einschätzung und das Gespräch genau auf Dich ausrichten. Wähle, was am ehesten passt.</p>
+            <div class="grid sm:grid-cols-2 gap-3">
+              <button v-for="z in ZIEL_OPTIONEN" :key="z.key" type="button" @click="form.ziel = z.key"
+                class="text-left border-2 rounded-xl p-4 transition"
+                :class="form.ziel === z.key ? 'border-[#0088ba] bg-[#0088ba]/5' : 'border-gray-200 hover:border-[#0088ba]/40'">
+                <span class="block font-semibold text-sm text-gray-900">{{ z.label }}</span>
+                <span class="block text-xs text-gray-500 mt-0.5">{{ z.desc }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- SCHRITT 3–5: Ja/Nein je Themenblock -->
+          <div v-for="gs in JA_NEIN_STEPS" :key="gs.gruppe" v-show="step === gs.step"
+            class="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 class="text-base font-bold text-gray-900 mb-3">{{ gs.gruppe }}</h3>
+            <div class="space-y-3">
+              <div v-for="f in fragenIn(gs.gruppe)" :key="f.key" class="flex items-start justify-between gap-4">
+                <p class="text-sm text-gray-700 flex-1">{{ f.text }}</p>
+                <div class="flex gap-1 flex-shrink-0">
+                  <button type="button" @click="form.antworten[f.key] = true"
+                    class="px-3 py-1.5 rounded-lg text-xs font-semibold border-2 transition"
+                    :class="form.antworten[f.key] === true ? 'bg-green-500 border-green-500 text-white' : 'border-gray-200 text-gray-500 hover:border-green-300'">Ja</button>
+                  <button type="button" @click="form.antworten[f.key] = false"
+                    class="px-3 py-1.5 rounded-lg text-xs font-semibold border-2 transition"
+                    :class="form.antworten[f.key] === false ? 'bg-gray-400 border-gray-400 text-white' : 'border-gray-200 text-gray-500 hover:border-gray-300'">Nein</button>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- SCHRITT 3: Zahlen + Motive -->
-          <div v-show="step === 3" class="space-y-4">
+          <!-- SCHRITT 6: Zahlen + Motive -->
+          <div v-show="step === 6" class="space-y-4">
             <div class="bg-white rounded-2xl border border-gray-100 p-6 space-y-3">
               <h3 class="text-base font-bold text-gray-900 mb-1">Betriebswirtschaftliche Zahlen</h3>
               <p class="text-sm text-gray-500 mb-2">Grobe bzw. geschätzte Werte genügen – alle Angaben in TEUR (Tausend Euro). Leere Felder sind ok.</p>
@@ -259,10 +272,10 @@
             </div>
 
             <div class="bg-white rounded-2xl border border-gray-100 p-6 space-y-3">
-              <h3 class="text-base font-bold text-gray-900 mb-1">Deine Verkaufsziele</h3>
-              <textarea v-model="form.motive.motivation" rows="2" placeholder="Was ist Deine Motivation zu verkaufen? (z. B. Alter, neue Interessen, Wettbewerbsdruck)" class="input resize-y"></textarea>
+              <h3 class="text-base font-bold text-gray-900 mb-1">Deine Ziele &amp; Rahmenbedingungen</h3>
+              <textarea v-model="form.motive.motivation" rows="2" placeholder="Was treibt Dich an? (z. B. Alter, neue Interessen, Wachstum, Wettbewerbsdruck)" class="input resize-y"></textarea>
               <div class="grid grid-cols-2 gap-3">
-                <input v-model="form.motive.zeitpunkt" placeholder="Wann planst Du den Verkauf?" class="input" />
+                <input v-model="form.motive.zeitpunkt" placeholder="Wann planst Du den Schritt?" class="input" />
                 <input v-model="form.motive.begleitungMonate" placeholder="Begleitung nach Verkauf (Monate)" class="input" />
                 <input v-model="form.motive.wunschpreis" placeholder="Wunsch-Kaufpreis (sofort Ja)" class="input" />
                 <input v-model="form.motive.erwartetPreis" placeholder="Erwarteter Kaufpreis heute" class="input" />
@@ -283,7 +296,7 @@
             <span v-else></span>
             <button type="submit" :disabled="sending"
               class="px-6 py-3 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8] disabled:opacity-50">
-              {{ step < 3 ? 'Weiter' : (sending ? 'Wird ausgewertet…' : 'Auswertung anzeigen') }}
+              {{ step < STEPS_TOTAL ? 'Weiter' : (sending ? 'Wird ausgewertet…' : 'Auswertung anzeigen') }}
             </button>
           </div>
           <p class="text-center text-xs text-gray-400 mt-4">Kostenlos · in wenigen Minuten · diskret &amp; unverbindlich</p>
@@ -397,6 +410,20 @@ const FRAGEN = [
 const gruppen = ['Führung, Personal, Prozesse', 'Vertragseinnahmen und Vertrieb', 'Know-how und Technologien']
 const fragenIn = (g) => FRAGEN.filter(f => f.gruppe === g)
 
+// Ziel-Kachel (Teil 2): Verkauf / Zukauf / Nachfolge / Beteiligung / nur Wert / offen
+const ZIEL_OPTIONEN = [
+  { key: 'verkauf', label: 'Verkauf', desc: 'Ich möchte mein Unternehmen ganz verkaufen.' },
+  { key: 'zukauf', label: 'Zukauf (Wachstum)', desc: 'Ich möchte wachsen und ein Unternehmen übernehmen.' },
+  { key: 'nachfolge', label: 'Nachfolge', desc: 'Ich suche eine geregelte Nachfolge.' },
+  { key: 'beteiligung', label: 'Beteiligung / Teilverkauf', desc: 'Ich möchte einen Investor oder Partner an Bord holen.' },
+  { key: 'wert', label: 'Nur den Wert wissen', desc: 'Ich möchte erstmal eine Standortbestimmung.' },
+  { key: 'offen', label: 'Noch offen', desc: 'Ich bin noch am Anfang meiner Überlegungen.' },
+]
+
+// Abfrage-Schritte: 1 Daten · 2 Ziel · 3-5 Ja/Nein je Themenblock · 6 Zahlen+Motive
+const STEPS_TOTAL = 6
+const JA_NEIN_STEPS = gruppen.map((g, i) => ({ step: 3 + i, gruppe: g }))
+
 // Zahlen-Tabelle: letzte 3 Jahre + laufendes Jahr ("geplant")
 const jahrJetzt = new Date().getFullYear()
 const JAHRE = [jahrJetzt - 3, jahrJetzt - 2, jahrJetzt - 1, jahrJetzt]
@@ -429,6 +456,7 @@ const analyseProzent = ref(0)
 
 const form = reactive({
   firma: '', name: '', email: '', telefonVorwahl: '+49', telefon: '', website: '', plzOrt: '',
+  ziel: '',
   websiteEinverstaendnis: true,
   smsEinverstaendnis: false,
   antworten: {},
@@ -503,7 +531,10 @@ async function onNext() {
       errMsg.value = 'Bitte gib eine gültige E-Mail-Adresse ein.'; return
     }
   }
-  if (step.value < 3) { step.value++; window.scrollTo({ top: 0, behavior: 'smooth' }); return }
+  if (step.value === 2 && !form.ziel) {
+    errMsg.value = 'Bitte wähle Dein Ziel aus.'; return
+  }
+  if (step.value < STEPS_TOTAL) { step.value++; window.scrollTo({ top: 0, behavior: 'smooth' }); return }
   await abschicken()
 }
 
@@ -539,6 +570,7 @@ async function abschicken() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         kontakt: { firma: form.firma, name: form.name, email: form.email, telefon, website, plzOrt: form.plzOrt },
+        ziel: form.ziel,
         websiteEinverstaendnis: form.websiteEinverstaendnis,
         smsEinverstaendnis: form.smsEinverstaendnis && !!telefon,
         antworten: form.antworten,
