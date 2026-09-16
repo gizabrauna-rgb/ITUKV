@@ -185,7 +185,7 @@ const heading = computed(() => {
   <div class="min-h-screen bg-slate-50">
     <!-- Header -->
     <div class="bg-[#161e2a] text-white py-4 px-5 flex items-center gap-3 shadow-sm">
-      <img src="/Logo_mibeca_Start.png" alt="mibeca" class="h-10 w-auto" />
+      <img src="/Logo_MB_Beratung_weiss.png" alt="mibeca" class="h-10 w-auto" />
       <div>
         <span class="font-bold text-sm">ITUKV Dashboard</span>
         <span class="text-gray-400 text-xs ml-2">Elektronische Unterschrift</span>

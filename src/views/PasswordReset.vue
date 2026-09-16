@@ -2,7 +2,7 @@
   <div class="min-h-screen bg-[#161e2a] flex items-center justify-center px-4">
     <div class="w-full max-w-md">
       <div class="text-center mb-8">
-        <img src="/Logo_mibeca_Start.png" alt="mibeca" class="h-20 object-contain mx-auto" />
+        <img src="/Logo_MB_Beratung_weiss.png" alt="mibeca" class="h-20 object-contain mx-auto" />
         <h1 class="text-2xl font-bold text-white mt-4">Neues Passwort setzen</h1>
       </div>
 
