@@ -46,6 +46,26 @@ const isLandingRoute = /^\/mb-[^/?#]+/i.test(window.location.pathname)
 const isExposeBuyerRoute = /^\/expose-[^/]+\/[^/?#]+/i.test(window.location.pathname)
 const isResetRoute = /^\/reset(\/|$|\?)/.test(window.location.pathname)
 
+// Seitentitel + Beschreibung je nach Route setzen. Die oeffentliche Checkliste
+// darf NICHT „ITUKV Dashboard" heissen (Browser-Tab + Google-Suchergebnis).
+function setzeSeitentitel(titel, beschreibung) {
+  try {
+    document.title = titel
+    let m = document.querySelector('meta[name="description"]')
+    if (!m) { m = document.createElement('meta'); m.setAttribute('name', 'description'); document.head.appendChild(m) }
+    m.setAttribute('content', beschreibung)
+  } catch (e) { /* egal */ }
+}
+if (isChecklisteRoute) {
+  setzeSeitentitel(
+    'Was ist Dein IT-Unternehmen wert? – ITUKV',
+    'Finde in wenigen Minuten heraus, wie verkaufsfähig Dein IT-Unternehmen ist und welchen Wert es hat – kostenlos und unverbindlich.'
+  )
+} else if (!isSignRoute && !isLandingRoute && !isExposeBuyerRoute && !isResetRoute) {
+  // Interner Bereich (nur nach Login sichtbar)
+  setzeSeitentitel('ITUKV Portal', 'Interner Bereich von mibeca.')
+}
+
 const role = ref(sessionStorage.getItem('userRole') || '')
 const userName = ref(sessionStorage.getItem('userName') || '')
 const impersonating = ref(sessionStorage.getItem('impersonateAs') || '')

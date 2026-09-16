@@ -36,7 +36,22 @@ async function load() {
 }
 onMounted(load)
 
-const anzahl = computed(() => items.value.length)
+// Status-Filter: alle / nur vollstaendig / nur unvollstaendig (abgebrochen)
+const statusFilter = ref('alle')
+function istUnvollstaendig(c) { return (c.status || 'vollstaendig') === 'unvollstaendig' }
+const anzahlUnvollstaendig = computed(() => items.value.filter(istUnvollstaendig).length)
+const gefiltert = computed(() => {
+  if (statusFilter.value === 'vollstaendig') return items.value.filter(c => !istUnvollstaendig(c))
+  if (statusFilter.value === 'unvollstaendig') return items.value.filter(istUnvollstaendig)
+  return items.value
+})
+const anzahl = computed(() => gefiltert.value.length)
+
+const ZIEL_LABELS = {
+  verkauf: 'Verkauf', zukauf: 'Zukauf (Wachstum)', nachfolge: 'Nachfolge',
+  beteiligung: 'Beteiligung / Teilverkauf', wert: 'Nur Wert wissen', offen: 'Noch offen',
+}
+function zielLabel(z) { return ZIEL_LABELS[z] || z || '' }
 
 function euro(n) {
   if (!n || n <= 0) return '–'
@@ -68,6 +83,14 @@ const linkKopiert = ref(false)
           <ClipboardList class="w-5 h-5 text-[#0088ba]" /> ITUKV-Checkliste
         </h2>
         <p class="text-sm text-gray-500 mt-1">Digitale „Wie verkaufsbereit ist Dein IT-Unternehmen?"-Auswertungen ({{ anzahl }}).</p>
+        <div class="flex items-center gap-1.5 mt-3">
+          <button v-for="f in [['alle','Alle'],['vollstaendig','Abgeschlossen'],['unvollstaendig','Unvollständig']]" :key="f[0]"
+            @click="statusFilter = f[0]"
+            class="px-2.5 py-1 rounded-lg text-xs font-medium border transition"
+            :class="statusFilter === f[0] ? 'bg-[#0088ba] text-white border-[#0088ba]' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'">
+            {{ f[1] }}<span v-if="f[0] === 'unvollstaendig' && anzahlUnvollstaendig" class="ml-1 opacity-80">({{ anzahlUnvollstaendig }})</span>
+          </button>
+        </div>
       </div>
       <div class="flex items-center gap-2">
         <button @click="copyLink" class="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">
@@ -92,20 +115,30 @@ const linkKopiert = ref(false)
     </div>
 
     <div v-else class="space-y-2">
-      <div v-for="c in items" :key="c.id" class="bg-white border border-gray-100 rounded-xl overflow-hidden">
+      <div v-for="c in gefiltert" :key="c.id" class="bg-white border rounded-xl overflow-hidden"
+        :class="istUnvollstaendig(c) ? 'border-amber-200' : 'border-gray-100'">
         <!-- Zeile -->
         <button @click="toggle(c.id)" class="w-full flex items-center gap-3 p-4 text-left hover:bg-gray-50">
           <div class="flex-1 min-w-0">
-            <p class="font-semibold text-gray-900 truncate">{{ c.firma || c.enrichFirmenname || 'Unbekannte Firma' }}</p>
+            <p class="font-semibold text-gray-900 truncate flex items-center gap-2">
+              {{ c.firma || c.enrichFirmenname || 'Unbekannte Firma' }}
+              <span v-if="istUnvollstaendig(c)" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 whitespace-nowrap">Unvollständig</span>
+              <span v-if="c.ziel" class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 whitespace-nowrap">{{ zielLabel(c.ziel) }}</span>
+            </p>
             <p class="text-xs text-gray-500 truncate">{{ c.name }}<span v-if="c.email"> · {{ c.email }}</span></p>
           </div>
-          <div class="hidden sm:block text-right">
-            <p class="text-sm font-semibold text-gray-900">{{ euro(c.wertMidEur) }}</p>
-            <p class="text-[11px] text-gray-400">grober Wert</p>
-          </div>
-          <span class="px-2.5 py-1 rounded-lg text-xs font-bold" :class="faktorFarbe(c.faktor)">Faktor {{ c.faktor }}</span>
-          <span class="text-xs text-gray-400 w-16 text-right">{{ c.jaCount }}/{{ c.fragenGesamt }} JA</span>
-          <span class="text-xs text-gray-400 hidden md:block w-20 text-right">{{ datum(c.createdAt) }}</span>
+          <template v-if="!istUnvollstaendig(c)">
+            <div class="hidden sm:block text-right">
+              <p class="text-sm font-semibold text-gray-900">{{ euro(c.wertMidEur) }}</p>
+              <p class="text-[11px] text-gray-400">grober Wert</p>
+            </div>
+            <span class="px-2.5 py-1 rounded-lg text-xs font-bold" :class="faktorFarbe(c.faktor)">Faktor {{ c.faktor }}</span>
+            <span class="text-xs text-gray-400 w-16 text-right">{{ c.jaCount }}/{{ c.fragenGesamt }} JA</span>
+          </template>
+          <template v-else>
+            <span class="text-xs text-amber-600 hidden sm:block text-right">abgebrochen<br>bei Schritt {{ c.lastStep || '?' }}</span>
+          </template>
+          <span class="text-xs text-gray-400 hidden md:block w-20 text-right">{{ datum(c.updatedAt || c.createdAt) }}</span>
           <ChevronDown class="w-4 h-4 text-gray-400 transition-transform" :class="offen === c.id ? 'rotate-180' : ''" />
         </button>
 

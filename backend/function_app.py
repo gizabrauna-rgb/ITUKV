@@ -1090,6 +1090,8 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
     plz_ort = (kontakt.get("plzOrt") or "").strip()
     sms_consent = bool(body.get("smsEinverstaendnis") or kontakt.get("smsEinverstaendnis"))
     telefon_e164 = _normalize_msisdn(telefon)
+    ziel = (body.get("ziel") or kontakt.get("ziel") or "").strip()
+    draft_token = (body.get("draftToken") or "").strip()
     # Mehrjahres-Zahlen auslesen (Tabelle 2023..laufendes Jahr)
     jahre_clean, beeb_latest, trend_auto = _zahlen_aus_jahren(zahlen)
 
@@ -1136,15 +1138,20 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
     hebel = _checkliste_hebel(antworten)
     wert_insight = _checkliste_wert_insight(auswertung, _latest("ebit"), _latest("umsatz"), _latest("vertragsumsatz"))
 
-    cid = str(uuid.uuid4())
+    # Falls vorher schon Entwuerfe (Zwischenspeichern nach jeder Kachel) angelegt
+    # wurden, ueberschreiben wir denselben Datensatz statt einen neuen anzulegen.
+    cid = draft_token or str(uuid.uuid4())
     token = secrets.token_urlsafe(24)
     ergebnis_link = f"{CHECKLISTE_BASE_URL}/?r={token}"
     row = {
         "PartitionKey": "checkliste", "RowKey": cid,
         "name": name, "email": email, "firma": firma, "telefon": telefon,
         "website": website, "plz": plz, "ort": ort, "mitarbeiter": mitarbeiter,
+        "ziel": ziel,
+        "status": "vollstaendig",
         "resultToken": token,
         "createdAt": datetime.utcnow().isoformat(),
+        "updatedAt": datetime.utcnow().isoformat(),
         # SMS-Versand: Einwilligung + normalisierte Nummer + Status (idempotent)
         "smsConsent": sms_consent,
         "telefonE164": telefon_e164,
@@ -1295,6 +1302,75 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
     })
 
 
+@app.route(route="checkliste-draft", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def checkliste_draft(req: func.HttpRequest) -> func.HttpResponse:
+    """Public: Zwischenspeichern der Checkliste nach jeder Kachel.
+    Legt/aktualisiert einen Checklisten-Datensatz mit Status „unvollstaendig"
+    (identifiziert ueber draftToken = RowKey). Es wird KEIN Kontakt angelegt –
+    das passiert erst beim vollstaendigen Absenden (checkliste_submit).
+    So geht kein Lead verloren, wenn jemand mittendrin abspringt."""
+    _origin_from_req(req)
+    if req.method == "OPTIONS":
+        return opt_()
+    body = req.get_json() or {}
+    draft_token = (body.get("draftToken") or "").strip()
+    if not draft_token:
+        return err_("draftToken erforderlich", 400)
+
+    kontakt = body.get("kontakt") or {}
+    motive = body.get("motive") or {}
+    antworten = body.get("antworten") or {}
+    zahlen = body.get("zahlen") or {}
+
+    name = (kontakt.get("name") or "").strip()
+    email = (kontakt.get("email") or "").strip()
+    firma = (kontakt.get("firma") or "").strip()
+    telefon = (kontakt.get("telefon") or "").strip()
+    website = (kontakt.get("website") or "").strip()
+    if website and not website.lower().startswith(("http://", "https://")):
+        website = "https://" + website
+    plz_ort = (kontakt.get("plzOrt") or "").strip()
+    ziel = (body.get("ziel") or kontakt.get("ziel") or "").strip()
+    last_step = str(body.get("lastStep") or "").strip()
+
+    plz, ort = "", ""
+    if plz_ort:
+        import re as _re
+        m = _re.match(r"(\d{4,5})\s+(.+)", plz_ort)
+        if m: plz, ort = m.group(1), m.group(2).strip()
+        else: ort = plz_ort
+
+    tbl = table_("checklisten")
+    # Bereits vollstaendig abgesendete Datensaetze nicht mehr ueberschreiben.
+    try:
+        prev = tbl.get_entity("checkliste", draft_token)
+        if (prev.get("status") or "") == "vollstaendig":
+            return ok_({"ok": True, "status": "vollstaendig", "skipped": True})
+    except Exception:
+        prev = {}
+
+    row = {
+        "PartitionKey": "checkliste", "RowKey": draft_token,
+        "name": name, "email": email, "firma": firma, "telefon": telefon,
+        "website": website, "plz": plz, "ort": ort,
+        "ziel": ziel,
+        "status": "unvollstaendig",
+        "lastStep": last_step,
+        "antwortenJson": json.dumps(antworten, ensure_ascii=False),
+        "zahlenJahreJson": json.dumps(zahlen, ensure_ascii=False),
+        "motivMotivation": (motive.get("motivation") or "")[:1000],
+        "motivZeitpunkt": (motive.get("zeitpunkt") or "")[:200],
+        "createdAt": prev.get("createdAt") or datetime.utcnow().isoformat(),
+        "updatedAt": datetime.utcnow().isoformat(),
+    }
+    try:
+        tbl.upsert_entity(row)
+    except Exception as ex:
+        logging.warning(f"Checkliste-Entwurf speichern fehlgeschlagen: {ex}")
+        return err_("Zwischenspeichern fehlgeschlagen", 500)
+    return ok_({"ok": True, "status": "unvollstaendig"})
+
+
 @app.route(route="checkliste-result", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def checkliste_result(req: func.HttpRequest) -> func.HttpResponse:
     """Public: ruft ein bereits ausgefuelltes Checklisten-Ergebnis ueber den
@@ -1441,6 +1517,10 @@ def checkliste_list(req: func.HttpRequest) -> func.HttpResponse:
                 "website": c.get("website", ""), "plz": c.get("plz", ""), "ort": c.get("ort", ""),
                 "mitarbeiter": c.get("mitarbeiter", ""),
                 "createdAt": c.get("createdAt", ""),
+                "updatedAt": c.get("updatedAt", ""),
+                "status": c.get("status", "vollstaendig"),
+                "ziel": c.get("ziel", ""),
+                "lastStep": c.get("lastStep", ""),
                 "faktor": c.get("faktor", ausw.get("faktor")),
                 "jaCount": c.get("jaCount", ausw.get("jaCount")),
                 "fragenGesamt": ausw.get("fragenGesamt", len(CHECKLISTE_FRAGEN)),

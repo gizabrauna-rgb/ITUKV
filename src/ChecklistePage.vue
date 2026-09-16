@@ -441,6 +441,16 @@ const sending = ref(false)
 const errMsg = ref('')
 const result = ref(null)
 
+// Eindeutige ID fuer diesen Ausfuell-Vorgang. Damit wird nach jeder Kachel
+// zwischengespeichert (checkliste-draft) und der finale Absenden-Datensatz
+// ueberschreibt denselben Eintrag – so entstehen keine Doppel-Eintraege und
+// kein Lead geht verloren, wenn jemand mittendrin abspringt.
+const draftToken = (typeof crypto !== 'undefined' && crypto.randomUUID)
+  ? crypto.randomUUID()
+  : String(Date.now()) + Math.random().toString(16).slice(2)
+// Beim Aufruf eines fertigen Ergebnis-Links (?r=) NICHT zwischenspeichern.
+const istWiederaufruf = ref(false)
+
 // Analyse-Animation
 const ANALYSE_STEPS = [
   'Deine Antworten werden ausgewertet',
@@ -498,6 +508,7 @@ const ladeErgebnis = ref(false)
 onMounted(async () => {
   const token = new URLSearchParams(location.search).get('r')
   if (!token) return
+  istWiederaufruf.value = true
   ladeErgebnis.value = true
   try {
     const res = await fetch(`${apiBase}/checkliste-result?token=${encodeURIComponent(token)}`)
@@ -521,6 +532,35 @@ function euroKurz(n) {
   return euro(n)
 }
 
+// Zwischenspeichern nach jeder Kachel (fire-and-forget). Legt KEINEN Kontakt an –
+// das passiert erst beim vollstaendigen Absenden. keepalive: Anfrage laeuft auch
+// noch, wenn die Person die Seite direkt danach schliesst.
+function speichereEntwurf() {
+  if (istWiederaufruf.value) return
+  const email = (form.email || '').trim()
+  if (!email) return  // ohne E-Mail keine Zuordnung moeglich
+  let website = (form.website || '').trim()
+  if (website && !/^https?:\/\//i.test(website)) website = 'https://' + website
+  const localNumber = (form.telefon || '').trim().replace(/^0+/, '')
+  const telefon = localNumber ? `${form.telefonVorwahl} ${localNumber}` : ''
+  try {
+    fetch(`${apiBase}/checkliste-draft`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      keepalive: true,
+      body: JSON.stringify({
+        draftToken,
+        kontakt: { firma: form.firma, name: form.name, email, telefon, website, plzOrt: form.plzOrt },
+        ziel: form.ziel,
+        antworten: form.antworten,
+        zahlen: { jahre: form.zahlen.jahre },
+        motive: form.motive,
+        lastStep: step.value,
+      }),
+    }).catch(() => {})
+  } catch {}
+}
+
 async function onNext() {
   errMsg.value = ''
   if (step.value === 1) {
@@ -534,6 +574,8 @@ async function onNext() {
   if (step.value === 2 && !form.ziel) {
     errMsg.value = 'Bitte wähle Dein Ziel aus.'; return
   }
+  // Nach jeder abgeschlossenen Kachel den Stand sichern.
+  speichereEntwurf()
   if (step.value < STEPS_TOTAL) { step.value++; window.scrollTo({ top: 0, behavior: 'smooth' }); return }
   await abschicken()
 }
@@ -569,6 +611,7 @@ async function abschicken() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        draftToken,
         kontakt: { firma: form.firma, name: form.name, email: form.email, telefon, website, plzOrt: form.plzOrt },
         ziel: form.ziel,
         websiteEinverstaendnis: form.websiteEinverstaendnis,
