@@ -335,6 +335,28 @@ function ladeCalLoader() {
   calScriptGeladen = true
 }
 
+// Cal-Buchungslink mit vorausgefuellten Feldern aus dem ersten Formular
+function baueCalLink() {
+  const params = new URLSearchParams()
+  const name = (form.name || result.value?.name || '').trim()
+  const email = (form.email || '').trim()
+  const localNumber = (form.telefon || '').trim().replace(/^0+/, '')
+  const telefonE164 = localNumber ? `${form.telefonVorwahl}${localNumber}` : ''
+  if (name) params.set('name', name)
+  if (email) params.set('email', email)
+  // Telefonisches Erstgespraech: Mobilnummer als Attendee-Telefonnummer vorbefuellen
+  if (telefonE164) params.set('attendeePhoneNumber', telefonE164)
+  // Kontext fuer Jenny als Notiz
+  const firma = (form.firma || result.value?.firma || '').trim()
+  const faktor = result.value?.auswertung?.faktor
+  const notiz = []
+  if (firma) notiz.push(`Firma: ${firma}`)
+  if (faktor) notiz.push(`Checklisten-Faktor: ${faktor}`)
+  if (notiz.length) params.set('notes', notiz.join(' · '))
+  const qs = params.toString()
+  return qs ? `${CAL_LINK}?${qs}` : CAL_LINK
+}
+
 async function zeigeCalKalender() {
   if (!CAL_ENABLED) return
   ladeCalLoader()
@@ -349,7 +371,7 @@ async function zeigeCalKalender() {
   window.Cal.ns[CAL_NAMESPACE]('inline', {
     elementOrSelector: '#my-cal-inline-checkliste-itukv',
     config: { layout: 'month_view', useSlotsViewOnSmallScreen: 'true' },
-    calLink: CAL_LINK,
+    calLink: baueCalLink(),
   })
   window.Cal.ns[CAL_NAMESPACE]('ui', {
     cssVarsPerTheme: { light: { 'cal-brand': CAL_BRAND }, dark: { 'cal-brand': CAL_BRAND } },
