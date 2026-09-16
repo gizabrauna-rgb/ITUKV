@@ -136,7 +136,7 @@ const linkKopiert = ref(false)
       <div v-for="c in gefiltert" :key="c.id" class="bg-white border rounded-xl overflow-hidden"
         :class="istUnvollstaendig(c) ? 'border-amber-200' : 'border-gray-100'">
         <!-- Zeile -->
-        <button @click="toggle(c.id)" class="w-full flex items-center gap-3 p-4 text-left hover:bg-gray-50">
+        <div @click="toggle(c.id)" role="button" class="w-full flex items-center gap-3 p-4 text-left hover:bg-gray-50 cursor-pointer">
           <div class="flex-1 min-w-0">
             <p class="font-semibold text-gray-900 truncate flex items-center gap-2">
               {{ c.firma || c.enrichFirmenname || 'Unbekannte Firma' }}
@@ -157,8 +157,13 @@ const linkKopiert = ref(false)
             <span class="text-xs text-amber-600 hidden sm:block text-right">abgebrochen<br>bei Schritt {{ c.lastStep || '?' }}</span>
           </template>
           <span class="text-xs text-gray-400 hidden md:block w-20 text-right">{{ datum(c.updatedAt || c.createdAt) }}</span>
+          <button @click.stop="loeschen(c)" :disabled="loeschtId === c.id"
+            class="p-1.5 rounded-lg text-gray-300 hover:text-red-600 hover:bg-red-50 flex-shrink-0 disabled:opacity-50"
+            title="Eintrag löschen">
+            <Trash2 class="w-4 h-4" :class="loeschtId === c.id ? 'animate-pulse' : ''" />
+          </button>
           <ChevronDown class="w-4 h-4 text-gray-400 transition-transform" :class="offen === c.id ? 'rotate-180' : ''" />
-        </button>
+        </div>
 
         <!-- Detail -->
         <div v-if="offen === c.id" class="border-t border-gray-100 p-5 bg-gray-50/60 space-y-5">
@@ -243,15 +248,6 @@ const linkKopiert = ref(false)
                 <span class="text-gray-600">{{ f.text }}</span>
               </li>
             </ul>
-          </div>
-
-          <!-- Aktionen -->
-          <div class="flex justify-end pt-1">
-            <button @click="loeschen(c)" :disabled="loeschtId === c.id"
-              class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50">
-              <Trash2 class="w-4 h-4" />
-              {{ loeschtId === c.id ? 'Wird gelöscht…' : 'Eintrag löschen' }}
-            </button>
           </div>
         </div>
       </div>
