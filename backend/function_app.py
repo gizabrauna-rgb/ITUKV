@@ -1191,19 +1191,31 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
         tc = table_("kontakte")
         existing = None
         email_norm = email.strip().lower()
-        # 1) Schnelle Abfrage (kann bei abweichender Gross-/Kleinschreibung leer bleiben)
-        try:
-            email_q = email.strip().replace("'", "''")
-            for k in tc.query_entities(f"email eq '{email_q}'"):
-                if (k.get("email", "") or "").strip().lower() == email_norm:
-                    existing = dict(k); break
-        except Exception as qex:
-            logging.warning(f"Checkliste Kontakt-Schnellabfrage fehlgeschlagen: {qex}")
-        # 2) Sicherheitsnetz: vollstaendiger Abgleich ohne Gross-/Kleinschreibung
-        if existing is None:
-            for k in tc.list_entities():
-                if (k.get("email", "") or "").strip().lower() == email_norm:
-                    existing = dict(k); break
+
+        def _kontakt_emails(k):
+            """Alle E-Mails eines Kontakts: Haupt-E-Mail, Zweit-E-Mails und
+            E-Mails der Ansprechpartner – alle klein geschrieben."""
+            emails = set()
+            prim = (k.get("email", "") or "").strip().lower()
+            if prim:
+                emails.add(prim)
+            for fld in ("weitereEmailsJson", "ansprechpartnerJson"):
+                try:
+                    arr = json.loads(k.get(fld) or "[]")
+                except Exception:
+                    arr = []
+                if isinstance(arr, list):
+                    for it in arr:
+                        if isinstance(it, dict):
+                            v = (it.get("wert") or it.get("email") or "").strip().lower()
+                            if v:
+                                emails.add(v)
+            return emails
+
+        # Vollstaendiger Abgleich ueber Haupt-, Zweit- und Ansprechpartner-E-Mails
+        for k in tc.list_entities():
+            if email_norm in _kontakt_emails(k):
+                existing = dict(k); break
         firma_final = firma or enrich.get("firmenname") or ""
         wert_fmt = f"{auswertung['wertMidEur']:,}".replace(",", ".")
         verlauf_eintrag = {
