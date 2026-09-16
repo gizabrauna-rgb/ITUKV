@@ -1372,8 +1372,9 @@ def checkliste_send_sms(req: func.HttpRequest) -> func.HttpResponse:
     vorname = ((row.get("name") or "").strip().split(" ") or [""])[0]
     anrede = f"Hallo {vorname}, " if vorname else "Hallo, "
     sms_body = (
-        f"{anrede}hier ist Dein persoenliches Ergebnis der ITUKV-Checkliste: "
-        f"{ergebnis_link} — Du kannst es jederzeit erneut aufrufen. "
+        f"{anrede}hier ist Dein persönliches Ergebnis der ITUKV-Checkliste: "
+        f"{ergebnis_link} "
+        f"Du kannst es jederzeit erneut aufrufen. "
         f"Fragen? Antworte einfach auf diese SMS. Jenny Kaplan"
     )
     res = _send_itukv_sms(to_number, sms_body)
