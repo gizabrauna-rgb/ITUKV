@@ -177,7 +177,10 @@
             <h2 class="text-lg font-bold text-gray-900 mb-1">Über Dich & Dein Unternehmen</h2>
             <p class="text-sm text-gray-500 mb-3">Damit wir Dir Deine Einschätzung persönlich zuordnen können.</p>
             <input v-model="form.firma" placeholder="Firma *" class="input" />
-            <input v-model="form.name" placeholder="Dein Name *" class="input" />
+            <div class="flex gap-2">
+              <input v-model="form.vorname" placeholder="Vorname *" class="input flex-1" />
+              <input v-model="form.nachname" placeholder="Nachname *" class="input flex-1" />
+            </div>
             <input v-model="form.email" type="email" placeholder="E-Mail *" class="input" />
             <div class="flex gap-2">
               <select v-model="form.telefonVorwahl" class="input !w-auto" style="flex:0 0 auto;">
@@ -342,7 +345,7 @@ function ladeCalLoader() {
 // Cal-Buchungslink mit vorausgefuellten Feldern aus dem ersten Formular
 function baueCalLink() {
   const params = new URLSearchParams()
-  const name = (form.name || result.value?.name || '').trim()
+  const name = (vollerName.value || result.value?.name || '').trim()
   const email = (form.email || '').trim()
   const localNumber = (form.telefon || '').trim().replace(/^0+/, '')
   const telefonE164 = localNumber ? `${form.telefonVorwahl}${localNumber}` : ''
@@ -456,7 +459,7 @@ const analyseStep = ref(0)
 const analyseProzent = ref(0)
 
 const form = reactive({
-  firma: '', name: '', email: '', telefonVorwahl: '+49', telefon: '', website: '', plzOrt: '',
+  firma: '', vorname: '', nachname: '', email: '', telefonVorwahl: '+49', telefon: '', website: '', plzOrt: '',
   ziel: '',
   websiteEinverstaendnis: true,
   smsEinverstaendnis: false,
@@ -472,6 +475,8 @@ const form = reactive({
 })
 
 const vorname = computed(() => (result.value?.name || '').trim().split(/\s+/)[0] || '')
+// Vor- und Nachname zu einem vollstaendigen Namen zusammensetzen (fuer Speicherung/Versand)
+const vollerName = computed(() => `${form.vorname} ${form.nachname}`.replace(/\s+/g, ' ').trim())
 
 // Passenden Artikel je nach Rechtsform/Firmierung waehlen ("fuer die GmbH", "fuer den e.V.", oder ohne Artikel bei reinen Namen)
 function firmaMitArtikel(firma) {
@@ -577,7 +582,7 @@ function speichereEntwurf() {
       keepalive: true,
       body: JSON.stringify({
         draftToken,
-        kontakt: { firma: form.firma, name: form.name, email, telefon, website, plzOrt: form.plzOrt },
+        kontakt: { firma: form.firma, name: vollerName.value, vorname: form.vorname, nachname: form.nachname, email, telefon, website, plzOrt: form.plzOrt },
         ziel: form.ziel,
         antworten: form.antworten,
         zahlen: { jahre: form.zahlen.jahre },
@@ -591,8 +596,8 @@ function speichereEntwurf() {
 async function onNext() {
   errMsg.value = ''
   if (step.value === 1) {
-    if (!form.firma.trim() || !form.name.trim() || !form.email.trim()) {
-      errMsg.value = 'Bitte fülle Firma, Name und E-Mail aus.'; return
+    if (!form.firma.trim() || !form.vorname.trim() || !form.nachname.trim() || !form.email.trim()) {
+      errMsg.value = 'Bitte fülle Firma, Vorname, Nachname und E-Mail aus.'; return
     }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) {
       errMsg.value = 'Bitte gib eine gültige E-Mail-Adresse ein.'; return
@@ -639,7 +644,7 @@ async function abschicken() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         draftToken,
-        kontakt: { firma: form.firma, name: form.name, email: form.email, telefon, website, plzOrt: form.plzOrt },
+        kontakt: { firma: form.firma, name: vollerName.value, vorname: form.vorname, nachname: form.nachname, email: form.email, telefon, website, plzOrt: form.plzOrt },
         ziel: form.ziel,
         websiteEinverstaendnis: form.websiteEinverstaendnis,
         smsEinverstaendnis: form.smsEinverstaendnis && !!telefon,

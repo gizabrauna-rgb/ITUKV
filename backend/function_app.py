@@ -1081,6 +1081,10 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
     zahlen = body.get("zahlen") or {}
 
     name = (kontakt.get("name") or "").strip()
+    vorname_in = (kontakt.get("vorname") or "").strip()
+    nachname_in = (kontakt.get("nachname") or "").strip()
+    if not name and (vorname_in or nachname_in):
+        name = f"{vorname_in} {nachname_in}".strip()
     email = (kontakt.get("email") or "").strip()
     firma = (kontakt.get("firma") or "").strip()
     telefon = (kontakt.get("telefon") or "").strip()
@@ -1145,7 +1149,8 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
     ergebnis_link = f"{CHECKLISTE_BASE_URL}/?r={token}"
     row = {
         "PartitionKey": "checkliste", "RowKey": cid,
-        "name": name, "email": email, "firma": firma, "telefon": telefon,
+        "name": name, "vorname": vorname_in, "nachname": nachname_in,
+        "email": email, "firma": firma, "telefon": telefon,
         "website": website, "plz": plz, "ort": ort, "mitarbeiter": mitarbeiter,
         "ziel": ziel,
         "status": "vollstaendig",
@@ -1324,6 +1329,10 @@ def checkliste_draft(req: func.HttpRequest) -> func.HttpResponse:
     zahlen = body.get("zahlen") or {}
 
     name = (kontakt.get("name") or "").strip()
+    vorname_in = (kontakt.get("vorname") or "").strip()
+    nachname_in = (kontakt.get("nachname") or "").strip()
+    if not name and (vorname_in or nachname_in):
+        name = f"{vorname_in} {nachname_in}".strip()
     email = (kontakt.get("email") or "").strip()
     firma = (kontakt.get("firma") or "").strip()
     telefon = (kontakt.get("telefon") or "").strip()
@@ -1352,7 +1361,8 @@ def checkliste_draft(req: func.HttpRequest) -> func.HttpResponse:
 
     row = {
         "PartitionKey": "checkliste", "RowKey": draft_token,
-        "name": name, "email": email, "firma": firma, "telefon": telefon,
+        "name": name, "vorname": vorname_in, "nachname": nachname_in,
+        "email": email, "firma": firma, "telefon": telefon,
         "website": website, "plz": plz, "ort": ort,
         "ziel": ziel,
         "status": "unvollstaendig",
@@ -1466,8 +1476,18 @@ def checkliste_send_sms(req: func.HttpRequest) -> func.HttpResponse:
     # Zusatzfelder fuer den Webhook (Zapier): Kontaktdaten des Ausfuellers
     plz = (row.get("plz") or "").strip()
     ort = (row.get("ort") or "").strip()
+    voller_name = (row.get("name") or "").strip()
+    # Vor-/Nachname separat: bevorzugt gespeicherte Felder, sonst aus Name ableiten
+    vn = (row.get("vorname") or "").strip()
+    nn = (row.get("nachname") or "").strip()
+    if not vn and not nn and voller_name:
+        teile = voller_name.split(" ")
+        vn = teile[0]
+        nn = " ".join(teile[1:]).strip()
     sms_meta = {
-        "name": (row.get("name") or "").strip(),
+        "name": voller_name,
+        "vorname": vn,
+        "nachname": nn,
         "email": (row.get("email") or "").strip(),
         "firma": (row.get("firma") or "").strip(),
         "telefon": (row.get("telefon") or "").strip(),
