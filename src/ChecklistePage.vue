@@ -102,11 +102,22 @@
           <p class="text-gray-300 text-sm mb-5 max-w-lg mx-auto">
             In einem kostenlosen, vertraulichen Strategiegespräch zeigen wir Dir, wie Du genau diese Hebel ziehst – ob Du verkaufen oder selbst zukaufen willst. Unser Rekord vom ersten Gespräch bis zum Verkauf: 11 Tage.
           </p>
-          <a href="https://www.itukv.de" target="_blank" rel="noopener"
+
+          <!-- Direkter Buchungslink (Cal) – erscheint, sobald CAL_LINK gesetzt ist -->
+          <div v-if="CAL_LINK" class="bg-white rounded-xl overflow-hidden mb-4">
+            <iframe :src="CAL_LINK" class="w-full" style="height:640px; border:0;"
+              title="Termin für Dein Strategiegespräch buchen" loading="lazy"></iframe>
+          </div>
+          <a v-if="CAL_LINK" :href="CAL_LINK" target="_blank" rel="noopener"
+            class="inline-block px-6 py-3 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8]">
+            Termin direkt buchen
+          </a>
+          <a v-else href="https://www.itukv.de" target="_blank" rel="noopener"
             class="inline-block px-6 py-3 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8]">
             Kostenloses Strategiegespräch sichern
           </a>
-          <p class="text-xs text-gray-400 mt-4">Wir haben Deine Angaben erhalten und melden uns bei Dir.</p>
+
+          <p class="text-xs text-gray-400 mt-4">Kostenlos · vertraulich · unverbindlich – wir melden uns bei Dir.</p>
         </div>
 
         <!-- Persönlicher Ergebnis-Link -->
@@ -276,6 +287,7 @@
               {{ step < 3 ? 'Weiter' : (sending ? 'Wird ausgewertet…' : 'Auswertung anzeigen') }}
             </button>
           </div>
+          <p class="text-center text-xs text-gray-400 mt-4">Kostenlos · in wenigen Minuten · diskret &amp; unverbindlich</p>
         </form>
       </template>
     </main>
@@ -308,6 +320,10 @@ const belege = [
 ]
 
 const apiBase = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
+
+// Direkter Buchungslink (Cal.com o. ä.) fuer das Ergebnis. Sobald hier eine URL
+// steht, erscheint auf der Ergebnisseite ein eingebetteter Termin-Kalender.
+const CAL_LINK = ''
 
 const FRAGEN = [
   { key: 'f1', gruppe: 'Führung, Personal, Prozesse', text: 'Gibt es schon ein Führungsteam, das das Tagesgeschäft ohne den Chef führen kann?' },
