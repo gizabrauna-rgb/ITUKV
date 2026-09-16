@@ -1209,6 +1209,8 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
                 f"grober Unternehmenswert ca. {wert_fmt} € (bereinigtes EBIT × Faktor {auswertung['faktor']}). "
                 f"Verkaufszeitpunkt: {motive.get('zeitpunkt') or 'k. A.'}. "
                 f"Persönlicher Ergebnis-Link: {ergebnis_link}"
+                + (f" · Ergebnis-Link zusätzlich per SMS an {telefon} zugeschickt."
+                   if sms_consent and telefon_e164 else "")
             ),
         }
         if existing:
@@ -1419,6 +1421,10 @@ def checkliste_list(req: func.HttpRequest) -> func.HttpResponse:
                 "enrichStrasse": c.get("enrichStrasse", ""),
                 "enrichPLZ": c.get("enrichPLZ", ""), "enrichOrt": c.get("enrichOrt", ""),
                 "enrichUstId": c.get("enrichUstId", ""),
+                "ergebnisLink": c.get("ergebnisLink", ""),
+                "smsConsent": bool(c.get("smsConsent")),
+                "smsStatus": c.get("smsStatus", ""),
+                "smsAt": c.get("smsAt", ""),
             })
     except Exception as ex:
         logging.error(f"Checkliste-Liste fehlgeschlagen: {ex}")

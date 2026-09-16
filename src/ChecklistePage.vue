@@ -125,6 +125,10 @@
               {{ linkKopiert ? 'Kopiert' : 'Kopieren' }}
             </button>
           </div>
+          <div v-if="smsAngefragt" class="flex items-center gap-2 mt-3 text-xs text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2">
+            <Check class="w-4 h-4 flex-shrink-0" />
+            <span>Wir haben Dir diesen Link zusätzlich per SMS an Deine Nummer geschickt.</span>
+          </div>
         </div>
 
         <!-- Rechtlicher Hinweis -->
@@ -370,6 +374,7 @@ const form = reactive({
 
 const vorname = computed(() => (result.value?.name || '').trim().split(/\s+/)[0] || '')
 const linkKopiert = ref(false)
+const smsAngefragt = ref(false)
 async function ergebnisLinkKopieren() {
   try {
     await navigator.clipboard.writeText(result.value?.ergebnisLink || location.href)
@@ -481,6 +486,7 @@ async function abschicken() {
 
   // Ergebnis-Link per SMS zuschicken (fire-and-forget, nur bei Einwilligung + Nummer)
   if (form.smsEinverstaendnis && telefon && apiResult?.resultToken) {
+    smsAngefragt.value = true
     fetch(`${apiBase}/checkliste-send-sms`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

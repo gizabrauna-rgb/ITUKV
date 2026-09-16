@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { ClipboardList, RefreshCw, ChevronDown, Mail, Globe, ExternalLink } from '@lucide/vue'
+import { ClipboardList, RefreshCw, ChevronDown, Mail, Globe, ExternalLink, Link2 } from '@lucide/vue'
 import { getChecklisten } from '../../api.js'
 
 const loading = ref(true)
@@ -134,6 +134,15 @@ const linkKopiert = ref(false)
               <p v-if="c.website"><a :href="c.website" target="_blank" rel="noopener" class="text-[#0088ba] inline-flex items-center gap-1"><Globe class="w-3.5 h-3.5" /> {{ c.website }}</a></p>
               <p v-if="c.plz || c.ort" class="text-gray-600">{{ c.plz }} {{ c.ort }}</p>
               <p v-if="c.mitarbeiter" class="text-gray-600">{{ c.mitarbeiter }} Mitarbeiter</p>
+              <p v-if="c.ergebnisLink" class="pt-1">
+                <a :href="c.ergebnisLink" target="_blank" rel="noopener" class="text-[#0088ba] inline-flex items-center gap-1 break-all"><Link2 class="w-3.5 h-3.5 flex-shrink-0" /> Ergebnis-Link</a>
+              </p>
+              <p v-if="c.smsConsent" class="text-xs">
+                <span class="text-gray-400">SMS:</span>
+                <span v-if="c.smsStatus === 'sent' || c.smsStatus === 'queued'" class="text-green-600">verschickt<span v-if="c.smsAt"> ({{ datum(c.smsAt) }})</span></span>
+                <span v-else-if="c.smsStatus" class="text-amber-600">Einwilligung ja · Status: {{ c.smsStatus }}</span>
+                <span v-else class="text-gray-500">Einwilligung ja · noch nicht verschickt</span>
+              </p>
             </div>
             <div class="bg-white rounded-xl border border-gray-100 p-4 text-sm space-y-3">
               <div>
