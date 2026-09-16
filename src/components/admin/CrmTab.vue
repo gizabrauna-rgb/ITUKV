@@ -132,6 +132,7 @@
                 <span v-if="k.istKunde" class="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700">Kunde</span>
                 <span v-if="k.istExKunde" class="text-xs px-2 py-0.5 rounded-full font-medium bg-slate-200 text-slate-700">Bestand</span>
                 <span v-if="!k.istTarget && !k.istInvestor && !k.istKunde && !k.istExKunde && k.typ" :class="typClass(k.typ)" class="text-xs px-2 py-0.5 rounded-full font-medium">{{ k.typ }}</span>
+                <span v-if="k.imItukvProzess" class="text-xs px-2 py-0.5 rounded-full font-medium bg-[#0088ba] text-white" title="Im ITUKV-Prozess">ITUKV</span>
               </div>
             </td>
             <td class="px-4 py-3 text-sm text-gray-500">{{ k.plz }} {{ k.ort }}</td>
@@ -411,6 +412,18 @@
               </label>
             </div>
           </div>
+          <!-- ITUKV-Prozess: setzt beim Speichern zusaetzlich das Feld in SalesSuite -->
+          <div class="col-span-2">
+            <label class="flex items-start gap-2.5 p-3 rounded-xl border-2 cursor-pointer transition"
+                   :class="form.imItukvProzess ? 'border-[#0088ba] bg-[#f2f9fc]' : 'border-gray-200 hover:bg-gray-50'">
+              <input type="checkbox" v-model="form.imItukvProzess" class="mt-0.5 rounded text-[#0088ba]" />
+              <span>
+                <span class="text-sm font-semibold text-gray-800">Im ITUKV-Prozess</span>
+                <span class="block text-xs text-gray-500 mt-0.5">Markiert diesen Kontakt als aktiv im ITUKV-Prozess. Wird beim Speichern auch in SalesSuite gesetzt – per E-Mail gefunden oder dort neu angelegt. Ohne E-Mail wird der Haken nur hier gespeichert.</span>
+              </span>
+            </label>
+          </div>
+
           <div v-if="form.istInvestor" class="col-span-2">
             <label class="field-label">Investor-Typ</label>
             <select v-model="form.investorTyp" class="input">
@@ -1065,6 +1078,7 @@ function closeModal() {
     plz:'', ort:'', sucht:'', bietet:'', kommentar:'', typ:'Sonstige',
     mitarbeiter:'', umsatzTeur:'', ebitMarge:'', recurringPct:'',
     istKunde:false, istExKunde:false, istInvestor:false, istTarget:false, investorTyp:'',
+    imItukvProzess:false,
   }
   ansprechpartner.value = []
   weitereEmails.value = []
@@ -1080,10 +1094,25 @@ async function saveKontakt() {
       weitereEmailsJson: JSON.stringify(weitereEmails.value.filter(e => e.wert)),
       weiterePhonesJson: JSON.stringify(weiterePhones.value.filter(p => p.wert)),
     }
+    let res
     if (editKontakt.value) {
-      await updateKontakt(editKontakt.value.RowKey, payload)
+      res = await updateKontakt(editKontakt.value.RowKey, payload)
     } else {
-      await createKontakt(payload)
+      res = await createKontakt(payload)
+    }
+    // Rueckmeldung zum ITUKV-Prozess / SalesSuite-Sync
+    const ss = res && res.salessuite
+    if (form.value.imItukvProzess) {
+      if (ss === 'gesetzt') toast.success('Gespeichert – „Im ITUKV-Prozess" auch in SalesSuite gesetzt.')
+      else if (ss === 'keine-email') toast.success('Gespeichert. Hinweis: ohne E-Mail konnte SalesSuite nicht gesetzt werden.')
+      else if (ss === 'kein-schreibschluessel') toast.error('Gespeichert, aber SalesSuite-Schreibschlüssel fehlt in Azure.')
+      else if (ss === 'email-mehrdeutig') toast.error('Gespeichert. In SalesSuite nutzen mehrere Kontakte diese E-Mail – bitte dort manuell setzen.')
+      else if (ss && ss.indexOf('http-') === 0) toast.error('Gespeichert, aber SalesSuite meldete einen Fehler (' + ss + ').')
+      else if (ss && ss.indexOf('netzwerkfehler') === 0) toast.error('Gespeichert, aber SalesSuite war nicht erreichbar.')
+      else toast.success('Kontakt gespeichert.')
+    } else {
+      if (ss === 'zurueckgesetzt') toast.success('Gespeichert – „Im ITUKV-Prozess" auch in SalesSuite entfernt.')
+      else toast.success('Kontakt gespeichert.')
     }
     await loadData()
     closeModal()

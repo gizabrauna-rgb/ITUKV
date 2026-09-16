@@ -474,6 +474,7 @@ def _ss_map_contact(item):
         "kundennummer": _ss_first(c.get("x_kundennummer")),
         "istKunde": kundenstatus == "Kunde",
         "istExKunde": kundenstatus in ("Ex-Kunde", "Ehemaliger Kunde"),
+        "imItukvProzess": c.get("x_itukv_prozess") is True,
         "quelle": "salessuite",
     }
     # Produkt-Haekchen: SalesSuite speichert true, wenn Produkt vorhanden
@@ -2169,6 +2170,49 @@ def target_update(req: func.HttpRequest) -> func.HttpResponse:
     return ok_(dict(entity))
 
 
+def _salessuite_set_itukv_prozess(email, name, firma, value):
+    """Setzt das Feld „ITUKV-Prozess" (x_itukv_prozess) an einem SalesSuite-Kontakt.
+    Nutzt die Aktion 'create-or-update-by-email': findet den Kontakt per E-Mail und
+    aktualisiert ihn – oder legt ihn neu an, falls es ihn dort noch nicht gibt.
+    Braucht den SCHREIB-Schluessel SALESSUITE_WRITE_KEY (nur in Azure hinterlegt).
+    Liefert (ok: bool, info: str)."""
+    import requests as _rq
+    email = (email or "").strip()
+    if not email:
+        return (False, "keine-email")
+    key = os.environ.get("SALESSUITE_WRITE_KEY", "")
+    if not key:
+        return (False, "kein-schreibschluessel")
+    nm = (name or "").strip()
+    vor, nach = "", ""
+    if nm:
+        parts = nm.split()
+        vor = parts[0]
+        nach = " ".join(parts[1:]) if len(parts) > 1 else ""
+    contact = {"x_itukv_prozess": bool(value)}
+    if firma:
+        contact["companyName"] = firma
+    person = {"email": email}
+    if vor:
+        person["firstName"] = vor
+    if nach:
+        person["lastName"] = nach
+    try:
+        r = _rq.post(
+            SALESSUITE_BASE + "/v1/contact/create-or-update-by-email",
+            headers={"Content-Type": "application/json", "Accept": "application/json", "x-api-key": key},
+            json={"contact": contact, "contactPerson": person},
+            timeout=30,
+        )
+    except Exception as ex:
+        return (False, "netzwerkfehler: " + str(ex)[:120])
+    if r.status_code == 200:
+        return (True, "ok")
+    if r.status_code == 409:
+        return (False, "email-mehrdeutig")
+    return (False, "http-" + str(r.status_code))
+
+
 @app.route(route="kontakt-create", methods=["POST", "OPTIONS"])
 def kontakt_create(req: func.HttpRequest) -> func.HttpResponse:
     """Anlegen + Update von Kontakten mit Dedup-Check auf firma."""
@@ -2192,6 +2236,9 @@ def kontakt_create(req: func.HttpRequest) -> func.HttpResponse:
                 break
     except Exception:
         pass
+    # ITUKV-Prozess: neuer Wert vom Formular + bisheriger Wert (fuer Aenderungs-Erkennung)
+    im_itukv = bool(body.get("imItukvProzess", False))
+    prev_itukv = bool((existing or {}).get("imItukvProzess", False))
     entity = {
         "PartitionKey": "kontakt",
         "RowKey": (existing or {}).get("RowKey") or str(uuid.uuid4()),
@@ -2220,6 +2267,7 @@ def kontakt_create(req: func.HttpRequest) -> func.HttpResponse:
         "istExKunde": bool(body.get("istExKunde", False)),
         "istInvestor": bool(body.get("istInvestor", False)),
         "istTarget": bool(body.get("istTarget", False)),
+        "imItukvProzess": im_itukv,
         "investorTyp": body.get("investorTyp", ""),
         "typ": body.get("investorTyp", "") if body.get("istInvestor") else "",
         "kundenstatus": "Kunde" if body.get("istKunde") else (
@@ -2228,17 +2276,62 @@ def kontakt_create(req: func.HttpRequest) -> func.HttpResponse:
             "Target" if body.get("istTarget") else ""))),
         "updatedAt": datetime.utcnow().isoformat(),
     }
+    # Bestehende Zusatzfelder (Verlauf, Checkliste-Daten, Herkunft ...) erhalten,
+    # damit der Replace-Speichervorgang sie nicht loescht.
     if existing:
         entity["createdAt"] = existing.get("createdAt", datetime.utcnow().isoformat())
+        for _k, _v in existing.items():
+            if _k in ("PartitionKey", "RowKey", "Timestamp") or "etag" in _k.lower() or _k.startswith("odata"):
+                continue
+            entity.setdefault(_k, _v)
+    else:
+        entity["createdAt"] = datetime.utcnow().isoformat()
+
+    # Verlauf-Eintrag, wenn sich der ITUKV-Prozess-Status geaendert hat
+    if im_itukv != prev_itukv:
+        autor = (p.get("name") or p.get("email") or "Dashboard")
+        datum_de = datetime.utcnow().strftime("%d.%m.%Y")
+        if im_itukv:
+            betreff = "Als ITUKV-Prozess markiert"
+            besch = "Kontakt wurde am " + datum_de + " durch " + autor + " als 'Im ITUKV-Prozess' markiert."
+        else:
+            betreff = "ITUKV-Prozess-Markierung entfernt"
+            besch = "Die Markierung 'Im ITUKV-Prozess' wurde am " + datum_de + " durch " + autor + " entfernt."
+        eintrag = {
+            "id": "kv" + str(int(datetime.utcnow().timestamp() * 1000)),
+            "typ": "wichtig",
+            "kontextMbNr": "itukv-prozess",
+            "datum": datetime.utcnow().isoformat(),
+            "autor": autor,
+            "betreff": betreff,
+            "beschreibung": besch,
+        }
+        try:
+            vlog = json.loads(entity.get("verlaufJson") or "[]")
+        except Exception:
+            vlog = []
+        if not isinstance(vlog, list):
+            vlog = []
+        vlog.append(eintrag)
+        entity["verlaufJson"] = json.dumps(vlog, ensure_ascii=False)
+
+    # SalesSuite-Sync: nur ansteuern, wenn eingeschaltet ODER gerade ausgeschaltet.
+    # (Bei „aus" und war vorher schon aus, wuerde ein Aufruf unnoetig einen Kontakt anlegen.)
+    ss_info = "nicht-noetig"
+    if im_itukv or (prev_itukv and not im_itukv):
+        ok_ss, info = _salessuite_set_itukv_prozess(
+            entity.get("email", ""), entity.get("name", ""), entity.get("firma", ""), im_itukv)
+        ss_info = ("gesetzt" if im_itukv else "zurueckgesetzt") if ok_ss else info
+
+    if existing:
         try:
             tc.update_entity(entity, mode="replace")
-            return ok_({"updated": True, "id": entity["RowKey"]})
+            return ok_({"updated": True, "id": entity["RowKey"], "salessuite": ss_info})
         except Exception as ex:
             return err_(f"Update fehlgeschlagen: {ex}", 500)
-    entity["createdAt"] = datetime.utcnow().isoformat()
     try:
         tc.create_entity(entity)
-        return ok_({"created": True, "id": entity["RowKey"]}, 201)
+        return ok_({"created": True, "id": entity["RowKey"], "salessuite": ss_info}, 201)
     except Exception as ex:
         return err_(f"Anlegen fehlgeschlagen: {ex}", 500)
 
