@@ -1190,15 +1190,26 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
     try:
         tc = table_("kontakte")
         existing = None
-        email_lower = email.lower().replace("'", "''")
-        for k in tc.query_entities(f"email eq '{email_lower}'"):
-            if (k.get("email", "") or "").strip().lower() == email.lower():
-                existing = dict(k); break
+        email_norm = email.strip().lower()
+        # 1) Schnelle Abfrage (kann bei abweichender Gross-/Kleinschreibung leer bleiben)
+        try:
+            email_q = email.strip().replace("'", "''")
+            for k in tc.query_entities(f"email eq '{email_q}'"):
+                if (k.get("email", "") or "").strip().lower() == email_norm:
+                    existing = dict(k); break
+        except Exception as qex:
+            logging.warning(f"Checkliste Kontakt-Schnellabfrage fehlgeschlagen: {qex}")
+        # 2) Sicherheitsnetz: vollstaendiger Abgleich ohne Gross-/Kleinschreibung
+        if existing is None:
+            for k in tc.list_entities():
+                if (k.get("email", "") or "").strip().lower() == email_norm:
+                    existing = dict(k); break
         firma_final = firma or enrich.get("firmenname") or ""
         wert_fmt = f"{auswertung['wertMidEur']:,}".replace(",", ".")
         verlauf_eintrag = {
             "id": "kv" + str(int(datetime.utcnow().timestamp() * 1000)),
             "typ": "wichtig",
+            "kontextMbNr": "itukv-checkliste",
             "datum": datetime.utcnow().isoformat(),
             "autor": "ITUKV-Checkliste",
             "betreff": "ITUKV-Checkliste durchgeführt",
