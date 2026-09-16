@@ -343,8 +343,8 @@
     </div>
 
     <!-- Neuer Kontakt / Bearbeiten Modal -->
-    <div v-if="showNewModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
-      <div class="bg-white rounded-2xl p-6 w-full max-w-lg">
+    <div v-if="showNewModal" class="fixed inset-0 bg-black/50 flex items-start justify-center z-50 px-4 py-6 overflow-y-auto">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-lg my-auto max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-5">
           <h3 class="font-bold text-gray-900">{{ editKontakt ? 'Kontakt bearbeiten' : 'Neuer Kontakt' }}</h3>
           <button @click="closeModal"><X class="w-5 h-5 text-gray-400" /></button>
