@@ -23,7 +23,7 @@
             <template v-if="vorname">Hallo {{ vorname }}, das ist Deine persönliche Einschätzung</template>
             <template v-else>Deine persönliche Einschätzung</template>
           </h2>
-          <p v-if="result.firma" class="text-sm text-gray-500 mb-5">für die {{ result.firma }}</p>
+          <p v-if="result.firma" class="text-sm text-gray-500 mb-5">für {{ firmaMitArtikel(result.firma) }}</p>
 
           <p class="text-gray-700 leading-relaxed mb-6">{{ result.ansprache }}</p>
 
@@ -443,6 +443,18 @@ const form = reactive({
 })
 
 const vorname = computed(() => (result.value?.name || '').trim().split(/\s+/)[0] || '')
+
+// Passenden Artikel je nach Rechtsform/Firmierung waehlen ("fuer die GmbH", "fuer den e.V.", oder ohne Artikel bei reinen Namen)
+function firmaMitArtikel(firma) {
+  const f = (firma || '').trim()
+  if (!f) return ''
+  const low = f.toLowerCase().replace(/[.\s]+$/, '')
+  if (/e\.?\s?v\.?$/.test(low)) return `den ${f}`           // eingetragener Verein -> fuer den
+  if (/(gmbh|mbh|\bug\b|\bag\b|\bkg\b|kgaa|\bohg\b|\bgbr\b|\bse\b|\beg\b|\bltd\b|\bllc\b|\binc\b)/.test(low)) {
+    return `die ${f}`                                        // GmbH, AG, KG, UG ... -> fuer die
+  }
+  return f                                                    // reiner Name / e.K. -> ohne Artikel
+}
 const linkKopiert = ref(false)
 const smsAngefragt = ref(false)
 async function ergebnisLinkKopieren() {
