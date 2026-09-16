@@ -606,6 +606,14 @@ async function onNext() {
   if (step.value === 2 && !form.ziel) {
     errMsg.value = 'Bitte wähle Dein Ziel aus.'; return
   }
+  // Ja/Nein-Kacheln (Schritt 3–5): jede Frage muss beantwortet sein
+  const gs = JA_NEIN_STEPS.find(s => s.step === step.value)
+  if (gs) {
+    const fehlt = fragenIn(gs.gruppe).some(f => typeof form.antworten[f.key] !== 'boolean')
+    if (fehlt) {
+      errMsg.value = 'Bitte beantworte alle Fragen mit Ja oder Nein.'; return
+    }
+  }
   // Nach jeder abgeschlossenen Kachel den Stand sichern.
   speichereEntwurf()
   if (step.value < STEPS_TOTAL) { step.value++; window.scrollTo({ top: 0, behavior: 'smooth' }); return }
