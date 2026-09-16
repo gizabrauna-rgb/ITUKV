@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-gray-50">
     <header class="max-w-3xl mx-auto px-6 pt-8 pb-2 text-center">
-      <img src="/mibeca_google_4zu1_LOGO.jpg" alt="Mike Bergmann" class="h-12 w-auto mx-auto mb-4" />
+      <img src="/Favicon_mibeca.png" alt="Mike Bergmann" class="h-14 w-auto mx-auto mb-4" />
       <h1 class="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
         Wie verkaufsbereit ist Dein IT-Unternehmen?
       </h1>
@@ -180,7 +180,7 @@
     <footer class="border-t border-gray-100 mt-10 bg-white">
       <div class="max-w-3xl mx-auto px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-4">
         <a href="https://www.itukv.de" target="_blank" rel="noopener">
-          <img src="/mibeca_google_4zu1_LOGO.jpg" alt="mibeca" class="h-10 w-auto hover:opacity-80 transition-opacity" />
+          <img src="/Favicon_mibeca.png" alt="mibeca" class="h-10 w-auto hover:opacity-80 transition-opacity" />
         </a>
         <div class="flex flex-wrap gap-4 text-xs text-gray-500">
           <a href="https://www.mike-bergmann-akademie.de/pages/impressum" target="_blank" rel="noopener" class="hover:text-[#0088ba]">Impressum</a>
