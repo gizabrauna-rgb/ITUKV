@@ -30,6 +30,30 @@
           </div>
         </header>
 
+        <!-- ITUKV-Prozess: Schnellschalter, setzt direkt in SalesSuite -->
+        <div class="px-6 py-3 border-b transition-colors"
+             :class="kontakt.imItukvProzess ? 'bg-[#0088ba] border-[#0088ba]' : 'bg-[#f2f9fc] border-gray-100'">
+          <button type="button" @click="toggleItukv" :disabled="itukvBusy"
+                  class="w-full flex items-center justify-between gap-3 disabled:opacity-60">
+            <span class="flex items-center gap-2 min-w-0 text-left">
+              <CheckCircle2 class="w-4 h-4 flex-shrink-0" :class="kontakt.imItukvProzess ? 'text-white' : 'text-[#0088ba]'" />
+              <span class="min-w-0">
+                <span class="block text-sm font-semibold" :class="kontakt.imItukvProzess ? 'text-white' : 'text-[#0088ba]'">
+                  {{ kontakt.imItukvProzess ? 'Im ITUKV-Prozess' : 'Nicht im ITUKV-Prozess' }}
+                </span>
+                <span class="block text-xs" :class="kontakt.imItukvProzess ? 'text-white/85' : 'text-gray-500'">
+                  {{ itukvBusy ? 'Wird gespeichert …' : 'Ein Klick – wird auch in SalesSuite gesetzt' }}
+                </span>
+              </span>
+            </span>
+            <span class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full transition-colors"
+                  :class="kontakt.imItukvProzess ? 'bg-white/40' : 'bg-gray-300'">
+              <span class="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform"
+                    :class="kontakt.imItukvProzess ? 'translate-x-5' : ''"></span>
+            </span>
+          </button>
+        </div>
+
         <nav class="px-6 border-b border-gray-100 flex gap-6 text-sm">
           <button v-for="t in tabs" :key="t.key" @click="tab = t.key"
             :class="['py-3 border-b-2 -mb-px flex items-center gap-2 font-medium transition-colors',
@@ -351,6 +375,37 @@ const tab = ref('uebersicht')
 const newNote = ref('')
 const savingNote = ref(false)
 const showAnreichern = ref(false)
+
+// ITUKV-Prozess Schnellschalter (setzt Haken bei uns + in SalesSuite)
+const itukvBusy = ref(false)
+async function toggleItukv() {
+  if (!props.kontakt || itukvBusy.value) return
+  const neu = !props.kontakt.imItukvProzess
+  itukvBusy.value = true
+  try {
+    // Vollstaendige Kontaktdaten mitsenden, damit nichts ueberschrieben wird
+    const payload = { ...props.kontakt, imItukvProzess: neu }
+    const res = await updateKontakt(props.kontakt.RowKey || props.kontakt.id, payload)
+    props.kontakt.imItukvProzess = neu
+    const ss = res && res.salessuite
+    if (neu) {
+      if (ss === 'gesetzt') toast.success('Als „Im ITUKV-Prozess" markiert – auch in SalesSuite gesetzt.')
+      else if (ss === 'keine-email') toast.success('Markiert. Ohne E-Mail nicht an SalesSuite übertragbar.')
+      else if (ss === 'kein-schreibschluessel') toast.error('Markiert, aber SalesSuite-Schreibschlüssel fehlt in Azure.')
+      else if (ss === 'email-mehrdeutig') toast.error('Markiert. Mehrere SalesSuite-Kontakte mit dieser E-Mail – bitte dort manuell setzen.')
+      else if (typeof ss === 'string' && (ss.indexOf('http-') === 0 || ss.indexOf('netzwerkfehler') === 0)) toast.error('Markiert, aber SalesSuite meldete einen Fehler.')
+      else toast.success('Als „Im ITUKV-Prozess" markiert.')
+    } else {
+      if (ss === 'zurueckgesetzt') toast.success('Markierung entfernt – auch in SalesSuite.')
+      else toast.success('Markierung entfernt.')
+    }
+    emit('updated', props.kontakt)
+  } catch (e) {
+    toast.error('Konnte nicht speichern – bitte erneut versuchen.')
+  } finally {
+    itukvBusy.value = false
+  }
+}
 function onAnreicherungUebernommen(payload) {
   // Lokale Kontakt-Daten patchen, damit sofort sichtbar
   if (props.kontakt) {

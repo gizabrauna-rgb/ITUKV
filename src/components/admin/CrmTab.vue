@@ -414,14 +414,19 @@
           </div>
           <!-- ITUKV-Prozess: setzt beim Speichern zusaetzlich das Feld in SalesSuite -->
           <div class="col-span-2">
-            <label class="flex items-start gap-2.5 p-3 rounded-xl border-2 cursor-pointer transition"
-                   :class="form.imItukvProzess ? 'border-[#0088ba] bg-[#f2f9fc]' : 'border-gray-200 hover:bg-gray-50'">
-              <input type="checkbox" v-model="form.imItukvProzess" class="mt-0.5 rounded text-[#0088ba]" />
-              <span>
-                <span class="text-sm font-semibold text-gray-800">Im ITUKV-Prozess</span>
-                <span class="block text-xs text-gray-500 mt-0.5">Markiert diesen Kontakt als aktiv im ITUKV-Prozess. Wird beim Speichern auch in SalesSuite gesetzt – per E-Mail gefunden oder dort neu angelegt. Ohne E-Mail wird der Haken nur hier gespeichert.</span>
+            <div @click="form.imItukvProzess = !form.imItukvProzess"
+                 class="flex items-center justify-between gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition select-none"
+                 :class="form.imItukvProzess ? 'border-[#0088ba] bg-[#0088ba]' : 'border-gray-200 bg-white hover:bg-gray-50'">
+              <div class="min-w-0">
+                <div class="text-sm font-semibold" :class="form.imItukvProzess ? 'text-white' : 'text-gray-800'">Im ITUKV-Prozess</div>
+                <div class="text-xs mt-0.5" :class="form.imItukvProzess ? 'text-white/85' : 'text-gray-500'">Wird beim Speichern auch in SalesSuite gesetzt – per E-Mail gefunden oder dort neu angelegt. Ohne E-Mail nur hier gespeichert.</div>
+              </div>
+              <span class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full transition-colors"
+                    :class="form.imItukvProzess ? 'bg-white/40' : 'bg-gray-300'">
+                <span class="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform"
+                      :class="form.imItukvProzess ? 'translate-x-5' : ''"></span>
               </span>
-            </label>
+            </div>
           </div>
 
           <div v-if="form.istInvestor" class="col-span-2">
