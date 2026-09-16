@@ -103,21 +103,20 @@
             In einem kostenlosen, vertraulichen Strategiegespräch zeigen wir Dir, wie Du genau diese Hebel ziehst – ob Du verkaufen oder selbst zukaufen willst. Unser Rekord vom ersten Gespräch bis zum Verkauf: 11 Tage.
           </p>
 
-          <!-- Direkter Buchungslink (Cal) – erscheint, sobald CAL_LINK gesetzt ist -->
-          <div v-if="CAL_LINK" class="bg-white rounded-xl overflow-hidden mb-4">
-            <iframe :src="CAL_LINK" class="w-full" style="height:640px; border:0;"
-              title="Termin für Dein Strategiegespräch buchen" loading="lazy"></iframe>
-          </div>
-          <a v-if="CAL_LINK" :href="CAL_LINK" target="_blank" rel="noopener"
-            class="inline-block px-6 py-3 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8]">
-            Termin direkt buchen
-          </a>
-          <a v-else href="https://www.itukv.de" target="_blank" rel="noopener"
-            class="inline-block px-6 py-3 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8]">
-            Kostenloses Strategiegespräch sichern
-          </a>
-
-          <p class="text-xs text-gray-400 mt-4">Kostenlos · vertraulich · unverbindlich – wir melden uns bei Dir.</p>
+          <!-- Direkter Buchungskalender (Cal.com Inline-Embed) -->
+          <template v-if="CAL_ENABLED">
+            <p class="text-white font-semibold mb-3">Buch Dir direkt Dein kostenloses 20-Minuten-Erstgespräch:</p>
+            <div id="my-cal-inline-checkliste-itukv" ref="calEl"
+              class="bg-white rounded-xl overflow-hidden mx-auto" style="min-height:600px; max-width:900px;"></div>
+            <p class="text-xs text-gray-400 mt-4">Kostenlos · vertraulich · unverbindlich · telefonisch</p>
+          </template>
+          <template v-else>
+            <a href="https://www.itukv.de" target="_blank" rel="noopener"
+              class="inline-block px-6 py-3 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8]">
+              Kostenloses Strategiegespräch sichern
+            </a>
+            <p class="text-xs text-gray-400 mt-4">Kostenlos · vertraulich · unverbindlich – wir melden uns bei Dir.</p>
+          </template>
         </div>
 
         <!-- Persönlicher Ergebnis-Link -->
@@ -308,7 +307,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { CheckCircle2, TrendingUp, Lock, Link2, Check } from '@lucide/vue'
 
 // Vertrauensbelege (statische Marktbeweise, keine Live-Daten)
@@ -321,9 +320,42 @@ const belege = [
 
 const apiBase = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
 
-// Direkter Buchungslink (Cal.com o. ä.) fuer das Ergebnis. Sobald hier eine URL
-// steht, erscheint auf der Ergebnisseite ein eingebetteter Termin-Kalender.
-const CAL_LINK = ''
+// Direkter Buchungskalender (Cal.com Inline-Embed) auf der Ergebnisseite.
+const CAL_ENABLED = true
+const CAL_NAMESPACE = 'checkliste-itukv'
+const CAL_LINK = 'team/mike-bergmann-akademie/checkliste-itukv'
+const CAL_BRAND = '#02aef1'
+const calEl = ref(null)
+let calScriptGeladen = false
+
+function ladeCalLoader() {
+  // Cal.com Loader-Snippet (einmalig). Danach steht window.Cal bereit.
+  if (calScriptGeladen || window.Cal) { calScriptGeladen = true; return }
+  ;(function (C, A, L) { let p = function (a, ar) { a.q.push(ar) }; let d = C.document; C.Cal = C.Cal || function () { let cal = C.Cal; let ar = arguments; if (!cal.loaded) { cal.ns = {}; cal.q = cal.q || []; d.head.appendChild(d.createElement('script')).src = A; cal.loaded = true } if (ar[0] === L) { const api = function () { p(api, arguments) }; const namespace = ar[1]; api.q = api.q || []; if (typeof namespace === 'string') { cal.ns[namespace] = cal.ns[namespace] || api; p(cal.ns[namespace], ar); p(cal, ['initNamespace', namespace]) } else p(cal, ar); return } p(cal, ar) } })(window, 'https://app.cal.com/embed/embed.js', 'init')
+  calScriptGeladen = true
+}
+
+async function zeigeCalKalender() {
+  if (!CAL_ENABLED) return
+  ladeCalLoader()
+  await nextTick()
+  if (!calEl.value || !window.Cal) return
+  // Doppelte Initialisierung vermeiden
+  if (calEl.value.dataset.calInit === '1') return
+  calEl.value.dataset.calInit = '1'
+  window.Cal('init', CAL_NAMESPACE, { origin: 'https://app.cal.com' })
+  window.Cal.config = window.Cal.config || {}
+  window.Cal.config.forwardQueryParams = true
+  window.Cal.ns[CAL_NAMESPACE]('inline', {
+    elementOrSelector: '#my-cal-inline-checkliste-itukv',
+    config: { layout: 'month_view', useSlotsViewOnSmallScreen: 'true' },
+    calLink: CAL_LINK,
+  })
+  window.Cal.ns[CAL_NAMESPACE]('ui', {
+    cssVarsPerTheme: { light: { 'cal-brand': CAL_BRAND }, dark: { 'cal-brand': CAL_BRAND } },
+    hideEventTypeDetails: false, layout: 'month_view',
+  })
+}
 
 const FRAGEN = [
   { key: 'f1', gruppe: 'Führung, Personal, Prozesse', text: 'Gibt es schon ein Führungsteam, das das Tagesgeschäft ohne den Chef führen kann?' },
@@ -410,6 +442,7 @@ onMounted(async () => {
     if (res.ok) {
       result.value = await res.json()
       window.scrollTo({ top: 0 })
+      zeigeCalKalender()
     }
   } catch {}
   finally { ladeErgebnis.value = false }
@@ -499,6 +532,7 @@ async function abschicken() {
   if (fehler) { errMsg.value = fehler; return }
   result.value = apiResult
   window.scrollTo({ top: 0, behavior: 'smooth' })
+  zeigeCalKalender()
 
   // Ergebnis-Link per SMS zuschicken (fire-and-forget, nur bei Einwilligung + Nummer)
   if (form.smsEinverstaendnis && telefon && apiResult?.resultToken) {
