@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-gray-50">
     <header class="max-w-3xl mx-auto px-6 pt-8 pb-2 text-center">
-      <img src="/Logo_mibeca_Start.png" alt="Mike Bergmann Akademie" class="h-12 w-auto mx-auto mb-4" />
+      <img src="/mibeca_google_4zu1_LOGO.jpg" alt="Mike Bergmann" class="h-12 w-auto mx-auto mb-4" />
       <h1 class="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
         Wie verkaufsbereit ist Dein IT-Unternehmen?
       </h1>
@@ -76,9 +76,9 @@
           <div v-show="step === 1" class="bg-white rounded-2xl border border-gray-100 p-6 space-y-3">
             <h2 class="text-lg font-bold text-gray-900 mb-1">Über Dich & Dein Unternehmen</h2>
             <p class="text-sm text-gray-500 mb-3">Damit wir Dir Deine Einschätzung persönlich zuordnen können.</p>
-            <input v-model="form.firma" placeholder="Firma *" required class="input" />
-            <input v-model="form.name" placeholder="Dein Name *" required class="input" />
-            <input v-model="form.email" type="email" placeholder="E-Mail *" required class="input" />
+            <input v-model="form.firma" placeholder="Firma *" class="input" />
+            <input v-model="form.name" placeholder="Dein Name *" class="input" />
+            <input v-model="form.email" type="email" placeholder="E-Mail *" class="input" />
             <div class="flex gap-2">
               <select v-model="form.telefonVorwahl" class="input !w-auto" style="flex:0 0 auto;">
                 <option value="+49">🇩🇪 +49</option>
@@ -153,7 +153,7 @@
             </div>
 
             <label class="flex items-start gap-2 text-xs text-gray-600">
-              <input type="checkbox" v-model="form.dsgvo" required class="mt-0.5" />
+              <input type="checkbox" v-model="form.dsgvo" class="mt-0.5" />
               <span>Ich willige ein, dass meine Daten vertraulich verarbeitet und ausschließlich zur Bearbeitung meiner Anfrage genutzt werden (DSGVO).</span>
             </label>
           </div>
@@ -176,7 +176,7 @@
     <footer class="border-t border-gray-100 mt-10 bg-white">
       <div class="max-w-3xl mx-auto px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-4">
         <a href="https://www.itukv.de" target="_blank" rel="noopener">
-          <img src="/Logo_mibeca_Start.png" alt="mibeca" class="h-10 w-auto hover:opacity-80 transition-opacity" />
+          <img src="/mibeca_google_4zu1_LOGO.jpg" alt="mibeca" class="h-10 w-auto hover:opacity-80 transition-opacity" />
         </a>
         <div class="flex flex-wrap gap-4 text-xs text-gray-500">
           <a href="https://www.mike-bergmann-akademie.de/pages/impressum" target="_blank" rel="noopener" class="hover:text-[#0088ba]">Impressum</a>
@@ -239,6 +239,14 @@ function euroKurz(n) {
 
 async function onNext() {
   errMsg.value = ''
+  if (step.value === 1) {
+    if (!form.firma.trim() || !form.name.trim() || !form.email.trim()) {
+      errMsg.value = 'Bitte fülle Firma, Name und E-Mail aus.'; return
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) {
+      errMsg.value = 'Bitte gib eine gültige E-Mail-Adresse ein.'; return
+    }
+  }
   if (step.value < 3) { step.value++; window.scrollTo({ top: 0, behavior: 'smooth' }); return }
   await abschicken()
 }
