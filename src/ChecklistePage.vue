@@ -89,7 +89,6 @@
             </div>
             <input v-model="form.website" placeholder="Website (z. B. www.firma.de)" class="input" />
             <input v-model="form.plzOrt" placeholder="Sitz (PLZ + Ort)" class="input" />
-            <input v-model="form.mitarbeiter" placeholder="Anzahl Mitarbeiter (inkl. GF, Azubis, Teilzeit)" class="input" inputmode="numeric" />
             <label class="flex items-start gap-2 text-xs text-gray-600 pt-1">
               <input type="checkbox" v-model="form.websiteEinverstaendnis" class="mt-0.5" />
               <span>Ihr dürft Euch meine öffentlich zugängliche Website ansehen, um mir eine passendere Einschätzung zu geben.</span>
@@ -120,25 +119,30 @@
           <div v-show="step === 3" class="space-y-4">
             <div class="bg-white rounded-2xl border border-gray-100 p-6 space-y-3">
               <h3 class="text-base font-bold text-gray-900 mb-1">Betriebswirtschaftliche Zahlen</h3>
-              <p class="text-sm text-gray-500 mb-2">Grobe Werte genügen – alle Angaben in TEUR (Tausend Euro).</p>
-              <div class="grid grid-cols-2 gap-3">
-                <input v-model="form.zahlen.umsatz" placeholder="Umsatz (TEUR)" class="input" inputmode="numeric" />
-                <input v-model="form.zahlen.ebit" placeholder="EBIT (TEUR)" class="input" inputmode="numeric" />
-                <input v-model="form.zahlen.bereinigtesEbit" placeholder="Bereinigtes EBIT (TEUR)" class="input" inputmode="numeric" />
-                <input v-model="form.zahlen.vertragsumsatz" placeholder="Umsatz aus Verträgen (TEUR)" class="input" inputmode="numeric" />
+              <p class="text-sm text-gray-500 mb-2">Grobe bzw. geschätzte Werte genügen – alle Angaben in TEUR (Tausend Euro). Leere Felder sind ok.</p>
+              <div class="overflow-x-auto -mx-2 px-2">
+                <table class="w-full border-collapse text-sm">
+                  <thead>
+                    <tr>
+                      <th class="text-left font-semibold text-gray-500 pb-2 pr-2 align-bottom w-[42%]"></th>
+                      <th v-for="j in form.zahlen.jahre" :key="j.jahr" class="text-center font-semibold text-gray-700 pb-2 px-1 whitespace-nowrap">
+                        {{ j.jahr }}<span v-if="j.geplant" class="block text-[10px] font-normal text-gray-400">geplant</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="z in ZAHL_ZEILEN" :key="z.key" class="border-t border-gray-100">
+                      <td class="py-1.5 pr-2 text-gray-700 text-[13px] leading-tight">{{ z.label }}</td>
+                      <td v-for="j in form.zahlen.jahre" :key="j.jahr" class="py-1.5 px-1">
+                        <input v-model="j[z.key]" class="input-cell" inputmode="numeric" />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-              <p class="text-[11px] text-gray-400 leading-snug">
-                Bereinigtes EBIT = Gewinn, wenn Dein Gehalt durch das eines angestellten GF ersetzt und private Kosten herausgerechnet wären.
+              <p class="text-[11px] text-gray-400 leading-snug pt-1">
+                <strong>Bereinigtes EBIT</strong> = Dein Gewinn, wenn Dein GF-Gehalt durch das eines angestellten Geschäftsführers ersetzt und private Kosten (z. B. Gehalt nicht mitarbeitender Angehöriger, privat genutzte Fahrzeuge) herausgerechnet wären.
               </p>
-              <div>
-                <label class="text-sm text-gray-700 block mb-1">Wie entwickelt sich Dein EBIT?</label>
-                <select v-model="form.zahlen.ebitTrend" class="input">
-                  <option value="">Bitte wählen</option>
-                  <option value="wachsend">Es wächst kontinuierlich</option>
-                  <option value="stabil">Es bleibt etwa stabil</option>
-                  <option value="ruecklaeufig">Es ist rückläufig</option>
-                </select>
-              </div>
             </div>
 
             <div class="bg-white rounded-2xl border border-gray-100 p-6 space-y-3">
@@ -212,16 +216,33 @@ const FRAGEN = [
 const gruppen = ['Führung, Personal, Prozesse', 'Vertragseinnahmen und Vertrieb', 'KnowHow und Technologien']
 const fragenIn = (g) => FRAGEN.filter(f => f.gruppe === g)
 
+// Zahlen-Tabelle: letzte 3 Jahre + laufendes Jahr ("geplant")
+const jahrJetzt = new Date().getFullYear()
+const JAHRE = [jahrJetzt - 3, jahrJetzt - 2, jahrJetzt - 1, jahrJetzt]
+const ZAHL_ZEILEN = [
+  { key: 'umsatz', label: 'Umsatz (TEUR)' },
+  { key: 'ebit', label: 'Betriebsergebnis / EBIT (TEUR)' },
+  { key: 'bereinigtesEbit', label: 'Bereinigtes EBIT (TEUR)' },
+  { key: 'gfGehalt', label: 'davon: Eigenes GF-Gehalt (TEUR)' },
+  { key: 'mitarbeiter', label: 'Anzahl Mitarbeiter (inkl. GF, Azubis, Teilzeit)' },
+  { key: 'vertragsumsatz', label: 'Umsatz aus Verträgen (TEUR)' },
+]
+
 const step = ref(1)
 const sending = ref(false)
 const errMsg = ref('')
 const result = ref(null)
 
 const form = reactive({
-  firma: '', name: '', email: '', telefonVorwahl: '+49', telefon: '', website: '', plzOrt: '', mitarbeiter: '',
+  firma: '', name: '', email: '', telefonVorwahl: '+49', telefon: '', website: '', plzOrt: '',
   websiteEinverstaendnis: true,
   antworten: {},
-  zahlen: { umsatz: '', ebit: '', bereinigtesEbit: '', vertragsumsatz: '', ebitTrend: '' },
+  zahlen: {
+    jahre: JAHRE.map(j => ({
+      jahr: j, geplant: j === jahrJetzt,
+      umsatz: '', ebit: '', bereinigtesEbit: '', gfGehalt: '', mitarbeiter: '', vertragsumsatz: '',
+    })),
+  },
   motive: { motivation: '', zeitpunkt: '', begleitungMonate: '', wunschpreis: '', erwartetPreis: '' },
   dsgvo: false,
 })
@@ -263,10 +284,10 @@ async function abschicken() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        kontakt: { firma: form.firma, name: form.name, email: form.email, telefon, website, plzOrt: form.plzOrt, mitarbeiter: form.mitarbeiter },
+        kontakt: { firma: form.firma, name: form.name, email: form.email, telefon, website, plzOrt: form.plzOrt },
         websiteEinverstaendnis: form.websiteEinverstaendnis,
         antworten: form.antworten,
-        zahlen: form.zahlen,
+        zahlen: { jahre: form.zahlen.jahre },
         motive: form.motive,
         dsgvo: form.dsgvo,
       }),
@@ -285,4 +306,5 @@ async function abschicken() {
 <style scoped>
 @reference "tailwindcss";
 .input { @apply w-full px-3 py-2.5 border-2 border-gray-200 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
+.input-cell { @apply w-full min-w-[52px] px-1.5 py-1.5 border border-gray-200 bg-white rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-[#0088ba]/30 focus:border-[#0088ba]; }
 </style>

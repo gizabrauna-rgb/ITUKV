@@ -783,6 +783,89 @@ def _checkliste_auswertung(antworten: dict, ebit_trend: str, bereinigtes_ebit, w
     }
 
 
+def _to_num(v):
+    """Wandelt eine (evtl. deutsch formatierte) Zahleneingabe in float.
+    Akzeptiert '200', '1.200', '200,5', '1.200,50', ' * ' etc. -> None wenn leer/ungueltig."""
+    if v is None:
+        return None
+    s = str(v).strip().replace(" ", "").replace("*", "").replace("€", "").replace("TEUR", "")
+    if not s:
+        return None
+    if "." in s and "," in s:
+        s = s.replace(".", "").replace(",", ".")
+    elif "," in s:
+        s = s.replace(",", ".")
+    try:
+        return float(s)
+    except Exception:
+        return None
+
+
+# Reihenfolge + Beschriftung der Zahlen-Tabelle (identisch zur Papier-Checkliste).
+CHECKLISTE_ZAHL_ZEILEN = [
+    {"key": "umsatz", "label": "Umsatz (TEUR)"},
+    {"key": "ebit", "label": "Betriebsergebnis / EBIT (TEUR)"},
+    {"key": "bereinigtesEbit", "label": "Bereinigtes EBIT (TEUR)"},
+    {"key": "gfGehalt", "label": "davon: Eigenes GF-Gehalt (TEUR)"},
+    {"key": "mitarbeiter", "label": "Anzahl Mitarbeiter (inkl. GF, Azubis, Teilzeit)"},
+    {"key": "vertragsumsatz", "label": "Umsatz aus Verträgen (TEUR)"},
+]
+
+
+def _zahlen_aus_jahren(zahlen: dict):
+    """Liest die Mehrjahres-Tabelle aus dem Formular.
+    Rueckgabe: (jahre_bereinigt, bereinigtes_ebit_juengstes, ebit_trend_auto).
+    - bereinigtes_ebit_juengstes: aus dem juengsten Jahr mit Wert (fuer Wertberechnung)
+    - ebit_trend_auto: 'wachsend' | 'stabil' | 'ruecklaeufig' aus der Entwicklung."""
+    jahre = zahlen.get("jahre") if isinstance(zahlen, dict) else None
+    if not isinstance(jahre, list):
+        jahre = []
+    clean = []
+    for j in jahre:
+        if not isinstance(j, dict):
+            continue
+        clean.append({
+            "jahr": str(j.get("jahr") or "").strip(),
+            "geplant": bool(j.get("geplant")),
+            "umsatz": str(j.get("umsatz") or "").strip(),
+            "ebit": str(j.get("ebit") or "").strip(),
+            "bereinigtesEbit": str(j.get("bereinigtesEbit") or "").strip(),
+            "gfGehalt": str(j.get("gfGehalt") or "").strip(),
+            "mitarbeiter": str(j.get("mitarbeiter") or "").strip(),
+            "vertragsumsatz": str(j.get("vertragsumsatz") or "").strip(),
+        })
+
+    def _yr(x):
+        try:
+            return int(x["jahr"])
+        except Exception:
+            return 0
+    clean.sort(key=_yr)
+
+    # Bereinigtes EBIT: juengstes Jahr mit Wert
+    beeb = None
+    for j in reversed(clean):
+        v = _to_num(j.get("bereinigtesEbit"))
+        if v is not None:
+            beeb = v
+            break
+
+    # Trend aus bereinigtem EBIT (sonst EBIT): jueng. vs. aeltester Wert
+    def _series(field):
+        return [n for n in (_to_num(j.get(field)) for j in clean) if n is not None]
+    ser = _series("bereinigtesEbit") or _series("ebit")
+    trend = ""
+    if len(ser) >= 2 and ser[0]:
+        first, last = ser[0], ser[-1]
+        if last > first * 1.05:
+            trend = "wachsend"
+        elif last < first * 0.95:
+            trend = "ruecklaeufig"
+        else:
+            trend = "stabil"
+    return clean, beeb, trend
+
+
 # Kuratierte, seriöse Marktfakten je erkanntem Geschaeftsmodell (Branchen-Insight).
 # Bewusst zeitlos formuliert, keine Live-Studien.
 _BRANCHEN_INSIGHTS = {
@@ -843,7 +926,16 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
     if website and not website.lower().startswith(("http://", "https://")):
         website = "https://" + website
     plz_ort = (kontakt.get("plzOrt") or "").strip()
-    mitarbeiter = str(kontakt.get("mitarbeiter") or zahlen.get("mitarbeiter") or "").strip()
+    # Mehrjahres-Zahlen auslesen (Tabelle 2023..laufendes Jahr)
+    jahre_clean, beeb_latest, trend_auto = _zahlen_aus_jahren(zahlen)
+
+    def _latest(field):
+        for j in reversed(jahre_clean):
+            if str(j.get(field) or "").strip():
+                return str(j.get(field)).strip()
+        return str(zahlen.get(field) or "").strip()
+
+    mitarbeiter = str(kontakt.get("mitarbeiter") or _latest("mitarbeiter") or "").strip()
     if not email or not (firma or name):
         return err_("E-Mail und Firma oder Name sind erforderlich", 400)
     if not body.get("dsgvo"):
@@ -856,7 +948,9 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
         if m: plz, ort = m.group(1), m.group(2).strip()
         else: ort = plz_ort
 
-    ebit_trend = (zahlen.get("ebitTrend") or "").strip()
+    # Trend: manuell (falls noch gesendet) hat Vorrang, sonst automatisch aus den Jahren
+    ebit_trend = (zahlen.get("ebitTrend") or "").strip() or trend_auto
+    bereinigtes_ebit = beeb_latest if beeb_latest is not None else zahlen.get("bereinigtesEbit")
 
     # Lead-Anreicherung via Website-Crawler (Impressum + Geschaeftsmodell),
     # best-effort mit hartem 6s-Timeout.
@@ -872,7 +966,7 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
 
     web_signale = enrich.get("signale") or {}
     geschaeftsmodell = enrich.get("geschaeftsmodell") or ""
-    auswertung = _checkliste_auswertung(antworten, ebit_trend, zahlen.get("bereinigtesEbit"), web_signale)
+    auswertung = _checkliste_auswertung(antworten, ebit_trend, bereinigtes_ebit, web_signale)
     ansprache = _checkliste_ansprache(auswertung, firma or enrich.get("firmenname") or "", geschaeftsmodell, web_signale)
     insight = _branchen_insight(web_signale)
 
@@ -890,13 +984,15 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
         "motivBegleitungMonate": str(motive.get("begleitungMonate") or "")[:100],
         "motivWunschpreis": str(motive.get("wunschpreis") or "")[:100],
         "motivErwartetPreis": str(motive.get("erwartetPreis") or "")[:100],
-        # Betriebswirtschaftliche Zahlen
-        "zahlUmsatz": str(zahlen.get("umsatz") or ""),
-        "zahlEbit": str(zahlen.get("ebit") or ""),
-        "zahlBereinigtesEbit": str(zahlen.get("bereinigtesEbit") or ""),
-        "zahlGfGehalt": str(zahlen.get("gfGehalt") or ""),
-        "zahlVertragsumsatz": str(zahlen.get("vertragsumsatz") or ""),
+        # Betriebswirtschaftliche Zahlen: juengste Jahreswerte (Schnellansicht)
+        "zahlUmsatz": _latest("umsatz"),
+        "zahlEbit": _latest("ebit"),
+        "zahlBereinigtesEbit": _latest("bereinigtesEbit"),
+        "zahlGfGehalt": _latest("gfGehalt"),
+        "zahlVertragsumsatz": _latest("vertragsumsatz"),
         "zahlEbitTrend": ebit_trend,
+        # Volle Mehrjahres-Tabelle
+        "zahlenJahreJson": json.dumps(jahre_clean, ensure_ascii=False),
         # Antworten + Auswertung als JSON
         "antwortenJson": json.dumps(antworten, ensure_ascii=False),
         "auswertungJson": json.dumps(auswertung, ensure_ascii=False),
@@ -973,27 +1069,7 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as ex:
         logging.warning(f"Checkliste -> Kontakt-Zuordnung fehlgeschlagen: {ex}")
 
-    # Benachrichtigung an das Team (best-effort)
-    if ACS_CONN:
-        try:
-            from azure.communication.email import EmailClient
-            client = EmailClient.from_connection_string(ACS_CONN)
-            mibeca_mail = os.environ.get("MIBECA_NOTIFY_EMAIL", "jk@mike-bergmann.de")
-            wert_txt = f"{auswertung['wertMidEur']:,} €".replace(",", ".")
-            html = (f"<p><strong>Neue ITUKV-Checkliste ausgefüllt</strong></p>"
-                    f"<p>Firma: {firma_final or firma}<br/>Name: {name}<br/>E-Mail: {email}<br/>"
-                    f"Telefon: {telefon}<br/>Website: {website}</p>"
-                    f"<p>Faktor <strong>{auswertung['faktor']}</strong> · "
-                    f"{auswertung['jaCount']}/{auswertung['fragenGesamt']} JA · "
-                    f"grober Wert ca. <strong>{wert_txt}</strong></p>"
-                    f"<p>Verkaufszeitpunkt: {motive.get('zeitpunkt') or 'k. A.'}</p>")
-            client.begin_send({
-                "senderAddress": ACS_SENDER,
-                "recipients": {"to": [{"address": mibeca_mail}]},
-                "content": {"subject": f"[ITUKV] Neue Checkliste: {firma_final or name}", "plainText": f"Neue Checkliste von {firma_final or name} ({email}). Faktor {auswertung['faktor']}, Wert ca. {wert_txt}.", "html": html},
-            })
-        except Exception as ex:
-            logging.warning(f"Checkliste-Benachrichtigung fehlgeschlagen: {ex}")
+    # (Keine E-Mail-Benachrichtigung — alle Infos fliessen direkt ins Portal.)
 
     return ok_({
         "ok": True,
@@ -1022,6 +1098,8 @@ def checkliste_list(req: func.HttpRequest) -> func.HttpResponse:
             except Exception: ausw = {}
             try: antw = json.loads(c.get("antwortenJson") or "{}")
             except Exception: antw = {}
+            try: jahre = json.loads(c.get("zahlenJahreJson") or "[]")
+            except Exception: jahre = []
             out.append({
                 "id": c.get("RowKey"),
                 "name": c.get("name", ""), "email": c.get("email", ""),
@@ -1041,8 +1119,10 @@ def checkliste_list(req: func.HttpRequest) -> func.HttpResponse:
                 "motivErwartetPreis": c.get("motivErwartetPreis", ""),
                 "zahlUmsatz": c.get("zahlUmsatz", ""), "zahlEbit": c.get("zahlEbit", ""),
                 "zahlBereinigtesEbit": c.get("zahlBereinigtesEbit", ""),
+                "zahlGfGehalt": c.get("zahlGfGehalt", ""),
                 "zahlVertragsumsatz": c.get("zahlVertragsumsatz", ""),
                 "zahlEbitTrend": c.get("zahlEbitTrend", ""),
+                "zahlenJahre": jahre,
                 "antworten": antw,
                 "ansprache": c.get("ansprache", ""),
                 "insight": c.get("insight", ""),

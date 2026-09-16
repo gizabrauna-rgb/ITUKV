@@ -11,6 +11,15 @@ const err = ref('')
 
 const CHECKLISTE_URL = 'https://checkliste.itukv.de'
 
+const ZAHL_ZEILEN = [
+  { key: 'umsatz', label: 'Umsatz (TEUR)' },
+  { key: 'ebit', label: 'EBIT (TEUR)' },
+  { key: 'bereinigtesEbit', label: 'Bereinigtes EBIT (TEUR)' },
+  { key: 'gfGehalt', label: 'davon: GF-Gehalt (TEUR)' },
+  { key: 'mitarbeiter', label: 'Mitarbeiter' },
+  { key: 'vertragsumsatz', label: 'Umsatz aus Verträgen (TEUR)' },
+]
+
 async function load() {
   loading.value = true
   err.value = ''
@@ -126,14 +135,39 @@ const linkKopiert = ref(false)
               <p v-if="c.plz || c.ort" class="text-gray-600">{{ c.plz }} {{ c.ort }}</p>
               <p v-if="c.mitarbeiter" class="text-gray-600">{{ c.mitarbeiter }} Mitarbeiter</p>
             </div>
-            <div class="bg-white rounded-xl border border-gray-100 p-4 text-sm space-y-1">
-              <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Zahlen & Ziele</p>
-              <p class="text-gray-600"><span class="text-gray-400">Umsatz:</span> {{ c.zahlUmsatz || '–' }} TEUR · <span class="text-gray-400">EBIT:</span> {{ c.zahlEbit || '–' }} TEUR</p>
-              <p class="text-gray-600"><span class="text-gray-400">Bereinigtes EBIT:</span> {{ c.zahlBereinigtesEbit || '–' }} TEUR</p>
-              <p class="text-gray-600"><span class="text-gray-400">Vertragsumsatz:</span> {{ c.zahlVertragsumsatz || '–' }} TEUR · <span class="text-gray-400">Trend:</span> {{ c.zahlEbitTrend || '–' }}</p>
-              <p v-if="c.motivZeitpunkt" class="text-gray-600"><span class="text-gray-400">Verkauf geplant:</span> {{ c.motivZeitpunkt }}</p>
-              <p v-if="c.motivWunschpreis" class="text-gray-600"><span class="text-gray-400">Wunschpreis:</span> {{ c.motivWunschpreis }}</p>
-              <p v-if="c.motivMotivation" class="text-gray-600"><span class="text-gray-400">Motivation:</span> {{ c.motivMotivation }}</p>
+            <div class="bg-white rounded-xl border border-gray-100 p-4 text-sm space-y-3">
+              <div>
+                <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Betriebswirtschaftliche Zahlen</p>
+                <div v-if="c.zahlenJahre?.length" class="overflow-x-auto">
+                  <table class="w-full text-xs border-collapse">
+                    <thead>
+                      <tr class="text-gray-400">
+                        <th class="text-left font-medium pb-1 pr-2"></th>
+                        <th v-for="j in c.zahlenJahre" :key="j.jahr" class="text-right font-medium pb-1 px-1.5 whitespace-nowrap">
+                          {{ j.jahr }}<span v-if="j.geplant"> gpl.</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="z in ZAHL_ZEILEN" :key="z.key" class="border-t border-gray-50">
+                        <td class="py-1 pr-2 text-gray-500 leading-tight">{{ z.label }}</td>
+                        <td v-for="j in c.zahlenJahre" :key="j.jahr" class="py-1 px-1.5 text-right text-gray-800 tabular-nums">{{ j[z.key] || '–' }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div v-else class="text-gray-500 space-y-0.5">
+                  <p><span class="text-gray-400">Umsatz:</span> {{ c.zahlUmsatz || '–' }} TEUR · <span class="text-gray-400">EBIT:</span> {{ c.zahlEbit || '–' }} TEUR</p>
+                  <p><span class="text-gray-400">Bereinigtes EBIT:</span> {{ c.zahlBereinigtesEbit || '–' }} TEUR · <span class="text-gray-400">Vertragsumsatz:</span> {{ c.zahlVertragsumsatz || '–' }} TEUR</p>
+                </div>
+                <p class="text-[11px] text-gray-400 mt-1">EBIT-Trend: {{ c.zahlEbitTrend || '–' }}</p>
+              </div>
+              <div v-if="c.motivZeitpunkt || c.motivWunschpreis || c.motivMotivation" class="border-t border-gray-100 pt-2 space-y-0.5">
+                <p class="text-xs font-semibold text-gray-400 uppercase mb-1">Verkaufsziele</p>
+                <p v-if="c.motivZeitpunkt" class="text-gray-600"><span class="text-gray-400">Verkauf geplant:</span> {{ c.motivZeitpunkt }}</p>
+                <p v-if="c.motivWunschpreis" class="text-gray-600"><span class="text-gray-400">Wunschpreis:</span> {{ c.motivWunschpreis }}</p>
+                <p v-if="c.motivMotivation" class="text-gray-600"><span class="text-gray-400">Motivation:</span> {{ c.motivMotivation }}</p>
+              </div>
             </div>
           </div>
 
