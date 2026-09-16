@@ -1847,6 +1847,30 @@ def checkliste_list(req: func.HttpRequest) -> func.HttpResponse:
     return ok_({"items": out, "fragen": CHECKLISTE_FRAGEN})
 
 
+@app.route(route="checkliste-delete", methods=["POST", "OPTIONS"])
+def checkliste_delete(req: func.HttpRequest) -> func.HttpResponse:
+    """Admin/Dashboard: loescht einen Checklisten-Eintrag endgueltig."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    body = req.get_json() or {}
+    rk = (body.get("id") or body.get("RowKey") or "").strip()
+    if not rk:
+        return err_("id erforderlich", 400)
+    try:
+        table_("checklisten").delete_entity("checkliste", rk)
+    except Exception as ex:
+        logging.error(f"Checkliste-Loeschen fehlgeschlagen: {ex}")
+        return err_(f"Loeschen fehlgeschlagen: {ex}", 500)
+    try:
+        log_audit(p, "delete", "checkliste", rk)
+    except Exception:
+        pass
+    return ok_({"deleted": rk})
+
+
 @app.route(route="stats", methods=["GET", "OPTIONS"])
 def stats_route(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":

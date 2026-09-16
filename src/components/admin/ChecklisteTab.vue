@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { ClipboardList, RefreshCw, ChevronDown, Mail, Globe, ExternalLink, Link2 } from '@lucide/vue'
-import { getChecklisten } from '../../api.js'
+import { ClipboardList, RefreshCw, ChevronDown, Mail, Globe, ExternalLink, Link2, Trash2 } from '@lucide/vue'
+import { getChecklisten, deleteCheckliste } from '../../api.js'
 
 const loading = ref(true)
 const items = ref([])
@@ -67,6 +67,24 @@ function faktorFarbe(f) {
   return 'bg-red-100 text-red-700'
 }
 function toggle(id) { offen.value = offen.value === id ? null : id }
+
+// Einzelnen Checklisten-Eintrag endgueltig loeschen (mit Sicherheitsabfrage).
+const loeschtId = ref(null)
+async function loeschen(c) {
+  const name = c.firma || c.name || 'diesen Eintrag'
+  if (!confirm(`Checkliste von "${name}" wirklich endgültig löschen?\n\nDas kann nicht rückgängig gemacht werden.`)) return
+  loeschtId.value = c.id
+  try {
+    await deleteCheckliste(c.id)
+    items.value = items.value.filter(x => x.id !== c.id)
+    if (offen.value === c.id) offen.value = null
+  } catch (e) {
+    console.error(e)
+    alert('Löschen fehlgeschlagen. Bitte später erneut versuchen.')
+  } finally {
+    loeschtId.value = null
+  }
+}
 
 async function copyLink() {
   try { await navigator.clipboard.writeText(CHECKLISTE_URL); linkKopiert.value = true; setTimeout(() => linkKopiert.value = false, 2000) } catch {}
@@ -225,6 +243,15 @@ const linkKopiert = ref(false)
                 <span class="text-gray-600">{{ f.text }}</span>
               </li>
             </ul>
+          </div>
+
+          <!-- Aktionen -->
+          <div class="flex justify-end pt-1">
+            <button @click="loeschen(c)" :disabled="loeschtId === c.id"
+              class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50">
+              <Trash2 class="w-4 h-4" />
+              {{ loeschtId === c.id ? 'Wird gelöscht…' : 'Eintrag löschen' }}
+            </button>
           </div>
         </div>
       </div>

@@ -113,6 +113,7 @@ export const deleteKontakt = (id) => authFetch('/kontakt-delete', { method: 'POS
 
 // ITUKV-Checkliste (Marketing-Lead-Magnet)
 export const getChecklisten = () => authFetch('/checkliste-list')
+export const deleteCheckliste = (id) => authFetch('/checkliste-delete', { method: 'POST', data: { id } })
 
 // Ausschreibungen
 export const getAusschreibungen = () => authFetch('/ausschreibungen')
