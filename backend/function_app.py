@@ -917,15 +917,34 @@ def _firma_dativ(firma: str) -> str:
     return f"{art} {f}" if art else f
 
 
-def _checkliste_ansprache(ausw: dict, firma: str, geschaeftsmodell: str, sig: dict) -> str:
+def _checkliste_ansprache(ausw: dict, firma: str, geschaeftsmodell: str, sig: dict, ziel: str = "") -> str:
     """Individueller, intuitiver Ergebnis-Fließtext. Bewusst als Appetithappen
     formuliert: benennt die Ausgangslage, macht neugierig auf das Potenzial und
-    führt zum persönlichen Gespräch – ohne die konkrete Methode zu verraten."""
+    führt zum persönlichen Gespräch – ohne die konkrete Methode zu verraten.
+    Der Text richtet sich nach dem gewaehlten Ziel (erstes Kreuz): Zukaeufer/
+    Investoren bekommen eine Kaeufer-Perspektive, alle anderen die Wert-/
+    Verkaeufer-Perspektive."""
     firm_nom = _firma_nominativ(firma)   # z. B. "Die mibeca GmbH" / "Dein Unternehmen"
     firm_dat = _firma_dativ(firma)       # z. B. "der mibeca GmbH" / "Deinem Unternehmen"
     faktor = ausw.get("faktor", 5)
     ja, total = ausw.get("jaCount", 0), ausw.get("fragenGesamt", 13)
-    if faktor >= 6:
+    if (ziel or "").strip() == "zukauf":
+        # Kaeufer-/Investoren-Perspektive: es geht NICHT um den eigenen Verkaufspreis,
+        # sondern darum, wie zukaufs- und finanzierungsfaehig das Unternehmen ist.
+        if faktor >= 6:
+            kern = (f"{firm_nom} ist bereits stark und professionell aufgestellt – die beste Voraussetzung, "
+                    f"um selbst ein anderes IT-Unternehmen zu übernehmen und sauber zu integrieren. Mit {ja} von {total} "
+                    f"erfüllten Kriterien bringst Du genau die Stabilität mit, die einen Zukauf finanzierbar und "
+                    f"tragfähig macht. Jetzt entscheidet vor allem, das richtige Zielunternehmen zu finden.")
+        elif faktor >= 4:
+            kern = (f"{firm_nom} hat eine solide Basis für Wachstum durch Zukauf. {ja} von {total} Kriterien sind "
+                    f"erfüllt. Wer die verbleibenden Punkte gezielt schließt, wird als Käufer nicht nur attraktiver, "
+                    f"sondern kann eine Übernahme auch leichter finanzieren und stemmen.")
+        else:
+            kern = (f"Bei {firm_dat} steckt spürbar Potenzial, das Dich als Käufer noch stärker machen würde. "
+                    f"{ja} von {total} Kriterien sind erfüllt. Die gute Nachricht: Es sind meist nur wenige, klar "
+                    f"benennbare Stellschrauben, die Dich zukaufsbereit und finanzierbar machen.")
+    elif faktor >= 6:
         kern = (f"{firm_nom} ist bereits sehr verkaufsbereit – und damit auch stark genug, um selbst "
                 f"ein anderes Unternehmen zu übernehmen und zu integrieren. Mit {ja} von {total} "
                 f"erfüllten Kriterien hast Du viele der Hebel gezogen, die Käufer am höchsten bewerten. "
@@ -980,11 +999,20 @@ def _fmt_eur(n) -> str:
         return "–"
 
 
-def _checkliste_wert_insight(ausw: dict, ebit_teur, umsatz_teur, vertrag_teur) -> dict:
+def _checkliste_wert_insight(ausw: dict, ebit_teur, umsatz_teur, vertrag_teur, ziel: str = "") -> dict:
     """Personalisierter Wert-Einblick in echten Euro. Macht die abstrakte Bewertung
     greifbar (Faktor-Lücke × bereinigtes EBIT) und neugierig aufs Gespräch – ohne die
     Methode preiszugeben. Quelle der Logik: ITUKV-Kurs (IT-Multiple 3–7, Durchschnitt 5;
-    bereinigtes EBIT als Hebel; reales Beispiel 500.000 € -> 873.000 €)."""
+    bereinigtes EBIT als Hebel; reales Beispiel 500.000 € -> 873.000 €).
+    Bei Zielen mit Kaeufer-Perspektive (Zukauf) wird KEIN "mehr Kaufpreis" gezeigt,
+    sondern ein zukaufs-/finanzierungsorientierter Einblick (potenzialEur = 0)."""
+    if (ziel or "").strip() == "zukauf":
+        hook = ("Für einen erfolgreichen Zukauf zählt vor allem, dass Dein eigenes Unternehmen stabil und "
+                "unabhängig läuft – das macht die Finanzierung leichter und die Integration eines Zielunternehmens "
+                "planbar. Im kostenlosen Erstgespräch zeigen wir Dir, wie stark Du als Käufer heute schon aufgestellt bist.")
+        beleg = ("Wir gleichen Deine Ausgangslage mit passenden Übernahme-Kandidaten aus unserem Netzwerk ab und "
+                 "zeigen Dir, worauf es bei einem sauberen, begleiteten Kauf wirklich ankommt.")
+        return {"hook": hook, "beleg": beleg, "potenzialEur": 0}
     faktor = ausw.get("faktor", 5)
     beeb = ausw.get("bereinigtesEbit") or 0  # in TEUR
     punkt_wert = beeb * 1000  # ein Faktorpunkt in EUR
@@ -1022,6 +1050,88 @@ def _checkliste_wert_insight(ausw: dict, ebit_teur, umsatz_teur, vertrag_teur) -
                  "von 500.000 € auf 873.000 € – ohne dass sich am Geschäft etwas geändert hat.")
 
     return {"hook": hook, "beleg": beleg, "potenzialEur": potenzial}
+
+
+def _count_umkreis_firmen(plz: str, land: str = "", radius_km: float = 100.0) -> int:
+    """Zaehlt IT-Unternehmen aus dem SalesSuite-Datenstamm im Umkreis der PLZ.
+    Investoren werden nicht mitgezaehlt (sie sind keine Uebernahme-Ziele).
+    Rueckgabe ist nur eine Zahl (keine Namen) fuer den Teaser auf der Ergebnisseite."""
+    import math
+    center = plz_coord(plz, land)
+    if not center:
+        return 0
+    clat, clon = center
+
+    def _dist_km(lat, lon):
+        R = 6371.0  # Erdradius in km
+        p1, p2 = math.radians(clat), math.radians(lat)
+        dphi = math.radians(lat - clat)
+        dlmb = math.radians(lon - clon)
+        a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlmb / 2) ** 2
+        return 2 * R * math.asin(min(1.0, math.sqrt(a)))
+
+    n = 0
+    try:
+        for e in table_(SALESSUITE_TABLE).list_entities():
+            if (e.get("kundenstatus") or e.get("typ") or "") == "Investor":
+                continue  # Investoren sind keine Zukauf-Ziele
+            p = (e.get("plz") or "").strip()
+            if not p:
+                continue
+            co = plz_coord(p, e.get("land") or "")
+            if not co:
+                continue
+            if _dist_km(co[0], co[1]) <= radius_km:
+                n += 1
+    except Exception as ex:
+        logging.warning(f"Umkreis-Zaehlung fehlgeschlagen: {ex}")
+    return n
+
+
+def _count_aktive_investoren() -> int:
+    """Zaehlt Investoren im Datenstamm: eigene Kontakte (istInvestor) plus
+    SalesSuite-Kontakte mit Status 'Investor'. Nur eine Zahl fuer den Teaser."""
+    n = 0
+    try:
+        for k in table_("kontakte").list_entities():
+            if k.get("istInvestor"):
+                n += 1
+    except Exception:
+        pass
+    try:
+        for e in table_(SALESSUITE_TABLE).list_entities():
+            if (e.get("kundenstatus") or e.get("typ") or "") == "Investor":
+                n += 1
+    except Exception:
+        pass
+    return n
+
+
+def _checkliste_netzwerk_hinweis(ziel: str, plz: str, land: str = "") -> dict:
+    """Datenschutzfreundlicher Netzwerk-Hinweis (nur eine Zahl, keine Namen):
+    - Zukauf  -> Anzahl potenzieller IT-Unternehmen im Umkreis (100 km)
+    - sonst   -> Anzahl aktiver Investoren im Datenstamm
+    Rueckgabe: dict {typ, zahl, text} oder None (wenn Zahl zu klein / keine Daten)."""
+    try:
+        if (ziel or "").strip() == "zukauf":
+            n = _count_umkreis_firmen(plz, land, 100.0)
+            if n >= 10:
+                return {
+                    "typ": "firmen", "zahl": n,
+                    "text": (f"In Deinem Umkreis (rund 100 km) haben wir aktuell {n} IT-Unternehmen in "
+                             f"unserem Datenstamm, die als Übernahme-Kandidat zu Dir passen könnten."),
+                }
+        else:
+            n = _count_aktive_investoren()
+            if n >= 3:
+                return {
+                    "typ": "investoren", "zahl": n,
+                    "text": (f"Wir betreuen aktuell {n} Investoren, die aktiv nach einem IT-Unternehmen "
+                             f"wie Deinem suchen."),
+                }
+    except Exception as ex:
+        logging.warning(f"Netzwerk-Hinweis fehlgeschlagen: {ex}")
+    return None
 
 
 def _normalize_msisdn(raw: str) -> str:
@@ -1169,10 +1279,13 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
     web_signale = enrich.get("signale") or {}
     geschaeftsmodell = enrich.get("geschaeftsmodell") or ""
     auswertung = _checkliste_auswertung(antworten, ebit_trend, bereinigtes_ebit, web_signale)
-    ansprache = _checkliste_ansprache(auswertung, firma or enrich.get("firmenname") or "", geschaeftsmodell, web_signale)
+    ansprache = _checkliste_ansprache(auswertung, firma or enrich.get("firmenname") or "", geschaeftsmodell, web_signale, ziel)
     insight = _branchen_insight(web_signale)
     hebel = _checkliste_hebel(antworten)
-    wert_insight = _checkliste_wert_insight(auswertung, _latest("ebit"), _latest("umsatz"), _latest("vertragsumsatz"))
+    wert_insight = _checkliste_wert_insight(auswertung, _latest("ebit"), _latest("umsatz"), _latest("vertragsumsatz"), ziel)
+    # Netzwerk-Hinweis (reine Zahl, keine Namen): Zukauf -> Firmen im Umkreis,
+    # sonst -> aktive Investoren im Datenstamm.
+    netzwerk = _checkliste_netzwerk_hinweis(ziel, plz, kontakt.get("land") or "")
 
     # Falls vorher schon Entwuerfe (Zwischenspeichern nach jeder Kachel) angelegt
     # wurden, ueberschreiben wir denselben Datensatz statt einen neuen anzulegen.
@@ -1224,6 +1337,7 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
         # Fuer den individuellen Ergebnis-Link (erneutes Aufrufen)
         "hebelJson": json.dumps(hebel, ensure_ascii=False),
         "wertInsightJson": json.dumps(wert_insight, ensure_ascii=False),
+        "netzwerkJson": json.dumps(netzwerk or {}, ensure_ascii=False),
         # Anreicherung
         "enrichFirmenname": enrich.get("firmenname", "") or "",
         "enrichGeschaeftsfuehrer": ", ".join(enrich.get("geschaeftsfuehrer", []) or []) if isinstance(enrich.get("geschaeftsfuehrer"), list) else (enrich.get("geschaeftsfuehrer", "") or ""),
@@ -1332,6 +1446,7 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
         "insight": insight,
         "hebel": hebel,
         "wertInsight": wert_insight,
+        "netzwerk": netzwerk,
         "geschaeftsmodell": geschaeftsmodell,
         "schwerpunkte": enrich.get("schwerpunkte", []) or [],
         "firma": firma or enrich.get("firmenname") or "",
@@ -1444,6 +1559,9 @@ def checkliste_result(req: func.HttpRequest) -> func.HttpResponse:
     ausw = _j("auswertungJson", {})
     hebel = _j("hebelJson", [])
     wert_insight = _j("wertInsightJson", {})
+    netzwerk = _j("netzwerkJson", None) or None
+    if isinstance(netzwerk, dict) and not netzwerk.get("text"):
+        netzwerk = None
     schwer = row.get("schwerpunkte", "") or ""
     schwerpunkte = [s.strip() for s in schwer.split(",") if s.strip()]
     return ok_({
@@ -1455,6 +1573,7 @@ def checkliste_result(req: func.HttpRequest) -> func.HttpResponse:
         "insight": row.get("insight", ""),
         "hebel": hebel,
         "wertInsight": wert_insight,
+        "netzwerk": netzwerk,
         "geschaeftsmodell": row.get("geschaeftsmodell", ""),
         "schwerpunkte": schwerpunkte,
         "firma": row.get("firma", ""),

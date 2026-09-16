@@ -67,6 +67,19 @@
           </div>
         </div>
 
+        <!-- Netzwerk-Hinweis: reine Zahl aus dem Datenstamm (keine Namen).
+             Zukauf -> IT-Firmen im Umkreis · Verkauf/Nachfolge/... -> aktive Investoren -->
+        <div v-if="result.netzwerk?.text" class="bg-[#0088ba]/5 border-2 border-[#0088ba]/20 rounded-2xl p-5 md:p-6">
+          <div class="flex items-start gap-3">
+            <component :is="result.netzwerk.typ === 'firmen' ? MapPin : Users"
+              class="w-6 h-6 text-[#0088ba] flex-shrink-0 mt-0.5" />
+            <div>
+              <p class="text-sm md:text-base text-gray-800 font-semibold leading-relaxed">{{ result.netzwerk.text }}</p>
+              <p class="text-xs text-gray-500 mt-1.5">Anonymisiert aus unserem Datenstamm – Namen nennen wir selbstverständlich erst im persönlichen Gespräch.</p>
+            </div>
+          </div>
+        </div>
+
         <!-- Teaser: ungenutzte Werthebel (Ueberschrift/Text je nach Ziel individuell) -->
         <div v-if="result.hebel?.length" class="bg-white rounded-2xl border border-gray-100 p-6 md:p-8">
           <div class="flex items-center gap-2 mb-1">
@@ -327,7 +340,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
-import { CheckCircle2, TrendingUp, Link2, Check, CalendarClock, FileDown } from '@lucide/vue'
+import { CheckCircle2, TrendingUp, Link2, Check, CalendarClock, FileDown, MapPin, Users } from '@lucide/vue'
 
 // Vertrauensbelege (statische Marktbeweise, keine Live-Daten)
 const belege = [
