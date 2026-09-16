@@ -353,8 +353,16 @@ const calConfig = computed(() => {
   const telefonE164 = localNumber ? `${form.telefonVorwahl}${localNumber}` : ''
   if (name) cfg.name = name
   if (email) cfg.email = email
-  // Telefonisches Erstgespraech: Mobilnummer aus Schritt 1 vorbefuellen
-  if (telefonE164) cfg.attendeePhoneNumber = telefonE164
+  // Telefonisches Erstgespraech: Mobilnummer aus Schritt 1 vorbefuellen.
+  // Wir befuellen beide moeglichen Felder, damit es unabhaengig von der
+  // Cal-Konfiguration greift:
+  //  - attendeePhoneNumber: falls die Nummer eine Buchungsfrage ist
+  //  - location {value:'phone'}: falls der Ort "Anruf beim Teilnehmer" ist
+  if (telefonE164) {
+    cfg.attendeePhoneNumber = telefonE164
+    cfg.location = { value: 'phone', optionValue: telefonE164 }
+    cfg.smsReminderNumber = telefonE164
+  }
   // Kontext fuer Jenny als Notiz
   const firma = (form.firma || result.value?.firma || '').trim()
   const faktor = result.value?.auswertung?.faktor
