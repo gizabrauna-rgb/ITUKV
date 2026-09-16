@@ -886,25 +886,56 @@ def _branchen_insight(sig: dict) -> str:
             return _BRANCHEN_INSIGHTS[k]
     return _BRANCHEN_INSIGHTS["_default"]
 
+def _firma_artikel(firma: str, fall: str = "nom"):
+    """Bestimmt Artikel je nach Rechtsform. Rueckgabe: (artikel, firma).
+    fall: 'nom' (die/der) oder 'dat' (der/dem). Artikel kann leer sein
+    (reiner Name / e.K. -> ohne Artikel)."""
+    import re as _re
+    f = (firma or "").strip()
+    if not f:
+        return ("", "")
+    low = _re.sub(r"[.\s]+$", "", f.lower())
+    if _re.search(r"e\.?\s?v\.?$", low):            # eingetragener Verein -> der/dem
+        return ("der" if fall == "nom" else "dem", f)
+    if _re.search(r"(gmbh|mbh|\bug\b|\bag\b|\bkg\b|kgaa|\bohg\b|\bgbr\b|\bse\b|\beg\b|\bltd\b|\bllc\b|\binc\b)", low):
+        return ("die" if fall == "nom" else "der", f)   # GmbH, AG, ... -> die/der
+    return ("", f)                                   # reiner Name / e.K.
+
+def _firma_nominativ(firma: str) -> str:
+    """Firma im Nominativ mit grossgeschriebenem Artikel fuer den Satzanfang."""
+    art, f = _firma_artikel(firma, "nom")
+    if not f:
+        return "Dein Unternehmen"
+    return f"{art.capitalize()} {f}" if art else f
+
+def _firma_dativ(firma: str) -> str:
+    """Firma im Dativ (z. B. nach 'Bei ...'): 'der mibeca GmbH'."""
+    art, f = _firma_artikel(firma, "dat")
+    if not f:
+        return "Deinem Unternehmen"
+    return f"{art} {f}" if art else f
+
+
 def _checkliste_ansprache(ausw: dict, firma: str, geschaeftsmodell: str, sig: dict) -> str:
     """Individueller, intuitiver Ergebnis-Fließtext. Bewusst als Appetithappen
     formuliert: benennt die Ausgangslage, macht neugierig auf das Potenzial und
     führt zum persönlichen Gespräch – ohne die konkrete Methode zu verraten."""
-    firm = (firma or "Dein Unternehmen").strip()
+    firm_nom = _firma_nominativ(firma)   # z. B. "Die mibeca GmbH" / "Dein Unternehmen"
+    firm_dat = _firma_dativ(firma)       # z. B. "der mibeca GmbH" / "Deinem Unternehmen"
     faktor = ausw.get("faktor", 5)
     ja, total = ausw.get("jaCount", 0), ausw.get("fragenGesamt", 13)
     if faktor >= 6:
-        kern = (f"{firm} ist bereits sehr verkaufsbereit – und damit auch stark genug, um selbst "
+        kern = (f"{firm_nom} ist bereits sehr verkaufsbereit – und damit auch stark genug, um selbst "
                 f"ein anderes Unternehmen zu übernehmen und zu integrieren. Mit {ja} von {total} "
                 f"erfüllten Kriterien hast Du viele der Hebel gezogen, die Käufer am höchsten bewerten. "
                 f"Jetzt entscheidet vor allem das richtige Timing und der passende Käufer über Deinen Preis.")
     elif faktor >= 4:
-        kern = (f"{firm} hat eine solide Basis. {ja} von {total} Kriterien sind erfüllt. Genau in der "
+        kern = (f"{firm_nom} hat eine solide Basis. {ja} von {total} Kriterien sind erfüllt. Genau in der "
                 f"Lücke bis zur Bestnote steckt Dein größter Hebel: Wer die entscheidenden Punkte gezielt "
                 f"vorbereitet, hebt seinen Unternehmenswert vor dem Verkauf oft deutlich – und wird zugleich "
                 f"stark genug, um selbst zuzukaufen.")
     else:
-        kern = (f"Bei {firm} steckt spürbar Potenzial, das aktuell noch nicht am Kaufpreis ankommt. "
+        kern = (f"Bei {firm_dat} steckt spürbar Potenzial, das aktuell noch nicht am Kaufpreis ankommt. "
                 f"{ja} von {total} Kriterien sind erfüllt. Die gute Nachricht: Es sind erfahrungsgemäß nur "
                 f"wenige, klar benennbare Stellschrauben, die den größten Unterschied machen.")
     zusatz = ""

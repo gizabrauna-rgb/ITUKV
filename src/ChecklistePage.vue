@@ -271,13 +271,10 @@
             </div>
 
             <div class="bg-white rounded-2xl border border-gray-100 p-6 space-y-3">
-              <h3 class="text-base font-bold text-gray-900 mb-1">Deine Ziele &amp; Rahmenbedingungen</h3>
-              <textarea v-model="form.motive.motivation" rows="2" placeholder="Was treibt Dich an? (z. B. Alter, neue Interessen, Wachstum, Wettbewerbsdruck)" class="input resize-y"></textarea>
+              <h3 class="text-base font-bold text-gray-900 mb-1">{{ motivConfig.heading }}</h3>
+              <textarea v-model="form.motive.motivation" rows="2" :placeholder="motivConfig.motivation" class="input resize-y"></textarea>
               <div class="grid grid-cols-2 gap-3">
-                <input v-model="form.motive.zeitpunkt" placeholder="Wann planst Du den Schritt?" class="input" />
-                <input v-model="form.motive.begleitungMonate" placeholder="Begleitung nach Verkauf (Monate)" class="input" />
-                <input v-model="form.motive.wunschpreis" placeholder="Wunsch-Kaufpreis (sofort Ja)" class="input" />
-                <input v-model="form.motive.erwartetPreis" placeholder="Erwarteter Kaufpreis heute" class="input" />
+                <input v-for="f in motivConfig.felder" :key="f.key" v-model="form.motive[f.key]" :placeholder="f.ph" class="input" />
               </div>
             </div>
 
@@ -523,6 +520,69 @@ const ZIEL_TEXTE = {
   },
 }
 const zielTexte = computed(() => ZIEL_TEXTE[result.value?.ziel] || ZIEL_TEXTE.offen)
+
+// Letzte Kachel ("Ziele & Rahmenbedingungen") an das gewaehlte Ziel anpassen.
+// Ueberschrift, Freitext-Frage und die vier Felder heissen je Ziel unterschiedlich;
+// nicht passende Felder (z. B. Kaufpreis bei "Nur Wert wissen") fallen weg.
+const MOTIV_CONFIG = {
+  verkauf: {
+    heading: 'Deine Verkaufsziele & Rahmenbedingungen',
+    motivation: 'Warum willst Du verkaufen? (z. B. Alter, neue Ziele, Gesundheit)',
+    felder: [
+      { key: 'zeitpunkt', ph: 'Wann willst Du verkaufen?' },
+      { key: 'begleitungMonate', ph: 'Begleitung nach Verkauf (Monate)' },
+      { key: 'wunschpreis', ph: 'Wunsch-Verkaufspreis' },
+      { key: 'erwartetPreis', ph: 'Realistisch erwarteter Preis heute' },
+    ],
+  },
+  zukauf: {
+    heading: 'Deine Zukaufsziele & Rahmenbedingungen',
+    motivation: 'Was ist Dein Ziel beim Zukauf? (z. B. Wachstum, neue Region, Fachkräfte, Kundenstamm)',
+    felder: [
+      { key: 'zeitpunkt', ph: 'Wann willst Du zukaufen?' },
+      { key: 'begleitungMonate', ph: 'Wunschgröße des Ziels (Umsatz oder Mitarbeiter)' },
+      { key: 'wunschpreis', ph: 'Budget für den Zukauf' },
+      { key: 'erwartetPreis', ph: 'Bevorzugte Region oder Nische' },
+    ],
+  },
+  nachfolge: {
+    heading: 'Deine Nachfolge-Ziele & Rahmenbedingungen',
+    motivation: 'Warum steht die Nachfolge an? (z. B. Alter, Ruhestand, neue Pläne)',
+    felder: [
+      { key: 'zeitpunkt', ph: 'Wann soll die Übergabe stattfinden?' },
+      { key: 'begleitungMonate', ph: 'Wie lange willst Du begleiten? (Monate)' },
+      { key: 'wunschpreis', ph: 'Wunsch-Verkaufspreis' },
+      { key: 'erwartetPreis', ph: 'Realistisch erwarteter Preis heute' },
+    ],
+  },
+  beteiligung: {
+    heading: 'Deine Ziele für den Teilverkauf & Rahmenbedingungen',
+    motivation: 'Was erhoffst Du Dir vom Partner/Investor? (z. B. Kapital, Know-how, Entlastung)',
+    felder: [
+      { key: 'zeitpunkt', ph: 'Wann willst Du den Einstieg?' },
+      { key: 'begleitungMonate', ph: 'Welchen Anteil willst Du abgeben? (z. B. in %)' },
+      { key: 'wunschpreis', ph: 'Wunsch-Preis für den Anteil' },
+      { key: 'erwartetPreis', ph: 'Erwartete Unternehmensbewertung' },
+    ],
+  },
+  wert: {
+    heading: 'Deine Ziele & Rahmenbedingungen',
+    motivation: 'Wofür brauchst Du die Einschätzung? (z. B. Standortbestimmung, Planung)',
+    felder: [
+      { key: 'zeitpunkt', ph: 'Ist ein Schritt geplant? Wenn ja, wann?' },
+      { key: 'erwartetPreis', ph: 'Deine eigene Werteinschätzung heute (optional)' },
+    ],
+  },
+  offen: {
+    heading: 'Deine Ziele & Rahmenbedingungen',
+    motivation: 'Was treibt Dich an? (z. B. Alter, Wachstum, Wettbewerbsdruck, Klarheit)',
+    felder: [
+      { key: 'zeitpunkt', ph: 'Wann könnte ein Schritt anstehen?' },
+      { key: 'erwartetPreis', ph: 'Grobe eigene Werteinschätzung (optional)' },
+    ],
+  },
+}
+const motivConfig = computed(() => MOTIV_CONFIG[form.ziel] || MOTIV_CONFIG.offen)
 
 const linkKopiert = ref(false)
 const smsAngefragt = ref(false)
