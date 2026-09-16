@@ -23,7 +23,7 @@
             <template v-if="vorname">Hallo {{ vorname }}, das ist Deine persönliche Einschätzung</template>
             <template v-else>Deine persönliche Einschätzung</template>
           </h2>
-          <p v-if="result.firma" class="text-sm text-gray-500 mb-5">für {{ result.firma }}</p>
+          <p v-if="result.firma" class="text-sm text-gray-500 mb-5">für die {{ result.firma }}</p>
 
           <p class="text-gray-700 leading-relaxed mb-6">{{ result.ansprache }}</p>
 
@@ -83,8 +83,8 @@
             </li>
           </ul>
           <div class="flex items-center gap-2 mt-4 text-sm text-gray-500">
-            <Lock class="w-4 h-4 text-gray-400" />
-            <span>Der genaue Fahrplan pro Hebel ist Teil unseres persönlichen Gesprächs.</span>
+            <MessageCircle class="w-4 h-4 text-[#0088ba]" />
+            <span>Den konkreten Fahrplan für Deine Hebel gehen wir gemeinsam im persönlichen Gespräch durch.</span>
           </div>
         </div>
 
@@ -96,27 +96,27 @@
           </div>
         </div>
 
-        <!-- CTA -->
+        <!-- CTA-Text -->
         <div class="bg-[#161e2a] rounded-2xl p-8 text-center text-white">
           <h3 class="text-xl font-bold mb-2">Lass uns persönlich über Deinen nächsten Schritt sprechen</h3>
-          <p class="text-gray-300 text-sm mb-5 max-w-lg mx-auto">
+          <p class="text-gray-300 text-sm max-w-lg mx-auto">
             In einem kostenlosen, vertraulichen Strategiegespräch zeigen wir Dir, wie Du genau diese Hebel ziehst – ob Du verkaufen oder selbst zukaufen willst. Unser Rekord vom ersten Gespräch bis zum Verkauf: 11 Tage.
           </p>
-
-          <!-- Direkter Buchungskalender (Cal.com Inline-Embed) -->
-          <template v-if="CAL_ENABLED">
-            <p class="text-white font-semibold mb-3">Buch Dir direkt Dein kostenloses 20-Minuten-Erstgespräch:</p>
-            <div id="my-cal-inline-checkliste-itukv" ref="calEl"
-              class="bg-white rounded-xl overflow-hidden mx-auto" style="min-height:600px; max-width:900px;"></div>
-            <p class="text-xs text-gray-400 mt-4">Kostenlos · vertraulich · unverbindlich · telefonisch</p>
-          </template>
-          <template v-else>
+          <template v-if="!CAL_ENABLED">
             <a href="https://www.itukv.de" target="_blank" rel="noopener"
-              class="inline-block px-6 py-3 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8]">
+              class="inline-block mt-5 px-6 py-3 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8]">
               Kostenloses Strategiegespräch sichern
             </a>
             <p class="text-xs text-gray-400 mt-4">Kostenlos · vertraulich · unverbindlich – wir melden uns bei Dir.</p>
           </template>
+        </div>
+
+        <!-- Direkter Buchungskalender (Cal.com Inline-Embed) – eigene helle Karte -->
+        <div v-if="CAL_ENABLED" class="bg-white rounded-2xl border border-gray-100 p-5 md:p-6">
+          <h3 class="text-lg font-bold text-gray-900 text-center mb-1">Buch Dir direkt Dein kostenloses 20-Minuten-Erstgespräch</h3>
+          <p class="text-xs text-gray-500 text-center mb-5">Kostenlos · vertraulich · unverbindlich · telefonisch</p>
+          <div id="my-cal-inline-checkliste-itukv" ref="calEl"
+            class="rounded-xl overflow-hidden mx-auto" style="min-height:600px; max-width:900px;"></div>
         </div>
 
         <!-- Persönlicher Ergebnis-Link -->
@@ -308,7 +308,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
-import { CheckCircle2, TrendingUp, Lock, Link2, Check } from '@lucide/vue'
+import { CheckCircle2, TrendingUp, MessageCircle, Link2, Check } from '@lucide/vue'
 
 // Vertrauensbelege (statische Marktbeweise, keine Live-Daten)
 const belege = [
