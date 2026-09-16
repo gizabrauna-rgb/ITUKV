@@ -884,23 +884,58 @@ def _branchen_insight(sig: dict) -> str:
     return _BRANCHEN_INSIGHTS["_default"]
 
 def _checkliste_ansprache(ausw: dict, firma: str, geschaeftsmodell: str, sig: dict) -> str:
-    """Individueller, intuitiver Ergebnis-Fließtext."""
+    """Individueller, intuitiver Ergebnis-Fließtext. Bewusst als Appetithappen
+    formuliert: benennt die Ausgangslage, macht neugierig auf das Potenzial und
+    führt zum persönlichen Gespräch – ohne die konkrete Methode zu verraten."""
     firm = (firma or "Dein Unternehmen").strip()
     faktor = ausw.get("faktor", 5)
     ja, total = ausw.get("jaCount", 0), ausw.get("fragenGesamt", 13)
     if faktor >= 6:
-        kern = (f"{firm} ist schon sehr verkaufsbereit. Mit {ja} von {total} erfüllten Kriterien "
-                f"hast Du viele der Hebel, die Käufer honorieren, bereits gezogen.")
+        kern = (f"{firm} ist bereits sehr verkaufsbereit – und damit auch stark genug, um selbst "
+                f"ein anderes Unternehmen zu übernehmen und zu integrieren. Mit {ja} von {total} "
+                f"erfüllten Kriterien hast Du viele der Hebel gezogen, die Käufer am höchsten bewerten. "
+                f"Jetzt entscheidet vor allem das richtige Timing und der passende Käufer über Deinen Preis.")
     elif faktor >= 4:
-        kern = (f"{firm} hat eine solide Basis. {ja} von {total} Kriterien sind erfüllt – mit gezielten "
-                f"Vorbereitungen lässt sich der Unternehmenswert vor einem Verkauf spürbar steigern.")
+        kern = (f"{firm} hat eine solide Basis. {ja} von {total} Kriterien sind erfüllt. Genau in der "
+                f"Lücke bis zur Bestnote steckt Dein größter Hebel: Wer die entscheidenden Punkte gezielt "
+                f"vorbereitet, hebt seinen Unternehmenswert vor dem Verkauf oft deutlich – und wird zugleich "
+                f"stark genug, um selbst zuzukaufen.")
     else:
-        kern = (f"Bei {firm} steckt noch Potenzial. Aktuell sind {ja} von {total} Kriterien erfüllt – "
-                f"gemeinsam können wir die wichtigsten Stellschrauben vor einem Verkauf angehen.")
+        kern = (f"Bei {firm} steckt spürbar Potenzial, das aktuell noch nicht am Kaufpreis ankommt. "
+                f"{ja} von {total} Kriterien sind erfüllt. Die gute Nachricht: Es sind erfahrungsgemäß nur "
+                f"wenige, klar benennbare Stellschrauben, die den größten Unterschied machen.")
     zusatz = ""
     if geschaeftsmodell:
         zusatz = f" Wir haben uns Deine Website angeschaut: {geschaeftsmodell} Das passt gut ins Bild."
     return kern + zusatz
+
+
+# Werthebel, nach Wirkung auf den Kaufpreis priorisiert. Die Reihenfolge bestimmt,
+# welche 1-3 ungenutzten Hebel dem Nutzer als Appetithappen gezeigt werden.
+_CHECKLISTE_HEBEL = [
+    ("f7", "Mehr wiederkehrende Vertragsumsätze (Managed Services) – der stärkste einzelne Werttreiber für Käufer."),
+    ("f2", "Unabhängigkeit vom Inhaber – damit das Unternehmen auch ohne Dich zuverlässig weiterläuft."),
+    ("f10", "Eine planbare Neukundengewinnung, die verlässlich neue Kunden bringt."),
+    ("f6", "Ein skalierbares Vertragswerk für Managed Services."),
+    ("f1", "Ein Führungsteam, das das Tagesgeschäft eigenständig trägt."),
+    ("f12", "Eine klare Nischen-Spezialisierung, die Dich schwer austauschbar macht."),
+    ("f5", "Eine aktive Mitarbeitergewinnung, die planbar neue Leute bringt."),
+    ("f9", "Eine eigenständige Marketingabteilung."),
+    ("f8", "Ein reines Vertriebsteam, das ausschließlich verkauft."),
+    ("f4", "Das gesamte Unternehmenswissen sauber dokumentiert."),
+]
+
+def _checkliste_hebel(antworten: dict, limit: int = 3) -> list:
+    """Die wichtigsten ungenutzten Werthebel (Fragen, die nicht mit Ja beantwortet
+    wurden) – als Teaser fürs Ergebnis. Verrät das Was, nicht das Wie."""
+    antworten = antworten or {}
+    out = []
+    for key, label in _CHECKLISTE_HEBEL:
+        if antworten.get(key) is not True:
+            out.append(label)
+        if len(out) >= limit:
+            break
+    return out
 
 
 @app.route(route="checkliste-submit", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
@@ -969,6 +1004,7 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
     auswertung = _checkliste_auswertung(antworten, ebit_trend, bereinigtes_ebit, web_signale)
     ansprache = _checkliste_ansprache(auswertung, firma or enrich.get("firmenname") or "", geschaeftsmodell, web_signale)
     insight = _branchen_insight(web_signale)
+    hebel = _checkliste_hebel(antworten)
 
     cid = str(uuid.uuid4())
     token = secrets.token_urlsafe(24)
@@ -1028,13 +1064,20 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
             if (k.get("email", "") or "").strip().lower() == email.lower():
                 existing = dict(k); break
         firma_final = firma or enrich.get("firmenname") or ""
+        wert_fmt = f"{auswertung['wertMidEur']:,}".replace(",", ".")
         verlauf_eintrag = {
             "id": "kv" + str(int(datetime.utcnow().timestamp() * 1000)),
             "typ": "wichtig",
             "datum": datetime.utcnow().isoformat(),
             "autor": "ITUKV-Checkliste",
-            "betreff": f"Checkliste ausgefüllt · Faktor {auswertung['faktor']} · {auswertung['jaCount']}/{auswertung['fragenGesamt']} JA",
-            "beschreibung": f"Grober Unternehmenswert ca. {auswertung['wertMidEur']:,} € (bereinigtes EBIT × Faktor {auswertung['faktor']}). Verkaufszeitpunkt: {motive.get('zeitpunkt') or 'k. A.'}".replace(",", "."),
+            "betreff": "ITUKV-Checkliste durchgeführt",
+            "beschreibung": (
+                f"Kontakt hat die ITUKV-Checkliste („Wie bereit bist Du für einen Unternehmensverkauf?“) "
+                f"durchgeführt. Ergebnis: Faktor {auswertung['faktor']}, "
+                f"{auswertung['jaCount']}/{auswertung['fragenGesamt']} Kriterien erfüllt, "
+                f"grober Unternehmenswert ca. {wert_fmt} € (bereinigtes EBIT × Faktor {auswertung['faktor']}). "
+                f"Verkaufszeitpunkt: {motive.get('zeitpunkt') or 'k. A.'}"
+            ),
         }
         if existing:
             updates = {**existing, "typ": existing.get("typ") or "Verkäufer-Interesse", "updatedAt": datetime.utcnow().isoformat()}
@@ -1077,6 +1120,7 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
         "auswertung": auswertung,
         "ansprache": ansprache,
         "insight": insight,
+        "hebel": hebel,
         "geschaeftsmodell": geschaeftsmodell,
         "schwerpunkte": enrich.get("schwerpunkte", []) or [],
         "firma": firma or enrich.get("firmenname") or "",

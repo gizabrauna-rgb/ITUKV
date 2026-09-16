@@ -2,11 +2,15 @@
   <div class="min-h-screen bg-gray-50">
     <header class="max-w-3xl mx-auto px-6 pt-8 pb-2 text-center">
       <img src="/Favicon_mibeca.png" alt="Mike Bergmann" class="h-14 w-auto mx-auto mb-4" />
+      <p class="text-sm font-semibold uppercase tracking-wide text-[#0088ba] mb-2">IT-Unternehmen (ver)kaufen</p>
       <h1 class="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
-        Wie verkaufsbereit ist Dein IT-Unternehmen?
+        Wie bereit bist Du für einen Unternehmensverkauf?
       </h1>
       <p class="text-gray-600 mt-2">
         Beantworte ehrlich ein paar Fragen und erhalte sofort eine grobe Einschätzung Deines Unternehmenswerts.
+      </p>
+      <p class="text-sm text-gray-500 mt-3 max-w-xl mx-auto bg-[#0088ba]/5 border border-[#0088ba]/15 rounded-xl px-4 py-3">
+        Egal ob Du verkaufen oder zukaufen willst: Wer verkaufsfähig ist, ist auch stark genug, um ein anderes Unternehmen zu übernehmen und zu integrieren. Dieselben Werthebel entscheiden auf beiden Seiten.
       </p>
     </header>
 
@@ -51,10 +55,40 @@
           </div>
         </div>
 
+        <!-- Teaser: ungenutzte Werthebel -->
+        <div v-if="result.hebel?.length" class="bg-white rounded-2xl border border-gray-100 p-6 md:p-8">
+          <div class="flex items-center gap-2 mb-1">
+            <TrendingUp class="w-5 h-5 text-[#0088ba]" />
+            <h3 class="text-lg font-bold text-gray-900">Hier liegt Dein größtes ungenutztes Potenzial</h3>
+          </div>
+          <p class="text-sm text-gray-600 mb-5">
+            Diese Punkte heben Deinen Faktor – und damit Deinen Kaufpreis – am stärksten. <strong>Was</strong> zählt, siehst Du hier. <strong>Wie</strong> Du es konkret umsetzt, gehen wir gemeinsam durch.
+          </p>
+          <ul class="space-y-3">
+            <li v-for="(h, i) in result.hebel" :key="i" class="flex items-start gap-3 bg-gray-50 rounded-xl p-4">
+              <span class="flex-shrink-0 w-6 h-6 rounded-full bg-[#0088ba] text-white text-xs font-bold flex items-center justify-center">{{ i + 1 }}</span>
+              <span class="text-sm text-gray-700">{{ h }}</span>
+            </li>
+          </ul>
+          <div class="flex items-center gap-2 mt-4 text-sm text-gray-500">
+            <Lock class="w-4 h-4 text-gray-400" />
+            <span>Der genaue Fahrplan pro Hebel ist Teil unseres persönlichen Gesprächs.</span>
+          </div>
+        </div>
+
+        <!-- Vertrauensbelege -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div v-for="b in belege" :key="b.label" class="bg-white rounded-xl border border-gray-100 p-4 text-center">
+            <div class="text-xl font-bold text-[#0088ba]">{{ b.zahl }}</div>
+            <div class="text-[11px] text-gray-500 mt-1 leading-tight">{{ b.label }}</div>
+          </div>
+        </div>
+
+        <!-- CTA -->
         <div class="bg-[#161e2a] rounded-2xl p-8 text-center text-white">
-          <h3 class="text-xl font-bold mb-2">Lass uns persönlich darüber sprechen</h3>
+          <h3 class="text-xl font-bold mb-2">Lass uns persönlich über Deinen nächsten Schritt sprechen</h3>
           <p class="text-gray-300 text-sm mb-5 max-w-lg mx-auto">
-            In einem kostenlosen Strategiegespräch zeigen wir Dir, wie Du Deinen Unternehmenswert vor einem Verkauf gezielt steigerst.
+            In einem kostenlosen, vertraulichen Strategiegespräch zeigen wir Dir, wie Du genau diese Hebel ziehst – ob Du verkaufen oder selbst zukaufen willst. Unser Rekord vom ersten Gespräch bis zum Verkauf: 11 Tage.
           </p>
           <a href="https://www.itukv.de" target="_blank" rel="noopener"
             class="inline-block px-6 py-3 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8]">
@@ -81,9 +115,9 @@
             <input v-model="form.email" type="email" placeholder="E-Mail *" class="input" />
             <div class="flex gap-2">
               <select v-model="form.telefonVorwahl" class="input !w-auto" style="flex:0 0 auto;">
-                <option value="+49">🇩🇪 +49</option>
-                <option value="+43">🇦🇹 +43</option>
-                <option value="+41">🇨🇭 +41</option>
+                <option value="+49">DE +49</option>
+                <option value="+43">AT +43</option>
+                <option value="+41">CH +41</option>
               </select>
               <input v-model="form.telefon" placeholder="Mobilnummer" class="input flex-1" inputmode="tel" />
             </div>
@@ -194,7 +228,15 @@
 
 <script setup>
 import { ref, reactive, computed } from 'vue'
-import { CheckCircle2 } from '@lucide/vue'
+import { CheckCircle2, TrendingUp, Lock } from '@lucide/vue'
+
+// Vertrauensbelege (statische Marktbeweise, keine Live-Daten)
+const belege = [
+  { zahl: '50+', label: 'begleitete Transaktionen' },
+  { zahl: '11', label: 'Tage bis zum Verkauf (Rekord)' },
+  { zahl: '6.000+', label: 'Kontakte in der IT-Branche' },
+  { zahl: '25', label: 'Käufer- & Investorennetzwerke' },
+]
 
 const apiBase = import.meta.env.VITE_API_BASE || 'https://itukv-func-v2.azurewebsites.net/api'
 
