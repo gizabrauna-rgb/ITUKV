@@ -19,7 +19,10 @@
       <div v-if="result" class="space-y-5">
         <div class="bg-white rounded-2xl border-2 border-[#0088ba]/20 p-8 text-center">
           <CheckCircle2 class="w-12 h-12 text-[#0088ba] mx-auto mb-3" />
-          <h2 class="text-xl font-bold text-gray-900 mb-1">Deine persönliche Einschätzung</h2>
+          <h2 class="text-xl font-bold text-gray-900 mb-1">
+            <template v-if="vorname">Hallo {{ vorname }}, das ist Deine persönliche Einschätzung</template>
+            <template v-else>Deine persönliche Einschätzung</template>
+          </h2>
           <p v-if="result.firma" class="text-sm text-gray-500 mb-5">für {{ result.firma }}</p>
 
           <p class="text-gray-700 leading-relaxed mb-6">{{ result.ansprache }}</p>
@@ -47,6 +50,15 @@
 
           <div v-if="result.schwerpunkte?.length" class="flex flex-wrap justify-center gap-2 mb-4">
             <span v-for="s in result.schwerpunkte" :key="s" class="text-xs bg-gray-100 text-gray-700 px-3 py-1 rounded-full">{{ s }}</span>
+          </div>
+
+          <div v-if="result.wertInsight" class="text-left bg-[#0088ba]/5 border border-[#0088ba]/25 rounded-xl p-5 mb-3">
+            <p class="text-xs font-semibold text-[#0088ba] uppercase tracking-wide mb-2">Was das für Dich bedeutet</p>
+            <p v-if="result.wertInsight.potenzialEur > 0" class="text-2xl md:text-3xl font-extrabold text-gray-900 leading-none mb-2">
+              bis zu {{ euro(result.wertInsight.potenzialEur) }} <span class="text-base font-semibold text-gray-500">mehr Kaufpreis</span>
+            </p>
+            <p class="text-sm text-gray-700 leading-relaxed mb-2">{{ result.wertInsight.hook }}</p>
+            <p class="text-sm text-gray-600 leading-relaxed">{{ result.wertInsight.beleg }}</p>
           </div>
 
           <div v-if="result.insight" class="text-left bg-amber-50 border border-amber-200 rounded-xl p-4 mb-2">
@@ -96,6 +108,48 @@
           </a>
           <p class="text-xs text-gray-400 mt-4">Wir haben Deine Angaben erhalten und melden uns bei Dir.</p>
         </div>
+
+        <!-- Persönlicher Ergebnis-Link -->
+        <div v-if="result.ergebnisLink" class="bg-white rounded-2xl border border-gray-100 p-5">
+          <div class="flex items-center gap-2 mb-2">
+            <Link2 class="w-4 h-4 text-[#0088ba]" />
+            <p class="text-sm font-semibold text-gray-900">Dein persönlicher Ergebnis-Link</p>
+          </div>
+          <p class="text-xs text-gray-500 mb-3">Speicher Dir diesen Link – so kannst Du Deine Einschätzung jederzeit wieder aufrufen.</p>
+          <div class="flex gap-2">
+            <input :value="result.ergebnisLink" readonly class="input flex-1 text-xs !py-2 text-gray-600" @focus="$event.target.select()" />
+            <button type="button" @click="ergebnisLinkKopieren"
+              class="flex items-center gap-1.5 px-3 py-2 text-sm border-2 border-gray-200 rounded-xl hover:bg-gray-50 flex-shrink-0">
+              <Check v-if="linkKopiert" class="w-4 h-4 text-green-600" />
+              <Link2 v-else class="w-4 h-4 text-gray-400" />
+              {{ linkKopiert ? 'Kopiert' : 'Kopieren' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Analyse läuft -->
+      <div v-else-if="analyzing" class="min-h-[60vh] flex flex-col items-center justify-center text-center py-10">
+        <div class="relative w-28 h-28 mb-8">
+          <svg class="w-28 h-28 animate-spin" style="animation-duration:1.1s" viewBox="0 0 50 50">
+            <circle cx="25" cy="25" r="21" fill="none" stroke="#e5e7eb" stroke-width="4" />
+            <circle cx="25" cy="25" r="21" fill="none" stroke="#0088ba" stroke-width="4" stroke-linecap="round" stroke-dasharray="80 132" />
+          </svg>
+          <div class="absolute inset-0 flex items-center justify-center text-xl font-extrabold text-[#0088ba] tabular-nums">{{ analyseProzent }}%</div>
+        </div>
+        <h2 class="text-xl font-bold text-gray-900 mb-1">Deine Analyse läuft</h2>
+        <p class="text-sm text-gray-500 mb-7">Einen Moment – wir werten Deine Angaben gerade aus.</p>
+        <ul class="w-full max-w-md space-y-2.5 text-left">
+          <li v-for="(s, i) in ANALYSE_STEPS" :key="i" class="flex items-center gap-3 text-sm transition-all duration-300"
+              :class="i <= analyseStep ? 'opacity-100' : 'opacity-40'">
+            <span class="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center"
+              :class="i < analyseStep ? 'bg-green-500 text-white' : (i === analyseStep ? 'bg-[#0088ba] text-white' : 'bg-gray-200')">
+              <CheckCircle2 v-if="i < analyseStep" class="w-3.5 h-3.5" />
+              <span v-else-if="i === analyseStep" class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+            </span>
+            <span :class="i <= analyseStep ? 'text-gray-800 font-medium' : 'text-gray-400'">{{ s }}</span>
+          </li>
+        </ul>
       </div>
 
       <!-- Formular -->
@@ -227,8 +281,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
-import { CheckCircle2, TrendingUp, Lock } from '@lucide/vue'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { CheckCircle2, TrendingUp, Lock, Link2, Check } from '@lucide/vue'
 
 // Vertrauensbelege (statische Marktbeweise, keine Live-Daten)
 const belege = [
@@ -275,6 +329,19 @@ const sending = ref(false)
 const errMsg = ref('')
 const result = ref(null)
 
+// Analyse-Animation
+const ANALYSE_STEPS = [
+  'Deine Antworten werden ausgewertet',
+  'Betriebswirtschaftliche Zahlen werden geprüft',
+  'Bereinigtes EBIT & Bewertungsfaktor werden berechnet',
+  'Abgleich mit über 6.000 IT-Unternehmen',
+  'Deine größten Werthebel werden ermittelt',
+  'Deine persönliche Einschätzung wird erstellt',
+]
+const analyzing = ref(false)
+const analyseStep = ref(0)
+const analyseProzent = ref(0)
+
 const form = reactive({
   firma: '', name: '', email: '', telefonVorwahl: '+49', telefon: '', website: '', plzOrt: '',
   websiteEinverstaendnis: true,
@@ -287,6 +354,32 @@ const form = reactive({
   },
   motive: { motivation: '', zeitpunkt: '', begleitungMonate: '', wunschpreis: '', erwartetPreis: '' },
   dsgvo: false,
+})
+
+const vorname = computed(() => (result.value?.name || '').trim().split(/\s+/)[0] || '')
+const linkKopiert = ref(false)
+async function ergebnisLinkKopieren() {
+  try {
+    await navigator.clipboard.writeText(result.value?.ergebnisLink || location.href)
+    linkKopiert.value = true
+    setTimeout(() => { linkKopiert.value = false }, 2000)
+  } catch {}
+}
+
+// Individueller Ergebnis-Link: ?r=<token> -> Ergebnis erneut laden
+const ladeErgebnis = ref(false)
+onMounted(async () => {
+  const token = new URLSearchParams(location.search).get('r')
+  if (!token) return
+  ladeErgebnis.value = true
+  try {
+    const res = await fetch(`${apiBase}/checkliste-result?token=${encodeURIComponent(token)}`)
+    if (res.ok) {
+      result.value = await res.json()
+      window.scrollTo({ top: 0 })
+    }
+  } catch {}
+  finally { ladeErgebnis.value = false }
 })
 
 function euro(n) {
@@ -316,11 +409,30 @@ async function onNext() {
 
 async function abschicken() {
   if (!form.dsgvo) { errMsg.value = 'Bitte stimme der Datenverarbeitung zu.'; return }
+  errMsg.value = ''
   sending.value = true
+  analyzing.value = true
+  analyseStep.value = 0
+  analyseProzent.value = 0
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+
+  // Analyse-Animation: Schritte durchrattern + Prozent hochzählen
+  const stepMs = 700
+  const gesamtMs = ANALYSE_STEPS.length * stepMs
+  const stepTimer = setInterval(() => {
+    if (analyseStep.value < ANALYSE_STEPS.length - 1) analyseStep.value++
+  }, stepMs)
+  const prozentTimer = setInterval(() => {
+    if (analyseProzent.value < 96) analyseProzent.value++
+  }, Math.floor(gesamtMs / 96))
+  const minDauer = new Promise(r => setTimeout(r, gesamtMs))
+
   let website = (form.website || '').trim()
   if (website && !/^https?:\/\//i.test(website)) website = 'https://' + website
   const localNumber = (form.telefon || '').trim().replace(/^0+/, '')
   const telefon = localNumber ? `${form.telefonVorwahl} ${localNumber}` : ''
+
+  let apiResult = null, fehler = ''
   try {
     const res = await fetch(`${apiBase}/checkliste-submit`, {
       method: 'POST',
@@ -335,13 +447,24 @@ async function abschicken() {
       }),
     })
     if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || `HTTP ${res.status}`) }
-    result.value = await res.json()
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    apiResult = await res.json()
   } catch (e) {
-    errMsg.value = 'Etwas ist schiefgegangen: ' + e.message
-  } finally {
-    sending.value = false
+    fehler = 'Etwas ist schiefgegangen: ' + e.message
   }
+
+  // Animation mindestens komplett durchlaufen lassen
+  await minDauer
+  clearInterval(stepTimer)
+  clearInterval(prozentTimer)
+  analyseStep.value = ANALYSE_STEPS.length
+  analyseProzent.value = 100
+  await new Promise(r => setTimeout(r, 450))
+
+  analyzing.value = false
+  sending.value = false
+  if (fehler) { errMsg.value = fehler; return }
+  result.value = apiResult
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 </script>
 

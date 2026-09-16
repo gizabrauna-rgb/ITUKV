@@ -866,6 +866,9 @@ def _zahlen_aus_jahren(zahlen: dict):
     return clean, beeb, trend
 
 
+# Oeffentliche Basis-URL der Checkliste (fuer individuelle Ergebnis-Links).
+CHECKLISTE_BASE_URL = "https://checkliste.itukv.de"
+
 # Kuratierte, seriöse Marktfakten je erkanntem Geschaeftsmodell (Branchen-Insight).
 # Bewusst zeitlos formuliert, keine Live-Studien.
 _BRANCHEN_INSIGHTS = {
@@ -938,6 +941,57 @@ def _checkliste_hebel(antworten: dict, limit: int = 3) -> list:
     return out
 
 
+def _fmt_eur(n) -> str:
+    try:
+        return f"{int(round(n)):,}".replace(",", ".") + " €"
+    except Exception:
+        return "–"
+
+
+def _checkliste_wert_insight(ausw: dict, ebit_teur, umsatz_teur, vertrag_teur) -> dict:
+    """Personalisierter Wert-Einblick in echten Euro. Macht die abstrakte Bewertung
+    greifbar (Faktor-Lücke × bereinigtes EBIT) und neugierig aufs Gespräch – ohne die
+    Methode preiszugeben. Quelle der Logik: ITUKV-Kurs (IT-Multiple 3–7, Durchschnitt 5;
+    bereinigtes EBIT als Hebel; reales Beispiel 500.000 € -> 873.000 €)."""
+    faktor = ausw.get("faktor", 5)
+    beeb = ausw.get("bereinigtesEbit") or 0  # in TEUR
+    punkt_wert = beeb * 1000  # ein Faktorpunkt in EUR
+    potenzial = int(round((7 - faktor) * punkt_wert)) if (faktor < 7 and beeb > 0) else 0
+
+    if beeb <= 0:
+        hook = ("Der Unterschied zwischen Faktor 3 und 7 entscheidet in der IT-Branche über "
+                "Hunderttausende Euro Kaufpreis – bei identischem Geschäft. Mit Deinem bereinigten "
+                "EBIT rechnen wir Dir im Gespräch auf den Euro genau vor, wo Du heute stehst.")
+    elif faktor >= 7:
+        hook = (f"Beim Bewertungsfaktor bist Du bereits an der Spitze der IT-Branche (7 von 7). "
+                f"Jeder Faktorpunkt ist bei Deinem bereinigten EBIT rund {_fmt_eur(punkt_wert)} wert – "
+                f"jetzt entscheidet der richtige Käufer und die Verhandlung über jeden weiteren Euro.")
+    else:
+        hook = (f"Dein grober Wert basiert auf Faktor {faktor}. Die Spitze der IT-Branche liegt bei 7. "
+                f"Bei Deinem bereinigten EBIT ist jeder einzelne Punkt rund {_fmt_eur(punkt_wert)} wert – "
+                f"der Weg von Faktor {faktor} auf 7 entspricht bis zu {_fmt_eur(potenzial)} mehr Kaufpreis, "
+                f"ohne dass Du mehr Umsatz machen musst.")
+
+    beleg = ""
+    ebit = _to_num(ebit_teur)
+    if ebit is not None and beeb and beeb > ebit:
+        gehoben = int(round((beeb - ebit) * faktor * 1000))
+        beleg = (f"Allein Deine EBIT-Bereinigung hebt den Unternehmenswert bereits um rund "
+                 f"{_fmt_eur(gehoben)} – genau dieser sauber belegte Effekt überzeugt Käufer.")
+    else:
+        um, ve = _to_num(umsatz_teur), _to_num(vertrag_teur)
+        if um and ve and um > 0:
+            anteil = round(ve / um * 100)
+            if anteil < 70:
+                beleg = (f"Aktuell sind nur rund {anteil} % Deines Umsatzes wiederkehrend. Ab 70 % springt "
+                         f"Deine Bewertung in die Spitzenklasse – der stärkste einzelne Hebel für Deinen Faktor.")
+    if not beleg:
+        beleg = ("In einem realen Fall stieg der Unternehmenswert allein durch eine saubere EBIT-Bereinigung "
+                 "von 500.000 € auf 873.000 € – ohne dass sich am Geschäft etwas geändert hat.")
+
+    return {"hook": hook, "beleg": beleg, "potenzialEur": potenzial}
+
+
 @app.route(route="checkliste-submit", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
     """Public: jemand fuellt die ITUKV-Checkliste aus.
@@ -1005,9 +1059,11 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
     ansprache = _checkliste_ansprache(auswertung, firma or enrich.get("firmenname") or "", geschaeftsmodell, web_signale)
     insight = _branchen_insight(web_signale)
     hebel = _checkliste_hebel(antworten)
+    wert_insight = _checkliste_wert_insight(auswertung, _latest("ebit"), _latest("umsatz"), _latest("vertragsumsatz"))
 
     cid = str(uuid.uuid4())
     token = secrets.token_urlsafe(24)
+    ergebnis_link = f"{CHECKLISTE_BASE_URL}/?r={token}"
     row = {
         "PartitionKey": "checkliste", "RowKey": cid,
         "name": name, "email": email, "firma": firma, "telefon": telefon,
@@ -1027,6 +1083,7 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
         "zahlGfGehalt": _latest("gfGehalt"),
         "zahlVertragsumsatz": _latest("vertragsumsatz"),
         "zahlEbitTrend": ebit_trend,
+        "ergebnisLink": ergebnis_link,
         # Volle Mehrjahres-Tabelle
         "zahlenJahreJson": json.dumps(jahre_clean, ensure_ascii=False),
         # Antworten + Auswertung als JSON
@@ -1041,6 +1098,9 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
         "geschaeftsmodell": geschaeftsmodell,
         "schwerpunkte": ", ".join(enrich.get("schwerpunkte", []) or []),
         "webSignaleJson": json.dumps(web_signale, ensure_ascii=False),
+        # Fuer den individuellen Ergebnis-Link (erneutes Aufrufen)
+        "hebelJson": json.dumps(hebel, ensure_ascii=False),
+        "wertInsightJson": json.dumps(wert_insight, ensure_ascii=False),
         # Anreicherung
         "enrichFirmenname": enrich.get("firmenname", "") or "",
         "enrichGeschaeftsfuehrer": ", ".join(enrich.get("geschaeftsfuehrer", []) or []) if isinstance(enrich.get("geschaeftsfuehrer"), list) else (enrich.get("geschaeftsfuehrer", "") or ""),
@@ -1076,7 +1136,8 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
                 f"durchgeführt. Ergebnis: Faktor {auswertung['faktor']}, "
                 f"{auswertung['jaCount']}/{auswertung['fragenGesamt']} Kriterien erfüllt, "
                 f"grober Unternehmenswert ca. {wert_fmt} € (bereinigtes EBIT × Faktor {auswertung['faktor']}). "
-                f"Verkaufszeitpunkt: {motive.get('zeitpunkt') or 'k. A.'}"
+                f"Verkaufszeitpunkt: {motive.get('zeitpunkt') or 'k. A.'}. "
+                f"Persönlicher Ergebnis-Link: {ergebnis_link}"
             ),
         }
         if existing:
@@ -1117,13 +1178,64 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
     return ok_({
         "ok": True,
         "resultToken": token,
+        "ergebnisLink": ergebnis_link,
         "auswertung": auswertung,
         "ansprache": ansprache,
         "insight": insight,
         "hebel": hebel,
+        "wertInsight": wert_insight,
         "geschaeftsmodell": geschaeftsmodell,
         "schwerpunkte": enrich.get("schwerpunkte", []) or [],
         "firma": firma or enrich.get("firmenname") or "",
+        "name": name,
+    })
+
+
+@app.route(route="checkliste-result", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def checkliste_result(req: func.HttpRequest) -> func.HttpResponse:
+    """Public: ruft ein bereits ausgefuelltes Checklisten-Ergebnis ueber den
+    individuellen Token erneut ab (fuer den persoenlichen Ergebnis-Link)."""
+    _origin_from_req(req)
+    if req.method == "OPTIONS":
+        return opt_()
+    token = (req.params.get("token") or req.params.get("r") or "").strip()
+    if not token:
+        return err_("Kein Ergebnis-Token angegeben", 400)
+    token_safe = token.replace("'", "''")
+    row = None
+    try:
+        for c in table_("checklisten").query_entities(
+            f"PartitionKey eq 'checkliste' and resultToken eq '{token_safe}'"):
+            row = dict(c); break
+    except Exception as ex:
+        logging.error(f"Checkliste-Result Abfrage fehlgeschlagen: {ex}")
+        return err_("Ergebnis konnte nicht geladen werden", 500)
+    if not row:
+        return err_("Ergebnis nicht gefunden", 404)
+
+    def _j(field, default):
+        try:
+            return json.loads(row.get(field) or "")
+        except Exception:
+            return default
+    ausw = _j("auswertungJson", {})
+    hebel = _j("hebelJson", [])
+    wert_insight = _j("wertInsightJson", {})
+    schwer = row.get("schwerpunkte", "") or ""
+    schwerpunkte = [s.strip() for s in schwer.split(",") if s.strip()]
+    return ok_({
+        "ok": True,
+        "resultToken": token,
+        "ergebnisLink": row.get("ergebnisLink", f"{CHECKLISTE_BASE_URL}/?r={token}"),
+        "auswertung": ausw,
+        "ansprache": row.get("ansprache", ""),
+        "insight": row.get("insight", ""),
+        "hebel": hebel,
+        "wertInsight": wert_insight,
+        "geschaeftsmodell": row.get("geschaeftsmodell", ""),
+        "schwerpunkte": schwerpunkte,
+        "firma": row.get("firma", ""),
+        "name": row.get("name", ""),
     })
 
 
