@@ -92,6 +92,7 @@
         <ul class="space-y-0.5 px-2">
           <template v-for="(item, idx) in navItems" :key="item.tab || ('sep-' + idx)">
             <li v-if="item.divider" class="my-2 mx-3 border-t border-gray-100"></li>
+            <li v-else-if="item.heading" class="mt-3 mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">{{ item.heading }}</li>
             <li v-else>
               <button
                 @click="tab = item.tab"
@@ -311,6 +312,10 @@
           <MailvorlagenTab />
         </div>
 
+        <div v-else-if="tab === 'checkliste'">
+          <ChecklisteTab />
+        </div>
+
         <div v-else-if="tab === 'controlling'">
           <Controlling />
         </div>
@@ -348,7 +353,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import {
   Building2, LogOut, LayoutDashboard, Briefcase, GitBranch,
-  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow, Bell, BarChart3, AlertCircle, Activity, Mail, CalendarClock, ShieldCheck, HelpCircle, Sparkles,
+  Users, Megaphone, FolderOpen, X, Check, Eye, ChevronDown, Settings, UserCog, Workflow, Bell, BarChart3, AlertCircle, Activity, Mail, CalendarClock, ShieldCheck, HelpCircle, Sparkles, ClipboardList,
 } from '@lucide/vue'
 import { authFetch, verlaufUnreadCount, verlaufMarkRead } from '../api.js'
 import TargetsTab from '../components/admin/TargetsTab.vue'
@@ -365,6 +370,7 @@ import EinstellungenTab from '../components/admin/EinstellungenTab.vue'
 import Controlling from '../components/admin/Controlling.vue'
 import TargetAkte from '../components/admin/TargetAkte.vue'
 import MailvorlagenTab from '../components/admin/MailvorlagenTab.vue'
+import ChecklisteTab from '../components/admin/ChecklisteTab.vue'
 
 const props = defineProps({ userName: String })
 const emit = defineEmits(['logout', 'switch-view'])
@@ -434,8 +440,11 @@ const navItems = [
   { tab: 'crm', label: 'Kontakte', icon: Users },
   { divider: true },
   { tab: 'dokumente', label: 'Dokumente', icon: FolderOpen },
-  { tab: 'mailvorlagen', label: 'E-Mail-Vorlagen', icon: Mail },
   { tab: 'controlling', label: 'Controlling', icon: BarChart3 },
+  { divider: true },
+  { heading: 'Marketing' },
+  { tab: 'mailvorlagen', label: 'E-Mail-Vorlagen', icon: Mail },
+  { tab: 'checkliste', label: 'ITUKV-Checkliste', icon: ClipboardList },
   { divider: true },
   { tab: 'benutzer', label: 'Benutzer', icon: UserCog },
   { tab: 'audit', label: 'Audit & Backup', icon: ShieldCheck },

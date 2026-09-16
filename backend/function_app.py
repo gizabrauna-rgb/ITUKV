@@ -59,6 +59,7 @@ _DEFAULT_ALLOW_ORIGIN = "https://dashboard.itukv.de"
 _ALLOWED_ORIGINS = {
     "https://dashboard.itukv.de",
     "https://targets.itukv.de",
+    "https://checkliste.itukv.de",
     "http://localhost:5173",
     "http://localhost:4173",
 }
@@ -696,6 +697,368 @@ def salessuite_sync_timer(ssTimer: func.TimerRequest) -> None:
         )
     except Exception as ex:
         logging.error(f"SalesSuite-Timer fehlgeschlagen: {ex}", exc_info=True)
+
+
+# =====================================================================
+# ITUKV-CHECKLISTE — digitale "Wie verkaufsbereit ist Dein IT-Unternehmen?"
+# Oeffentliches Formular (checkliste.itukv.de) -> Schnellbewertung ->
+# Lead landet im Dashboard, per E-Mail einem Kontakt zugeordnet.
+# =====================================================================
+
+CHECKLISTE_BASE = os.environ.get("CHECKLISTE_BASE_URL", "https://checkliste.itukv.de")
+
+# Die 13 JA/NEIN-Fragen aus der Papier-Checkliste (Reihenfolge = Auswertung).
+CHECKLISTE_FRAGEN = [
+    # 2. Fuehrung, Personal, Prozesse
+    {"key": "f1", "gruppe": "Führung, Personal, Prozesse", "text": "Gibt es schon ein Führungsteam, das das Tagesgeschäft ohne den Chef führen kann?"},
+    {"key": "f2", "gruppe": "Führung, Personal, Prozesse", "text": "Würde das Unternehmen auch ohne Dich genauso weiterlaufen, ohne dass die Zahlen schlechter würden?"},
+    {"key": "f3", "gruppe": "Führung, Personal, Prozesse", "text": "Sind Prozesse und Strukturen so ausgelegt, dass jeder Mitarbeiter an jeder Position direkt ersetzbar ist?"},
+    {"key": "f4", "gruppe": "Führung, Personal, Prozesse", "text": "Ist das gesamte Unternehmenswissen in einer Wissensdatenbank (Videos, Checklisten, Anleitungen) dokumentiert?"},
+    {"key": "f5", "gruppe": "Führung, Personal, Prozesse", "text": "Gibt es eine aktive Mitarbeitergewinnung, die planbar neue Mitarbeiter ins Unternehmen bringt?"},
+    # 3. Vertragseinnahmen und Vertrieb
+    {"key": "f6", "gruppe": "Vertragseinnahmen und Vertrieb", "text": "Gibt es ein schlüssiges, skalierbares Vertragswerk für Managed Services, das die Aufnahme neuer Kunden ermöglicht?"},
+    {"key": "f7", "gruppe": "Vertragseinnahmen und Vertrieb", "text": "Deckt Dein Unternehmen mehr als 70 % aller Kosten durch regelmäßige Vertragseinnahmen (z. B. Managed Services, IT-Flatrates)?"},
+    {"key": "f8", "gruppe": "Vertragseinnahmen und Vertrieb", "text": "Gibt es eigene Vertriebsmitarbeiter, die nur Vertrieb machen (keine Techniker)?"},
+    {"key": "f9", "gruppe": "Vertragseinnahmen und Vertrieb", "text": "Gibt es eine eigene Marketingabteilung, die selbständig Konzepte für Neukunden, Mitarbeiter und Sichtbarkeit entwickelt und umsetzt?"},
+    {"key": "f10", "gruppe": "Vertragseinnahmen und Vertrieb", "text": "Gibt es eine aktive Neukundengewinnung durch Online-Marketing, die planbar neue Kunden bringt („Online-Marketing-Maschine“)?"},
+    # 4. KnowHow und Technologien
+    {"key": "f11", "gruppe": "KnowHow und Technologien", "text": "Führt Dein Unternehmen regelmäßig neue, zukunftsträchtige Technologien ein (z. B. Cloud, Microsoft Azure, Managed IT Security)?"},
+    {"key": "f12", "gruppe": "KnowHow und Technologien", "text": "Machst Du mindestens 50 % Deiner Umsätze in spezialisierten Nischen (nicht klassisches Systemhausgeschäft)?"},
+    {"key": "f13", "gruppe": "KnowHow und Technologien", "text": "Sind mindestens 30 % Deiner Techniker mit hohen Hersteller-Zertifizierungen qualifiziert?"},
+]
+
+
+def _checkliste_auswertung(antworten: dict, ebit_trend: str, bereinigtes_ebit, web_signale=None) -> dict:
+    """Berechnet Faktor (3-7) und groben Unternehmenswert.
+    Faithful zur Papier-Checkliste:
+      viele JA + wachsendes EBIT -> 7
+      ~halbe JA + stabiles EBIT   -> 5
+      wenige JA + rueckläufiges   -> 3
+    Website-Signale zaehlen leicht mit (gedeckelt: max. +1 Faktorpunkt),
+    ergaenzen aber nur die eigenen Antworten (Basis bleiben die JA/NEIN)."""
+    total = len(CHECKLISTE_FRAGEN)
+    ja = sum(1 for f in CHECKLISTE_FRAGEN if antworten.get(f["key"]) is True)
+    anteil = (ja / total) if total else 0.0
+
+    # JA-Anteil in 0/1/2 Punkte
+    if anteil >= 0.66:
+        ja_score = 2
+    elif anteil >= 0.40:
+        ja_score = 1
+    else:
+        ja_score = 0
+    # EBIT-Trend in 0/1/2 Punkte
+    t = (ebit_trend or "").strip().lower()
+    if t.startswith("wach"):
+        trend_score = 2
+    elif t.startswith("stab"):
+        trend_score = 1
+    else:  # rueckläufig / unbekannt -> vorsichtig
+        trend_score = 0
+    faktor_basis = max(3, min(7, 3 + ja_score + trend_score))
+
+    # Website-Signale: pro erkanntem positivem Signal 0,5 Punkte, gedeckelt auf +1
+    sig = web_signale or {}
+    signal_count = sum(1 for k in ("managedServices", "cloud", "security", "onlineMarketing", "karriere", "nische") if sig.get(k))
+    web_bonus = min(1, round(signal_count * 0.5)) if signal_count else 0
+    faktor = max(3, min(7, faktor_basis + web_bonus))
+
+    # Unternehmenswert grob (TEUR bereinigtes EBIT x Faktor), Bandbreite +/-20%
+    try:
+        beeb = float(str(bereinigtes_ebit).replace(",", ".")) if bereinigtes_ebit not in (None, "") else 0.0
+    except Exception:
+        beeb = 0.0
+    wert_mid = beeb * faktor  # in TEUR
+    return {
+        "jaCount": ja,
+        "fragenGesamt": total,
+        "jaAnteil": round(anteil, 2),
+        "faktorBasis": faktor_basis,
+        "webBonus": web_bonus,
+        "faktor": faktor,
+        "bereinigtesEbit": beeb,
+        "wertMinEur": int(round(wert_mid * 0.8 * 1000)),
+        "wertMidEur": int(round(wert_mid * 1000)),
+        "wertMaxEur": int(round(wert_mid * 1.2 * 1000)),
+    }
+
+
+# Kuratierte, seriöse Marktfakten je erkanntem Geschaeftsmodell (Branchen-Insight).
+# Bewusst zeitlos formuliert, keine Live-Studien.
+_BRANCHEN_INSIGHTS = {
+    "managedServices": "IT-Häuser mit hohem Anteil wiederkehrender Vertragsumsätze (Managed Services) werden am Markt deutlich höher bewertet als reines Projektgeschäft – planbare Umsätze sind für Käufer der wichtigste Werttreiber.",
+    "security": "Managed IT-Security ist einer der am stärksten wachsenden Bereiche im Mittelstand – spezialisierte Anbieter erzielen überdurchschnittliche Multiples.",
+    "cloud": "Cloud- und Microsoft-Azure-Kompetenz gilt bei Käufern als zukunftssicher und erhöht die Attraktivität eines IT-Unternehmens spürbar.",
+    "nische": "Eine klare Branchen-Spezialisierung macht Dich für Käufer schwer austauschbar und rechtfertigt einen höheren Kaufpreis als das klassische Systemhausgeschäft.",
+    "_default": "Der Markt für IT-Systemhäuser konsolidiert stark – gut aufgestellte Unternehmen mit planbaren Umsätzen sind aktuell sehr gefragt.",
+}
+
+def _branchen_insight(sig: dict) -> str:
+    sig = sig or {}
+    for k in ("managedServices", "security", "cloud", "nische"):
+        if sig.get(k):
+            return _BRANCHEN_INSIGHTS[k]
+    return _BRANCHEN_INSIGHTS["_default"]
+
+def _checkliste_ansprache(ausw: dict, firma: str, geschaeftsmodell: str, sig: dict) -> str:
+    """Individueller, intuitiver Ergebnis-Fließtext."""
+    firm = (firma or "Dein Unternehmen").strip()
+    faktor = ausw.get("faktor", 5)
+    ja, total = ausw.get("jaCount", 0), ausw.get("fragenGesamt", 13)
+    if faktor >= 6:
+        kern = (f"{firm} ist schon sehr verkaufsbereit. Mit {ja} von {total} erfüllten Kriterien "
+                f"hast Du viele der Hebel, die Käufer honorieren, bereits gezogen.")
+    elif faktor >= 4:
+        kern = (f"{firm} hat eine solide Basis. {ja} von {total} Kriterien sind erfüllt – mit gezielten "
+                f"Vorbereitungen lässt sich der Unternehmenswert vor einem Verkauf spürbar steigern.")
+    else:
+        kern = (f"Bei {firm} steckt noch Potenzial. Aktuell sind {ja} von {total} Kriterien erfüllt – "
+                f"gemeinsam können wir die wichtigsten Stellschrauben vor einem Verkauf angehen.")
+    zusatz = ""
+    if geschaeftsmodell:
+        zusatz = f" Wir haben uns Deine Website angeschaut: {geschaeftsmodell} Das passt gut ins Bild."
+    return kern + zusatz
+
+
+@app.route(route="checkliste-submit", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
+    """Public: jemand fuellt die ITUKV-Checkliste aus.
+    Speichert die Antworten, berechnet die Schnellbewertung, reichert per
+    Impressum-Crawler an und ordnet dem Kontakt per E-Mail zu."""
+    _origin_from_req(req)
+    if req.method == "OPTIONS":
+        return opt_()
+    import threading
+    body = req.get_json() or {}
+    kontakt = body.get("kontakt") or {}
+    motive = body.get("motive") or {}
+    antworten = body.get("antworten") or {}
+    zahlen = body.get("zahlen") or {}
+
+    name = (kontakt.get("name") or "").strip()
+    email = (kontakt.get("email") or "").strip()
+    firma = (kontakt.get("firma") or "").strip()
+    telefon = (kontakt.get("telefon") or "").strip()
+    website = (kontakt.get("website") or "").strip()
+    if website and not website.lower().startswith(("http://", "https://")):
+        website = "https://" + website
+    plz_ort = (kontakt.get("plzOrt") or "").strip()
+    mitarbeiter = str(kontakt.get("mitarbeiter") or zahlen.get("mitarbeiter") or "").strip()
+    if not email or not (firma or name):
+        return err_("E-Mail und Firma oder Name sind erforderlich", 400)
+    if not body.get("dsgvo"):
+        return err_("Bitte der Datenverarbeitung zustimmen", 400)
+
+    plz, ort = "", ""
+    if plz_ort:
+        import re as _re
+        m = _re.match(r"(\d{4,5})\s+(.+)", plz_ort)
+        if m: plz, ort = m.group(1), m.group(2).strip()
+        else: ort = plz_ort
+
+    ebit_trend = (zahlen.get("ebitTrend") or "").strip()
+
+    # Lead-Anreicherung via Website-Crawler (Impressum + Geschaeftsmodell),
+    # best-effort mit hartem 6s-Timeout.
+    enrich = {}
+    enrich_result = [None]
+    def _do_enrich():
+        try: enrich_result[0] = enrich_lead_data(website, email)
+        except Exception as ex: logging.warning(f"Checkliste-Anreicherung fehlgeschlagen: {ex}")
+    th = threading.Thread(target=_do_enrich, daemon=True)
+    th.start(); th.join(timeout=6.0)
+    if enrich_result[0] is not None:
+        enrich = enrich_result[0]
+
+    web_signale = enrich.get("signale") or {}
+    geschaeftsmodell = enrich.get("geschaeftsmodell") or ""
+    auswertung = _checkliste_auswertung(antworten, ebit_trend, zahlen.get("bereinigtesEbit"), web_signale)
+    ansprache = _checkliste_ansprache(auswertung, firma or enrich.get("firmenname") or "", geschaeftsmodell, web_signale)
+    insight = _branchen_insight(web_signale)
+
+    cid = str(uuid.uuid4())
+    token = secrets.token_urlsafe(24)
+    row = {
+        "PartitionKey": "checkliste", "RowKey": cid,
+        "name": name, "email": email, "firma": firma, "telefon": telefon,
+        "website": website, "plz": plz, "ort": ort, "mitarbeiter": mitarbeiter,
+        "resultToken": token,
+        "createdAt": datetime.utcnow().isoformat(),
+        # Motive (Freitext)
+        "motivMotivation": (motive.get("motivation") or "")[:1000],
+        "motivZeitpunkt": (motive.get("zeitpunkt") or "")[:200],
+        "motivBegleitungMonate": str(motive.get("begleitungMonate") or "")[:100],
+        "motivWunschpreis": str(motive.get("wunschpreis") or "")[:100],
+        "motivErwartetPreis": str(motive.get("erwartetPreis") or "")[:100],
+        # Betriebswirtschaftliche Zahlen
+        "zahlUmsatz": str(zahlen.get("umsatz") or ""),
+        "zahlEbit": str(zahlen.get("ebit") or ""),
+        "zahlBereinigtesEbit": str(zahlen.get("bereinigtesEbit") or ""),
+        "zahlGfGehalt": str(zahlen.get("gfGehalt") or ""),
+        "zahlVertragsumsatz": str(zahlen.get("vertragsumsatz") or ""),
+        "zahlEbitTrend": ebit_trend,
+        # Antworten + Auswertung als JSON
+        "antwortenJson": json.dumps(antworten, ensure_ascii=False),
+        "auswertungJson": json.dumps(auswertung, ensure_ascii=False),
+        "jaCount": auswertung["jaCount"],
+        "faktor": auswertung["faktor"],
+        "wertMidEur": auswertung["wertMidEur"],
+        # Individuelle Ansprache + Branchen-Insight (fuer Ergebnisseite + Dashboard)
+        "ansprache": ansprache,
+        "insight": insight,
+        "geschaeftsmodell": geschaeftsmodell,
+        "schwerpunkte": ", ".join(enrich.get("schwerpunkte", []) or []),
+        "webSignaleJson": json.dumps(web_signale, ensure_ascii=False),
+        # Anreicherung
+        "enrichFirmenname": enrich.get("firmenname", "") or "",
+        "enrichGeschaeftsfuehrer": ", ".join(enrich.get("geschaeftsfuehrer", []) or []) if isinstance(enrich.get("geschaeftsfuehrer"), list) else (enrich.get("geschaeftsfuehrer", "") or ""),
+        "enrichStrasse": enrich.get("strasse", "") or "",
+        "enrichPLZ": str(enrich.get("postleitzahl", "") or ""),
+        "enrichOrt": enrich.get("ort", "") or "",
+        "enrichUstId": enrich.get("umsatzsteuer_id", "") or "",
+    }
+    try:
+        table_("checklisten").upsert_entity(row)
+    except Exception as ex:
+        logging.error(f"Checkliste speichern fehlgeschlagen: {ex}")
+        return err_("Speichern fehlgeschlagen", 500)
+
+    # Kontakt per E-Mail zuordnen oder neu anlegen (Verkaeufer-Interesse)
+    try:
+        tc = table_("kontakte")
+        existing = None
+        email_lower = email.lower().replace("'", "''")
+        for k in tc.query_entities(f"email eq '{email_lower}'"):
+            if (k.get("email", "") or "").strip().lower() == email.lower():
+                existing = dict(k); break
+        firma_final = firma or enrich.get("firmenname") or ""
+        verlauf_eintrag = {
+            "id": "kv" + str(int(datetime.utcnow().timestamp() * 1000)),
+            "typ": "wichtig",
+            "datum": datetime.utcnow().isoformat(),
+            "autor": "ITUKV-Checkliste",
+            "betreff": f"Checkliste ausgefüllt · Faktor {auswertung['faktor']} · {auswertung['jaCount']}/{auswertung['fragenGesamt']} JA",
+            "beschreibung": f"Grober Unternehmenswert ca. {auswertung['wertMidEur']:,} € (bereinigtes EBIT × Faktor {auswertung['faktor']}). Verkaufszeitpunkt: {motive.get('zeitpunkt') or 'k. A.'}".replace(",", "."),
+        }
+        if existing:
+            updates = {**existing, "typ": existing.get("typ") or "Verkäufer-Interesse", "updatedAt": datetime.utcnow().isoformat()}
+            for fld, val in [("firma", firma_final), ("name", name), ("telefon", telefon), ("website", website), ("plz", plz), ("ort", ort)]:
+                if val and not existing.get(fld): updates[fld] = val
+            updates["checklisteFaktor"] = auswertung["faktor"]
+            updates["checklisteWertEur"] = auswertung["wertMidEur"]
+            updates["checklisteAt"] = datetime.utcnow().isoformat()
+            herk = existing.get("herkunft", "") or ""
+            if "ITUKV-Checkliste" not in herk:
+                updates["herkunft"] = (herk + " · ITUKV-Checkliste").strip(" ·")
+            try: vlog = json.loads(existing.get("verlaufJson") or "[]")
+            except Exception: vlog = []
+            if not isinstance(vlog, list): vlog = []
+            vlog.append(verlauf_eintrag)
+            updates["verlaufJson"] = json.dumps(vlog, ensure_ascii=False)
+            tc.update_entity(updates, mode="replace")
+        else:
+            tc.create_entity({
+                "PartitionKey": "kontakt", "RowKey": str(uuid.uuid4()),
+                "firma": firma_final, "name": name, "email": email,
+                "telefon": telefon, "website": website, "plz": plz, "ort": ort,
+                "typ": "Verkäufer-Interesse", "kundenstatus": "",
+                "herkunft": "ITUKV-Checkliste",
+                "checklisteFaktor": auswertung["faktor"],
+                "checklisteWertEur": auswertung["wertMidEur"],
+                "checklisteAt": datetime.utcnow().isoformat(),
+                "verlaufJson": json.dumps([verlauf_eintrag], ensure_ascii=False),
+                "createdAt": datetime.utcnow().isoformat(),
+                "updatedAt": datetime.utcnow().isoformat(),
+            })
+    except Exception as ex:
+        logging.warning(f"Checkliste -> Kontakt-Zuordnung fehlgeschlagen: {ex}")
+
+    # Benachrichtigung an das Team (best-effort)
+    if ACS_CONN:
+        try:
+            from azure.communication.email import EmailClient
+            client = EmailClient.from_connection_string(ACS_CONN)
+            mibeca_mail = os.environ.get("MIBECA_NOTIFY_EMAIL", "jk@mike-bergmann.de")
+            wert_txt = f"{auswertung['wertMidEur']:,} €".replace(",", ".")
+            html = (f"<p><strong>Neue ITUKV-Checkliste ausgefüllt</strong></p>"
+                    f"<p>Firma: {firma_final or firma}<br/>Name: {name}<br/>E-Mail: {email}<br/>"
+                    f"Telefon: {telefon}<br/>Website: {website}</p>"
+                    f"<p>Faktor <strong>{auswertung['faktor']}</strong> · "
+                    f"{auswertung['jaCount']}/{auswertung['fragenGesamt']} JA · "
+                    f"grober Wert ca. <strong>{wert_txt}</strong></p>"
+                    f"<p>Verkaufszeitpunkt: {motive.get('zeitpunkt') or 'k. A.'}</p>")
+            client.begin_send({
+                "senderAddress": ACS_SENDER,
+                "recipients": {"to": [{"address": mibeca_mail}]},
+                "content": {"subject": f"[ITUKV] Neue Checkliste: {firma_final or name}", "plainText": f"Neue Checkliste von {firma_final or name} ({email}). Faktor {auswertung['faktor']}, Wert ca. {wert_txt}.", "html": html},
+            })
+        except Exception as ex:
+            logging.warning(f"Checkliste-Benachrichtigung fehlgeschlagen: {ex}")
+
+    return ok_({
+        "ok": True,
+        "resultToken": token,
+        "auswertung": auswertung,
+        "ansprache": ansprache,
+        "insight": insight,
+        "geschaeftsmodell": geschaeftsmodell,
+        "schwerpunkte": enrich.get("schwerpunkte", []) or [],
+        "firma": firma or enrich.get("firmenname") or "",
+    })
+
+
+@app.route(route="checkliste-list", methods=["GET", "OPTIONS"])
+def checkliste_list(req: func.HttpRequest) -> func.HttpResponse:
+    """Admin: alle ausgefuellten Checklisten fuers Dashboard (neueste zuerst)."""
+    if req.method == "OPTIONS":
+        return opt_()
+    p = auth_user(req)
+    if not p:
+        return err_("Nicht autorisiert", 401)
+    out = []
+    try:
+        for c in table_("checklisten").query_entities("PartitionKey eq 'checkliste'"):
+            try: ausw = json.loads(c.get("auswertungJson") or "{}")
+            except Exception: ausw = {}
+            try: antw = json.loads(c.get("antwortenJson") or "{}")
+            except Exception: antw = {}
+            out.append({
+                "id": c.get("RowKey"),
+                "name": c.get("name", ""), "email": c.get("email", ""),
+                "firma": c.get("firma", ""), "telefon": c.get("telefon", ""),
+                "website": c.get("website", ""), "plz": c.get("plz", ""), "ort": c.get("ort", ""),
+                "mitarbeiter": c.get("mitarbeiter", ""),
+                "createdAt": c.get("createdAt", ""),
+                "faktor": c.get("faktor", ausw.get("faktor")),
+                "jaCount": c.get("jaCount", ausw.get("jaCount")),
+                "fragenGesamt": ausw.get("fragenGesamt", len(CHECKLISTE_FRAGEN)),
+                "wertMidEur": c.get("wertMidEur", ausw.get("wertMidEur")),
+                "wertMinEur": ausw.get("wertMinEur"), "wertMaxEur": ausw.get("wertMaxEur"),
+                "motivMotivation": c.get("motivMotivation", ""),
+                "motivZeitpunkt": c.get("motivZeitpunkt", ""),
+                "motivBegleitungMonate": c.get("motivBegleitungMonate", ""),
+                "motivWunschpreis": c.get("motivWunschpreis", ""),
+                "motivErwartetPreis": c.get("motivErwartetPreis", ""),
+                "zahlUmsatz": c.get("zahlUmsatz", ""), "zahlEbit": c.get("zahlEbit", ""),
+                "zahlBereinigtesEbit": c.get("zahlBereinigtesEbit", ""),
+                "zahlVertragsumsatz": c.get("zahlVertragsumsatz", ""),
+                "zahlEbitTrend": c.get("zahlEbitTrend", ""),
+                "antworten": antw,
+                "ansprache": c.get("ansprache", ""),
+                "insight": c.get("insight", ""),
+                "geschaeftsmodell": c.get("geschaeftsmodell", ""),
+                "schwerpunkte": c.get("schwerpunkte", ""),
+                "enrichFirmenname": c.get("enrichFirmenname", ""),
+                "enrichGeschaeftsfuehrer": c.get("enrichGeschaeftsfuehrer", ""),
+                "enrichStrasse": c.get("enrichStrasse", ""),
+                "enrichPLZ": c.get("enrichPLZ", ""), "enrichOrt": c.get("enrichOrt", ""),
+                "enrichUstId": c.get("enrichUstId", ""),
+            })
+    except Exception as ex:
+        logging.error(f"Checkliste-Liste fehlgeschlagen: {ex}")
+        return err_("Laden fehlgeschlagen", 500)
+    out.sort(key=lambda x: x.get("createdAt", ""), reverse=True)
+    return ok_({"items": out, "fragen": CHECKLISTE_FRAGEN})
 
 
 @app.route(route="stats", methods=["GET", "OPTIONS"])
@@ -5777,6 +6140,77 @@ def _fetch_impressum(domain: str):
                 continue
     return "", ""
 
+
+def _fetch_homepage_text(domain: str, base: str = "") -> str:
+    """Holt den sichtbaren Text der Startseite (fuer Geschaeftsmodell-Erkennung)."""
+    try:
+        import requests
+        from bs4 import BeautifulSoup
+    except Exception:
+        return ""
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; mibeca-enricher/1.0)"}
+    urls = [u for u in [base, f"https://{domain}", f"http://{domain}"] if u]
+    for u in urls:
+        try:
+            resp = requests.get(u, headers=headers, timeout=6, allow_redirects=True)
+            if resp.status_code != 200:
+                continue
+            soup = BeautifulSoup(resp.text, "html.parser")
+            for tag in soup(["script", "style", "noscript"]):
+                tag.decompose()
+            text = soup.get_text(" ", strip=True)
+            if len(text) > 80:
+                return text[:6000]
+        except Exception:
+            continue
+    return ""
+
+
+# Website-Signale -> passen zu einzelnen Checklisten-Fragen. Dient dazu,
+# den Eindruck zu ergaenzen (und leicht mitzuzaehlen).
+_SIGNAL_KEYWORDS = {
+    "managedServices": ["managed service", "managed-service", "it-flatrate", "flatrate",
+                         "wartungsvertrag", "servicevertrag", "managed it", "it-betreuung"],
+    "cloud": ["cloud", "microsoft azure", " azure", "microsoft 365", "m365", "office 365", "aws"],
+    "security": ["it-security", "it security", "cyber", "managed security", "informationssicherheit",
+                 "firewall", "soc ", "penetrationstest", "iso 27001"],
+    "onlineMarketing": ["blog", "newsletter", "webinar", "kostenloses erstgespräch", "jetzt termin",
+                        "kostenlos beraten", "whitepaper", "download"],
+    "karriere": ["karriere", "stellenangebot", "offene stellen", "jobs", "wir stellen ein", "(m/w/d)"],
+    "nische": ["zahnarzt", "arztpraxis", "praxis", "kanzlei", "steuerberat", "handwerk",
+               "gesundheitswesen", "produktion", "logistik", "hotellerie", "immobilien"],
+}
+
+_SIGNAL_LABELS = {
+    "managedServices": "Managed Services / Serviceverträge",
+    "cloud": "Cloud / Microsoft Azure",
+    "security": "IT-Security",
+    "onlineMarketing": "aktives Online-Marketing",
+    "karriere": "aktive Mitarbeitergewinnung",
+    "nische": "Branchen-Spezialisierung",
+}
+
+def _detect_signale(text: str) -> dict:
+    """Erkennt aus Website-Text grobe Signale (True/False)."""
+    low = (text or "").lower()
+    out = {}
+    for key, words in _SIGNAL_KEYWORDS.items():
+        out[key] = any(w in low for w in words)
+    return out
+
+def _schwerpunkte_labels(sig: dict) -> list:
+    return [_SIGNAL_LABELS[k] for k in ("managedServices", "cloud", "security", "nische")
+            if sig.get(k)]
+
+def _geschaeftsmodell_text(sig: dict) -> str:
+    schwer = _schwerpunkte_labels(sig)
+    if not schwer:
+        return ""
+    if len(schwer) == 1:
+        return f"Schwerpunkt auf {schwer[0]}."
+    return "Schwerpunkte auf " + ", ".join(schwer[:-1]) + " und " + schwer[-1] + "."
+
+
 _ENRICH_PROMPT = """Du analysierst den Text einer deutschen Firmen-Impressum-Seite.
 Extrahiere folgende Felder als JSON. Wenn ein Feld nicht gefunden wird, setze es auf null.
 Gib NUR das JSON zurück, keinen anderen Text, keine Erklaerungen, kein Markdown.
@@ -5824,12 +6258,20 @@ def enrich_lead_data(website: str, email: str) -> dict:
     if not domain or domain in _PRIVATE_DOMAINS:
         return {"_domain": domain, "_skipped": "private oder leer"}
     text, base = _fetch_impressum(domain)
-    if not text:
-        return {"_domain": domain, "_impressum": False}
-    data = _enrich_via_ai(text) or {}
+    data = (_enrich_via_ai(text) or {}) if text else {}
     data["_domain"] = domain
-    data["_website"] = base
-    data["_impressum"] = True
+    data["_website"] = base or f"https://{domain}"
+    data["_impressum"] = bool(text)
+    # Geschaeftsmodell + Signale aus dem Startseiten-Text (womit verdient die Firma Geld?)
+    try:
+        home = _fetch_homepage_text(domain, base)
+        if home:
+            sig = _detect_signale(home)
+            data["signale"] = sig
+            data["schwerpunkte"] = _schwerpunkte_labels(sig)
+            data["geschaeftsmodell"] = _geschaeftsmodell_text(sig)
+    except Exception as ex:
+        logging.warning(f"Geschaeftsmodell-Erkennung fehlgeschlagen: {ex}")
     return data
 
 

@@ -111,6 +111,9 @@ export const importKontakte = (data) => authFetch('/kontakte/import', { method: 
 export const exportKontakte = (params) => authFetch('/kontakte/export', { params })
 export const deleteKontakt = (id) => authFetch('/kontakt-delete', { method: 'POST', data: { id } })
 
+// ITUKV-Checkliste (Marketing-Lead-Magnet)
+export const getChecklisten = () => authFetch('/checkliste-list')
+
 // Ausschreibungen
 export const getAusschreibungen = () => authFetch('/ausschreibungen')
 export const createAusschreibung = (data) => authFetch('/ausschreibungen', { method: 'POST', data })

@@ -32,12 +32,15 @@ import AdminDashboard from './views/AdminDashboard.vue'
 import TargetDashboard from './views/TargetDashboard.vue'
 import SignPage from './SignPage.vue'
 import LandingPage from './LandingPage.vue'
+import ChecklistePage from './ChecklistePage.vue'
 import ExposeBuyerPage from './ExposeBuyerPage.vue'
 import PasswordReset from './views/PasswordReset.vue'
 import ToastHost from './components/ToastHost.vue'
 import { msalInstance } from './authConfig.js'
 
 // Oeffentliche Routen ohne Login
+const isChecklisteRoute = /(^|\.)checkliste\.itukv\.de$/i.test(window.location.hostname)
+  || /^\/checkliste(\/|$|\?)/.test(window.location.pathname)
 const isSignRoute = /^\/sign\/[^/?#]+/.test(window.location.pathname)
 const isLandingRoute = /^\/mb-[^/?#]+/i.test(window.location.pathname)
 const isExposeBuyerRoute = /^\/expose-[^/]+\/[^/?#]+/i.test(window.location.pathname)
@@ -55,6 +58,7 @@ const KAUF_MANDAT_TYPS = ['Projekt Investoren', 'MC Investoren', 'Kauf-Mandat']
 const INVESTOR_TYPS = []  // Legacy: leer (alte Liste bleibt fuer Abwaertskompatibilitaet)
 
 const currentView = computed(() => {
+  if (isChecklisteRoute) return ChecklistePage
   if (isResetRoute) return PasswordReset
   if (isSignRoute) return SignPage
   if (isExposeBuyerRoute) return ExposeBuyerPage
