@@ -180,7 +180,7 @@
     <footer class="border-t border-gray-100 mt-10 bg-white">
       <div class="max-w-3xl mx-auto px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-4">
         <a href="https://www.itukv.de" target="_blank" rel="noopener">
-          <img src="/Favicon_mibeca.png" alt="mibeca" class="h-10 w-auto hover:opacity-80 transition-opacity" />
+          <img src="/Neues Logo Mike Bergmann Beratung.png" alt="Mike Bergmann – Beratung für KI- & IT-Unternehmer" class="h-12 w-auto hover:opacity-80 transition-opacity" />
         </a>
         <div class="flex flex-wrap gap-4 text-xs text-gray-500">
           <a href="https://www.mike-bergmann-akademie.de/pages/impressum" target="_blank" rel="noopener" class="hover:text-[#0088ba]">Impressum</a>
