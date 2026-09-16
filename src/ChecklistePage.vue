@@ -102,12 +102,17 @@
           <p class="text-xs text-gray-400 mt-4">Kostenlos · vertraulich · unverbindlich – wir melden uns bei Dir.</p>
         </div>
 
-        <!-- Direkter Buchungskalender (Cal.com Inline-Embed) – eigene helle Karte -->
-        <div v-if="CAL_ENABLED" class="bg-white rounded-2xl border border-gray-100 p-5 md:p-6">
-          <h3 class="text-lg font-bold text-gray-900 text-center mb-1">Buch Dir direkt Dein kostenloses 20-Minuten-Erstgespräch</h3>
-          <p class="text-xs text-gray-500 text-center mb-5">Kostenlos · vertraulich · unverbindlich · telefonisch</p>
-          <div id="my-cal-inline-checkliste-itukv" ref="calEl"
-            class="rounded-xl overflow-hidden mx-auto" style="min-height:600px; max-width:900px;"></div>
+        <!-- Terminbuchung als Popup (Cal.com element-click) – kompakte Karte, kein langes Scrollen -->
+        <div v-if="CAL_ENABLED" class="bg-[#0088ba] rounded-2xl p-6 md:p-8 text-center text-white">
+          <h3 class="text-xl font-bold mb-1">Buch Dir Dein kostenloses 20-Minuten-Erstgespräch</h3>
+          <p class="text-sm text-white/80 mb-5">Kostenlos · vertraulich · unverbindlich · telefonisch</p>
+          <button type="button"
+            data-cal-namespace="checkliste-itukv"
+            :data-cal-link="CAL_LINK"
+            :data-cal-config="calConfig"
+            class="inline-flex items-center gap-2 px-7 py-3.5 bg-white text-[#0088ba] rounded-xl font-bold hover:bg-gray-50 text-base">
+            <CalendarClock class="w-5 h-5" /> Jetzt Termin auswählen
+          </button>
         </div>
 
         <!-- Persönlicher Ergebnis-Link -->
@@ -315,7 +320,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
-import { CheckCircle2, TrendingUp, Link2, Check } from '@lucide/vue'
+import { CheckCircle2, TrendingUp, Link2, Check, CalendarClock } from '@lucide/vue'
 
 // Vertrauensbelege (statische Marktbeweise, keine Live-Daten)
 const belege = [
@@ -332,7 +337,6 @@ const CAL_ENABLED = true
 const CAL_NAMESPACE = 'checkliste-itukv'
 const CAL_LINK = 'team/mike-bergmann-akademie/checkliste-itukv'
 const CAL_BRAND = '#02aef1'
-const calEl = ref(null)
 let calScriptGeladen = false
 
 function ladeCalLoader() {
@@ -342,44 +346,39 @@ function ladeCalLoader() {
   calScriptGeladen = true
 }
 
-// Cal-Buchungslink mit vorausgefuellten Feldern aus dem ersten Formular
-function baueCalLink() {
-  const params = new URLSearchParams()
+// Cal-Popup-Konfiguration inkl. vorausgefuellter Felder aus dem ersten Formular.
+// Wird als data-cal-config an den Buchungs-Button gehaengt (Klick oeffnet Overlay).
+const calConfig = computed(() => {
+  const cfg = { layout: 'month_view', useSlotsViewOnSmallScreen: 'true' }
   const name = (vollerName.value || result.value?.name || '').trim()
   const email = (form.email || '').trim()
   const localNumber = (form.telefon || '').trim().replace(/^0+/, '')
   const telefonE164 = localNumber ? `${form.telefonVorwahl}${localNumber}` : ''
-  if (name) params.set('name', name)
-  if (email) params.set('email', email)
-  // Telefonisches Erstgespraech: Mobilnummer als Attendee-Telefonnummer vorbefuellen
-  if (telefonE164) params.set('attendeePhoneNumber', telefonE164)
+  if (name) cfg.name = name
+  if (email) cfg.email = email
+  // Telefonisches Erstgespraech: Mobilnummer aus Schritt 1 vorbefuellen
+  if (telefonE164) cfg.attendeePhoneNumber = telefonE164
   // Kontext fuer Jenny als Notiz
   const firma = (form.firma || result.value?.firma || '').trim()
   const faktor = result.value?.auswertung?.faktor
   const notiz = []
   if (firma) notiz.push(`Firma: ${firma}`)
   if (faktor) notiz.push(`Checklisten-Faktor: ${faktor}`)
-  if (notiz.length) params.set('notes', notiz.join(' · '))
-  const qs = params.toString()
-  return qs ? `${CAL_LINK}?${qs}` : CAL_LINK
-}
+  if (notiz.length) cfg.notes = notiz.join(' · ')
+  return JSON.stringify(cfg)
+})
 
 async function zeigeCalKalender() {
   if (!CAL_ENABLED) return
   ladeCalLoader()
   await nextTick()
-  if (!calEl.value || !window.Cal) return
-  // Doppelte Initialisierung vermeiden
-  if (calEl.value.dataset.calInit === '1') return
-  calEl.value.dataset.calInit = '1'
+  if (!window.Cal) return
+  // Einmalig initialisieren; der Button oeffnet danach das Popup per Klick.
+  if (window.__calChecklisteInit) return
+  window.__calChecklisteInit = true
   window.Cal('init', CAL_NAMESPACE, { origin: 'https://app.cal.com' })
   window.Cal.config = window.Cal.config || {}
   window.Cal.config.forwardQueryParams = true
-  window.Cal.ns[CAL_NAMESPACE]('inline', {
-    elementOrSelector: '#my-cal-inline-checkliste-itukv',
-    config: { layout: 'month_view', useSlotsViewOnSmallScreen: 'true' },
-    calLink: baueCalLink(),
-  })
   window.Cal.ns[CAL_NAMESPACE]('ui', {
     cssVarsPerTheme: { light: { 'cal-brand': CAL_BRAND }, dark: { 'cal-brand': CAL_BRAND } },
     hideEventTypeDetails: false, layout: 'month_view',
