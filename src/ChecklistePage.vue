@@ -178,7 +178,11 @@
           <div class="absolute inset-0 flex items-center justify-center text-xl font-extrabold text-[#0088ba] tabular-nums">{{ analyseProzent }}%</div>
         </div>
         <h2 class="text-xl font-bold text-gray-900 mb-1">Deine Analyse läuft</h2>
-        <p class="text-sm text-gray-500 mb-7">Einen Moment – wir werten Deine Angaben gerade aus.</p>
+        <p class="text-sm text-gray-500 mb-4">Einen Moment – wir werten Deine Angaben gerade aus.</p>
+        <div class="flex items-center gap-2 mb-7 px-4 py-2 rounded-lg bg-[#0088ba]/10 text-[#0088ba] text-sm font-medium">
+          <Clock class="w-4 h-4 flex-shrink-0" />
+          <span>Das dauert 1–3 Minuten. Bitte lass dieses Fenster so lange geöffnet.</span>
+        </div>
         <ul class="w-full max-w-md space-y-2.5 text-left">
           <li v-for="(s, i) in ANALYSE_STEPS" :key="i" class="flex items-center gap-3 text-sm transition-all duration-300"
               :class="i <= analyseStep ? 'opacity-100' : 'opacity-40'">
@@ -336,7 +340,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
-import { CheckCircle2, TrendingUp, Link2, Check, CalendarClock, FileDown, MapPin, Users } from '@lucide/vue'
+import { CheckCircle2, TrendingUp, Link2, Check, CalendarClock, Clock, FileDown, MapPin, Users } from '@lucide/vue'
 
 // Vertrauensbelege (statische Marktbeweise, keine Live-Daten)
 const belege = [
