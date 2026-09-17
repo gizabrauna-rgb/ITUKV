@@ -216,14 +216,14 @@
                 <option value="+43">AT +43</option>
                 <option value="+41">CH +41</option>
               </select>
-              <input v-model="form.telefon" placeholder="Mobilnummer" class="input flex-1" inputmode="tel" />
+              <input v-model="form.telefon" placeholder="Mobilnummer *" class="input flex-1" inputmode="tel" />
             </div>
             <label v-if="form.telefon.trim()" class="flex items-start gap-2 text-xs text-gray-600">
               <input type="checkbox" v-model="form.smsEinverstaendnis" class="mt-0.5" />
-              <span>Schickt mir meinen persönlichen Ergebnis-Link zusätzlich per SMS, damit ich ihn jederzeit wieder aufrufen kann.</span>
+              <span>Schickt mir meinen persönlichen Ergebnis-Link zusätzlich per SMS – ausschließlich an meine Mobilnummer. Meine Ergebnisse enthalten vertrauliche Daten und sind nur über diesen persönlichen Link abrufbar.</span>
             </label>
             <input v-model="form.website" placeholder="Website (z. B. www.firma.de)" class="input" />
-            <input v-model="form.plzOrt" placeholder="Sitz (PLZ + Ort)" class="input" />
+            <input v-model="form.plzOrt" placeholder="Sitz (PLZ + Ort) *" class="input" />
             <label class="flex items-start gap-2 text-xs text-gray-600 pt-1">
               <input type="checkbox" v-model="form.websiteEinverstaendnis" class="mt-0.5" />
               <span>Ihr dürft Euch meine öffentlich zugängliche Website ansehen, um mir eine passendere Einschätzung zu geben.</span>
@@ -303,7 +303,7 @@
 
             <label class="flex items-start gap-2 text-xs text-gray-600">
               <input type="checkbox" v-model="form.dsgvo" class="mt-0.5" />
-              <span>Ich willige ein, dass meine Daten vertraulich verarbeitet und ausschließlich zur Bearbeitung meiner Anfrage genutzt werden (DSGVO).</span>
+              <span>Ich willige ein, dass meine Angaben vertraulich verarbeitet werden, um meine persönliche Einschätzung zu erstellen und mit mir zu besprechen, und dass ich dazu kontaktiert werden darf. Es gilt die <a href="https://www.mike-bergmann-akademie.de/pages/datenschutz" target="_blank" rel="noopener" class="underline hover:text-[#0088ba]">Datenschutzerklärung</a>.</span>
             </label>
           </div>
 
@@ -313,8 +313,8 @@
           <div class="flex items-center justify-between mt-5">
             <button type="button" v-if="step > 1" @click="step--" class="px-4 py-2.5 text-gray-600 font-medium hover:text-gray-900">Zurück</button>
             <span v-else></span>
-            <button type="submit" :disabled="sending"
-              class="px-6 py-3 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8] disabled:opacity-50">
+            <button type="submit" :disabled="sending || !stepGueltig"
+              class="px-6 py-3 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8] disabled:opacity-50 disabled:cursor-not-allowed">
               {{ step < STEPS_TOTAL ? 'Weiter' : (sending ? 'Wird ausgewertet…' : 'Auswertung anzeigen') }}
             </button>
           </div>
@@ -684,11 +684,27 @@ function speichereEntwurf() {
   } catch {}
 }
 
+// Prueft, ob der aktuelle Schritt vollstaendig ausgefuellt ist. Solange das
+// nicht der Fall ist, bleibt der "Weiter"-Knopf ausgegraut/gesperrt.
+// Freiwillige Kaestchen (SMS, Website-Einverstaendnis) blockieren NICHT.
+const stepGueltig = computed(() => {
+  if (step.value === 1) {
+    const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())
+    return !!(form.firma.trim() && form.vorname.trim() && form.nachname.trim()
+      && emailOk && form.telefon.trim() && form.plzOrt.trim())
+  }
+  if (step.value === 2) return !!form.ziel
+  const gs = JA_NEIN_STEPS.find(s => s.step === step.value)
+  if (gs) return fragenIn(gs.gruppe).every(f => typeof form.antworten[f.key] === 'boolean')
+  if (step.value === STEPS_TOTAL) return !!form.dsgvo
+  return true
+})
+
 async function onNext() {
   errMsg.value = ''
   if (step.value === 1) {
-    if (!form.firma.trim() || !form.vorname.trim() || !form.nachname.trim() || !form.email.trim()) {
-      errMsg.value = 'Bitte fülle Firma, Vorname, Nachname und E-Mail aus.'; return
+    if (!form.firma.trim() || !form.vorname.trim() || !form.nachname.trim() || !form.email.trim() || !form.telefon.trim() || !form.plzOrt.trim()) {
+      errMsg.value = 'Bitte fülle alle Pflichtfelder aus (Firma, Vor- und Nachname, E-Mail, Mobilnummer und Sitz).'; return
     }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) {
       errMsg.value = 'Bitte gib eine gültige E-Mail-Adresse ein.'; return
