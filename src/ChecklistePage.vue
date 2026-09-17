@@ -225,8 +225,8 @@
             <input v-model="form.website" placeholder="Website (z. B. www.firma.de)" class="input" />
             <input v-model="form.plzOrt" placeholder="Sitz (PLZ + Ort) *" class="input" />
             <label class="flex items-start gap-2 text-xs text-gray-600 pt-1">
-              <input type="checkbox" v-model="form.websiteEinverstaendnis" class="mt-0.5" />
-              <span>Ihr dürft Euch meine öffentlich zugängliche Website ansehen, um mir eine passendere Einschätzung zu geben.</span>
+              <input type="checkbox" v-model="form.dsgvo" class="mt-0.5" />
+              <span>Ich willige ein, dass meine Angaben vertraulich verarbeitet werden, um meine persönliche Einschätzung zu erstellen und mit mir zu besprechen, und dass ich dazu kontaktiert werden darf. Es gilt die <a href="https://www.mike-bergmann-akademie.de/pages/datenschutz" target="_blank" rel="noopener" class="underline hover:text-[#0088ba]">Datenschutzerklärung</a>.</span>
             </label>
           </div>
 
@@ -300,11 +300,6 @@
                 <input v-for="f in motivConfig.felder" :key="f.key" v-model="form.motive[f.key]" :placeholder="f.ph" class="input" />
               </div>
             </div>
-
-            <label class="flex items-start gap-2 text-xs text-gray-600">
-              <input type="checkbox" v-model="form.dsgvo" class="mt-0.5" />
-              <span>Ich willige ein, dass meine Angaben vertraulich verarbeitet werden, um meine persönliche Einschätzung zu erstellen und mit mir zu besprechen, und dass ich dazu kontaktiert werden darf. Es gilt die <a href="https://www.mike-bergmann-akademie.de/pages/datenschutz" target="_blank" rel="noopener" class="underline hover:text-[#0088ba]">Datenschutzerklärung</a>.</span>
-            </label>
           </div>
 
           <p v-if="errMsg" class="text-sm text-red-600 mt-3">{{ errMsg }}</p>
@@ -692,12 +687,11 @@ const stepGueltig = computed(() => {
   if (step.value === 1) {
     const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())
     return !!(form.firma.trim() && form.vorname.trim() && form.nachname.trim()
-      && emailOk && form.telefon.trim() && form.plzOrt.trim())
+      && emailOk && form.telefon.trim() && form.plzOrt.trim() && form.dsgvo)
   }
   if (step.value === 2) return !!form.ziel
   const gs = JA_NEIN_STEPS.find(s => s.step === step.value)
   if (gs) return fragenIn(gs.gruppe).every(f => typeof form.antworten[f.key] === 'boolean')
-  if (step.value === STEPS_TOTAL) return !!form.dsgvo
   return true
 })
 
@@ -705,10 +699,15 @@ const stepGueltig = computed(() => {
 // ist – damit klar ist, WARUM der Knopf noch ausgegraut bleibt.
 const hinweisText = computed(() => {
   if (stepGueltig.value) return ''
-  if (step.value === 1) return 'Bitte fülle alle Pflichtfelder (*) aus, damit es weitergeht.'
+  if (step.value === 1) {
+    const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())
+    const felderOk = form.firma.trim() && form.vorname.trim() && form.nachname.trim()
+      && emailOk && form.telefon.trim() && form.plzOrt.trim()
+    if (!felderOk) return 'Bitte fülle alle Pflichtfelder (*) aus, damit es weitergeht.'
+    return 'Bitte bestätige noch die Einwilligung zur Datenverarbeitung.'
+  }
   if (step.value === 2) return 'Bitte wähle Dein Ziel aus.'
   if (JA_NEIN_STEPS.some(s => s.step === step.value)) return 'Bitte beantworte alle Fragen mit Ja oder Nein.'
-  if (step.value === STEPS_TOTAL) return 'Bitte setze das Häkchen zur Datenverarbeitung.'
   return ''
 })
 
