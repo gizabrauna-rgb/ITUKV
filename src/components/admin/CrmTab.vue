@@ -1,8 +1,14 @@
 <template>
   <div>
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl font-bold text-gray-900">Kundenstamm</h2>
-      <div class="flex gap-2">
+    <div class="flex items-start justify-between mb-4 gap-4">
+      <div class="min-w-0">
+        <h2 class="text-xl font-bold text-gray-900">Kundenstamm</h2>
+        <p class="text-xs text-gray-500 mt-0.5">
+          Letzter Stand aus SalesSuite: <span class="font-medium text-gray-700">{{ formatStand(lastSync) }}</span>
+          <span class="text-gray-400"> · „Aktualisieren“ holt frische Daten (dauert ~30–60 Sek.)</span>
+        </p>
+      </div>
+      <div class="flex gap-2 flex-shrink-0">
         <button @click="reloadData" :disabled="reloading" class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 disabled:opacity-50" title="SalesSuite-Abgleich starten (holt neue Kontakte, dauert ~30-60 Sek.)">
           <RefreshCw :class="['w-4 h-4', reloading && 'animate-spin']" /> {{ reloading ? 'Gleiche ab…' : 'Aktualisieren' }}
         </button>
@@ -505,6 +511,22 @@ const allKontakte = ref([])
 const filtered = ref([])
 const mapData = ref({ kontakte: [], targets: [], withoutCoords: 0 })
 const loading = ref(true)
+// Zeitpunkt des letzten SalesSuite-Abgleichs (aus dem Backend) + lokaler Zwischenspeicher,
+// damit die Kontakte beim Öffnen sofort erscheinen und nicht jedes Mal neu geladen werden müssen.
+const lastSync = ref('')
+const CRM_CACHE_KEY = 'itukv_crm_cache_v1'
+function saveCache(data) {
+  try { localStorage.setItem(CRM_CACHE_KEY, JSON.stringify(data)) } catch { /* Speicher voll o.Ä. – dann eben ohne Cache */ }
+}
+function loadCache() {
+  try { const s = localStorage.getItem(CRM_CACHE_KEY); return s ? JSON.parse(s) : null } catch { return null }
+}
+function formatStand(iso) {
+  if (!iso) return 'unbekannt'
+  try {
+    return new Date(iso).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  } catch { return 'unbekannt' }
+}
 const view = ref('list')
 const filterCenterPlz = ref('')
 const filterRadiusKm = ref(0)
@@ -983,8 +1005,11 @@ const form = ref({
 
 async function loadData() {
   try {
-    mapData.value = await authFetch('/kontakte/locations')
-    allKontakte.value = mapData.value.kontakte || []
+    const data = await authFetch('/kontakte/locations')
+    mapData.value = data
+    allKontakte.value = data.kontakte || []
+    lastSync.value = data.lastSync || ''
+    saveCache(data)
   } catch (e) {
     console.error(e)
   } finally {
@@ -1013,7 +1038,19 @@ async function reloadData() {
   }
 }
 
-onMounted(loadData)
+onMounted(() => {
+  // 1) Sofort den zuletzt gespeicherten Stand anzeigen (kein Warten)
+  const cached = loadCache()
+  if (cached && Array.isArray(cached.kontakte) && cached.kontakte.length) {
+    mapData.value = cached
+    allKontakte.value = cached.kontakte
+    lastSync.value = cached.lastSync || ''
+    loading.value = false
+  }
+  // 2) Im Hintergrund den frischen gespeicherten Stand nachladen (OHNE SalesSuite-Abgleich).
+  //    Der echte SalesSuite-Abgleich passiert nur über den Knopf „Aktualisieren".
+  loadData()
+})
 
 function typClass(t) {
   if (t === 'PE') return 'bg-purple-100 text-purple-700'

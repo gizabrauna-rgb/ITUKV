@@ -133,6 +133,24 @@ def table_(name):
     return svc.get_table_client(name)
 
 
+# Kleiner Schluessel-Wert-Speicher fuer App-Zustaende (z. B. Zeitpunkt des
+# letzten SalesSuite-Abgleichs). Liegt in Tabelle 'appmeta'.
+APPMETA_TABLE = "appmeta"
+
+def set_meta(key, value):
+    try:
+        table_(APPMETA_TABLE).upsert_entity({"PartitionKey": "meta", "RowKey": key, "value": value})
+    except Exception:
+        pass
+
+def get_meta(key, default=""):
+    try:
+        e = table_(APPMETA_TABLE).get_entity("meta", key)
+        return e.get("value", default)
+    except Exception:
+        return default
+
+
 # Blacklist-Check: verhindert Import gesperrter E-Mails / Domains
 _BLACKLIST_CACHE = None
 def is_blacklisted(email):
@@ -414,6 +432,29 @@ SS_EXCLUDE_STATUS = {
     "Kunden-Mitarbeiter",
 }
 
+# Kundenstatus, die gar nicht ins Dashboard geladen werden duerfen.
+# Vergleich erfolgt klein geschrieben/getrimmt, damit Schreibweise egal ist.
+SS_EXCLUDE_STATUS_NORM = {
+    "kunden-mitarbeiter",
+    "nicht-itler",
+    "dauerhaft geschlossen",
+    "konkurrenz",
+    "coach",
+    "insolvent",
+    "presse",
+    "fake",
+    "nicht geeignet",
+}
+
+def _status_ausgeschlossen(status):
+    """True, wenn dieser Kundenstatus nicht ins Dashboard gehoert."""
+    s = (status or "").strip().lower()
+    if not s:
+        return False
+    if "dublette" in s:  # deckt "Kunden-Dublette (anderen Kontakt aufrufen)" mit ab
+        return True
+    return s in SS_EXCLUDE_STATUS_NORM
+
 # Produkt-Feld SalesSuite -> Dashboard-Flag (genau die Namen, die die Karte kennt)
 SS_PRODUKT_MAP = {
     "x_hat_uc": "hatUC",
@@ -605,7 +646,7 @@ def _run_salessuite_sync(dry=False, max_pages=40):
             passes = (
                 voll_adresse
                 and hat_gf
-                and (ent["kundenstatus"] not in SS_EXCLUDE_STATUS)
+                and (not _status_ausgeschlossen(ent["kundenstatus"]))
             )
             if not passes:
                 continue
@@ -637,6 +678,8 @@ def _run_salessuite_sync(dry=False, max_pages=40):
 
     if not dry:
         _flush()
+        # Zeitpunkt des erfolgreichen Abgleichs merken (fuer "Letzter Stand"-Anzeige)
+        set_meta("salessuite_last_sync", datetime.utcnow().isoformat())
 
     return {
         "dryRun": dry,
@@ -2871,6 +2914,25 @@ def _build_kontakte_locations():
     without_k = 0
     flag_fields = ['hatUC','hatUCS','hatMC','hatFKE','hatUVE','hatVME','hatKIwerkOne','hatMSQ','hatKMQ','hatKIT']
 
+    # Mandate/mb-Nummern laden. Daraus leiten wir ab, welche Kontakte "im
+    # ITUKV-Prozess" sind: ein Kontakt hat eine mb-Nummer, wenn seine Firma
+    # oder E-Mail zu einem Mandat passt (gleiche Logik wie im Dashboard).
+    targets_items = [dict(i) for i in table_("targets").list_entities()]
+    _target_firmen = set()
+    _target_emails = set()
+    for _t in targets_items:
+        _f = (_t.get("firma", "") or "").strip().lower()
+        _e = (_t.get("verkaueferEmail", "") or "").strip().lower()
+        if _f:
+            _target_firmen.add(_f)
+        if _e:
+            _target_emails.add(_e)
+
+    def _hat_mb_nummer(firma, email):
+        f = (firma or "").strip().lower()
+        e = (email or "").strip().lower()
+        return bool((f and f in _target_firmen) or (e and e in _target_emails))
+
     # --- 1) Kunden / Leads LIVE aus SalesSuite (Tabelle salessuitekontakte) ---
     ss_items = [dict(i) for i in table_(SALESSUITE_TABLE).list_entities()]
     ss_count = len(ss_items)
@@ -2881,6 +2943,9 @@ def _build_kontakte_locations():
             without_k += 1
             continue
         kundenstatus = k.get("kundenstatus","") or ""
+        # Ausgeschlossene Status gar nicht erst ins Dashboard laden
+        if _status_ausgeschlossen(kundenstatus):
+            continue
         entry = {
             "id": k.get("RowKey"),
             "firma": k.get("firma","") or k.get("name",""),
@@ -2905,6 +2970,8 @@ def _build_kontakte_locations():
         for f in flag_fields:
             if k.get(f) is True:
                 entry[f] = True
+        # ITUKV-Prozess: gespeicherter Haken ODER automatisch, wenn mb-Nummer vorhanden
+        entry["imItukvProzess"] = bool(k.get("imItukvProzess")) or _hat_mb_nummer(entry["firma"], entry["email"])
         kontakte_out.append(entry)
 
     # --- 2) M&A-Investoren aus bisheriger Tabelle 'kontakte' erhalten ---
@@ -2946,10 +3013,11 @@ def _build_kontakte_locations():
             "quelle": "ma",
             "lat": c[0], "lon": c[1],
         }
+        # ITUKV-Prozess: gespeicherter Haken ODER automatisch, wenn mb-Nummer vorhanden
+        entry["imItukvProzess"] = bool(k.get("imItukvProzess")) or _hat_mb_nummer(entry["firma"], entry["email"])
         kontakte_out.append(entry)
 
-    # Targets (Verkäufer)
-    targets_items = [dict(i) for i in table_("targets").list_entities()]
+    # Targets (Verkäufer) – targets_items wurde oben bereits geladen
     targets_out = []
     for t in targets_items:
         plz = str(t.get("plz","")).strip()
@@ -2974,6 +3042,7 @@ def _build_kontakte_locations():
         "quelleSalessuite": ss_count,
         "quelleInvestoren": invest_count,
         "withoutCoords": without_k,
+        "lastSync": get_meta("salessuite_last_sync", ""),
     }
 
 
