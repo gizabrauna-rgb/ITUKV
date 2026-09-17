@@ -318,6 +318,7 @@
               {{ step < STEPS_TOTAL ? 'Weiter' : (sending ? 'Wird ausgewertet…' : 'Auswertung anzeigen') }}
             </button>
           </div>
+          <p v-if="hinweisText" class="text-right text-xs text-gray-500 mt-2">{{ hinweisText }}</p>
           <p class="text-center text-xs text-gray-400 mt-4">Kostenlos · in wenigen Minuten · diskret &amp; unverbindlich</p>
         </form>
       </template>
@@ -489,7 +490,7 @@ const analyseProzent = ref(0)
 const form = reactive({
   firma: '', vorname: '', nachname: '', email: '', telefonVorwahl: '+49', telefon: '', website: '', plzOrt: '',
   ziel: '',
-  websiteEinverstaendnis: true,
+  websiteEinverstaendnis: false,
   smsEinverstaendnis: false,
   antworten: {},
   zahlen: {
@@ -698,6 +699,17 @@ const stepGueltig = computed(() => {
   if (gs) return fragenIn(gs.gruppe).every(f => typeof form.antworten[f.key] === 'boolean')
   if (step.value === STEPS_TOTAL) return !!form.dsgvo
   return true
+})
+
+// Kleiner Hinweis unter dem "Weiter"-Knopf, solange der Schritt unvollstaendig
+// ist – damit klar ist, WARUM der Knopf noch ausgegraut bleibt.
+const hinweisText = computed(() => {
+  if (stepGueltig.value) return ''
+  if (step.value === 1) return 'Bitte fülle alle Pflichtfelder (*) aus, damit es weitergeht.'
+  if (step.value === 2) return 'Bitte wähle Dein Ziel aus.'
+  if (JA_NEIN_STEPS.some(s => s.step === step.value)) return 'Bitte beantworte alle Fragen mit Ja oder Nein.'
+  if (step.value === STEPS_TOTAL) return 'Bitte setze das Häkchen zur Datenverarbeitung.'
+  return ''
 })
 
 async function onNext() {
