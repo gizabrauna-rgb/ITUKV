@@ -75,15 +75,15 @@
             <!-- Faktor-Luecke in Euro als grosse Differenz-Box (Rechenbeispiel, echter Wert folgt beim Nachtragen).
                  Nur fuer Nicht-Zukauf-Ziele, da es um den eigenen Unternehmenswert/Kaufpreis geht. -->
             <div v-if="result.ziel !== 'zukauf' && faktorLuecke > 0"
-              class="mt-4 rounded-2xl bg-amber-50 border-2 border-amber-200 px-4 py-5 md:px-6 md:py-6 text-center">
-              <p class="text-[11px] md:text-xs font-bold uppercase tracking-wide text-amber-700 mb-1">Rechenbeispiel · Unterschied</p>
-              <p class="text-3xl md:text-5xl font-extrabold text-gray-900 leading-none">+ {{ euro(faktorLueckeEur) }}</p>
-              <p class="text-sm text-gray-700 mt-3 leading-relaxed">
+              class="mt-4 rounded-2xl bg-[#0088ba]/5 border border-[#0088ba]/20 px-4 py-5 md:px-6 md:py-6 text-center">
+              <p class="text-[11px] md:text-xs font-semibold uppercase tracking-wide text-[#0088ba] mb-1">Rechenbeispiel</p>
+              <p class="text-2xl md:text-4xl font-extrabold text-[#0a3d54] leading-none">+ {{ euro(faktorLueckeEur) }}</p>
+              <p class="text-sm text-gray-600 mt-3 leading-relaxed">
                 Von Faktor {{ result.auswertung.faktor }} auf 7 – das sind
                 <strong>{{ faktorLuecke }} {{ faktorLuecke === 1 ? 'zusätzlicher Jahresgewinn' : 'zusätzliche Jahresgewinne' }}</strong>
-                mehr Unternehmenswert, bei exakt demselben Geschäft. Beispiel bei 250.000 € bereinigtem EBIT.
+                mehr Unternehmenswert, bei exakt demselben Geschäft (Beispiel bei 250.000 € bereinigtem EBIT).
               </p>
-              <p class="text-xs text-gray-500 mt-2">Deinen echten Betrag rechnen wir Dir aus, sobald Du Deine Zahlen einträgst.</p>
+              <p class="text-xs text-gray-400 mt-2">Deinen echten Betrag rechnen wir Dir aus, sobald Du Deine Zahlen einträgst.</p>
             </div>
             <p class="text-sm text-gray-600 mt-4 text-center leading-relaxed">
               {{ aufmacher.vergleichHint }}
