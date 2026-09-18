@@ -771,8 +771,8 @@ const AUFMACHER_TEXTE = {
   verkauf: {
     lossKicker: 'Das lässt Du aktuell auf dem Tisch liegen',
     lossSatz: 'So viel mehr Kaufpreis ist bei Deinem Unternehmen drin – bei exakt demselben Geschäft. Der einzige Unterschied: ein stärkerer Bewertungsfaktor.',
-    headline: 'In Deinem Unternehmen steckt bares Geld – wie viel Kaufpreis Du gerade liegen lässt, rechnen wir Dir auf den Euro genau aus.',
-    intro: 'Dafür fehlt nur noch ein Schritt: Deine betriebswirtschaftlichen Zahlen. Erst damit wird aus dem Faktor ein konkreter Wert in Euro – und Du siehst schwarz auf weiß, wie viel nach oben möglich ist.',
+    headline: 'In Deinem Unternehmen steckt bares Geld – wie viel Kaufpreis Du gerade liegen lässt, rechnen wir Dir mit Deinen Zahlen konkret in Euro aus.',
+    intro: 'Dafür fehlt nur noch ein Schritt: Deine betriebswirtschaftlichen Zahlen. Erst damit wird aus dem Faktor ein konkreter Wert in Euro – und Du siehst klar, wie viel nach oben möglich ist.',
     boxZielLabel: 'Das wärst Du',
     boxZielSub: 'Mit den richtigen Werthebeln',
     vergleichHint: 'Zwischen diesen beiden Faktoren liegt bares Geld – bei exakt demselben Geschäft. Wie viel genau, rechnen wir Dir mit Deinen Zahlen aus.',
@@ -794,7 +794,7 @@ const AUFMACHER_TEXTE = {
   nachfolge: {
     lossKicker: 'Das lässt Du bei der Nachfolge auf dem Tisch liegen',
     lossSatz: 'So viel mehr Unternehmenswert ist für eine geregelte Nachfolge drin – bei exakt demselben Geschäft. Der einzige Unterschied: ein stärkerer Bewertungsfaktor.',
-    headline: 'In Deinem Unternehmen steckt bares Geld – wie viel Wert in einer geregelten Nachfolge steckt, rechnen wir Dir auf den Euro genau aus.',
+    headline: 'In Deinem Unternehmen steckt bares Geld – wie viel Wert in einer geregelten Nachfolge steckt, rechnen wir Dir mit Deinen Zahlen konkret in Euro aus.',
     intro: 'Dafür fehlt nur noch ein Schritt: Deine betriebswirtschaftlichen Zahlen. Je unabhängiger Dein Unternehmen von Dir läuft, desto reibungsloser die Übergabe – und desto höher der Wert.',
     boxZielLabel: 'Das wärst Du',
     boxZielSub: 'Mit den richtigen Werthebeln',
@@ -804,7 +804,7 @@ const AUFMACHER_TEXTE = {
   beteiligung: {
     lossKicker: 'Das lässt Du bei einem Teilverkauf auf dem Tisch liegen',
     lossSatz: 'So viel mehr ist ein Einstieg oder Teilverkauf wert – bei exakt demselben Geschäft. Der einzige Unterschied: ein stärkerer Bewertungsfaktor.',
-    headline: 'In Deinem Unternehmen steckt bares Geld – wie viel ein Einstieg oder Teilverkauf wert ist, rechnen wir Dir auf den Euro genau aus.',
+    headline: 'In Deinem Unternehmen steckt bares Geld – wie viel ein Einstieg oder Teilverkauf wert ist, rechnen wir Dir mit Deinen Zahlen konkret in Euro aus.',
     intro: 'Dafür fehlt nur noch ein Schritt: Deine betriebswirtschaftlichen Zahlen. Erst damit wird aus dem Faktor ein belastbarer Wert – die Basis für einen Einstieg zu Deinen Bedingungen.',
     boxZielLabel: 'Das wärst Du',
     boxZielSub: 'Mit den richtigen Werthebeln',
@@ -814,8 +814,8 @@ const AUFMACHER_TEXTE = {
   wert: {
     lossKicker: 'So viel Wert bleibt aktuell ungenutzt',
     lossSatz: 'So viel mehr Unternehmenswert ist drin – bei exakt demselben Geschäft. Der einzige Unterschied: ein stärkerer Bewertungsfaktor.',
-    headline: 'In Deinem Unternehmen steckt bares Geld – wie viel es wirklich wert ist, rechnen wir Dir auf den Euro genau aus.',
-    intro: 'Dafür fehlt nur noch ein Schritt: Deine betriebswirtschaftlichen Zahlen. Erst damit wird aus dem Faktor ein konkreter Wert in Euro – und Du siehst schwarz auf weiß, wie viel nach oben möglich ist.',
+    headline: 'In Deinem Unternehmen steckt bares Geld – wie viel es wirklich wert ist, rechnen wir Dir mit Deinen Zahlen konkret in Euro aus.',
+    intro: 'Dafür fehlt nur noch ein Schritt: Deine betriebswirtschaftlichen Zahlen. Erst damit wird aus dem Faktor ein konkreter Wert in Euro – und Du siehst klar, wie viel nach oben möglich ist.',
     boxZielLabel: 'Das wärst Du',
     boxZielSub: 'Mit den richtigen Werthebeln',
     vergleichHint: 'Zwischen diesen beiden Faktoren liegt bares Geld – bei exakt demselben Geschäft. Wie viel genau, rechnen wir Dir mit Deinen Zahlen aus.',
