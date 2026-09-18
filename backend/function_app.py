@@ -1153,6 +1153,7 @@ def _count_aktive_investoren() -> int:
 def _checkliste_netzwerk_hinweis(ziel: str, plz: str, land: str = "") -> dict:
     """Datenschutzfreundlicher Netzwerk-Hinweis (nur eine Zahl, keine Namen):
     - Zukauf  -> Anzahl potenzieller IT-Unternehmen im Umkreis (100 km)
+    - Offen   -> beide Seiten (Investoren + Zugang zu Uebernahme-Zielen)
     - sonst   -> Anzahl aktiver Investoren im Datenstamm
     Rueckgabe: dict {typ, zahl, text} oder None (wenn Zahl zu klein / keine Daten)."""
     try:
@@ -1163,6 +1164,17 @@ def _checkliste_netzwerk_hinweis(ziel: str, plz: str, land: str = "") -> dict:
                     "typ": "firmen", "zahl": n,
                     "text": (f"In Deinem Umkreis (rund 100 km) haben wir aktuell {n} IT-Unternehmen in "
                              f"unserem Datenstamm, die als Übernahme-Kandidat zu Dir passen könnten."),
+                }
+        elif (ziel or "").strip() == "offen":
+            # Unentschlossen -> beide Seiten des Netzwerks zeigen (verkaufen UND zukaufen).
+            n = _count_aktive_investoren()
+            if n >= 3:
+                return {
+                    "typ": "beide", "zahl": n,
+                    "text": (f"Wir betreuen aktuell {n} Investoren, die aktiv ein IT-Unternehmen suchen – "
+                             f"und haben zugleich Zugang zu IT-Unternehmen, die als Übernahme-Ziel infrage "
+                             f"kommen. Je nachdem, wohin Du willst, öffnen wir Dir die passende Seite unseres "
+                             f"Netzwerks."),
                 }
         else:
             n = _count_aktive_investoren()

@@ -75,6 +75,21 @@
             <p class="text-sm text-gray-600 mt-4 text-center leading-relaxed">
               {{ aufmacher.vergleichHint }}
             </p>
+            <!-- Faktor-Luecke in Euro greifbar machen (Rechenbeispiel, echter Wert folgt beim Nachtragen).
+                 Nur fuer Nicht-Zukauf-Ziele, da es um den eigenen Unternehmenswert/Kaufpreis geht. -->
+            <div v-if="result.ziel !== 'zukauf' && faktorLuecke > 0"
+              class="mt-4 rounded-xl bg-amber-50 border border-amber-200 p-4 md:p-5 text-center">
+              <p class="text-sm text-gray-700 leading-relaxed">
+                Von Faktor {{ result.auswertung.faktor }} auf 7 sind das
+                <strong>{{ faktorLuecke }} {{ faktorLuecke === 1 ? 'zusätzlicher Jahresgewinn' : 'zusätzliche Jahresgewinne' }}</strong>
+                (bereinigtes EBIT) mehr Unternehmenswert – bei exakt demselben Geschäft.
+              </p>
+              <p class="text-sm text-gray-700 leading-relaxed mt-2">
+                <span class="font-semibold">Rechenbeispiel:</span> Bei 250.000 € bereinigtem EBIT wären das
+                <strong class="text-[#0088ba]">{{ euro(faktorLueckeEur) }} mehr</strong> Unternehmenswert.
+                Deinen echten Betrag rechnen wir Dir aus, sobald Du Deine Zahlen einträgst.
+              </p>
+            </div>
           </div>
 
           <div class="p-6 md:p-8">
@@ -219,6 +234,34 @@
           <div v-for="b in belege" :key="b.label" class="bg-white rounded-xl border border-gray-100 p-4 text-center">
             <div class="text-xl font-bold text-[#0088ba]">{{ b.zahl }}</div>
             <div class="text-[11px] text-gray-500 mt-1 leading-tight">{{ b.label }}</div>
+          </div>
+        </div>
+
+        <!-- So geht's weiter: sichtbarer Fahrplan nach der Checkliste (fuer alle Ziele) -->
+        <div class="bg-white rounded-2xl border border-gray-100 p-6 md:p-8">
+          <h3 class="text-lg font-bold text-gray-900 mb-5 text-center">So geht's weiter</h3>
+          <div class="grid gap-4 md:grid-cols-3">
+            <div class="flex md:flex-col items-start md:items-center gap-3 md:text-center">
+              <span class="flex-shrink-0 w-9 h-9 rounded-full bg-[#0088ba] text-white text-sm font-bold flex items-center justify-center">1</span>
+              <div>
+                <p class="font-semibold text-gray-900 text-sm mb-1">Zahlen nachtragen</p>
+                <p class="text-sm text-gray-600 leading-relaxed">Trag Deine betriebswirtschaftlichen Zahlen ein – sofort oder in Ruhe über Deinen persönlichen Link. Aus dem Faktor wird ein konkreter Wert in Euro.</p>
+              </div>
+            </div>
+            <div class="flex md:flex-col items-start md:items-center gap-3 md:text-center">
+              <span class="flex-shrink-0 w-9 h-9 rounded-full bg-[#0088ba] text-white text-sm font-bold flex items-center justify-center">2</span>
+              <div>
+                <p class="font-semibold text-gray-900 text-sm mb-1">Kostenloses Erstgespräch</p>
+                <p class="text-sm text-gray-600 leading-relaxed">20 Minuten, telefonisch, unverbindlich. Wir ordnen Deine Einschätzung ein und zeigen Dir Deinen wichtigsten Hebel.</p>
+              </div>
+            </div>
+            <div class="flex md:flex-col items-start md:items-center gap-3 md:text-center">
+              <span class="flex-shrink-0 w-9 h-9 rounded-full bg-[#0088ba] text-white text-sm font-bold flex items-center justify-center">3</span>
+              <div>
+                <p class="font-semibold text-gray-900 text-sm mb-1">Begleiteter Fahrplan</p>
+                <p class="text-sm text-gray-600 leading-relaxed">Wenn es passt, begleiten wir Dich Schritt für Schritt – ob Verkauf, Zukauf oder geregelte Nachfolge. Diskret und in Deinem Tempo.</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -715,7 +758,7 @@ const ZIEL_TEXTE = {
   },
   offen: {
     titel: 'Hier liegt Dein größtes ungenutztes Potenzial',
-    sub: 'Diese Punkte heben Deinen Faktor – und damit Deinen Kaufpreis – am stärksten. Was zählt, siehst Du hier. Wie Du es konkret umsetzt, gehen wir gemeinsam durch.',
+    sub: 'Diese Punkte heben Deinen Faktor – und damit Deinen Unternehmenswert – am stärksten. Dieselben Werthebel entscheiden auf beiden Seiten: Sie machen Dich als Verkäufer wertvoller und als Käufer stark genug zuzukaufen. Was zählt, siehst Du hier. Wie Du es konkret umsetzt, gehen wir gemeinsam durch.',
     gespraech: 'Egal, wohin die Reise geht – verkaufen, zukaufen oder erst mal Klarheit gewinnen: Im kostenlosen Erstgespräch sortieren wir gemeinsam Deine Optionen und zeigen Dir, welcher nächste Schritt für Dich wirklich sinnvoll ist.',
   },
 }
@@ -779,13 +822,13 @@ const AUFMACHER_TEXTE = {
     todoIntro: 'Bring diese Zahlen zusammen – dann startet Ihr nicht bei einer groben Schätzung, sondern bei einem belastbaren Wert.',
   },
   offen: {
-    lossKicker: 'Das lässt Du aktuell auf dem Tisch liegen',
-    lossSatz: 'So viel mehr ist bei Deinem Unternehmen drin – bei exakt demselben Geschäft. Der einzige Unterschied: ein stärkerer Bewertungsfaktor.',
-    headline: 'In Deinem Unternehmen steckt bares Geld – wie viel genau, rechnen wir Dir auf den Euro aus.',
-    intro: 'Dafür fehlt nur noch ein Schritt: Deine betriebswirtschaftlichen Zahlen. Erst damit wird aus dem Faktor ein konkreter Wert in Euro – und Du siehst schwarz auf weiß, wie viel nach oben möglich ist.',
+    lossKicker: 'So viel Potenzial steckt aktuell ungenutzt in Deinem Unternehmen',
+    lossSatz: 'So viel mehr ist bei Deinem Unternehmen drin – bei exakt demselben Geschäft. Ein stärkerer Faktor heißt: mehr Verkaufspreis, wenn Du verkaufst – und eine stärkere Basis, wenn Du selbst zukaufen willst.',
+    headline: 'In Deinem Unternehmen steckt mehr, als Du denkst – wie viel genau, rechnen wir Dir mit Deinen Zahlen aus.',
+    intro: 'Dafür fehlt nur noch ein Schritt: Deine betriebswirtschaftlichen Zahlen. Erst damit wird aus dem Faktor ein konkreter Wert in Euro – die Grundlage, egal ob Du später verkaufen oder zukaufen willst.',
     boxZielLabel: 'Das wärst Du',
     boxZielSub: 'Mit den richtigen Werthebeln',
-    vergleichHint: 'Zwischen diesen beiden Faktoren liegt bares Geld – bei exakt demselben Geschäft. Wie viel genau, rechnen wir Dir mit Deinen Zahlen aus.',
+    vergleichHint: 'Zwischen diesen beiden Faktoren liegt bares Geld – bei exakt demselben Geschäft. Was das für einen Verkauf oder einen eigenen Zukauf bedeutet, ordnen wir mit Dir im Gespräch ein.',
     todoIntro: 'Bring diese Zahlen zusammen – dann startet Ihr nicht bei einer groben Schätzung, sondern bei einem belastbaren Wert und einem konkreten Fahrplan.',
   },
 }
@@ -910,6 +953,14 @@ const potenzialMax = computed(() => Math.round(potenzialEur.value * 1.2))
 const wertPotenzialMin = computed(() => Math.round(wertPotenzial.value * 0.8))
 const wertPotenzialMax = computed(() => Math.round(wertPotenzial.value * 1.2))
 const euroRange = (a, b) => `${euro(a)} – ${euro(b)}`
+
+// Rechenbeispiel fuer die Faktor-Luecke, solange noch keine echten Zahlen da sind.
+// Jeder Faktor-Punkt = 1x bereinigtes EBIT auf den Unternehmenswert (Kurs 57).
+// BEISPIEL_EBIT ist ein realistischer Beispielwert fuer ein IT-Systemhaus – klar als
+// Beispiel gekennzeichnet, der echte Betrag folgt beim Nachtragen der Zahlen.
+const BEISPIEL_EBIT = 250000
+const faktorLuecke = computed(() => Math.max(0, 7 - (result.value?.auswertung?.faktor || 7)))
+const faktorLueckeEur = computed(() => faktorLuecke.value * BEISPIEL_EBIT)
 
 const zeigeZahlenForm = ref(false)
 const nachtragSaving = ref(false)
