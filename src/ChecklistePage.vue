@@ -17,6 +17,88 @@
     <main class="max-w-3xl mx-auto px-6 py-8">
       <!-- Ergebnis -->
       <div v-if="result" class="space-y-5">
+
+        <!-- POTENZIAL GANZ OBEN: konkrete Gegenüberstellung heute vs. Faktor 7 -->
+        <div v-if="zahlenDa && potenzialEur > 0"
+          class="bg-gradient-to-br from-[#0088ba] to-[#00a0d8] rounded-2xl p-6 md:p-8 text-white shadow-lg">
+          <p class="text-xs font-semibold uppercase tracking-wide text-white/80 mb-4 text-center">Das steckt an Potenzial in Deinem Unternehmen</p>
+          <div class="grid grid-cols-2 gap-3 md:gap-6 items-stretch">
+            <div class="bg-white/10 rounded-xl p-4 md:p-5 text-center flex flex-col justify-center">
+              <p class="text-xs text-white/70 mb-1">Heute · Faktor {{ result.auswertung.faktor }}</p>
+              <p class="text-2xl md:text-3xl font-extrabold leading-none">{{ euro(wertHeute) }}</p>
+            </div>
+            <div class="bg-white rounded-xl p-4 md:p-5 text-center flex flex-col justify-center">
+              <p class="text-xs text-[#0088ba]/80 font-semibold mb-1">Möglich · Faktor 7</p>
+              <p class="text-2xl md:text-3xl font-extrabold leading-none text-[#0088ba]">{{ euro(wertPotenzial) }}</p>
+            </div>
+          </div>
+          <div class="mt-4 text-center">
+            <span class="inline-flex items-center gap-2 bg-white/15 rounded-full px-4 py-1.5 text-sm md:text-base font-bold">
+              <TrendingUp class="w-4 h-4" /> bis zu {{ euro(potenzialEur) }} mehr Kaufpreis – ohne mehr Umsatz
+            </span>
+          </div>
+          <p class="text-xs text-white/70 mt-4 text-center leading-relaxed">
+            Der Unterschied liegt allein im Bewertungsfaktor. Wie Du von Faktor {{ result.auswertung.faktor }} auf 7 kommst, zeigen wir Dir im kostenlosen Erstgespräch.
+          </p>
+        </div>
+
+        <!-- HAUSAUFGABE: Faktor ist da, aber die Zahlen fehlen noch für den Euro-Wert -->
+        <div v-else-if="!zahlenDa"
+          class="bg-white rounded-2xl border-2 border-[#0088ba]/25 p-6 md:p-8">
+          <div class="flex items-start gap-3 mb-4">
+            <ClipboardList class="w-7 h-7 text-[#0088ba] flex-shrink-0 mt-0.5" />
+            <div>
+              <h2 class="text-lg md:text-xl font-bold text-gray-900">Dein Bewertungsfaktor steht: {{ result.auswertung.faktor }} von 7</h2>
+              <p class="text-sm text-gray-600 mt-1">
+                Jetzt fehlt nur noch ein Schritt, um Deinen <strong>konkreten Unternehmenswert in Euro</strong> und Dein Potenzial nach oben zu sehen:
+                Deine betriebswirtschaftlichen Zahlen. Das Raussuchen darf ruhig ein paar Tage dauern – Du kannst sie jederzeit über
+                Deinen persönlichen Link (weiter unten) nachtragen.
+              </p>
+            </div>
+          </div>
+
+          <button v-if="!zeigeZahlenForm" type="button" @click="zahlenFormOeffnen"
+            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8]">
+            <ClipboardList class="w-5 h-5" /> Zahlen jetzt eintragen
+          </button>
+
+          <!-- Inline-Formular zum Nachtragen der Zahlen -->
+          <div v-else class="mt-2 space-y-3">
+            <p class="text-sm text-gray-500">Grobe bzw. geschätzte Werte genügen – alle Angaben in TEUR (Tausend Euro). Leere Felder sind ok.</p>
+            <div class="overflow-x-auto -mx-2 px-2">
+              <table class="w-full border-collapse text-sm">
+                <thead>
+                  <tr>
+                    <th class="text-left font-semibold text-gray-500 pb-2 pr-2 align-bottom w-[42%]"></th>
+                    <th v-for="j in nachtragJahre" :key="j.jahr" class="text-center font-semibold text-gray-700 pb-2 px-1 whitespace-nowrap">
+                      {{ j.jahr }}<span v-if="j.geplant" class="block text-[10px] font-normal text-gray-400">geplant</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="z in ZAHL_ZEILEN" :key="z.key" class="border-t border-gray-100">
+                    <td class="py-1.5 pr-2 text-gray-700 text-[13px] leading-tight">{{ z.label }}</td>
+                    <td v-for="j in nachtragJahre" :key="j.jahr" class="py-1.5 px-1">
+                      <input v-model="j[z.key]" class="input-cell" inputmode="numeric" />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="text-[11px] text-gray-400 leading-snug">
+              <strong>Bereinigtes EBIT</strong> = Dein Gewinn, wenn Dein GF-Gehalt durch das eines angestellten Geschäftsführers ersetzt und private Kosten (z. B. Gehalt nicht mitarbeitender Angehöriger, privat genutzte Fahrzeuge) herausgerechnet wären.
+            </p>
+            <p v-if="nachtragErr" class="text-sm text-red-600">{{ nachtragErr }}</p>
+            <div class="flex items-center gap-3 pt-1">
+              <button type="button" @click="zahlenNachtragen" :disabled="nachtragSaving"
+                class="inline-flex items-center gap-2 px-6 py-3 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8] disabled:opacity-50">
+                {{ nachtragSaving ? 'Wird berechnet…' : 'Wert & Potenzial anzeigen' }}
+              </button>
+              <button type="button" @click="zeigeZahlenForm = false" class="px-4 py-2.5 text-gray-500 font-medium hover:text-gray-800">Später</button>
+            </div>
+          </div>
+        </div>
+
         <div class="bg-white rounded-2xl border-2 border-[#0088ba]/20 p-8 text-center">
           <CheckCircle2 class="w-12 h-12 text-[#0088ba] mx-auto mb-3" />
           <h2 class="text-xl font-bold text-gray-900 mb-1">
@@ -45,7 +127,7 @@
           <div v-if="result.auswertung.wertMidEur > 0" class="bg-[#0088ba]/5 border border-[#0088ba]/20 rounded-xl p-5 mb-4">
             <p class="text-sm text-gray-600 mb-1">Geschätzte Wert-Bandbreite</p>
             <p class="text-lg font-bold text-gray-900">{{ euro(result.auswertung.wertMinEur) }} – {{ euro(result.auswertung.wertMaxEur) }}</p>
-            <p class="text-xs text-gray-400 mt-2">Grobe Orientierung (bereinigtes EBIT × Faktor). Erhebliche Abweichungen nach oben und unten sind möglich.</p>
+            <p class="text-xs text-gray-400 mt-2">Grobe Orientierung (bereinigtes EBIT × Faktor). Abweichungen sind möglich.</p>
           </div>
 
           <div v-if="result.schwerpunkte?.length" class="flex flex-wrap justify-center gap-2 mb-4">
@@ -54,7 +136,7 @@
 
           <div v-if="result.wertInsight" class="text-left bg-[#0088ba]/5 border border-[#0088ba]/25 rounded-xl p-5 mb-3">
             <p class="text-xs font-semibold text-[#0088ba] uppercase tracking-wide mb-2">Was das für Dich bedeutet</p>
-            <p v-if="result.wertInsight.potenzialEur > 0" class="text-2xl md:text-3xl font-extrabold text-gray-900 leading-none mb-2">
+            <p v-if="!zahlenDa && result.wertInsight.potenzialEur > 0" class="text-2xl md:text-3xl font-extrabold text-gray-900 leading-none mb-2">
               bis zu {{ euro(result.wertInsight.potenzialEur) }} <span class="text-base font-semibold text-gray-500">mehr Kaufpreis</span>
             </p>
             <p class="text-sm text-gray-700 leading-relaxed mb-2">{{ result.wertInsight.hook }}</p>
@@ -156,6 +238,23 @@
               class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-[#0088ba] bg-[#f2f9fc] border-2 border-[#cfe7f2] rounded-xl hover:bg-[#e6f4fa]">
               <FileDown class="w-4 h-4" />
               Checkliste als PDF herunterladen
+            </a>
+          </div>
+        </div>
+
+        <!-- Hero-Storys: echte begleitete Transaktionen (Vertrauen + Sog) -->
+        <div class="bg-white rounded-2xl border border-gray-100 p-6 md:p-8">
+          <h3 class="text-lg font-bold text-gray-900 mb-1">So sieht das in der Praxis aus</h3>
+          <p class="text-sm text-gray-600 mb-5">Echte IT-Unternehmen, die diesen Weg gegangen sind – begleitet von der Mike Bergmann Beratung.</p>
+          <div class="grid gap-3 md:grid-cols-3">
+            <a v-for="s in HERO_STORYS" :key="s.titel" :href="s.url" target="_blank" rel="noopener"
+              class="group flex flex-col border border-gray-100 rounded-xl p-4 hover:border-[#0088ba]/40 hover:bg-[#0088ba]/5 transition">
+              <span class="text-xs font-semibold text-[#0088ba] uppercase tracking-wide mb-1">{{ s.label }}</span>
+              <span class="text-sm font-bold text-gray-900 leading-snug mb-1.5">{{ s.titel }}</span>
+              <span class="text-xs text-gray-600 leading-relaxed flex-1">{{ s.teaser }}</span>
+              <span class="inline-flex items-center gap-1 text-xs font-semibold text-[#0088ba] mt-3 group-hover:gap-1.5 transition-all">
+                Artikel lesen <ArrowRight class="w-3.5 h-3.5" />
+              </span>
             </a>
           </div>
         </div>
@@ -270,7 +369,11 @@
           <!-- SCHRITT 6: Zahlen + Motive -->
           <div v-show="step === 6" class="space-y-4">
             <div class="bg-white rounded-2xl border border-gray-100 p-6 space-y-3">
-              <h3 class="text-base font-bold text-gray-900 mb-1">Betriebswirtschaftliche Zahlen</h3>
+              <h3 class="text-base font-bold text-gray-900 mb-1">Betriebswirtschaftliche Zahlen <span class="text-gray-400 font-normal">(optional)</span></h3>
+              <div class="flex items-start gap-2 mb-1 px-3 py-2 rounded-lg bg-[#0088ba]/10 text-[#0088ba] text-xs md:text-sm">
+                <Clock class="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>Deinen Bewertungsfaktor bekommst Du auch ohne diese Zahlen sofort. Das Raussuchen (EBIT, bereinigtes EBIT usw.) darf ruhig ein paar Tage dauern – Du kannst die Zahlen später jederzeit über Deinen persönlichen Ergebnis-Link nachtragen und siehst dann Deinen konkreten Wert in Euro.</span>
+              </div>
               <p class="text-sm text-gray-500 mb-2">Grobe bzw. geschätzte Werte genügen – alle Angaben in TEUR (Tausend Euro). Leere Felder sind ok.</p>
               <div class="overflow-x-auto -mx-2 px-2">
                 <table class="w-full border-collapse text-sm">
@@ -340,7 +443,29 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
-import { CheckCircle2, TrendingUp, Link2, Check, CalendarClock, Clock, FileDown, MapPin, Users } from '@lucide/vue'
+import { CheckCircle2, TrendingUp, Link2, Check, CalendarClock, Clock, FileDown, MapPin, Users, ClipboardList, ArrowRight } from '@lucide/vue'
+
+// Hero-Storys: echte begleitete Transaktionen mit direktem Link auf den Presseartikel.
+const HERO_STORYS = [
+  {
+    label: 'Systemhaus-Fusion',
+    titel: 'Knoblauch am Oberrhein geht an die Datareform',
+    teaser: 'Zwei starke Systemhäuser bündeln ihre Kräfte – ein Musterbeispiel für eine geregelte Nachfolge im Südwesten.',
+    url: 'https://www.channelpartner.de/article/4122655/systemhausfusion-im-sudwesten.html',
+  },
+  {
+    label: 'Strategischer Zukauf',
+    titel: 'bytewerk kauft das Münchner Systemhaus Microbee',
+    teaser: 'Gezieltes Wachstum durch Übernahme: So sieht ein sauber begleiteter Zukauf in der IT-Branche aus.',
+    url: 'https://www.it-business.de/bytewerk-kauft-microbee-systemhaus-a-cb283b5e7f0a88d372fafb906b3ee204/',
+  },
+  {
+    label: 'Verkauf an Gruppe',
+    titel: 'bluvo AG wird an die teccle group vermittelt',
+    teaser: 'Von Mike Bergmann vermittelt: der UCC-Spezialist bluvo findet den passenden Käufer in einer wachsenden Gruppe.',
+    url: 'https://www.it-business.de/teccle-group-uebernimmt-den-ucc-spezialisten-bluvo-a-18e8d5fa7688dabef61bca25f6f90698/',
+  },
+]
 
 // Vertrauensbelege (statische Marktbeweise, keine Live-Daten)
 const belege = [
@@ -653,6 +778,64 @@ function euroKurz(n) {
   if (n >= 1000000) return (n / 1000000).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' Mio €'
   if (n >= 1000) return Math.round(n / 1000) + ' TEUR'
   return euro(n)
+}
+
+// --- Potenzial-Gegenüberstellung & Zahlen-Nachtrag ("Hausaufgabe") ---
+// zahlenDa = es liegt ein konkreter Euro-Wert vor (Zahlen wurden eingetragen).
+const zahlenDa = computed(() =>
+  !!result.value?.zahlenVollstaendig || (result.value?.auswertung?.wertMidEur || 0) > 0)
+const wertHeute = computed(() => result.value?.auswertung?.wertMidEur || 0)
+const potenzialEur = computed(() => result.value?.wertInsight?.potenzialEur || 0)
+const wertPotenzial = computed(() => wertHeute.value + potenzialEur.value)
+
+const zeigeZahlenForm = ref(false)
+const nachtragSaving = ref(false)
+const nachtragErr = ref('')
+const nachtragJahre = ref(JAHRE.map(j => ({
+  jahr: j, geplant: j === jahrJetzt,
+  umsatz: '', ebit: '', bereinigtesEbit: '', gfGehalt: '', mitarbeiter: '', vertragsumsatz: '',
+})))
+
+function zahlenFormOeffnen() {
+  // Vorhandene (Teil-)Zahlen aus dem Ergebnis übernehmen, falls schon welche da sind.
+  const vorhanden = Array.isArray(result.value?.zahlenJahre) ? result.value.zahlenJahre : []
+  nachtragJahre.value = JAHRE.map(j => {
+    const treffer = vorhanden.find(v => String(v.jahr) === String(j)) || {}
+    return {
+      jahr: j, geplant: j === jahrJetzt,
+      umsatz: treffer.umsatz || '', ebit: treffer.ebit || '', bereinigtesEbit: treffer.bereinigtesEbit || '',
+      gfGehalt: treffer.gfGehalt || '', mitarbeiter: treffer.mitarbeiter || '', vertragsumsatz: treffer.vertragsumsatz || '',
+    }
+  })
+  zeigeZahlenForm.value = true
+}
+
+async function zahlenNachtragen() {
+  nachtragErr.value = ''
+  const token = result.value?.resultToken
+  if (!token) { nachtragErr.value = 'Kein Ergebnis-Link gefunden.'; return }
+  // Mindestens ein bereinigtes EBIT nötig, damit ein Euro-Wert entsteht.
+  const hatBeeb = nachtragJahre.value.some(j => String(j.bereinigtesEbit || '').trim())
+  if (!hatBeeb) {
+    nachtragErr.value = 'Bitte trag mindestens Dein bereinigtes EBIT für ein Jahr ein – daraus berechnen wir Deinen Wert.'
+    return
+  }
+  nachtragSaving.value = true
+  try {
+    const res = await fetch(`${apiBase}/checkliste-nachtrag`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, zahlen: { jahre: nachtragJahre.value } }),
+    })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || `HTTP ${res.status}`) }
+    result.value = await res.json()
+    zeigeZahlenForm.value = false
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  } catch (e) {
+    nachtragErr.value = 'Etwas ist schiefgegangen: ' + e.message
+  } finally {
+    nachtragSaving.value = false
+  }
 }
 
 // Zwischenspeichern nach jeder Kachel (fire-and-forget). Legt KEINEN Kontakt an –

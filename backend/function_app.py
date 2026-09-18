@@ -1342,6 +1342,12 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
         "website": website, "plz": plz, "ort": ort, "mitarbeiter": mitarbeiter,
         "ziel": ziel,
         "status": "vollstaendig",
+        # Zahlen-Nachtrag: Faktor gibt es sofort, die betriebswirtschaftlichen
+        # Zahlen (EBIT, bereinigtes EBIT ...) darf man spaeter per Ergebnis-Link
+        # nachreichen. zahlenVollstaendig = es liegt ein konkreter Euro-Wert vor.
+        "zahlenVollstaendig": bool(auswertung.get("wertMidEur", 0) > 0),
+        "reminderSent": False,
+        "reminderAt": "",
         "resultToken": token,
         "createdAt": datetime.utcnow().isoformat(),
         "updatedAt": datetime.utcnow().isoformat(),
@@ -1495,6 +1501,8 @@ def checkliste_submit(req: func.HttpRequest) -> func.HttpResponse:
         "firma": firma or enrich.get("firmenname") or "",
         "name": name,
         "ziel": ziel,
+        "zahlenVollstaendig": bool(auswertung.get("wertMidEur", 0) > 0),
+        "zahlenJahre": jahre_clean,
     })
 
 
@@ -1622,7 +1630,246 @@ def checkliste_result(req: func.HttpRequest) -> func.HttpResponse:
         "firma": row.get("firma", ""),
         "name": row.get("name", ""),
         "ziel": row.get("ziel", ""),
+        "zahlenVollstaendig": bool(row.get("zahlenVollstaendig") or (ausw.get("wertMidEur", 0) or 0) > 0),
+        "zahlenJahre": _j("zahlenJahreJson", []),
     })
+
+
+@app.route(route="checkliste-nachtrag", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def checkliste_nachtrag(req: func.HttpRequest) -> func.HttpResponse:
+    """Public: betriebswirtschaftliche Zahlen werden NACHTRAEGLICH ueber den
+    persoenlichen Ergebnis-Link (?r=token) eingetragen ("Hausaufgabe").
+    Faktor + Ja/Nein bleiben unveraendert – neu berechnet werden nur der
+    konkrete Euro-Wert und der Wert-Einblick. Aktualisiert auch den verknuepften
+    Kontakt und liefert das komplette Ergebnis (wie checkliste-result) zurueck."""
+    _origin_from_req(req)
+    if req.method == "OPTIONS":
+        return opt_()
+    body = req.get_json() or {}
+    token = (body.get("token") or body.get("resultToken") or "").strip()
+    zahlen = body.get("zahlen") or {}
+    if not token:
+        return err_("Kein Ergebnis-Token angegeben", 400)
+
+    token_safe = token.replace("'", "''")
+    tbl = table_("checklisten")
+    row = None
+    try:
+        for c in tbl.query_entities(
+                f"PartitionKey eq 'checkliste' and resultToken eq '{token_safe}'"):
+            row = dict(c); break
+    except Exception as ex:
+        logging.error(f"Checkliste-Nachtrag Abfrage fehlgeschlagen: {ex}")
+        return err_("Ergebnis konnte nicht geladen werden", 500)
+    if not row:
+        return err_("Ergebnis nicht gefunden", 404)
+
+    def _j(field, default):
+        try:
+            return json.loads(row.get(field) or "")
+        except Exception:
+            return default
+
+    antworten = _j("antwortenJson", {}) or {}
+    web_signale = _j("webSignaleJson", {}) or {}
+
+    # Zahlen neu einlesen (gleiche Logik wie beim Erst-Absenden)
+    jahre_clean, beeb_latest, trend_auto = _zahlen_aus_jahren(zahlen)
+
+    def _latest(field):
+        for j in reversed(jahre_clean):
+            if str(j.get(field) or "").strip():
+                return str(j.get(field)).strip()
+        return str(zahlen.get(field) or "").strip()
+
+    ebit_trend = (zahlen.get("ebitTrend") or "").strip() or trend_auto
+    bereinigtes_ebit = beeb_latest if beeb_latest is not None else zahlen.get("bereinigtesEbit")
+    ziel = (row.get("ziel") or "").strip()
+
+    auswertung = _checkliste_auswertung(antworten, ebit_trend, bereinigtes_ebit, web_signale)
+    wert_insight = _checkliste_wert_insight(
+        auswertung, _latest("ebit"), _latest("umsatz"), _latest("vertragsumsatz"), ziel)
+    zahlen_vollstaendig = bool(auswertung.get("wertMidEur", 0) > 0)
+
+    updates = {
+        **row,
+        "zahlUmsatz": _latest("umsatz"),
+        "zahlEbit": _latest("ebit"),
+        "zahlBereinigtesEbit": _latest("bereinigtesEbit"),
+        "zahlGfGehalt": _latest("gfGehalt"),
+        "zahlVertragsumsatz": _latest("vertragsumsatz"),
+        "zahlEbitTrend": ebit_trend,
+        "zahlenJahreJson": json.dumps(jahre_clean, ensure_ascii=False),
+        "auswertungJson": json.dumps(auswertung, ensure_ascii=False),
+        "wertInsightJson": json.dumps(wert_insight, ensure_ascii=False),
+        "faktor": auswertung["faktor"],
+        "wertMidEur": auswertung["wertMidEur"],
+        "zahlenVollstaendig": zahlen_vollstaendig,
+        "updatedAt": datetime.utcnow().isoformat(),
+    }
+    try:
+        tbl.update_entity(updates, mode="replace")
+    except Exception as ex:
+        logging.error(f"Checkliste-Nachtrag speichern fehlgeschlagen: {ex}")
+        return err_("Speichern fehlgeschlagen", 500)
+
+    # Verknuepften Kontakt aktualisieren (Faktor/Wert + Verlaufseintrag)
+    try:
+        email_norm = (row.get("email") or "").strip().lower()
+        if email_norm:
+            tc = table_("kontakte")
+            for k in tc.list_entities():
+                if (k.get("email") or "").strip().lower() == email_norm:
+                    upd = dict(k)
+                    upd["checklisteFaktor"] = auswertung["faktor"]
+                    upd["checklisteWertEur"] = auswertung["wertMidEur"]
+                    upd["checklisteAt"] = datetime.utcnow().isoformat()
+                    upd["updatedAt"] = datetime.utcnow().isoformat()
+                    wert_fmt = f"{auswertung['wertMidEur']:,}".replace(",", ".")
+                    try: vlog = json.loads(k.get("verlaufJson") or "[]")
+                    except Exception: vlog = []
+                    if not isinstance(vlog, list): vlog = []
+                    vlog.append({
+                        "id": "kv" + str(int(datetime.utcnow().timestamp() * 1000)),
+                        "typ": "info",
+                        "kontextMbNr": "itukv-checkliste",
+                        "datum": datetime.utcnow().isoformat(),
+                        "autor": "ITUKV-Checkliste",
+                        "betreff": "Zahlen zur Checkliste nachgereicht",
+                        "beschreibung": (
+                            f"Kontakt hat die betriebswirtschaftlichen Zahlen nachgetragen. "
+                            f"Neuer grober Unternehmenswert ca. {wert_fmt} € "
+                            f"(bereinigtes EBIT × Faktor {auswertung['faktor']})."),
+                    })
+                    upd["verlaufJson"] = json.dumps(vlog, ensure_ascii=False)
+                    tc.update_entity(upd, mode="replace")
+                    break
+    except Exception as ex:
+        logging.warning(f"Checkliste-Nachtrag -> Kontakt-Update fehlgeschlagen: {ex}")
+
+    hebel = _j("hebelJson", []) or []
+    netzwerk = _j("netzwerkJson", None) or None
+    if isinstance(netzwerk, dict) and not netzwerk.get("text"):
+        netzwerk = None
+    schwer = row.get("schwerpunkte", "") or ""
+    schwerpunkte = [s.strip() for s in schwer.split(",") if s.strip()]
+    return ok_({
+        "ok": True,
+        "resultToken": token,
+        "ergebnisLink": row.get("ergebnisLink", f"{CHECKLISTE_BASE_URL}/?r={token}"),
+        "auswertung": auswertung,
+        "ansprache": row.get("ansprache", ""),
+        "insight": row.get("insight", ""),
+        "hebel": hebel,
+        "wertInsight": wert_insight,
+        "netzwerk": netzwerk,
+        "geschaeftsmodell": row.get("geschaeftsmodell", ""),
+        "schwerpunkte": schwerpunkte,
+        "firma": row.get("firma", ""),
+        "name": row.get("name", ""),
+        "ziel": ziel,
+        "zahlenVollstaendig": zahlen_vollstaendig,
+        "zahlenJahre": jahre_clean,
+    })
+
+
+def _checkliste_reminder_mail_html(name: str, firma: str, faktor, ergebnis_link: str) -> tuple:
+    """Baut Betreff, Plain-Text und HTML fuer die Erinnerungs-Mail (Zahlen nachtragen)."""
+    anrede = f"Hallo {name.split()[0]}," if name.strip() else "Hallo,"
+    firma_txt = f" für {firma}" if firma.strip() else ""
+    faktor_txt = f" (Faktor {faktor} von 7)" if faktor else ""
+    subject = "Deine Checkliste ist fast fertig – es fehlen nur noch Deine Zahlen"
+    plain = (
+        f"{anrede}\n\n"
+        f"Du hast Deine ITUKV-Checkliste{firma_txt} schon ausgefüllt und Deinen Bewertungsfaktor{faktor_txt} erhalten.\n\n"
+        f"Was jetzt noch fehlt, um Deinen konkreten Unternehmenswert in Euro zu sehen: Deine "
+        f"betriebswirtschaftlichen Zahlen (EBIT, bereinigtes EBIT usw.). Die kannst Du ganz in Ruhe "
+        f"über Deinen persönlichen Link nachtragen:\n\n{ergebnis_link}\n\n"
+        f"Sobald die Zahlen drin sind, zeigen wir Dir direkt, wie viel Potenzial in Deinem Unternehmen steckt.\n\n"
+        f"Herzliche Grüße\nDein Team der Mike Bergmann Beratung")
+    html = f"""<html><body style="font-family:Arial,sans-serif;color:#161e2a;line-height:1.6">
+        <h2 style="color:#0088ba">Deine Checkliste ist fast fertig</h2>
+        <p>{anrede}</p>
+        <p>Du hast Deine ITUKV-Checkliste{firma_txt} schon ausgefüllt und Deinen Bewertungsfaktor{faktor_txt} erhalten.</p>
+        <p>Was jetzt noch fehlt, um Deinen <strong>konkreten Unternehmenswert in Euro</strong> zu sehen:
+        Deine betriebswirtschaftlichen Zahlen (EBIT, bereinigtes EBIT usw.). Die kannst Du ganz in Ruhe
+        über Deinen persönlichen Link nachtragen.</p>
+        <p style="margin:24px 0"><a href="{ergebnis_link}" style="background:#0088ba;color:white;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600">Zahlen jetzt nachtragen</a></p>
+        <p>Sobald die Zahlen drin sind, zeigen wir Dir direkt, wie viel Potenzial in Deinem Unternehmen steckt.</p>
+        <p style="font-size:12px;color:#666;margin-top:24px">Herzliche Grüße<br>Dein Team der Mike Bergmann Beratung</p>
+        </body></html>"""
+    return subject, plain, html
+
+
+@app.timer_trigger(schedule="0 30 8 * * *", arg_name="reminderTimer", run_on_startup=False, use_monitor=True)
+def checkliste_reminder_timer(reminderTimer: func.TimerRequest) -> None:
+    """Taeglich: erinnert Leute, die ihre Checkliste ausgefuellt, aber die
+    betriebswirtschaftlichen Zahlen noch NICHT nachgetragen haben, per E-Mail –
+    einmalig, 6 Tage nach dem Ausfuellen. Merker: reminderSent."""
+    acs_conn = os.environ.get("ACS_CONNECTION_STRING", "")
+    acs_sender = os.environ.get("ACS_SENDER_ADDRESS", "info@itukv.de")
+    if not acs_conn:
+        logging.warning("Checkliste-Reminder: ACS nicht konfiguriert – übersprungen.")
+        return
+    # Erinnerungsfenster: fruehestens 6 Tage, spaetestens 30 Tage nach dem Ausfuellen.
+    # Das obere Limit verhindert, dass sehr alte Alt-Datensaetze (vor Einfuehrung
+    # dieser Funktion) nachtraeglich angeschrieben werden.
+    fenster_ab = datetime.utcnow() - timedelta(days=30)
+    fenster_bis = datetime.utcnow() - timedelta(days=6)
+    try:
+        from azure.communication.email import EmailClient
+        client = EmailClient.from_connection_string(acs_conn)
+    except Exception as ex:
+        logging.error(f"Checkliste-Reminder: ACS-Client fehlgeschlagen: {ex}")
+        return
+
+    tbl = table_("checklisten")
+    gesendet = 0
+    try:
+        rows = list(tbl.query_entities("PartitionKey eq 'checkliste' and status eq 'vollstaendig'"))
+    except Exception as ex:
+        logging.error(f"Checkliste-Reminder: Abfrage fehlgeschlagen: {ex}")
+        return
+
+    for r in rows:
+        # Schon erinnert, oder Zahlen liegen bereits vor -> nichts tun.
+        if r.get("zahlenVollstaendig") or r.get("reminderSent"):
+            continue
+        if (r.get("wertMidEur") or 0) > 0:
+            continue  # es gibt schon einen konkreten Euro-Wert
+        email = (r.get("email") or "").strip()
+        if not email:
+            continue
+        created = (r.get("createdAt") or "").strip()
+        try:
+            created_dt = datetime.fromisoformat(created.replace("Z", ""))
+        except Exception:
+            continue
+        if created_dt > fenster_bis or created_dt < fenster_ab:
+            continue  # noch keine 6 Tage her – oder aelter als 30 Tage
+        token = r.get("resultToken") or ""
+        ergebnis_link = r.get("ergebnisLink") or f"{CHECKLISTE_BASE_URL}/?r={token}"
+        subject, plain, html = _checkliste_reminder_mail_html(
+            r.get("name") or "", r.get("firma") or "", r.get("faktor"), ergebnis_link)
+        try:
+            client.begin_send({
+                "senderAddress": acs_sender,
+                "recipients": {"to": [{"address": email}]},
+                "content": {"subject": subject, "plainText": plain, "html": html},
+                **({"replyTo": acs_reply_to()} if acs_reply_to() else {}),
+            })
+        except Exception as ex:
+            logging.warning(f"Checkliste-Reminder an {email} fehlgeschlagen: {ex}")
+            continue
+        try:
+            upd = dict(r)
+            upd["reminderSent"] = True
+            upd["reminderAt"] = datetime.utcnow().isoformat()
+            tbl.update_entity(upd, mode="replace")
+            gesendet += 1
+        except Exception as ex:
+            logging.warning(f"Checkliste-Reminder Merker setzen fehlgeschlagen: {ex}")
+    logging.info(f"Checkliste-Reminder: {gesendet} Erinnerung(en) verschickt.")
 
 
 # Ziel-Beschriftungen fuer die PDF-Kopfzeile

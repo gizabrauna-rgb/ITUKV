@@ -336,12 +336,13 @@ async function save() {
       closeModal()
     } else {
       const created = await createUser(form.value)
-      users.value.unshift(created)
       closeModal()
       // Wenn ein Initial-Passwort generiert wurde, zeigen
       if (created.initialPassword) {
         passwordReveal.value = { title: 'Benutzer angelegt – Initial-Passwort', email: created.email, password: created.initialPassword }
       }
+      // Liste frisch laden, damit der neue Benutzer vollstaendig ist (inkl. RowKey)
+      try { users.value = await getUsers() } catch (e) { /* Liste bleibt, Reload zeigt den neuen Benutzer */ }
     }
   } catch (e) {
     toast.error('Fehler: ' + (e.response?.data?.error || e.message))
@@ -367,7 +368,7 @@ async function doReset() {
   }
   data.sendMail = true
   try {
-    const result = await resetUserPassword(u.RowKey, data)
+    const result = await resetUserPassword(u.RowKey || u.id, data)
     resetUser.value = null
     passwordReveal.value = {
       title: result.mailSent ? 'Passwort neu gesetzt + Mail verschickt' : 'Passwort neu gesetzt (Mail-Versand fehlgeschlagen)',
@@ -382,8 +383,13 @@ async function doReset() {
 
 async function deleteIt(u) {
   if (!confirm(`Benutzer ${u.email} wirklich löschen?`)) return
-  await deleteUser(u.RowKey)
-  users.value = users.value.filter(x => x.RowKey !== u.RowKey)
+  const uid = u.RowKey || u.id
+  try {
+    await deleteUser(uid)
+    users.value = users.value.filter(x => (x.RowKey || x.id) !== uid)
+  } catch (e) {
+    toast.error('Fehler beim Löschen: ' + (e.response?.data?.error || e.message))
+  }
 }
 
 async function copyPassword() {
