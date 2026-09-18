@@ -366,46 +366,18 @@
             </div>
           </div>
 
-          <!-- SCHRITT 6: Zahlen + Motive -->
+          <!-- SCHRITT 6: Ziele & Rahmenbedingungen (Zahlen kommen erst als Hausaufgabe nach dem Faktor) -->
           <div v-show="step === 6" class="space-y-4">
-            <div class="bg-white rounded-2xl border border-gray-100 p-6 space-y-3">
-              <h3 class="text-base font-bold text-gray-900 mb-1">Betriebswirtschaftliche Zahlen <span class="text-gray-400 font-normal">(optional)</span></h3>
-              <div class="flex items-start gap-2 mb-1 px-3 py-2 rounded-lg bg-[#0088ba]/10 text-[#0088ba] text-xs md:text-sm">
-                <Clock class="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <span>Deinen Bewertungsfaktor bekommst Du auch ohne diese Zahlen sofort. Das Raussuchen (EBIT, bereinigtes EBIT usw.) darf ruhig ein paar Tage dauern – Du kannst die Zahlen später jederzeit über Deinen persönlichen Ergebnis-Link nachtragen und siehst dann Deinen konkreten Wert in Euro.</span>
-              </div>
-              <p class="text-sm text-gray-500 mb-2">Grobe bzw. geschätzte Werte genügen – alle Angaben in TEUR (Tausend Euro). Leere Felder sind ok.</p>
-              <div class="overflow-x-auto -mx-2 px-2">
-                <table class="w-full border-collapse text-sm">
-                  <thead>
-                    <tr>
-                      <th class="text-left font-semibold text-gray-500 pb-2 pr-2 align-bottom w-[42%]"></th>
-                      <th v-for="j in form.zahlen.jahre" :key="j.jahr" class="text-center font-semibold text-gray-700 pb-2 px-1 whitespace-nowrap">
-                        {{ j.jahr }}<span v-if="j.geplant" class="block text-[10px] font-normal text-gray-400">geplant</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="z in ZAHL_ZEILEN" :key="z.key" class="border-t border-gray-100">
-                      <td class="py-1.5 pr-2 text-gray-700 text-[13px] leading-tight">{{ z.label }}</td>
-                      <td v-for="j in form.zahlen.jahre" :key="j.jahr" class="py-1.5 px-1">
-                        <input v-model="j[z.key]" class="input-cell" inputmode="numeric" />
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <p class="text-[11px] text-gray-400 leading-snug pt-1">
-                <strong>Bereinigtes EBIT</strong> = Dein Gewinn, wenn Dein GF-Gehalt durch das eines angestellten Geschäftsführers ersetzt und private Kosten (z. B. Gehalt nicht mitarbeitender Angehöriger, privat genutzte Fahrzeuge) herausgerechnet wären.
-              </p>
-            </div>
-
             <div class="bg-white rounded-2xl border border-gray-100 p-6 space-y-3">
               <h3 class="text-base font-bold text-gray-900 mb-1">{{ motivConfig.heading }}</h3>
               <textarea v-model="form.motive.motivation" rows="2" :placeholder="motivConfig.motivation" class="input resize-y"></textarea>
               <div class="grid grid-cols-2 gap-3">
                 <input v-for="f in motivConfig.felder" :key="f.key" v-model="form.motive[f.key]" :placeholder="f.ph" class="input" />
               </div>
+            </div>
+            <div class="flex items-start gap-2 px-4 py-3 rounded-xl bg-[#0088ba]/5 border border-[#0088ba]/15 text-sm text-gray-600">
+              <Clock class="w-4 h-4 flex-shrink-0 mt-0.5 text-[#0088ba]" />
+              <span>Gleich siehst Du Deinen Bewertungsfaktor. Für Deinen konkreten Unternehmenswert in Euro trägst Du danach – jetzt sofort oder in Ruhe über Deinen persönlichen Link – nur noch Deine betriebswirtschaftlichen Zahlen (EBIT, bereinigtes EBIT usw.) nach.</span>
             </div>
           </div>
 
