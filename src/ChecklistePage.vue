@@ -22,11 +22,11 @@
         <div v-if="zahlenDa && potenzialEur > 0" class="rounded-2xl overflow-hidden shadow-xl">
           <!-- Loss-Schlagzeile: das lässt Du gerade liegen -->
           <div class="bg-gradient-to-br from-[#0a3d54] to-[#0088ba] px-6 py-8 md:px-10 md:py-12 text-white text-center">
-            <p class="text-sm md:text-base font-bold uppercase tracking-wide text-amber-300 mb-3">Das lässt Du aktuell auf dem Tisch liegen</p>
-            <p class="text-5xl md:text-7xl font-extrabold leading-none mb-4">{{ euro(potenzialEur) }}</p>
+            <p class="text-sm md:text-base font-bold uppercase tracking-wide text-amber-300 mb-3">{{ aufmacher.lossKicker }}</p>
+            <p class="text-4xl md:text-6xl font-extrabold leading-none mb-2">rund {{ euro(potenzialEur) }}</p>
+            <p class="text-sm md:text-base text-amber-200/90 mb-4">grobe Ersteinschätzung – realistischer Spielraum {{ euroRange(potenzialMin, potenzialMax) }}, nach oben und unten offen</p>
             <p class="text-base md:text-lg text-white/90 max-w-xl mx-auto leading-relaxed">
-              So viel mehr Kaufpreis ist bei Deinem Unternehmen drin – bei <strong>exakt demselben Geschäft</strong>.
-              Der einzige Unterschied: ein stärkerer Bewertungsfaktor.
+              {{ aufmacher.lossSatz }}
             </p>
           </div>
           <!-- Gegenüberstellung als Beleg -->
@@ -34,15 +34,15 @@
             <div class="grid grid-cols-2 gap-3 md:gap-6 items-stretch">
               <div class="rounded-xl border-2 border-gray-200 p-4 md:p-5 text-center flex flex-col justify-center">
                 <p class="text-xs text-gray-500 mb-1">Heute · Faktor {{ result.auswertung.faktor }}</p>
-                <p class="text-2xl md:text-3xl font-extrabold leading-none text-gray-700">{{ euro(wertHeute) }}</p>
+                <p class="text-lg md:text-2xl font-extrabold leading-tight text-gray-700">{{ euroRange(wertHeuteMin, wertHeuteMax) }}</p>
               </div>
               <div class="rounded-xl border-2 border-[#0088ba] bg-[#0088ba]/5 p-4 md:p-5 text-center flex flex-col justify-center">
                 <p class="text-xs text-[#0088ba] font-semibold mb-1">Möglich · Faktor 7</p>
-                <p class="text-2xl md:text-3xl font-extrabold leading-none text-[#0088ba]">{{ euro(wertPotenzial) }}</p>
+                <p class="text-lg md:text-2xl font-extrabold leading-tight text-[#0088ba]">{{ euroRange(wertPotenzialMin, wertPotenzialMax) }}</p>
               </div>
             </div>
             <p class="text-sm text-gray-600 mt-4 text-center leading-relaxed">
-              Wie Du von Faktor {{ result.auswertung.faktor }} auf 7 kommst, zeigt Dir unsere M&amp;A-Beraterin im kostenlosen Erstgespräch – konkret und auf Dein Unternehmen bezogen.
+              Das ist eine grobe Einschätzung auf Basis Deiner Angaben. Wie Du von Faktor {{ result.auswertung.faktor }} auf 7 kommst und wo Dein Wert wirklich liegt, zeigt Dir unsere M&amp;A-Beraterin im kostenlosen Erstgespräch – konkret und auf Dein Unternehmen bezogen.
             </p>
           </div>
         </div>
@@ -52,10 +52,9 @@
           <!-- Emotionaler Kopf: da liegt Geld, wir rechnen es Dir aus -->
           <div class="bg-gradient-to-br from-[#0a3d54] to-[#0088ba] px-6 py-7 md:px-10 md:py-9 text-white">
             <p class="text-sm font-bold uppercase tracking-wide text-amber-300 mb-2">Dein Bewertungsfaktor: {{ result.auswertung.faktor }} von 7</p>
-            <h2 class="text-xl md:text-2xl font-bold leading-snug">In Deinem Unternehmen steckt bares Geld – wie viel Kaufpreis Du gerade liegen lässt, rechnen wir Dir auf den Euro genau aus.</h2>
+            <h2 class="text-xl md:text-2xl font-bold leading-snug">{{ aufmacher.headline }}</h2>
             <p class="text-white/90 mt-3 text-sm md:text-base leading-relaxed">
-              Dafür fehlt nur noch ein Schritt: Deine betriebswirtschaftlichen Zahlen. Erst damit wird aus dem Faktor ein
-              konkreter Wert in Euro – und Du siehst schwarz auf weiß, wie viel nach oben möglich ist.
+              {{ aufmacher.intro }}
             </p>
           </div>
 
@@ -68,19 +67,19 @@
                 <p class="text-xs text-gray-500 mt-2">Dein aktueller Bewertungsfaktor</p>
               </div>
               <div class="rounded-xl border-2 border-[#0088ba] bg-[#0088ba]/5 p-4 md:p-5 text-center flex flex-col justify-center">
-                <p class="text-[11px] md:text-xs font-bold uppercase tracking-wide text-[#0088ba] mb-1">Das wärst Du</p>
+                <p class="text-[11px] md:text-xs font-bold uppercase tracking-wide text-[#0088ba] mb-1">{{ aufmacher.boxZielLabel }}</p>
                 <p class="text-4xl md:text-5xl font-extrabold leading-none text-[#0088ba]">7<span class="text-lg font-semibold text-[#0088ba]/60"> / 7</span></p>
-                <p class="text-xs text-[#0088ba] mt-2">Mit den richtigen Werthebeln</p>
+                <p class="text-xs text-[#0088ba] mt-2">{{ aufmacher.boxZielSub }}</p>
               </div>
             </div>
             <p class="text-sm text-gray-600 mt-4 text-center leading-relaxed">
-              Zwischen diesen beiden Faktoren liegt bares Geld – bei <strong>exakt demselben Geschäft</strong>. Wie viel genau, rechnen wir Dir mit Deinen Zahlen auf den Euro aus.
+              {{ aufmacher.vergleichHint }}
             </p>
           </div>
 
           <div class="p-6 md:p-8">
             <p class="text-sm font-bold text-gray-900 mb-1">Deine To-do-Liste für ein Gespräch auf Augenhöhe mit unserer M&amp;A-Beraterin:</p>
-            <p class="text-sm text-gray-600 mb-4">Bring diese Zahlen zusammen – dann startet Ihr nicht bei einer groben Schätzung, sondern bei einem belastbaren Wert und einem konkreten Fahrplan.</p>
+            <p class="text-sm text-gray-600 mb-4">{{ aufmacher.todoIntro }}</p>
             <ul class="space-y-2.5 mb-6">
               <li v-for="t in HA_TODO" :key="t" class="flex items-start gap-3">
                 <span class="flex-shrink-0 w-5 h-5 rounded-full border-2 border-[#0088ba]/40 mt-0.5"></span>
@@ -722,6 +721,76 @@ const ZIEL_TEXTE = {
 }
 const zielTexte = computed(() => ZIEL_TEXTE[result.value?.ziel] || ZIEL_TEXTE.offen)
 
+// Zielabhaengige Texte fuer die beiden Aufmacher-Bloecke (Verlust-Schlagzeile mit Zahlen
+// + Hausaufgaben-Block ohne Zahlen). Verkaeufer-Sprache passt nicht fuer einen Kaeufer –
+// darum je Ziel eigene Formulierungen. Fachliche Basis: ITUKV-Skill (Kurs 57/58).
+const AUFMACHER_TEXTE = {
+  verkauf: {
+    lossKicker: 'Das lässt Du aktuell auf dem Tisch liegen',
+    lossSatz: 'So viel mehr Kaufpreis ist bei Deinem Unternehmen drin – bei exakt demselben Geschäft. Der einzige Unterschied: ein stärkerer Bewertungsfaktor.',
+    headline: 'In Deinem Unternehmen steckt bares Geld – wie viel Kaufpreis Du gerade liegen lässt, rechnen wir Dir auf den Euro genau aus.',
+    intro: 'Dafür fehlt nur noch ein Schritt: Deine betriebswirtschaftlichen Zahlen. Erst damit wird aus dem Faktor ein konkreter Wert in Euro – und Du siehst schwarz auf weiß, wie viel nach oben möglich ist.',
+    boxZielLabel: 'Das wärst Du',
+    boxZielSub: 'Mit den richtigen Werthebeln',
+    vergleichHint: 'Zwischen diesen beiden Faktoren liegt bares Geld – bei exakt demselben Geschäft. Wie viel genau, rechnen wir Dir mit Deinen Zahlen aus.',
+    todoIntro: 'Bring diese Zahlen zusammen – dann startet Ihr nicht bei einer groben Schätzung, sondern bei einem belastbaren Wert und einem konkreten Fahrplan.',
+  },
+  zukauf: {
+    // Verlust-Aufmacher entfaellt bei Zukauf (potenzialEur = 0) – nur no-numbers-Texte relevant.
+    // Texte belegt: Kurs 50/Skill ("verkaufsfaehig = zukauffaehig, dieselben Werthebel")
+    // und Kurs 82 ("Passung vor Preis", Netzwerk-Zugang, Begleitung). KEINE Finanzierungs-Claims.
+    lossKicker: 'Das ist Deine Ausgangslage als Käufer',
+    lossSatz: 'Wer sein eigenes Unternehmen unabhängig und wertstark aufstellt, ist auch stark genug, ein anderes zu übernehmen und zu integrieren.',
+    headline: 'Wie stark ist Deine Basis für den nächsten Zukauf? Genau das rechnen wir Dir mit Deinen Zahlen aus.',
+    intro: 'Dafür fehlt nur noch ein Schritt: Deine betriebswirtschaftlichen Zahlen. Denn wer sein eigenes Unternehmen unabhängig und wertstark aufstellt, ist auch stark genug, ein anderes zu übernehmen und zu integrieren – dieselben Werthebel entscheiden auf beiden Seiten.',
+    boxZielLabel: 'So stark wärst Du',
+    boxZielSub: 'Mit den richtigen Werthebeln',
+    vergleichHint: 'Wer verkaufsfähig ist, ist auch stark genug zuzukaufen – dieselben Werthebel entscheiden auf beiden Seiten. Wo Du heute stehst und was das für Deinen Zukauf bedeutet, ordnen wir mit Dir im Gespräch ein.',
+    todoIntro: 'Bring diese Zahlen zusammen – dann sprecht Ihr nicht über eine grobe Schätzung, sondern über Deine echte Ausgangslage als Käufer und passende Übernahmekandidaten aus dem Netzwerk.',
+  },
+  nachfolge: {
+    lossKicker: 'Das lässt Du bei der Nachfolge auf dem Tisch liegen',
+    lossSatz: 'So viel mehr Unternehmenswert ist für eine geregelte Nachfolge drin – bei exakt demselben Geschäft. Der einzige Unterschied: ein stärkerer Bewertungsfaktor.',
+    headline: 'In Deinem Unternehmen steckt bares Geld – wie viel Wert in einer geregelten Nachfolge steckt, rechnen wir Dir auf den Euro genau aus.',
+    intro: 'Dafür fehlt nur noch ein Schritt: Deine betriebswirtschaftlichen Zahlen. Je unabhängiger Dein Unternehmen von Dir läuft, desto reibungsloser die Übergabe – und desto höher der Wert.',
+    boxZielLabel: 'Das wärst Du',
+    boxZielSub: 'Mit den richtigen Werthebeln',
+    vergleichHint: 'Zwischen diesen beiden Faktoren liegt bares Geld – bei exakt demselben Geschäft. Wie viel genau, rechnen wir Dir mit Deinen Zahlen aus.',
+    todoIntro: 'Bring diese Zahlen zusammen – dann startet Ihr nicht bei einer groben Schätzung, sondern bei einem belastbaren Wert und einem konkreten Fahrplan für die Übergabe.',
+  },
+  beteiligung: {
+    lossKicker: 'Das lässt Du bei einem Teilverkauf auf dem Tisch liegen',
+    lossSatz: 'So viel mehr ist ein Einstieg oder Teilverkauf wert – bei exakt demselben Geschäft. Der einzige Unterschied: ein stärkerer Bewertungsfaktor.',
+    headline: 'In Deinem Unternehmen steckt bares Geld – wie viel ein Einstieg oder Teilverkauf wert ist, rechnen wir Dir auf den Euro genau aus.',
+    intro: 'Dafür fehlt nur noch ein Schritt: Deine betriebswirtschaftlichen Zahlen. Erst damit wird aus dem Faktor ein belastbarer Wert – die Basis für einen Einstieg zu Deinen Bedingungen.',
+    boxZielLabel: 'Das wärst Du',
+    boxZielSub: 'Mit den richtigen Werthebeln',
+    vergleichHint: 'Zwischen diesen beiden Faktoren liegt bares Geld – bei exakt demselben Geschäft. Wie viel genau, rechnen wir Dir mit Deinen Zahlen aus.',
+    todoIntro: 'Bring diese Zahlen zusammen – dann startet Ihr nicht bei einer groben Schätzung, sondern bei einem belastbaren Wert und einem konkreten Fahrplan.',
+  },
+  wert: {
+    lossKicker: 'So viel Wert bleibt aktuell ungenutzt',
+    lossSatz: 'So viel mehr Unternehmenswert ist drin – bei exakt demselben Geschäft. Der einzige Unterschied: ein stärkerer Bewertungsfaktor.',
+    headline: 'In Deinem Unternehmen steckt bares Geld – wie viel es wirklich wert ist, rechnen wir Dir auf den Euro genau aus.',
+    intro: 'Dafür fehlt nur noch ein Schritt: Deine betriebswirtschaftlichen Zahlen. Erst damit wird aus dem Faktor ein konkreter Wert in Euro – und Du siehst schwarz auf weiß, wie viel nach oben möglich ist.',
+    boxZielLabel: 'Das wärst Du',
+    boxZielSub: 'Mit den richtigen Werthebeln',
+    vergleichHint: 'Zwischen diesen beiden Faktoren liegt bares Geld – bei exakt demselben Geschäft. Wie viel genau, rechnen wir Dir mit Deinen Zahlen aus.',
+    todoIntro: 'Bring diese Zahlen zusammen – dann startet Ihr nicht bei einer groben Schätzung, sondern bei einem belastbaren Wert.',
+  },
+  offen: {
+    lossKicker: 'Das lässt Du aktuell auf dem Tisch liegen',
+    lossSatz: 'So viel mehr ist bei Deinem Unternehmen drin – bei exakt demselben Geschäft. Der einzige Unterschied: ein stärkerer Bewertungsfaktor.',
+    headline: 'In Deinem Unternehmen steckt bares Geld – wie viel genau, rechnen wir Dir auf den Euro aus.',
+    intro: 'Dafür fehlt nur noch ein Schritt: Deine betriebswirtschaftlichen Zahlen. Erst damit wird aus dem Faktor ein konkreter Wert in Euro – und Du siehst schwarz auf weiß, wie viel nach oben möglich ist.',
+    boxZielLabel: 'Das wärst Du',
+    boxZielSub: 'Mit den richtigen Werthebeln',
+    vergleichHint: 'Zwischen diesen beiden Faktoren liegt bares Geld – bei exakt demselben Geschäft. Wie viel genau, rechnen wir Dir mit Deinen Zahlen aus.',
+    todoIntro: 'Bring diese Zahlen zusammen – dann startet Ihr nicht bei einer groben Schätzung, sondern bei einem belastbaren Wert und einem konkreten Fahrplan.',
+  },
+}
+const aufmacher = computed(() => AUFMACHER_TEXTE[result.value?.ziel] || AUFMACHER_TEXTE.offen)
+
 // Letzte Kachel ("Ziele & Rahmenbedingungen") an das gewaehlte Ziel anpassen.
 // Ueberschrift, Freitext-Frage und die vier Felder heissen je Ziel unterschiedlich;
 // nicht passende Felder (z. B. Kaufpreis bei "Nur Wert wissen") fallen weg.
@@ -831,6 +900,16 @@ const zahlenDa = computed(() =>
 const wertHeute = computed(() => result.value?.auswertung?.wertMidEur || 0)
 const potenzialEur = computed(() => result.value?.wertInsight?.potenzialEur || 0)
 const wertPotenzial = computed(() => wertHeute.value + potenzialEur.value)
+
+// Bewertung ist bewusst grob (bereinigtes EBIT x Faktor). Darum keine punktgenauen
+// Euro-Betraege, sondern eine Spanne (nach oben und unten offen, +/-20%).
+const wertHeuteMin = computed(() => result.value?.auswertung?.wertMinEur || 0)
+const wertHeuteMax = computed(() => result.value?.auswertung?.wertMaxEur || 0)
+const potenzialMin = computed(() => Math.round(potenzialEur.value * 0.8))
+const potenzialMax = computed(() => Math.round(potenzialEur.value * 1.2))
+const wertPotenzialMin = computed(() => Math.round(wertPotenzial.value * 0.8))
+const wertPotenzialMax = computed(() => Math.round(wertPotenzial.value * 1.2))
+const euroRange = (a, b) => `${euro(a)} – ${euro(b)}`
 
 const zeigeZahlenForm = ref(false)
 const nachtragSaving = ref(false)

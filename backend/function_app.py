@@ -1050,9 +1050,9 @@ def _checkliste_wert_insight(ausw: dict, ebit_teur, umsatz_teur, vertrag_teur, z
     Bei Zielen mit Kaeufer-Perspektive (Zukauf) wird KEIN "mehr Kaufpreis" gezeigt,
     sondern ein zukaufs-/finanzierungsorientierter Einblick (potenzialEur = 0)."""
     if (ziel or "").strip() == "zukauf":
-        hook = ("Für einen erfolgreichen Zukauf zählt vor allem, dass Dein eigenes Unternehmen stabil und "
-                "unabhängig läuft – das macht die Finanzierung leichter und die Integration eines Zielunternehmens "
-                "planbar. Im kostenlosen Erstgespräch zeigen wir Dir, wie stark Du als Käufer heute schon aufgestellt bist.")
+        hook = ("Wer sein eigenes Unternehmen unabhängig und wertstark aufstellt, ist auch stark genug, ein anderes "
+                "zu übernehmen und zu integrieren – dieselben Werthebel entscheiden auf beiden Seiten. Im kostenlosen "
+                "Erstgespräch zeigen wir Dir, wie stark Du als Käufer heute schon aufgestellt bist.")
         beleg = ("Wir gleichen Deine Ausgangslage mit passenden Übernahme-Kandidaten aus unserem Netzwerk ab und "
                  "zeigen Dir, worauf es bei einem sauberen, begleiteten Kauf wirklich ankommt.")
         return {"hook": hook, "beleg": beleg, "potenzialEur": 0}
