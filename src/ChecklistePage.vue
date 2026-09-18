@@ -32,13 +32,13 @@
           <!-- Gegenüberstellung als Beleg -->
           <div class="bg-white px-5 py-6 md:px-8">
             <div class="grid grid-cols-2 gap-3 md:gap-6 items-stretch">
-              <div class="rounded-xl border-2 border-gray-200 p-4 md:p-5 text-center flex flex-col justify-center">
-                <p class="text-xs text-gray-500 mb-1">Heute · Faktor {{ result.auswertung.faktor }}</p>
-                <p class="text-lg md:text-2xl font-extrabold leading-tight text-gray-700">{{ euroRange(wertHeuteMin, wertHeuteMax) }}</p>
+              <div class="rounded-2xl border-2 border-gray-200 bg-gray-50 p-4 md:p-6 text-center flex flex-col justify-center">
+                <p class="text-[11px] md:text-xs font-bold uppercase tracking-wide text-gray-400 mb-1">Heute · Faktor {{ result.auswertung.faktor }}</p>
+                <p class="text-lg md:text-3xl font-extrabold leading-tight text-gray-700">{{ euroRange(wertHeuteMin, wertHeuteMax) }}</p>
               </div>
-              <div class="rounded-xl border-2 border-[#0088ba] bg-[#0088ba]/5 p-4 md:p-5 text-center flex flex-col justify-center">
-                <p class="text-xs text-[#0088ba] font-semibold mb-1">Möglich · Faktor 7</p>
-                <p class="text-lg md:text-2xl font-extrabold leading-tight text-[#0088ba]">{{ euroRange(wertPotenzialMin, wertPotenzialMax) }}</p>
+              <div class="rounded-2xl bg-[#0088ba] p-4 md:p-6 text-center flex flex-col justify-center shadow-lg shadow-[#0088ba]/25">
+                <p class="text-[11px] md:text-xs font-bold uppercase tracking-wide text-white/80 mb-1">Möglich · Faktor 7</p>
+                <p class="text-lg md:text-3xl font-extrabold leading-tight text-white">{{ euroRange(wertPotenzialMin, wertPotenzialMax) }}</p>
               </div>
             </div>
             <p class="text-sm text-gray-600 mt-4 text-center leading-relaxed">
@@ -61,35 +61,33 @@
           <!-- Wichtigste Aussage: Gegenüberstellung schon ohne Zahlen (Faktor heute vs. möglich) -->
           <div class="bg-white px-6 py-6 md:px-10 md:py-7 border-b border-gray-100">
             <div class="grid grid-cols-2 gap-3 md:gap-5 items-stretch">
-              <div class="rounded-xl border-2 border-gray-200 p-4 md:p-5 text-center flex flex-col justify-center">
+              <div class="rounded-2xl border-2 border-gray-200 bg-gray-50 p-4 md:p-6 text-center flex flex-col justify-center">
                 <p class="text-[11px] md:text-xs font-bold uppercase tracking-wide text-gray-400 mb-1">Das bist Du heute</p>
                 <p class="text-4xl md:text-5xl font-extrabold leading-none text-gray-700">{{ result.auswertung.faktor }}<span class="text-lg font-semibold text-gray-400"> / 7</span></p>
                 <p class="text-xs text-gray-500 mt-2">Dein aktueller Bewertungsfaktor</p>
               </div>
-              <div class="rounded-xl border-2 border-[#0088ba] bg-[#0088ba]/5 p-4 md:p-5 text-center flex flex-col justify-center">
-                <p class="text-[11px] md:text-xs font-bold uppercase tracking-wide text-[#0088ba] mb-1">{{ aufmacher.boxZielLabel }}</p>
-                <p class="text-4xl md:text-5xl font-extrabold leading-none text-[#0088ba]">7<span class="text-lg font-semibold text-[#0088ba]/60"> / 7</span></p>
-                <p class="text-xs text-[#0088ba] mt-2">{{ aufmacher.boxZielSub }}</p>
+              <div class="rounded-2xl bg-[#0088ba] p-4 md:p-6 text-center flex flex-col justify-center shadow-lg shadow-[#0088ba]/25">
+                <p class="text-[11px] md:text-xs font-bold uppercase tracking-wide text-white/80 mb-1">{{ aufmacher.boxZielLabel }}</p>
+                <p class="text-4xl md:text-5xl font-extrabold leading-none text-white">7<span class="text-lg font-semibold text-white/60"> / 7</span></p>
+                <p class="text-xs text-white/80 mt-2">{{ aufmacher.boxZielSub }}</p>
               </div>
+            </div>
+            <!-- Faktor-Luecke in Euro als grosse Differenz-Box (Rechenbeispiel, echter Wert folgt beim Nachtragen).
+                 Nur fuer Nicht-Zukauf-Ziele, da es um den eigenen Unternehmenswert/Kaufpreis geht. -->
+            <div v-if="result.ziel !== 'zukauf' && faktorLuecke > 0"
+              class="mt-4 rounded-2xl bg-amber-50 border-2 border-amber-200 px-4 py-5 md:px-6 md:py-6 text-center">
+              <p class="text-[11px] md:text-xs font-bold uppercase tracking-wide text-amber-700 mb-1">Rechenbeispiel · Unterschied</p>
+              <p class="text-3xl md:text-5xl font-extrabold text-gray-900 leading-none">+ {{ euro(faktorLueckeEur) }}</p>
+              <p class="text-sm text-gray-700 mt-3 leading-relaxed">
+                Von Faktor {{ result.auswertung.faktor }} auf 7 – das sind
+                <strong>{{ faktorLuecke }} {{ faktorLuecke === 1 ? 'zusätzlicher Jahresgewinn' : 'zusätzliche Jahresgewinne' }}</strong>
+                mehr Unternehmenswert, bei exakt demselben Geschäft. Beispiel bei 250.000 € bereinigtem EBIT.
+              </p>
+              <p class="text-xs text-gray-500 mt-2">Deinen echten Betrag rechnen wir Dir aus, sobald Du Deine Zahlen einträgst.</p>
             </div>
             <p class="text-sm text-gray-600 mt-4 text-center leading-relaxed">
               {{ aufmacher.vergleichHint }}
             </p>
-            <!-- Faktor-Luecke in Euro greifbar machen (Rechenbeispiel, echter Wert folgt beim Nachtragen).
-                 Nur fuer Nicht-Zukauf-Ziele, da es um den eigenen Unternehmenswert/Kaufpreis geht. -->
-            <div v-if="result.ziel !== 'zukauf' && faktorLuecke > 0"
-              class="mt-4 rounded-xl bg-amber-50 border border-amber-200 p-4 md:p-5 text-center">
-              <p class="text-sm text-gray-700 leading-relaxed">
-                Von Faktor {{ result.auswertung.faktor }} auf 7 sind das
-                <strong>{{ faktorLuecke }} {{ faktorLuecke === 1 ? 'zusätzlicher Jahresgewinn' : 'zusätzliche Jahresgewinne' }}</strong>
-                (bereinigtes EBIT) mehr Unternehmenswert – bei exakt demselben Geschäft.
-              </p>
-              <p class="text-sm text-gray-700 leading-relaxed mt-2">
-                <span class="font-semibold">Rechenbeispiel:</span> Bei 250.000 € bereinigtem EBIT wären das
-                <strong class="text-[#0088ba]">{{ euro(faktorLueckeEur) }} mehr</strong> Unternehmenswert.
-                Deinen echten Betrag rechnen wir Dir aus, sobald Du Deine Zahlen einträgst.
-              </p>
-            </div>
           </div>
 
           <div class="p-6 md:p-8">
