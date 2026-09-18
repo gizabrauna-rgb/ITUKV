@@ -61,6 +61,15 @@ function datum(iso) {
   if (!iso) return ''
   try { return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) } catch { return iso }
 }
+function datumZeit(iso) {
+  if (!iso) return ''
+  try {
+    const d = new Date(iso)
+    const tag = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    const zeit = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+    return `${tag}, ${zeit} Uhr`
+  } catch { return iso }
+}
 function faktorFarbe(f) {
   if (f >= 6) return 'bg-green-100 text-green-700'
   if (f >= 4) return 'bg-amber-100 text-amber-700'
@@ -156,7 +165,7 @@ const linkKopiert = ref(false)
           <template v-else>
             <span class="text-xs text-amber-600 hidden sm:block text-right">abgebrochen<br>bei Schritt {{ c.lastStep || '?' }}</span>
           </template>
-          <span class="text-xs text-gray-400 hidden md:block w-20 text-right">{{ datum(c.updatedAt || c.createdAt) }}</span>
+          <span class="text-xs text-gray-400 hidden md:block w-28 text-right leading-tight">{{ datumZeit(c.updatedAt || c.createdAt) }}</span>
           <button @click.stop="loeschen(c)" :disabled="loeschtId === c.id"
             class="p-1.5 rounded-lg text-gray-300 hover:text-red-600 hover:bg-red-50 flex-shrink-0 disabled:opacity-50"
             title="Eintrag löschen">
