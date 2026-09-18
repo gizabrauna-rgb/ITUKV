@@ -243,18 +243,34 @@
         </div>
 
         <!-- Hero-Storys: echte begleitete Transaktionen (Vertrauen + Sog) -->
-        <div class="bg-white rounded-2xl border border-gray-100 p-6 md:p-8">
-          <h3 class="text-lg font-bold text-gray-900 mb-1">So sieht das in der Praxis aus</h3>
-          <p class="text-sm text-gray-600 mb-5">Echte IT-Unternehmen, die diesen Weg gegangen sind – begleitet von der Mike Bergmann Beratung.</p>
-          <div class="grid gap-3 md:grid-cols-3">
+        <div>
+          <div class="text-center mb-5">
+            <p class="text-xs font-semibold uppercase tracking-wide text-[#0088ba] mb-1">Bekannt aus der Fachpresse</p>
+            <h3 class="text-xl md:text-2xl font-bold text-gray-900">So sieht das in der Praxis aus</h3>
+            <p class="text-sm text-gray-600 mt-1">Echte IT-Unternehmen, die diesen Weg gegangen sind – begleitet von der Mike Bergmann Beratung.</p>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2">
             <a v-for="s in HERO_STORYS" :key="s.titel" :href="s.url" target="_blank" rel="noopener"
-              class="group flex flex-col border border-gray-100 rounded-xl p-4 hover:border-[#0088ba]/40 hover:bg-[#0088ba]/5 transition">
-              <span class="text-xs font-semibold text-[#0088ba] uppercase tracking-wide mb-1">{{ s.label }}</span>
-              <span class="text-sm font-bold text-gray-900 leading-snug mb-1.5">{{ s.titel }}</span>
-              <span class="text-xs text-gray-600 leading-relaxed flex-1">{{ s.teaser }}</span>
-              <span class="inline-flex items-center gap-1 text-xs font-semibold text-[#0088ba] mt-3 group-hover:gap-1.5 transition-all">
-                Artikel lesen <ArrowRight class="w-3.5 h-3.5" />
-              </span>
+              class="group flex flex-col bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl hover:border-[#0088ba]/40 hover:-translate-y-0.5 transition-all duration-200">
+              <!-- Cover-Kopf: signalisiert klar "Presseartikel" (ohne fremde Fotos) -->
+              <div class="relative bg-gradient-to-br from-[#0088ba] to-[#00a0d8] px-5 py-4 text-white">
+                <div class="flex items-center justify-between">
+                  <span class="inline-flex items-center gap-1.5 text-xs font-semibold bg-white/20 rounded-full px-2.5 py-1">
+                    <Newspaper class="w-3.5 h-3.5" /> Presseartikel
+                  </span>
+                  <span class="text-xs font-semibold text-white/90">{{ s.quelle }}</span>
+                </div>
+                <Newspaper class="absolute -right-3 -bottom-4 w-20 h-20 text-white/10" />
+                <p class="relative text-[11px] font-semibold uppercase tracking-wide text-white/80 mt-4">{{ s.label }}</p>
+              </div>
+              <!-- Textkörper -->
+              <div class="flex flex-col flex-1 p-5">
+                <h4 class="text-base font-bold text-gray-900 leading-snug mb-2 group-hover:text-[#0088ba] transition-colors">{{ s.titel }}</h4>
+                <p class="text-sm text-gray-600 leading-relaxed flex-1">{{ s.teaser }}</p>
+                <span class="inline-flex items-center justify-center gap-1.5 mt-4 px-4 py-2.5 rounded-xl bg-[#0088ba] text-white text-sm font-semibold group-hover:bg-[#00a0d8] transition-colors">
+                  Zum Artikel <ArrowRight class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                </span>
+              </div>
             </a>
           </div>
         </div>
@@ -415,7 +431,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
-import { CheckCircle2, TrendingUp, Link2, Check, CalendarClock, Clock, FileDown, MapPin, Users, ClipboardList, ArrowRight } from '@lucide/vue'
+import { CheckCircle2, TrendingUp, Link2, Check, CalendarClock, Clock, FileDown, MapPin, Users, ClipboardList, ArrowRight, Newspaper } from '@lucide/vue'
 
 // Hero-Storys: echte begleitete Transaktionen mit direktem Link auf den Presseartikel.
 const HERO_STORYS = [
@@ -423,19 +439,29 @@ const HERO_STORYS = [
     label: 'Systemhaus-Fusion',
     titel: 'Knoblauch am Oberrhein geht an die Datareform',
     teaser: 'Zwei starke Systemhäuser bündeln ihre Kräfte – ein Musterbeispiel für eine geregelte Nachfolge im Südwesten.',
+    quelle: 'ChannelPartner',
     url: 'https://www.channelpartner.de/article/4122655/systemhausfusion-im-sudwesten.html',
   },
   {
-    label: 'Strategischer Zukauf',
-    titel: 'bytewerk kauft das Münchner Systemhaus Microbee',
-    teaser: 'Gezieltes Wachstum durch Übernahme: So sieht ein sauber begleiteter Zukauf in der IT-Branche aus.',
-    url: 'https://www.it-business.de/bytewerk-kauft-microbee-systemhaus-a-cb283b5e7f0a88d372fafb906b3ee204/',
+    label: 'Zusammenschluss',
+    titel: 'bytewerk wird neuntes Mitglied der GBC-Gruppe',
+    teaser: 'Erst selbst als Käufer gewachsen, dann Teil einer starken Gruppe: So entsteht Schlagkraft durch Zusammenschluss in der IT-Branche.',
+    quelle: 'ChannelPartner',
+    url: 'https://www.channelpartner.de/article/4124603/grose-mittlere-und-kleine-fische.html',
   },
   {
     label: 'Verkauf an Gruppe',
     titel: 'bluvo AG wird an die teccle group vermittelt',
     teaser: 'Von Mike Bergmann vermittelt: der UCC-Spezialist bluvo findet den passenden Käufer in einer wachsenden Gruppe.',
+    quelle: 'IT-BUSINESS',
     url: 'https://www.it-business.de/teccle-group-uebernimmt-den-ucc-spezialisten-bluvo-a-18e8d5fa7688dabef61bca25f6f90698/',
+  },
+  {
+    label: 'Systemhausfusion',
+    titel: 'Running Bit übernimmt Schanzen IT in Hamburg',
+    teaser: 'Zwei Hamburger Systemhäuser bündeln ihre Kompetenzen – die Transaktion wurde von der Mike Bergmann Beratung begleitet.',
+    quelle: 'ChannelPartner',
+    url: 'https://www.channelpartner.de/article/4020756/weitere-systemhausfusion-in-hamburg.html',
   },
 ]
 
