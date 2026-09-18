@@ -18,52 +18,67 @@
       <!-- Ergebnis -->
       <div v-if="result" class="space-y-5">
 
-        <!-- POTENZIAL GANZ OBEN: konkrete Gegenüberstellung heute vs. Faktor 7 -->
-        <div v-if="zahlenDa && potenzialEur > 0"
-          class="bg-gradient-to-br from-[#0088ba] to-[#00a0d8] rounded-2xl p-6 md:p-8 text-white shadow-lg">
-          <p class="text-xs font-semibold uppercase tracking-wide text-white/80 mb-4 text-center">Das steckt an Potenzial in Deinem Unternehmen</p>
-          <div class="grid grid-cols-2 gap-3 md:gap-6 items-stretch">
-            <div class="bg-white/10 rounded-xl p-4 md:p-5 text-center flex flex-col justify-center">
-              <p class="text-xs text-white/70 mb-1">Heute · Faktor {{ result.auswertung.faktor }}</p>
-              <p class="text-2xl md:text-3xl font-extrabold leading-none">{{ euro(wertHeute) }}</p>
-            </div>
-            <div class="bg-white rounded-xl p-4 md:p-5 text-center flex flex-col justify-center">
-              <p class="text-xs text-[#0088ba]/80 font-semibold mb-1">Möglich · Faktor 7</p>
-              <p class="text-2xl md:text-3xl font-extrabold leading-none text-[#0088ba]">{{ euro(wertPotenzial) }}</p>
-            </div>
+        <!-- POTENZIAL GANZ OBEN: der verschenkte Betrag als große Schlagzeile -->
+        <div v-if="zahlenDa && potenzialEur > 0" class="rounded-2xl overflow-hidden shadow-xl">
+          <!-- Loss-Schlagzeile: das lässt Du gerade liegen -->
+          <div class="bg-gradient-to-br from-[#0a3d54] to-[#0088ba] px-6 py-8 md:px-10 md:py-12 text-white text-center">
+            <p class="text-sm md:text-base font-bold uppercase tracking-wide text-amber-300 mb-3">Das lässt Du aktuell auf dem Tisch liegen</p>
+            <p class="text-5xl md:text-7xl font-extrabold leading-none mb-4">{{ euro(potenzialEur) }}</p>
+            <p class="text-base md:text-lg text-white/90 max-w-xl mx-auto leading-relaxed">
+              So viel mehr Kaufpreis ist bei Deinem Unternehmen drin – bei <strong>exakt demselben Geschäft</strong>.
+              Der einzige Unterschied: ein stärkerer Bewertungsfaktor.
+            </p>
           </div>
-          <div class="mt-4 text-center">
-            <span class="inline-flex items-center gap-2 bg-white/15 rounded-full px-4 py-1.5 text-sm md:text-base font-bold">
-              <TrendingUp class="w-4 h-4" /> bis zu {{ euro(potenzialEur) }} mehr Kaufpreis – ohne mehr Umsatz
-            </span>
+          <!-- Gegenüberstellung als Beleg -->
+          <div class="bg-white px-5 py-6 md:px-8">
+            <div class="grid grid-cols-2 gap-3 md:gap-6 items-stretch">
+              <div class="rounded-xl border-2 border-gray-200 p-4 md:p-5 text-center flex flex-col justify-center">
+                <p class="text-xs text-gray-500 mb-1">Heute · Faktor {{ result.auswertung.faktor }}</p>
+                <p class="text-2xl md:text-3xl font-extrabold leading-none text-gray-700">{{ euro(wertHeute) }}</p>
+              </div>
+              <div class="rounded-xl border-2 border-[#0088ba] bg-[#0088ba]/5 p-4 md:p-5 text-center flex flex-col justify-center">
+                <p class="text-xs text-[#0088ba] font-semibold mb-1">Möglich · Faktor 7</p>
+                <p class="text-2xl md:text-3xl font-extrabold leading-none text-[#0088ba]">{{ euro(wertPotenzial) }}</p>
+              </div>
+            </div>
+            <p class="text-sm text-gray-600 mt-4 text-center leading-relaxed">
+              Wie Du von Faktor {{ result.auswertung.faktor }} auf 7 kommst, zeigt Dir unsere M&amp;A-Beraterin im kostenlosen Erstgespräch – konkret und auf Dein Unternehmen bezogen.
+            </p>
           </div>
-          <p class="text-xs text-white/70 mt-4 text-center leading-relaxed">
-            Der Unterschied liegt allein im Bewertungsfaktor. Wie Du von Faktor {{ result.auswertung.faktor }} auf 7 kommst, zeigen wir Dir im kostenlosen Erstgespräch.
-          </p>
         </div>
 
         <!-- HAUSAUFGABE: Faktor ist da, aber die Zahlen fehlen noch für den Euro-Wert -->
-        <div v-else-if="!zahlenDa"
-          class="bg-white rounded-2xl border-2 border-[#0088ba]/25 p-6 md:p-8">
-          <div class="flex items-start gap-3 mb-4">
-            <ClipboardList class="w-7 h-7 text-[#0088ba] flex-shrink-0 mt-0.5" />
-            <div>
-              <h2 class="text-lg md:text-xl font-bold text-gray-900">Dein Bewertungsfaktor steht: {{ result.auswertung.faktor }} von 7</h2>
-              <p class="text-sm text-gray-600 mt-1">
-                Jetzt fehlt nur noch ein Schritt, um Deinen <strong>konkreten Unternehmenswert in Euro</strong> und Dein Potenzial nach oben zu sehen:
-                Deine betriebswirtschaftlichen Zahlen. Das Raussuchen darf ruhig ein paar Tage dauern – Du kannst sie jederzeit über
-                Deinen persönlichen Link (weiter unten) nachtragen.
-              </p>
-            </div>
+        <div v-else-if="!zahlenDa" class="bg-white rounded-2xl border-2 border-[#0088ba]/25 overflow-hidden shadow-lg">
+          <!-- Emotionaler Kopf: da liegt Geld, wir rechnen es Dir aus -->
+          <div class="bg-gradient-to-br from-[#0a3d54] to-[#0088ba] px-6 py-7 md:px-10 md:py-9 text-white">
+            <p class="text-sm font-bold uppercase tracking-wide text-amber-300 mb-2">Dein Bewertungsfaktor: {{ result.auswertung.faktor }} von 7</p>
+            <h2 class="text-xl md:text-2xl font-bold leading-snug">In Deinem Unternehmen steckt bares Geld – wie viel Kaufpreis Du gerade liegen lässt, rechnen wir Dir auf den Euro genau aus.</h2>
+            <p class="text-white/90 mt-3 text-sm md:text-base leading-relaxed">
+              Dafür fehlt nur noch ein Schritt: Deine betriebswirtschaftlichen Zahlen. Erst damit wird aus dem Faktor ein
+              konkreter Wert in Euro – und Du siehst schwarz auf weiß, wie viel nach oben möglich ist.
+            </p>
           </div>
 
-          <button v-if="!zeigeZahlenForm" type="button" @click="zahlenFormOeffnen"
-            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8]">
-            <ClipboardList class="w-5 h-5" /> Zahlen jetzt eintragen
-          </button>
+          <div class="p-6 md:p-8">
+            <p class="text-sm font-bold text-gray-900 mb-1">Deine To-do-Liste für ein Gespräch auf Augenhöhe mit unserer M&amp;A-Beraterin:</p>
+            <p class="text-sm text-gray-600 mb-4">Bring diese Zahlen zusammen – dann startet Ihr nicht bei einer groben Schätzung, sondern bei einem belastbaren Wert und einem konkreten Fahrplan.</p>
+            <ul class="space-y-2.5 mb-6">
+              <li v-for="t in HA_TODO" :key="t" class="flex items-start gap-3">
+                <span class="flex-shrink-0 w-5 h-5 rounded-full border-2 border-[#0088ba]/40 mt-0.5"></span>
+                <span class="text-sm text-gray-700">{{ t }}</span>
+              </li>
+            </ul>
+
+            <div v-if="!zeigeZahlenForm" class="rounded-xl bg-[#0088ba]/5 border border-[#0088ba]/15 p-4">
+              <p class="text-sm text-gray-700 mb-3">Zahlen schon parat? Dann trag sie direkt ein und sieh sofort Deinen Wert und Dein Potenzial. Sonst kein Problem – das Raussuchen darf ein paar Tage dauern, Du kommst jederzeit über Deinen persönlichen Link (weiter unten) zurück.</p>
+              <button type="button" @click="zahlenFormOeffnen"
+                class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#0088ba] text-white rounded-xl font-semibold hover:bg-[#00a0d8]">
+                <ClipboardList class="w-5 h-5" /> Zahlen jetzt eintragen &amp; Potenzial sehen
+              </button>
+            </div>
 
           <!-- Inline-Formular zum Nachtragen der Zahlen -->
-          <div v-else class="mt-2 space-y-3">
+          <div v-else class="space-y-3">
             <p class="text-sm text-gray-500">Grobe bzw. geschätzte Werte genügen – alle Angaben in TEUR (Tausend Euro). Leere Felder sind ok.</p>
             <div class="overflow-x-auto -mx-2 px-2">
               <table class="w-full border-collapse text-sm">
@@ -96,6 +111,7 @@
               </button>
               <button type="button" @click="zeigeZahlenForm = false" class="px-4 py-2.5 text-gray-500 font-medium hover:text-gray-800">Später</button>
             </div>
+          </div>
           </div>
         </div>
 
@@ -463,6 +479,17 @@ const HERO_STORYS = [
     quelle: 'ChannelPartner',
     url: 'https://www.channelpartner.de/article/4020756/weitere-systemhausfusion-in-hamburg.html',
   },
+]
+
+// Hausaufgaben-To-do: Diese Zahlen soll der Unternehmer zusammentragen, damit aus
+// dem Faktor ein konkreter Euro-Wert wird und das Gespräch auf belastbarer Basis startet.
+const HA_TODO = [
+  'Umsatz der letzten Jahre',
+  'Betriebsergebnis (EBIT)',
+  'Bereinigtes EBIT – Gewinn ohne Dein GF-Gehalt und ohne private Kosten',
+  'Dein Geschäftsführer-Gehalt',
+  'Umsatz aus laufenden Verträgen (wiederkehrende Umsätze)',
+  'Anzahl Deiner Mitarbeiter',
 ]
 
 // Vertrauensbelege (statische Marktbeweise, keine Live-Daten)
