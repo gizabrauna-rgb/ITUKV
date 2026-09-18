@@ -59,6 +59,25 @@
             </p>
           </div>
 
+          <!-- Wichtigste Aussage: Gegenüberstellung schon ohne Zahlen (Faktor heute vs. möglich) -->
+          <div class="bg-white px-6 py-6 md:px-10 md:py-7 border-b border-gray-100">
+            <div class="grid grid-cols-2 gap-3 md:gap-5 items-stretch">
+              <div class="rounded-xl border-2 border-gray-200 p-4 md:p-5 text-center flex flex-col justify-center">
+                <p class="text-[11px] md:text-xs font-bold uppercase tracking-wide text-gray-400 mb-1">Das bist Du heute</p>
+                <p class="text-4xl md:text-5xl font-extrabold leading-none text-gray-700">{{ result.auswertung.faktor }}<span class="text-lg font-semibold text-gray-400"> / 7</span></p>
+                <p class="text-xs text-gray-500 mt-2">Dein aktueller Bewertungsfaktor</p>
+              </div>
+              <div class="rounded-xl border-2 border-[#0088ba] bg-[#0088ba]/5 p-4 md:p-5 text-center flex flex-col justify-center">
+                <p class="text-[11px] md:text-xs font-bold uppercase tracking-wide text-[#0088ba] mb-1">Das wärst Du</p>
+                <p class="text-4xl md:text-5xl font-extrabold leading-none text-[#0088ba]">7<span class="text-lg font-semibold text-[#0088ba]/60"> / 7</span></p>
+                <p class="text-xs text-[#0088ba] mt-2">Mit den richtigen Werthebeln</p>
+              </div>
+            </div>
+            <p class="text-sm text-gray-600 mt-4 text-center leading-relaxed">
+              Zwischen diesen beiden Faktoren liegt bares Geld – bei <strong>exakt demselben Geschäft</strong>. Wie viel genau, rechnen wir Dir mit Deinen Zahlen auf den Euro aus.
+            </p>
+          </div>
+
           <div class="p-6 md:p-8">
             <p class="text-sm font-bold text-gray-900 mb-1">Deine To-do-Liste für ein Gespräch auf Augenhöhe mit unserer M&amp;A-Beraterin:</p>
             <p class="text-sm text-gray-600 mb-4">Bring diese Zahlen zusammen – dann startet Ihr nicht bei einer groben Schätzung, sondern bei einem belastbaren Wert und einem konkreten Fahrplan.</p>
