@@ -1064,7 +1064,7 @@ def _checkliste_wert_insight(ausw: dict, ebit_teur, umsatz_teur, vertrag_teur, z
     if beeb <= 0:
         hook = ("Der Unterschied zwischen Faktor 3 und 7 entscheidet in der IT-Branche über "
                 "Hunderttausende Euro Kaufpreis – bei identischem Geschäft. Mit Deinem bereinigten "
-                "EBIT rechnen wir Dir im Gespräch auf den Euro genau vor, wo Du heute stehst.")
+                "EBIT rechnen wir Dir im Gespräch konkret in Euro vor, wo Du heute stehst.")
     elif faktor >= 7:
         hook = (f"Beim Bewertungsfaktor bist Du bereits an der Spitze der IT-Branche (7 von 7). "
                 f"Jeder Faktorpunkt ist bei Deinem bereinigten EBIT rund {_fmt_eur(punkt_wert)} wert – "
